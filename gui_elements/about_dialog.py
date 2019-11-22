@@ -1,6 +1,7 @@
- 
+
 from PySide2.QtWidgets import (QDialog, QPushButton, QVBoxLayout, QLabel)
 from PySide2.QtCore import (Slot, Qt)
+
 
 class AboutDialog(QDialog):
     def __init__(self):
