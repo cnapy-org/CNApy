@@ -15,37 +15,93 @@
 # limitations under the License.
 """"""
 
-# External modules
+import os
+from libsbml import readSBMLFromFile
 import sys
-import tkinter
-import tkinter.ttk
-# Internal modules
-from gui_elements.menu import Menu
+from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton,
+                               QVBoxLayout, QWidget, QFileDialog)
+from PySide2.QtCore import Slot, Qt
+
+# # Internal modules
+from gui_elements.about_dialog import AboutDialog
 
 
-class PyNetAnalyzer(tkinter.Tk):
-    """Main window class.
-
-    """
+class MainWindow(QMainWindow):
     def __init__(self):
-        # Startup the window.
-        super().__init__()
-        self.title("PyNetAnalyzer Alpha")
+        QMainWindow.__init__(self)
+        self.setWindowTitle("PyNetAnalyzer")
 
-        # Add menu submodule.
-        menu = Menu(self)
-        self["menu"] = menu
+        # Menu
+        self.menu = self.menuBar()
+        self.file_menu = self.menu.addMenu("File")
 
-        # Start window
-        self.mainloop()
+        new_project_action = QAction("New project...", self)
+        self.file_menu.addAction(new_project_action)
+
+        open_project_action = QAction("Open project...", self)
+        self.file_menu.addAction(open_project_action)
+        open_project_action.triggered.connect(self.open_project)
+
+        save_project_action = QAction("Save project...", self)
+        self.file_menu.addAction(save_project_action)
+
+        save_as_project_action = QAction("Save project as...", self)
+        self.file_menu.addAction(save_as_project_action)
+
+        exit_action = QAction("Exit", self)
+        exit_action.setShortcut("Ctrl+Q")
+        self.file_menu.addAction(exit_action)
+        exit_action.triggered.connect(self.exit_app)
+
+        self.edit_menu = self.menu.addMenu("Edit")
+        network_compose_action = QAction("Network composer...", self)
+        self.edit_menu.addAction(network_compose_action)
+
+        self.find_menu = self.menu.addMenu("Find")
+        find_reaction_action = QAction("Find reaction...", self)
+        self.find_menu.addAction(find_reaction_action)
+
+        self.analysis_menu = self.menu.addMenu("Analysis")
+        fba_action = QAction("Flux Balance Analysis (FBA)...", self)
+        self.analysis_menu.addAction(fba_action)
+        fva_action = QAction("Flux Variability Analysis (FVA)...", self)
+        self.analysis_menu.addAction(fva_action)
+
+        self.help_menu = self.menu.addMenu("Help")
+        about_action = QAction("About PyNetAnalyzer...", self)
+        self.help_menu.addAction(about_action)
+        about_action.triggered.connect(self.show_about)
+
+    @Slot()
+    def exit_app(self, checked):
+        QApplication.quit()
+
+    @Slot()
+    def show_about(self, checked):
+        dialog = AboutDialog()
+        dialog.exec_()
+
+    @Slot()
+    def open_project(self, checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(dir=os.getcwd(), filter="*.xml")
+        print(filename)
+        doc = readSBMLFromFile(filename[0])
+        pass
+        # # if doc.getNumErrors() > 0:
+        # #     messagebox.showerror("Error", "could not read "+filename )
+
+        # self.parent.data.sbml = doc
+        # self.parent.print_data()
 
 
-def main():
-    """Starts PyNetAnalyzer."""
-    PyNetAnalyzer()
-    return 0
+if __name__ == "__main__":
+    # Qt Application
+    app = QApplication(sys.argv)
 
+    window = MainWindow()
+    window.resize(800, 600)
+    window.show()
 
-# Check if PyNetAnalyzer is already running in the same session.
-if __name__ == '__main__':
-    sys.exit(main())
+    # Execute application
+    sys.exit(app.exec_())
