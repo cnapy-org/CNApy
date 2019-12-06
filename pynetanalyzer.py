@@ -129,8 +129,8 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(dir=os.getcwd(), filter="*.xml")
         print(filename)
         doc = readSBMLFromFile(filename[0])
-        # # if doc.getNumErrors() > 0:
-        # #     messagebox.showerror("Error", "could not read "+filename )
+        # if doc.getNumErrors() > 0:
+        #     messagebox.showerror("Error", "could not read "+filename )
 
         model = doc.getModel()
 
