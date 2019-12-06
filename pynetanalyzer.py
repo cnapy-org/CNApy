@@ -18,18 +18,60 @@
 import os
 from libsbml import readSBMLFromFile
 import sys
-from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton,
-                               QVBoxLayout, QWidget, QFileDialog)
+from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
+                               QHBoxLayout, QVBoxLayout, QWidget, QFileDialog, QTabWidget)
 from PySide2.QtCore import Slot, Qt
 
 # # Internal modules
 from gui_elements.about_dialog import AboutDialog
 
 
+class PnaData:
+    def __init__(self):
+        self.reactions = []
+        self.species = []
+
+
+class Reaction:
+    def __init__(self, name):
+        self.name = name
+        self.reversible = True
+
+
+class Specie:
+    def __init__(self, name):
+        self.name = name
+
+
+class CentralWidget(QWidget):
+    def __init__(self):
+        QWidget.__init__(self)
+        tabs = QTabWidget()
+        self.reaction_list = QTreeWidget()
+        self.reaction_list.setHeaderLabels(["Name", "Reversible"])
+        self.reaction_list.setSortingEnabled(True)
+        self.specie_list = QTreeWidget()
+        self.specie_list.setHeaderLabels(["Name"])
+        self.specie_list.setSortingEnabled(True)
+        tabs.addTab(self.reaction_list, "Reactions")
+        tabs.addTab(self.specie_list, "Species")
+
+        layout = QHBoxLayout()
+        layout.addWidget(tabs)
+        self.setLayout(layout)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle("PyNetAnalyzer")
+
+        # Data
+        self.data = PnaData()
+
+        # CentralWidget
+        central_widget = CentralWidget()
+        self.setCentralWidget(central_widget)
 
         # Menu
         self.menu = self.menuBar()
@@ -87,12 +129,34 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(dir=os.getcwd(), filter="*.xml")
         print(filename)
         doc = readSBMLFromFile(filename[0])
-        pass
         # # if doc.getNumErrors() > 0:
         # #     messagebox.showerror("Error", "could not read "+filename )
 
-        # self.parent.data.sbml = doc
-        # self.parent.print_data()
+        model = doc.getModel()
+
+        self.data.reactions = []
+        for r in model.getListOfReactions():
+            reaction = Reaction(r.getName())
+            reaction.reversible = r.getReversible()
+            self.data.reactions.append(reaction)
+
+        for s in model.getListOfSpecies():
+            specie = Specie(s.getName())
+            self.data.species.append(specie)
+
+        self.update_view()
+
+    def update_view(self):
+        self.centralWidget().reaction_list.clear()
+        for r in self.data.reactions:
+            item = QTreeWidgetItem(self.centralWidget().reaction_list)
+            item.setText(0, r.name)
+            item.setText(1, str(r.reversible))
+
+        self.centralWidget().specie_list.clear()
+        for s in self.data.species:
+            item = QTreeWidgetItem(self.centralWidget().specie_list)
+            item.setText(0, s.name)
 
 
 if __name__ == "__main__":
