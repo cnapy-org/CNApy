@@ -19,7 +19,7 @@ import os
 from libsbml import readSBMLFromFile
 import sys
 from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
-                               QHBoxLayout, QVBoxLayout, QWidget, QFileDialog, QTabWidget)
+                               QHBoxLayout, QVBoxLayout, QWidget, QFileDialog, QTabWidget, QGraphicsScene, QGraphicsView, QLineEdit)
 from PySide2.QtCore import Slot, Qt
 
 # # Internal modules
@@ -56,6 +56,12 @@ class CentralWidget(QWidget):
         tabs.addTab(self.reaction_list, "Reactions")
         tabs.addTab(self.specie_list, "Species")
 
+        self.scene = QGraphicsScene()
+        self.scene.addText("Hello, world!")
+        self.view = QGraphicsView(self.scene)
+        self.view.show()
+        tabs.addTab(self.view, "Map")
+
         layout = QHBoxLayout()
         layout.addWidget(tabs)
         self.setLayout(layout)
@@ -72,6 +78,8 @@ class MainWindow(QMainWindow):
         # CentralWidget
         central_widget = CentralWidget()
         self.setCentralWidget(central_widget)
+
+        self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
 
         # Menu
         self.menu = self.menuBar()
@@ -146,17 +154,28 @@ class MainWindow(QMainWindow):
 
         self.update_view()
 
+    def reaction_selected(self, item, column):
+        print("something something itemActivated", item, column)
+        print(item.data(2, 0).name)
+
     def update_view(self):
         self.centralWidget().reaction_list.clear()
         for r in self.data.reactions:
             item = QTreeWidgetItem(self.centralWidget().reaction_list)
             item.setText(0, r.name)
             item.setText(1, str(r.reversible))
+            item.setData(2, 0, r)
 
         self.centralWidget().specie_list.clear()
         for s in self.data.species:
             item = QTreeWidgetItem(self.centralWidget().specie_list)
             item.setText(0, s.name)
+
+        # draw a map
+        le = QLineEdit()
+        scene = self.centralWidget().scene
+        scene.addText("Hello, what!")
+        scene.addWidget(le)
 
 
 if __name__ == "__main__":
