@@ -15,15 +15,92 @@
 # limitations under the License.
 """"""
 
+from PySide2.QtGui import QPainter, QDrag, QPen, QBrush
+from PySide2.QtCore import Slot, Qt, QRectF, QMimeData
 import os
 from libsbml import readSBMLFromFile
 import sys
-from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
-                               QHBoxLayout, QVBoxLayout, QWidget, QFileDialog, QTabWidget, QGraphicsScene, QGraphicsView, QLineEdit)
-from PySide2.QtCore import Slot, Qt
+from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem, QHBoxLayout, QVBoxLayout,
+                               QWidget, QFileDialog, QTabWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit, QGraphicsSceneDragDropEvent, QGraphicsObject, QGraphicsSceneMouseEvent)
 
-# # Internal modules
+
+# Internal modules
 from gui_elements.about_dialog import AboutDialog
+
+
+class MyView(QGraphicsView):
+    def __init__(self, scene: QGraphicsScene):
+        QGraphicsView.__init__(self, scene)
+        self.setAcceptDrops(True)
+        self.dragOver = False
+        self.reaction_box = None
+
+    def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
+        print("dragEnterEvent")
+        event.setAccepted(True)
+        event.accept()
+        event.acceptProposedAction()
+        self.dragOver = True
+        # self.update()
+
+    def dragMoveEvent(self, event: QGraphicsSceneDragDropEvent):
+        # print("dragMoveEvent")
+        event.setAccepted(True)
+        point = event.pos()
+        point_item = self.mapToScene(point)
+        self.reaction_box.setPos(point_item)
+        self.update()
+
+    def dragLeaveEvent(self, event):
+        print("dragLeaveEvent")
+        self.dragOver = False
+        self.update()
+
+    def dropEvent(self, event: QGraphicsSceneDragDropEvent):
+        print("dropEvent")
+        self.dragOver = False
+        point = event.pos()
+        point_item = self.mapToScene(point)
+        self.reaction_box.setPos(point_item)
+        self.update()
+
+
+class ReactionBox(QGraphicsItem):
+    def __init__(self, item: QLineEdit):
+        self.item = item
+        QGraphicsItem.__init__(self)
+        self.setCursor(Qt.OpenHandCursor)
+        self.setAcceptedMouseButtons(Qt.LeftButton)
+
+    def boundingRect(self):
+        return QRectF(-15.5, -15.5, 34, 34)
+
+    def paint(self, painter: QPainter, option, widget: QWidget):
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(Qt.darkGray)
+        painter.drawEllipse(-12, -12, 30, 30)
+        painter.setPen(QPen(Qt.black, 1))
+        painter.setBrush(QBrush(Qt.blue))
+        painter.drawEllipse(-15, -15, 30, 30)
+        # self.item.show()
+        # bool dragOver = false;};
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        print("mousePressEvent")
+        # self.setCursor(Qt.ClosedHandCursor)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        print("mouseReleaseEvent")
+        # self.setCursor(Qt.OpenHandCursor)
+
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        print("mouseMoveEvent")
+        drag = QDrag(event.widget())
+        mime = QMimeData()
+        drag.setMimeData(mime)
+        # self.setCursor(Qt.ClosedHandCursor)
+        drag.exec_()
+        # self.setCursor(Qt.OpenHandCursor)
 
 
 class PnaData:
@@ -57,8 +134,8 @@ class CentralWidget(QWidget):
         tabs.addTab(self.specie_list, "Species")
 
         self.scene = QGraphicsScene()
-        self.scene.addText("Hello, world!")
-        self.view = QGraphicsView(self.scene)
+        # self.view = QGraphicsView(self.scene)
+        self.view = MyView(self.scene)
         self.view.show()
         tabs.addTab(self.view, "Map")
 
@@ -172,10 +249,20 @@ class MainWindow(QMainWindow):
             item.setText(0, s.name)
 
         # draw a map
-        le = QLineEdit()
         scene = self.centralWidget().scene
         scene.addText("Hello, what!")
-        scene.addWidget(le)
+        view = self.centralWidget().view
+        view.setAcceptDrops(True)
+        le = QLineEdit()
+        ler = ReactionBox(le)
+        view.reaction_box = ler
+        ler.setPos(100, 100)
+        scene.addItem(ler)
+        proxy = scene.addWidget(le)
+        # item->setParentItem(anOtherItem);
+        proxy.setPos(100, 100)
+        proxy.show()
+        le.show()
 
 
 if __name__ == "__main__":
