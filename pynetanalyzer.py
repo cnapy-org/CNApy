@@ -33,7 +33,8 @@ class MyView(QGraphicsView):
         QGraphicsView.__init__(self, scene)
         self.setAcceptDrops(True)
         self.dragOver = False
-        self.reaction_box = None
+        self.reaction_box1 = None
+        self.reaction_box2 = None
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
         print("dragEnterEvent")
@@ -48,7 +49,7 @@ class MyView(QGraphicsView):
         event.setAccepted(True)
         point = event.pos()
         point_item = self.mapToScene(point)
-        self.reaction_box.setPos(point_item)
+        self.reaction_box2.setPos(point_item.x(), point_item.y())
         self.update()
 
     def dragLeaveEvent(self, event):
@@ -61,7 +62,7 @@ class MyView(QGraphicsView):
         self.dragOver = False
         point = event.pos()
         point_item = self.mapToScene(point)
-        self.reaction_box.setPos(point_item)
+        self.reaction_box2.setPos(point_item.x(), point_item.y())
         self.update()
 
 
@@ -73,15 +74,17 @@ class ReactionBox(QGraphicsItem):
         self.setAcceptedMouseButtons(Qt.LeftButton)
 
     def boundingRect(self):
-        return QRectF(-15.5, -15.5, 34, 34)
+        return QRectF(-15, -15, 20, 20)
 
     def paint(self, painter: QPainter, option, widget: QWidget):
+        # pass
         painter.setPen(Qt.NoPen)
         painter.setBrush(Qt.darkGray)
-        painter.drawEllipse(-12, -12, 30, 30)
-        painter.setPen(QPen(Qt.black, 1))
-        painter.setBrush(QBrush(Qt.blue))
-        painter.drawEllipse(-15, -15, 30, 30)
+        painter.drawEllipse(-12, -12, 15, 15)
+        # painter.drawEllipse(-12, -12, 20, 20)
+        # painter.setPen(QPen(Qt.black, 1))
+        # painter.setBrush(QBrush(Qt.blue))
+        # painter.drawEllipse(-15, -15, 20, 20)
         # self.item.show()
         # bool dragOver = false;};
 
@@ -101,6 +104,10 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.ClosedHandCursor)
         drag.exec_()
         # self.setCursor(Qt.OpenHandCursor)
+
+    def setPos(self, x, y):
+        self.item.setPos(x, y)
+        super().setPos(x, y)
 
 
 class PnaData:
@@ -211,7 +218,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def open_project(self, checked):
         dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(dir=os.getcwd(), filter="*.xml")
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.xml")
         print(filename)
         doc = readSBMLFromFile(filename[0])
         # if doc.getNumErrors() > 0:
@@ -253,16 +261,20 @@ class MainWindow(QMainWindow):
         scene.addText("Hello, what!")
         view = self.centralWidget().view
         view.setAcceptDrops(True)
-        le = QLineEdit()
-        ler = ReactionBox(le)
-        view.reaction_box = ler
-        ler.setPos(100, 100)
-        scene.addItem(ler)
-        proxy = scene.addWidget(le)
-        # item->setParentItem(anOtherItem);
-        proxy.setPos(100, 100)
-        proxy.show()
-        le.show()
+        le1 = QLineEdit()
+        proxy1 = scene.addWidget(le1)
+        proxy1.show()
+        ler1 = ReactionBox(proxy1)
+        ler1.setPos(100, 100)
+        scene.addItem(ler1)
+
+        le2 = QLineEdit()
+        proxy2 = scene.addWidget(le2)
+        proxy2.show()
+        ler2 = ReactionBox(proxy2)
+        ler2.setPos(150, 150)
+        scene.addItem(ler2)
+        view.reaction_box2 = ler2
 
 
 if __name__ == "__main__":
