@@ -13,23 +13,80 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""""""
-
+"""The PyNetAnalyzer main"""
 import os
-from libsbml import readSBMLFromFile
 import sys
-from PySide2.QtWidgets import (QMainWindow, QAction, QApplication, QLabel, QPushButton,
-                               QVBoxLayout, QWidget, QFileDialog)
-from PySide2.QtCore import Slot, Qt
 
-# # Internal modules
+from libsbml import readSBMLFromFile
+from PySide2.QtCore import Slot
+from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+                               QGraphicsScene, QHBoxLayout, QLabel, QLineEdit,
+                               QMainWindow, QTabWidget, QTreeWidget,
+                               QTreeWidgetItem, QWidget)
+from PySide2.QtGui import QPixmap
+
+# Internal modules
 from gui_elements.about_dialog import AboutDialog
+from gui_elements.map_view import MapView, ReactionBox
+
+
+class PnaData:
+    def __init__(self):
+        self.reactions = []
+        self.species = []
+
+
+class Reaction:
+    def __init__(self, name):
+        self.name = name
+        self.reversible = True
+
+
+class Specie:
+    def __init__(self, name):
+        self.name = name
+
+
+class CentralWidget(QWidget):
+    """The PyNetAnalyzer central widget"""
+
+    def __init__(self):
+        QWidget.__init__(self)
+        tabs = QTabWidget()
+        self.reaction_list = QTreeWidget()
+        self.reaction_list.setHeaderLabels(["Name", "Reversible"])
+        self.reaction_list.setSortingEnabled(True)
+        self.specie_list = QTreeWidget()
+        self.specie_list.setHeaderLabels(["Name"])
+        self.specie_list.setSortingEnabled(True)
+        tabs.addTab(self.reaction_list, "Reactions")
+        tabs.addTab(self.specie_list, "Species")
+
+        self.scene = QGraphicsScene()
+        self.view = MapView(self.scene)
+        self.view.show()
+        tabs.addTab(self.view, "Map")
+
+        layout = QHBoxLayout()
+        layout.addWidget(tabs)
+        self.setLayout(layout)
 
 
 class MainWindow(QMainWindow):
+    """The PyNetAnalyzer main window"""
+
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle("PyNetAnalyzer")
+
+        # Data
+        self.data = PnaData()
+
+        # CentralWidget
+        central_widget = CentralWidget()
+        self.setCentralWidget(central_widget)
+
+        self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
 
         # Menu
         self.menu = self.menuBar()
@@ -73,26 +130,84 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
     @Slot()
-    def exit_app(self, checked):
+    def exit_app(self, _checked):
         QApplication.quit()
 
     @Slot()
-    def show_about(self, checked):
+    def show_about(self, _checked):
         dialog = AboutDialog()
         dialog.exec_()
 
     @Slot()
-    def open_project(self, checked):
+    def open_project(self, _checked):
         dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(dir=os.getcwd(), filter="*.xml")
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.xml")
         print(filename)
         doc = readSBMLFromFile(filename[0])
-        pass
-        # # if doc.getNumErrors() > 0:
-        # #     messagebox.showerror("Error", "could not read "+filename )
+        # if doc.getNumErrors() > 0:
+        #     messagebox.showerror("Error", "could not read "+filename )
 
-        # self.parent.data.sbml = doc
-        # self.parent.print_data()
+        model = doc.getModel()
+
+        self.data.reactions = []
+        for r in model.getListOfReactions():
+            reaction = Reaction(r.getName())
+            reaction.reversible = r.getReversible()
+            self.data.reactions.append(reaction)
+
+        for s in model.getListOfSpecies():
+            specie = Specie(s.getName())
+            self.data.species.append(specie)
+
+        self.update_view()
+
+    def reaction_selected(self, item, _column):
+        # print("something something itemActivated", item, column)
+        print(item.data(2, 0).name)
+
+    def update_view(self):
+        self.centralWidget().reaction_list.clear()
+        for r in self.data.reactions:
+            item = QTreeWidgetItem(self.centralWidget().reaction_list)
+            item.setText(0, r.name)
+            item.setText(1, str(r.reversible))
+            item.setData(2, 0, r)
+
+        self.centralWidget().specie_list.clear()
+        for s in self.data.species:
+            item = QTreeWidgetItem(self.centralWidget().specie_list)
+            item.setText(0, s.name)
+
+        # draw a map
+
+        scene = self.centralWidget().scene
+        scene.addText("Hello, what!")
+        view = self.centralWidget().view
+        view.setAcceptDrops(True)
+
+        background = QPixmap("iJO1366_Central_M.png")
+        label = QLabel()
+        label.setPixmap(background)
+        scene.addWidget(label)
+
+        le1 = QLineEdit()
+        le1.setMaximumWidth(80)
+        proxy1 = scene.addWidget(le1)
+        proxy1.show()
+        ler1 = ReactionBox(proxy1, "0")
+        ler1.setPos(100, 100)
+        scene.addItem(ler1)
+        view.reaction_boxes["0"] = ler1
+
+        le2 = QLineEdit()
+        le2.setStyleSheet("background: #ff9999")
+        proxy2 = scene.addWidget(le2)
+        proxy2.show()
+        ler2 = ReactionBox(proxy2, "1")
+        ler2.setPos(150, 150)
+        scene.addItem(ler2)
+        view.reaction_boxes["1"] = ler2
 
 
 if __name__ == "__main__":

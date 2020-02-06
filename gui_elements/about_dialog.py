@@ -1,9 +1,11 @@
-
+"""The PyNetAnalyzer about dialog"""
 from PySide2.QtWidgets import (QDialog, QPushButton, QVBoxLayout, QLabel)
-from PySide2.QtCore import (Slot, Qt)
+from PySide2.QtCore import Qt
 
 
 class AboutDialog(QDialog):
+    """An about dialog"""
+
     def __init__(self):
         QDialog.__init__(self)
 
