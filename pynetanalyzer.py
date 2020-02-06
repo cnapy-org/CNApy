@@ -33,8 +33,7 @@ class MyView(QGraphicsView):
         QGraphicsView.__init__(self, scene)
         self.setAcceptDrops(True)
         self.dragOver = False
-        self.reaction_box1 = None
-        self.reaction_box2 = None
+        self.reaction_boxes = {}
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
         print("dragEnterEvent")
@@ -42,14 +41,14 @@ class MyView(QGraphicsView):
         event.accept()
         event.acceptProposedAction()
         self.dragOver = True
-        # self.update()
 
     def dragMoveEvent(self, event: QGraphicsSceneDragDropEvent):
         # print("dragMoveEvent")
         event.setAccepted(True)
         point = event.pos()
         point_item = self.mapToScene(point)
-        self.reaction_box2.setPos(point_item.x(), point_item.y())
+        id = event.mimeData().text()
+        self.reaction_boxes[id].setPos(point_item.x(), point_item.y())
         self.update()
 
     def dragLeaveEvent(self, event):
@@ -62,12 +61,14 @@ class MyView(QGraphicsView):
         self.dragOver = False
         point = event.pos()
         point_item = self.mapToScene(point)
-        self.reaction_box2.setPos(point_item.x(), point_item.y())
+        id = event.mimeData().text()
+        self.reaction_boxes[id].setPos(point_item.x(), point_item.y())
         self.update()
 
 
 class ReactionBox(QGraphicsItem):
-    def __init__(self, item: QLineEdit):
+    def __init__(self, item: QLineEdit, id: int):
+        self.id = id
         self.item = item
         QGraphicsItem.__init__(self)
         self.setCursor(Qt.OpenHandCursor)
@@ -100,6 +101,7 @@ class ReactionBox(QGraphicsItem):
         print("mouseMoveEvent")
         drag = QDrag(event.widget())
         mime = QMimeData()
+        mime.setText(str(self.id))
         drag.setMimeData(mime)
         # self.setCursor(Qt.ClosedHandCursor)
         drag.exec_()
@@ -262,19 +264,21 @@ class MainWindow(QMainWindow):
         view = self.centralWidget().view
         view.setAcceptDrops(True)
         le1 = QLineEdit()
+        le1.setMaximumWidth(80)
         proxy1 = scene.addWidget(le1)
         proxy1.show()
-        ler1 = ReactionBox(proxy1)
+        ler1 = ReactionBox(proxy1, "0")
         ler1.setPos(100, 100)
         scene.addItem(ler1)
+        view.reaction_boxes["0"] = ler1
 
         le2 = QLineEdit()
         proxy2 = scene.addWidget(le2)
         proxy2.show()
-        ler2 = ReactionBox(proxy2)
+        ler2 = ReactionBox(proxy2, "1")
         ler2.setPos(150, 150)
         scene.addItem(ler2)
-        view.reaction_box2 = ler2
+        view.reaction_boxes["1"] = ler2
 
 
 if __name__ == "__main__":
