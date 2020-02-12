@@ -191,23 +191,18 @@ class MainWindow(QMainWindow):
         label.setPixmap(background)
         scene.addWidget(label)
 
-        le1 = QLineEdit()
-        le1.setMaximumWidth(80)
-        proxy1 = scene.addWidget(le1)
-        proxy1.show()
-        ler1 = ReactionBox(proxy1, "0")
-        ler1.setPos(100, 100)
-        scene.addItem(ler1)
-        view.reaction_boxes["0"] = ler1
-
-        le2 = QLineEdit()
-        le2.setStyleSheet("background: #ff9999")
-        proxy2 = scene.addWidget(le2)
-        proxy2.show()
-        ler2 = ReactionBox(proxy2, "1")
-        ler2.setPos(150, 150)
-        scene.addItem(ler2)
-        view.reaction_boxes["1"] = ler2
+        for i in range(1, 11):
+            for j in range(1, 11):
+                if i % 2 == 0:
+                    le1.setStyleSheet("background: #ff9999")
+                le1 = QLineEdit()
+                le1.setMaximumWidth(80)
+                proxy1 = scene.addWidget(le1)
+                proxy1.show()
+                ler1 = ReactionBox(proxy1, str(i+(j*10)))
+                ler1.setPos(i*100, j*100)
+                scene.addItem(ler1)
+                view.reaction_boxes[str(i+(j*10))] = ler1
 
 
 if __name__ == "__main__":
