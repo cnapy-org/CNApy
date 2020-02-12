@@ -188,6 +188,7 @@ class MainWindow(QMainWindow):
 
         background = QPixmap("iJO1366_Central_M.png")
         label = QLabel()
+        label.resize(background.size())
         label.setPixmap(background)
         scene.addWidget(label)
 
