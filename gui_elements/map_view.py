@@ -13,6 +13,8 @@ class MapView(QGraphicsView):
         self.setAcceptDrops(True)
         self.drag_over = False
         self.reaction_boxes = {}
+        self._zoom = 0
+        self.drag = False
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
         event.setAccepted(True)
@@ -40,6 +42,35 @@ class MapView(QGraphicsView):
         key = event.mimeData().text()
         self.reaction_boxes[key].setPos(point_item.x(), point_item.y())
         self.update()
+
+    def wheelEvent(self, event):
+        if event.angleDelta().y() > 0:
+            factor = 1.25
+            self._zoom += 1
+        else:
+            factor = 0.8
+            self._zoom -= 1
+
+        self.scale(factor, factor)
+
+    # def toggleDragMode(self):
+    #     if self.dragMode() == QGraphicsView.ScrollHandDrag:
+    #         self.setDragMode(QGraphicsView.NoDrag)
+    #     elif not self._photo.pixmap().isNull():
+    #         self.setDragMode(QGraphicsView.ScrollHandDrag)
+
+    def mousePressEvent(self, event):
+        self.drag = True
+        super(MapView, self).mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        if self.drag:
+            self.centerOn(event.pos())
+        super(MapView, self).mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        self.drag = False
+        super(MapView, self).mouseReleaseEvent(event)
 
 
 class ReactionBox(QGraphicsItem):
