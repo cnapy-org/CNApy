@@ -19,14 +19,15 @@ import sys
 
 from libsbml import readSBMLFromFile
 from PySide2.QtCore import Slot
-from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
-                               QGraphicsScene, QHBoxLayout, QLabel, QLineEdit,
+from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog,
+                               QGraphicsScene, QHBoxLayout, QLineEdit,
                                QMainWindow, QTabWidget, QTreeWidget,
                                QTreeWidgetItem, QWidget)
-from PySide2.QtGui import QPixmap
+from PySide2.QtSvg import QGraphicsSvgItem
 
 # Internal modules
 from gui_elements.about_dialog import AboutDialog
+from gui_elements.reactions_list import ReactionList
 from gui_elements.map_view import MapView, ReactionBox
 
 
@@ -53,9 +54,10 @@ class CentralWidget(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         tabs = QTabWidget()
-        self.reaction_list = QTreeWidget()
-        self.reaction_list.setHeaderLabels(["Name", "Reversible"])
-        self.reaction_list.setSortingEnabled(True)
+        self.reaction_list = ReactionList()
+
+        # self.reaction_list.setHeaderLabels(["Name", "Reversible"])
+        # self.reaction_list.setSortingEnabled(True)
         self.specie_list = QTreeWidget()
         self.specie_list.setHeaderLabels(["Name"])
         self.specie_list.setSortingEnabled(True)
@@ -86,7 +88,7 @@ class MainWindow(QMainWindow):
         central_widget = CentralWidget()
         self.setCentralWidget(central_widget)
 
-        self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
+        # self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
 
         # Menu
         self.menu = self.menuBar()
@@ -162,17 +164,18 @@ class MainWindow(QMainWindow):
 
         self.update_view()
 
-    def reaction_selected(self, item, _column):
-        # print("something something itemActivated", item, column)
-        print(item.data(2, 0).name)
+    # def reaction_selected(self, item, _column):
+    #     # print("something something itemActivated", item, column)
+    #     print(item.data(2, 0).name)
 
     def update_view(self):
         self.centralWidget().reaction_list.clear()
         for r in self.data.reactions:
-            item = QTreeWidgetItem(self.centralWidget().reaction_list)
-            item.setText(0, r.name)
-            item.setText(1, str(r.reversible))
-            item.setData(2, 0, r)
+            self.centralWidget().reaction_list.add_reaction(r)
+            # item = QTreeWidgetItem(self.centralWidget().reaction_list)
+            # item.setText(0, r.name)
+            # item.setText(1, str(r.reversible))
+            # item.setData(2, 0, r)
 
         self.centralWidget().specie_list.clear()
         for s in self.data.species:
@@ -180,17 +183,13 @@ class MainWindow(QMainWindow):
             item.setText(0, s.name)
 
         # draw a map
-
         scene = self.centralWidget().scene
-        scene.addText("Hello, what!")
         view = self.centralWidget().view
         view.setAcceptDrops(True)
 
-        background = QPixmap("iJO1366_Central_M.png")
-        label = QLabel()
-        label.resize(background.size())
-        label.setPixmap(background)
-        scene.addWidget(label)
+        background = QGraphicsSvgItem("testsvg.svg")
+        background.setFlags(QGraphicsItem.ItemClipsToShape)
+        scene.addItem(background)
 
         for i in range(1, 11):
             for j in range(1, 11):
