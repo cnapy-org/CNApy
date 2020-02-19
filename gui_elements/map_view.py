@@ -23,7 +23,6 @@ class MapView(QGraphicsView):
         self.drag_over = True
 
     def dragMoveEvent(self, event: QGraphicsSceneDragDropEvent):
-        # print("dragMoveEvent")
         event.setAccepted(True)
         point = event.pos()
         point_item = self.mapToScene(point)
@@ -87,16 +86,9 @@ class ReactionBox(QGraphicsItem):
         return QRectF(-15, -15, 20, 20)
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
-        # pass
         painter.setPen(Qt.NoPen)
         painter.setBrush(Qt.darkGray)
-        painter.drawEllipse(-12, -12, 15, 15)
-        # painter.drawEllipse(-12, -12, 20, 20)
-        # painter.setPen(QPen(Qt.black, 1))
-        # painter.setBrush(QBrush(Qt.blue))
-        # painter.drawEllipse(-15, -15, 20, 20)
-        # self.item.show()
-        # bool drag_over = false;};
+        painter.drawEllipse(-8, -8, 10, 10)
 
     def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
         pass
@@ -105,7 +97,6 @@ class ReactionBox(QGraphicsItem):
         pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        # print("mouseMoveEvent")
         drag = QDrag(event.widget())
         mime = QMimeData()
         mime.setText(str(self.key))
