@@ -64,5 +64,21 @@ dependencies:
   - xorg-libxdmcp=1.1.3=h516909a_0
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=h7b6447c_3
+  - pip:
+    - cobra==0.17.1
+    - depinfo==1.5.3
+    - future==0.18.2
+    - mpmath==1.1.0
+    - numpy==1.18.1
+    - optlang==1.4.4
+    - pandas==1.0.1
+    - pipdeptree==0.13.2
+    - python-dateutil==2.8.1
+    - python-libsbml-experimental==5.18.0
+    - pytz==2019.3
+    - ruamel-yaml==0.16.10
+    - ruamel-yaml-clib==0.2.0
+    - swiglpk==4.65.1
+    - sympy==1.5.1
 prefix: /scratch/anaconda3/envs/pynetanalyzer
 
