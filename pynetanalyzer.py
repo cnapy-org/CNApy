@@ -17,7 +17,6 @@
 import os
 import sys
 
-from libsbml import readSBMLFromFile
 from PySide2.QtCore import Slot
 from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog,
                                QGraphicsScene, QHBoxLayout, QLineEdit,
@@ -30,34 +29,22 @@ from gui_elements.about_dialog import AboutDialog
 from gui_elements.reactions_list import ReactionList
 from gui_elements.map_view import MapView, ReactionBox
 
+import cobra
+
 
 class PnaData:
     def __init__(self):
-        self.reactions = []
-        self.species = []
-
-
-class Reaction:
-    def __init__(self, name):
-        self.name = name
-        self.reversible = True
-
-
-class Specie:
-    def __init__(self, name):
-        self.name = name
+        self.cobra_py_model = cobra.Model()
 
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
 
-    def __init__(self):
+    def __init__(self, appdata):
         QWidget.__init__(self)
+        self.appdata = appdata
         tabs = QTabWidget()
-        self.reaction_list = ReactionList()
-
-        # self.reaction_list.setHeaderLabels(["Name", "Reversible"])
-        # self.reaction_list.setSortingEnabled(True)
+        self.reaction_list = ReactionList(self.appdata)
         self.specie_list = QTreeWidget()
         self.specie_list.setHeaderLabels(["Name"])
         self.specie_list.setSortingEnabled(True)
@@ -82,10 +69,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PyNetAnalyzer")
 
         # Data
-        self.data = PnaData()
+        self.appdata = PnaData()
 
         # CentralWidget
-        central_widget = CentralWidget()
+        central_widget = CentralWidget(self.appdata)
         self.setCentralWidget(central_widget)
 
         # self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
@@ -97,7 +84,7 @@ class MainWindow(QMainWindow):
         new_project_action = QAction("New project...", self)
         self.file_menu.addAction(new_project_action)
 
-        open_project_action = QAction("Open project...", self)
+        open_project_action = QAction("Import SBML...", self)
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project)
 
@@ -145,22 +132,8 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.xml")
-        print(filename)
-        doc = readSBMLFromFile(filename[0])
-        # if doc.getNumErrors() > 0:
-        #     messagebox.showerror("Error", "could not read "+filename )
 
-        model = doc.getModel()
-
-        self.data.reactions = []
-        for r in model.getListOfReactions():
-            reaction = Reaction(r.getName())
-            reaction.reversible = r.getReversible()
-            self.data.reactions.append(reaction)
-
-        for s in model.getListOfSpecies():
-            specie = Specie(s.getName())
-            self.data.species.append(specie)
+        self.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
 
         self.update_view()
 
@@ -169,20 +142,14 @@ class MainWindow(QMainWindow):
     #     print(item.data(2, 0).name)
 
     def update_view(self):
-        self.centralWidget().reaction_list.clear()
-        for r in self.data.reactions:
-            self.centralWidget().reaction_list.add_reaction(r)
-            # item = QTreeWidgetItem(self.centralWidget().reaction_list)
-            # item.setText(0, r.name)
-            # item.setText(1, str(r.reversible))
-            # item.setData(2, 0, r)
+        self.centralWidget().reaction_list.update()
 
         self.centralWidget().specie_list.clear()
-        for s in self.data.species:
+        for m in self.appdata.cobra_py_model.metabolites:
             item = QTreeWidgetItem(self.centralWidget().specie_list)
-            item.setText(0, s.name)
+            item.setText(0, m.name)
 
-        # draw a map
+            # draw a map
         scene = self.centralWidget().scene
         view = self.centralWidget().view
         view.setAcceptDrops(True)
