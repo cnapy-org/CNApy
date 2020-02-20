@@ -115,7 +115,7 @@ class ReactionMask(QWidget):
         self.old = None
         self.is_valid = True
         self.changed = False
-        self.current_reaction = cobra.Reaction()
+
         layout = QVBoxLayout()
         l = QHBoxLayout()
         label = QLabel("Reaction identifier:")
