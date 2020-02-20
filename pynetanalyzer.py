@@ -27,6 +27,7 @@ from PySide2.QtSvg import QGraphicsSvgItem
 # Internal modules
 from gui_elements.about_dialog import AboutDialog
 from gui_elements.reactions_list import ReactionList
+from gui_elements.species_list import SpeciesList
 from gui_elements.map_view import MapView, ReactionBox
 
 import cobra
@@ -45,9 +46,7 @@ class CentralWidget(QWidget):
         self.appdata = appdata
         tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
-        self.specie_list = QTreeWidget()
-        self.specie_list.setHeaderLabels(["Name"])
-        self.specie_list.setSortingEnabled(True)
+        self.specie_list = SpeciesList(self.appdata)
         tabs.addTab(self.reaction_list, "Reactions")
         tabs.addTab(self.specie_list, "Species")
 
@@ -143,13 +142,9 @@ class MainWindow(QMainWindow):
 
     def update_view(self):
         self.centralWidget().reaction_list.update()
+        self.centralWidget().specie_list.update()
 
-        self.centralWidget().specie_list.clear()
-        for m in self.appdata.cobra_py_model.metabolites:
-            item = QTreeWidgetItem(self.centralWidget().specie_list)
-            item.setText(0, m.name)
-
-            # draw a map
+        # draw a map
         scene = self.centralWidget().scene
         view = self.centralWidget().view
         view.setAcceptDrops(True)
