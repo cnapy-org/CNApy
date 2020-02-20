@@ -83,15 +83,16 @@ class MainWindow(QMainWindow):
         new_project_action = QAction("New project...", self)
         self.file_menu.addAction(new_project_action)
 
-        open_project_action = QAction("Import SBML...", self)
-        self.file_menu.addAction(open_project_action)
-        open_project_action.triggered.connect(self.open_project)
+        import_sbml_action = QAction("Import SBML...", self)
+        self.file_menu.addAction(import_sbml_action)
+        import_sbml_action.triggered.connect(self.import_sbml)
 
         save_project_action = QAction("Save project...", self)
         self.file_menu.addAction(save_project_action)
 
         save_as_project_action = QAction("Save project as...", self)
         self.file_menu.addAction(save_as_project_action)
+        save_as_project_action.triggered.connect(self.save_project_as)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -127,7 +128,7 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
-    def open_project(self, _checked):
+    def import_sbml(self, _checked):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.xml")
@@ -135,6 +136,15 @@ class MainWindow(QMainWindow):
         self.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
 
         self.update_view()
+
+    @Slot()
+    def save_project_as(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.xml")
+
+        cobra.io.write_sbml_model(
+            self.appdata.cobra_py_model, filename[0]+".xml")
 
     # def reaction_selected(self, item, _column):
     #     # print("something something itemActivated", item, column)
