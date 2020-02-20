@@ -82,7 +82,7 @@ class SpeciesMask(QWidget):
         self.changed = False
         layout = QVBoxLayout()
         l = QHBoxLayout()
-        label = QLabel("species identifier:")
+        label = QLabel("Species identifier:")
         self.id = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.id)
