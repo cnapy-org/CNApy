@@ -99,11 +99,11 @@ class SpeciesMask(QWidget):
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
         self.apply_button.setEnabled(False)
-        self.add_map_button = QPushButton("add species to map")
-        self.add_map_button.setEnabled(False)
+        # self.add_map_button = QPushButton("add species to map")
+        # self.add_map_button.setEnabled(False)
 
         l.addWidget(self.apply_button)
-        l.addWidget(self.add_map_button)
+        # l.addWidget(self.add_map_button)
         layout.addItem(l)
 
         self.setLayout(layout)

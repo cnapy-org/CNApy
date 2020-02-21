@@ -22,7 +22,8 @@ from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog
                                QGraphicsScene, QHBoxLayout, QLineEdit,
                                QMainWindow, QTabWidget, QTreeWidget,
                                QTreeWidgetItem, QWidget)
-from PySide2.QtSvg import QGraphicsSvgItem
+import json
+
 
 # Internal modules
 from gui_elements.about_dialog import AboutDialog
@@ -36,6 +37,8 @@ import cobra
 class PnaData:
     def __init__(self):
         self.cobra_py_model = cobra.Model()
+        self.maps = [{}]
+        self.values = {}
 
 
 class CentralWidget(QWidget):
@@ -44,20 +47,27 @@ class CentralWidget(QWidget):
     def __init__(self, appdata):
         QWidget.__init__(self)
         self.appdata = appdata
-        tabs = QTabWidget()
+        self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
         self.specie_list = SpeciesList(self.appdata)
-        tabs.addTab(self.reaction_list, "Reactions")
-        tabs.addTab(self.specie_list, "Species")
+        self.tabs.addTab(self.reaction_list, "Reactions")
+        self.tabs.addTab(self.specie_list, "Species")
 
         self.scene = QGraphicsScene()
-        self.view = MapView(self.scene)
-        self.view.show()
-        tabs.addTab(self.view, "Map")
+        self.map = MapView(self.appdata, self.scene)
+        self.map.show()
+        self.tabs.addTab(self.map, "Map")
 
         layout = QHBoxLayout()
-        layout.addWidget(tabs)
+        layout.addWidget(self.tabs)
         self.setLayout(layout)
+
+        self.reaction_list.changedMap.connect(self.update_map)
+
+    def update_map(self):
+        print("update_map")
+        self.map.update()
+        self.tabs.setCurrentIndex(2)
 
 
 class MainWindow(QMainWindow):
@@ -87,12 +97,24 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(import_sbml_action)
         import_sbml_action.triggered.connect(self.import_sbml)
 
+        export_sbml_action = QAction("Export SBML...", self)
+        self.file_menu.addAction(export_sbml_action)
+        export_sbml_action.triggered.connect(self.export_sbml)
+
+        load_maps_action = QAction("Load map...", self)
+        self.file_menu.addAction(load_maps_action)
+        load_maps_action.triggered.connect(self.load_maps)
+
+        save_maps_action = QAction("Save maps...", self)
+        self.file_menu.addAction(save_maps_action)
+        save_maps_action.triggered.connect(self.save_maps)
+
         save_project_action = QAction("Save project...", self)
         self.file_menu.addAction(save_project_action)
 
         save_as_project_action = QAction("Save project as...", self)
         self.file_menu.addAction(save_as_project_action)
-        save_as_project_action.triggered.connect(self.save_project_as)
+        # save_as_project_action.triggered.connect(self.save_project_as)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -109,6 +131,8 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu = self.menu.addMenu("Analysis")
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
+        fba_action.triggered.connect(self.fba)
+
         self.analysis_menu.addAction(fba_action)
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
         self.analysis_menu.addAction(fva_action)
@@ -134,17 +158,35 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.xml")
 
         self.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
-
         self.update_view()
 
     @Slot()
-    def save_project_as(self, _checked):
+    def export_sbml(self, _checked):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             dir=os.getcwd(), filter="*.xml")
 
         cobra.io.write_sbml_model(
-            self.appdata.cobra_py_model, filename[0]+".xml")
+            self.appdata.cobra_py_model, filename[0])
+
+    @Slot()
+    def load_maps(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.maps")
+
+        with open(filename[0], 'r') as fp:
+            self.appdata.maps = json.load(fp)
+        self.update_view()
+
+    @Slot()
+    def save_maps(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.maps")
+
+        with open(filename[0], 'w') as fp:
+            json.dump(self.appdata.maps, fp)
 
     # def reaction_selected(self, item, _column):
     #     # print("something something itemActivated", item, column)
@@ -153,28 +195,12 @@ class MainWindow(QMainWindow):
     def update_view(self):
         self.centralWidget().reaction_list.update()
         self.centralWidget().specie_list.update()
+        self.centralWidget().map.update()
 
-        # draw a map
-        scene = self.centralWidget().scene
-        view = self.centralWidget().view
-        view.setAcceptDrops(True)
-
-        background = QGraphicsSvgItem("testsvg.svg")
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        scene.addItem(background)
-
-        for i in range(1, 11):
-            for j in range(1, 11):
-                if i % 2 == 0:
-                    le1.setStyleSheet("background: #ff9999")
-                le1 = QLineEdit()
-                le1.setMaximumWidth(80)
-                proxy1 = scene.addWidget(le1)
-                proxy1.show()
-                ler1 = ReactionBox(proxy1, str(i+(j*10)))
-                ler1.setPos(i*100, j*100)
-                scene.addItem(ler1)
-                view.reaction_boxes[str(i+(j*10))] = ler1
+    def fba(self):
+        solution = self.appdata.cobra_py_model.optimize()
+        if solution.status == 'optimal':
+            self.centralWidget().map.set_values(solution.fluxes)
 
 
 if __name__ == "__main__":
