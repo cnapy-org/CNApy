@@ -16,22 +16,19 @@
 """The PyNetAnalyzer main"""
 import os
 import sys
-
-from PySide2.QtCore import Slot
-from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog,
-                               QGraphicsScene, QHBoxLayout, QLineEdit,
-                               QMainWindow, QTabWidget, QTreeWidget,
-                               QTreeWidgetItem, QWidget)
 import json
-
+from PySide2.QtCore import Slot
+from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+                               QGraphicsScene, QHBoxLayout,
+                               QMainWindow, QTabWidget,
+                               QWidget)
+import cobra
 
 # Internal modules
 from gui_elements.about_dialog import AboutDialog
 from gui_elements.reactions_list import ReactionList
 from gui_elements.species_list import SpeciesList
-from gui_elements.map_view import MapView, ReactionBox
-
-import cobra
+from gui_elements.map_view import MapView
 
 
 class PnaData:
