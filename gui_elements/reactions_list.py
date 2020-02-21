@@ -49,6 +49,7 @@ class ReactionList(QWidget):
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
         self.reaction_mask.changedReactionList.connect(self.update)
+        self.reaction_mask.changedMap.connect(self.prop_changedMap)
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
@@ -67,14 +68,15 @@ class ReactionList(QWidget):
         reaction = cobra.Reaction()
 
         self.reaction_mask.id.setText("")
+        self.reaction_mask.name.setText("")
         self.reaction_mask.equation.setText(reaction.build_reaction_string())
-        # self.rate_default.setText(self.current_reaction.name)
+        # self.rate_default.setText()
         self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
         self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
-        # self.reaction_mask.variance.setText(self.current_reaction.name)
-        # self.reaction_mask.comments.setText(reaction.name)
+        # self.reaction_mask.variance.setText()
+        # self.reaction_mask.comments.setText()
 
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
@@ -84,15 +86,16 @@ class ReactionList(QWidget):
         print("reaction_selected")
         self.reaction_mask.show()
         reaction: cobra.Reaction = item.data(2, 0)
-        self.reaction_mask.id.setText(reaction.name)
+        self.reaction_mask.id.setText(reaction.id)
+        self.reaction_mask.name.setText(reaction.name)
         self.reaction_mask.equation.setText(reaction.build_reaction_string())
-        # self.rate_default.setText(self.current_reaction.name)
+        # self.rate_default.setText()
         self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
         self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
-        # self.reaction_mask.variance.setText(self.current_reaction.name)
-        # self.reaction_mask.comments.setText(reaction.name)
+        # self.reaction_mask.variance.setText()
+        # self.reaction_mask.comments.setText()
 
         self.reaction_mask.old = reaction
         self.reaction_mask.changed = False
@@ -103,7 +106,11 @@ class ReactionList(QWidget):
         for r in self.appdata.cobra_py_model.reactions:
             self.add_reaction(r)
 
+    def prop_changedMap(self):
+        self.changedMap.emit()
+
     itemActivated = Signal(str)
+    changedMap = Signal()
 
 
 class ReactionMask(QWidget):
@@ -117,6 +124,7 @@ class ReactionMask(QWidget):
         self.changed = False
 
         layout = QVBoxLayout()
+
         l = QHBoxLayout()
         label = QLabel("Reaction identifier:")
         self.id = QLineEdit()
@@ -125,7 +133,14 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QHBoxLayout()
-        label = QLabel("Reaction equation:")
+        label = QLabel("Name:")
+        self.name = QLineEdit()
+        l.addWidget(label)
+        l.addWidget(self.name)
+        layout.addItem(l)
+
+        l = QHBoxLayout()
+        label = QLabel("Equation:")
         self.equation = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.equation)
@@ -169,9 +184,9 @@ class ReactionMask(QWidget):
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
-        self.apply_button.setEnabled(False)
+        # self.apply_button.setEnabled(False)
         self.add_map_button = QPushButton("add reaction to map")
-        self.add_map_button.setEnabled(False)
+        # self.add_map_button.setEnabled(False)
 
         l.addWidget(self.apply_button)
         l.addWidget(self.add_map_button)
@@ -180,20 +195,25 @@ class ReactionMask(QWidget):
         self.setLayout(layout)
 
         self.id.textChanged.connect(self.reaction_id_changed)
+        self.name.textChanged.connect(self.reaction_name_changed)
         self.equation.textChanged.connect(self.reaction_equation_changed)
-        # self.rate_min.textChanged.connect(self.reaction_data_changed)
-        # self.rate_max.textChanged.connect(self.reaction_data_changed)
-        # self.coefficent.textChanged.connect(self.reaction_data_changed)
-        # self.variance.textChanged.connect(self.reaction_data_changed)
-        # self.comments.textChanged.connect(self.reaction_data_changed)
+        self.rate_min.textChanged.connect(self.reaction_data_changed)
+        self.rate_max.textChanged.connect(self.reaction_data_changed)
+        self.coefficent.textChanged.connect(self.reaction_data_changed)
+        self.variance.textChanged.connect(self.reaction_data_changed)
+        self.comments.textChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
+        self.add_map_button.clicked.connect(self.add_to_map)
+
+        self.update()
 
     def apply(self):
         if self.old is None:
-            self.old = cobra.Reaction(self.id.text())
+            self.old = cobra.Reaction(id=self.id.text(), name=self.name.text())
             self.appdata.cobra_py_model.add_reaction(self.old)
 
-        self.old.name = self.id.text()
+        self.old.id = self.id.text()
+        self.old.name = self.name.text()
         self.old.build_reaction_from_string(self.equation.text())
         self.old.lower_bound = float(self.rate_min.text())
         self.old.upper_bound = float(self.rate_max.text())
@@ -202,7 +222,17 @@ class ReactionMask(QWidget):
         self.changed = False
         self.update()
 
+    def add_to_map(self):
+        print("ReactionMask::add_to_map")
+        self.appdata.maps[0][self.id.text()] = (100, 100, self.name.text())
+        self.changedMap.emit()
+        self.update()
+
     def verify_id(self):
+        print("TODO reaction id changed! please verify")
+        self.is_valid = True
+
+    def verify_name(self):
         print("TODO reaction id changed! please verify")
         self.is_valid = True
 
@@ -229,6 +259,14 @@ class ReactionMask(QWidget):
         self.verify_id()
         self.update()
 
+    def reaction_name_changed(self):
+        print("reaction_name_changed")
+        if self.name == self.name.text():
+            return
+        self.changed = True
+        self.verify_name()
+        self.update()
+
     def reaction_equation_changed(self):
         print("reaction_equation_changed")
         if self.equation == self.equation.text():
@@ -237,6 +275,9 @@ class ReactionMask(QWidget):
         self.verify_equation()
         self.update()
 
+    def reaction_data_changed(self):
+        print("TODO reaction_data_changed")
+
     def update(self):
         print("update")
         if self.old is None:
@@ -244,9 +285,15 @@ class ReactionMask(QWidget):
         else:
             self.apply_button.setText("apply changes")
 
+            if self.id.text() in self.appdata.maps[0]:
+                self.add_map_button.setEnabled(False)
+            else:
+                self.add_map_button.setEnabled(True)
+
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
         else:
             self.apply_button.setEnabled(False)
 
     changedReactionList = Signal()
+    changedMap = Signal()

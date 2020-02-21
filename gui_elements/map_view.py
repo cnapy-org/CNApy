@@ -1,15 +1,17 @@
 """The PyNetAnalyzer map view"""
-from PySide2.QtGui import QPainter, QDrag
+from PySide2.QtGui import QPainter, QDrag, QColor, QPalette
 from PySide2.QtCore import Qt, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
                                QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent)
+from PySide2.QtSvg import QGraphicsSvgItem
 
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, scene: QGraphicsScene):
+    def __init__(self, appdata, scene: QGraphicsScene):
         QGraphicsView.__init__(self, scene)
+        self.appdata = appdata
         self.setAcceptDrops(True)
         self.drag_over = False
         self.reaction_boxes = {}
@@ -27,7 +29,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        self.reaction_boxes[key].setPos(point_item.x(), point_item.y())
+        (x, y, name) = self.appdata.maps[0][key]
+        self.appdata.maps[0][key] = (point_item.x(), point_item.y(), name)
         self.update()
 
     def dragLeaveEvent(self, _event):
@@ -39,7 +42,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        self.reaction_boxes[key].setPos(point_item.x(), point_item.y())
+        (x, y, name) = self.appdata.maps[0][key]
+        self.appdata.maps[0][key] = (point_item.x(), point_item.y(), name)
         self.update()
 
     def wheelEvent(self, event):
@@ -71,12 +75,55 @@ class MapView(QGraphicsView):
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
+    def update(self):
+        # print("MapView::update")
+        self.scene().clear()
+        background = QGraphicsSvgItem("testsvg.svg")
+        background.setFlags(QGraphicsItem.ItemClipsToShape)
+        self.scene().addItem(background)
+
+        for key in self.appdata.maps[0]:
+            le1 = QLineEdit()
+            le1.setMaximumWidth(80)
+            le1.setToolTip(self.appdata.maps[0][key][2])
+            proxy1 = self.scene().addWidget(le1)
+            proxy1.show()
+            ler1 = ReactionBox(proxy1, le1, key)
+            ler1.setPos(self.appdata.maps[0][key]
+                        [0], self.appdata.maps[0][key][1])
+            self.scene().addItem(ler1)
+            self.reaction_boxes[key] = ler1
+
+    def set_values(self, values):
+        high = 0
+        low = 0
+        for i in values:
+            if i > high:
+                high = i
+            if i < low:
+                low = i
+
+        for key in self.appdata.maps[0]:
+            self.reaction_boxes[key].item.setText(str(values[key]))
+            self.reaction_boxes[key].item.setCursorPosition(0)
+            if values[key] > 0:
+                h = values[key] * 255 / high
+                color = QColor.fromRgb(255-h, 255, 255-h)
+            else:
+                h = values[key]*255 / low
+                color = QColor.fromRgb(255, 255-h, 255-h)
+
+            palette = self.reaction_boxes[key].item.palette()
+            palette.setColor(QPalette.Base, color)
+            self.reaction_boxes[key].item.setPalette(palette)
+
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
-    def __init__(self, item: QLineEdit, key: int):
+    def __init__(self, proxy, item: QLineEdit, key: int):
         self.key = key
+        self.proxy = proxy
         self.item = item
         QGraphicsItem.__init__(self)
         self.setCursor(Qt.OpenHandCursor)
@@ -106,5 +153,5 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.OpenHandCursor)
 
     def setPos(self, x, y):
-        self.item.setPos(x, y)
+        self.proxy.setPos(x, y)
         super().setPos(x, y)
