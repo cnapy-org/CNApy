@@ -1,16 +1,12 @@
 """The PyNetAnalyzer reactions list"""
-from PySide2.QtGui import QPainter, QDrag, QIcon
-from PySide2.QtCore import Qt, QRectF, QMimeData
-from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit, QTextEdit, QLabel,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QSizePolicy)
-from PySide2.QtCore import Slot, Signal
-from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog,
-                               QGraphicsScene, QHBoxLayout, QVBoxLayout, QLineEdit,
-                               QMainWindow, QTabWidget, QTreeWidget,
-                               QTreeWidgetItem, QWidget, QPushButton, QStyle)
-
+from PySide2.QtGui import QIcon
+from PySide2.QtCore import Qt
+from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
+                               QHBoxLayout, QVBoxLayout,
+                               QTreeWidget, QSizePolicy,
+                               QTreeWidgetItem, QWidget, QPushButton)
+from PySide2.QtCore import Signal
 import cobra
-import copy
 
 
 class ReactionList(QWidget):

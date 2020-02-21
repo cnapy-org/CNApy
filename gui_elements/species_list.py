@@ -1,16 +1,11 @@
 """The PyNetAnalyzer species list"""
-from PySide2.QtGui import QPainter, QDrag, QIcon
-from PySide2.QtCore import Qt, QRectF, QMimeData
-from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit, QTextEdit, QLabel,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QSizePolicy)
-from PySide2.QtCore import Slot, Signal
-from PySide2.QtWidgets import (QGraphicsItem, QAction, QApplication, QFileDialog,
-                               QGraphicsScene, QHBoxLayout, QVBoxLayout, QLineEdit,
-                               QMainWindow, QTabWidget, QTreeWidget,
-                               QTreeWidgetItem, QWidget, QPushButton, QStyle)
+
+from PySide2.QtWidgets import QWidget, QLineEdit, QTextEdit, QLabel
+from PySide2.QtCore import Signal
+from PySide2.QtWidgets import (
+    QHBoxLayout, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton)
 
 import cobra
-import copy
 
 
 class SpeciesList(QWidget):

@@ -29,7 +29,7 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        (x, y, name) = self.appdata.maps[0][key]
+        (_, _, name) = self.appdata.maps[0][key]
         self.appdata.maps[0][key] = (point_item.x(), point_item.y(), name)
         self.update()
 
@@ -42,7 +42,7 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        (x, y, name) = self.appdata.maps[0][key]
+        (_, _, name) = self.appdata.maps[0][key]
         self.appdata.maps[0][key] = (point_item.x(), point_item.y(), name)
         self.update()
 
