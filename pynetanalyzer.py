@@ -29,6 +29,7 @@ from gui_elements.about_dialog import AboutDialog
 from gui_elements.reactions_list import ReactionList
 from gui_elements.species_list import SpeciesList
 from gui_elements.map_view import MapView
+from gui_elements.console import Console
 
 
 class PnaData:
@@ -54,6 +55,9 @@ class CentralWidget(QWidget):
         self.map = MapView(self.appdata, self.scene)
         self.map.show()
         self.tabs.addTab(self.map, "Map")
+
+        self.console = Console(self.appdata)
+        self.tabs.addTab(self.console, "Console")
 
         layout = QHBoxLayout()
         layout.addWidget(self.tabs)
