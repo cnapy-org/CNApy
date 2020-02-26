@@ -60,6 +60,13 @@ class CentralWidget(QWidget):
         self.setLayout(layout)
 
         self.reaction_list.changedMap.connect(self.update_map)
+        self.reaction_list.changedModel.connect(self.update_model_view)
+        self.specie_list.changedModel.connect(self.update_model_view)
+
+    def update_model_view(self):
+        print("update_model_view")
+        self.reaction_list.update()
+        self.specie_list.update()
 
     def update_map(self):
         print("update_map")
