@@ -10,4 +10,4 @@
 
 - run PyNetAnalyzer
 
-      python pynetanalyzer.py
+      python pna.py

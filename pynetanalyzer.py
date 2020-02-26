@@ -42,21 +42,21 @@ class PnaData:
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
 
-    def __init__(self, appdata):
+    def __init__(self, app):
         QWidget.__init__(self)
-        self.appdata = appdata
+        self.app = app
         self.tabs = QTabWidget()
-        self.reaction_list = ReactionList(self.appdata)
-        self.specie_list = SpeciesList(self.appdata)
+        self.reaction_list = ReactionList(self.app.appdata)
+        self.specie_list = SpeciesList(self.app.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.specie_list, "Species")
 
         self.scene = QGraphicsScene()
-        self.map = MapView(self.appdata, self.scene)
+        self.map = MapView(self.app.appdata, self.scene)
         self.map.show()
         self.tabs.addTab(self.map, "Map")
 
-        self.console = Console(self.appdata)
+        self.console = Console(self.app)
         self.tabs.addTab(self.console, "Console")
 
         layout = QHBoxLayout()
@@ -81,15 +81,15 @@ class CentralWidget(QWidget):
 class MainWindow(QMainWindow):
     """The PyNetAnalyzer main window"""
 
-    def __init__(self):
+    def __init__(self, app):
         QMainWindow.__init__(self)
         self.setWindowTitle("PyNetAnalyzer")
 
         # Data
-        self.appdata = PnaData()
+        self.app = app
 
         # CentralWidget
-        central_widget = CentralWidget(self.appdata)
+        central_widget = CentralWidget(self.app)
         self.setCentralWidget(central_widget)
 
         # self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.xml")
 
-        self.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
+        self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
         self.update_view()
 
     @Slot()
@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.xml")
 
         cobra.io.write_sbml_model(
-            self.appdata.cobra_py_model, filename[0])
+            self.app.appdata.cobra_py_model, filename[0])
 
     @Slot()
     def load_maps(self, _checked):
@@ -184,7 +184,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'r') as fp:
-            self.appdata.maps = json.load(fp)
+            self.app.appdata.maps = json.load(fp)
         self.update_view()
 
     @Slot()
@@ -194,7 +194,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.appdata.maps, fp)
+            json.dump(self.app.appdata.maps, fp)
 
     # def reaction_selected(self, item, _column):
     #     # print("something something itemActivated", item, column)
@@ -206,18 +206,25 @@ class MainWindow(QMainWindow):
         self.centralWidget().map.update()
 
     def fba(self):
-        solution = self.appdata.cobra_py_model.optimize()
+        solution = self.app.appdata.cobra_py_model.optimize()
         if solution.status == 'optimal':
             self.centralWidget().map.set_values(solution.fluxes)
 
 
-if __name__ == "__main__":
-    # Qt Application
-    app = QApplication(sys.argv)
+class PyNetAnalyzer:
 
-    window = MainWindow()
-    window.resize(800, 600)
-    window.show()
+    def __init__(self):
+        self.qapp = QApplication(sys.argv)
+        self.appdata = PnaData()
+        self.window = MainWindow(self)
+        self.window.resize(800, 600)
+        self.window.show()
 
-    # Execute application
-    sys.exit(app.exec_())
+        # Execute application
+        sys.exit(self.qapp.exec_())
+
+    def model(self):
+        return self.appdata.cobra_py_model
+
+    def set_model(self, model: cobra.Model):
+        self.appdata.cobra_py_model = model

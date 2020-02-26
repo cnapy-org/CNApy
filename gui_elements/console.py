@@ -8,13 +8,13 @@ from PySide2 import QtWidgets
 
 
 class Console(QtWidgets.QPlainTextEdit):
-    def __init__(self, appdata, prompt='$> ', startup_message='', parent=None):
+    def __init__(self, app, prompt='$> ', startup_message='', parent=None):
         QtWidgets.QPlainTextEdit.__init__(self, parent)
-        self.appdata = appdata
+        self.app = app
         self.prompt = prompt
         self.history = []
         myglobals = globals()
-        myglobals["pnadata"] = self.appdata
+        myglobals["pna"] = self.app
         self.namespace = myglobals
         self.construct = []
 
