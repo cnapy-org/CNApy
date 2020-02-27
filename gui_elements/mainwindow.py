@@ -4,7 +4,7 @@ from zipfile import ZipFile
 from tempfile import TemporaryDirectory
 from PySide2.QtCore import Slot
 from PySide2.QtWidgets import (
-    QAction, QApplication, QFileDialog,                     QMainWindow)
+    QAction, QApplication, QFileDialog, QMainWindow)
 from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
 
         new_project_action = QAction("New project...", self)
         self.file_menu.addAction(new_project_action)
+        new_project_action.triggered.connect(self.new_project)
 
         open_project_action = QAction("Open project ...", self)
         self.file_menu.addAction(open_project_action)
@@ -123,6 +124,13 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.maps, fp)
+
+    @Slot()
+    def new_project(self, _checked):
+        self.app.appdata.cobra_py_model = cobra.Model()
+        self.app.appdata.maps = [{}]
+
+        self.update_view()
 
     @Slot()
     def open_project(self, _checked):
