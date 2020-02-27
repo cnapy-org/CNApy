@@ -1,6 +1,5 @@
 
 import sys
-import os
 import traceback
 from PySide2 import QtCore
 from PySide2 import QtGui
