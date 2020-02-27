@@ -1,5 +1,7 @@
 import os
 import json
+from zipfile import ZipFile
+from tempfile import TemporaryDirectory
 from PySide2.QtCore import Slot
 from PySide2.QtWidgets import (
     QAction, QApplication, QFileDialog,                     QMainWindow)
@@ -16,17 +18,11 @@ class MainWindow(QMainWindow):
     def __init__(self, app):
         QMainWindow.__init__(self)
         self.setWindowTitle("PyNetAnalyzer")
-
-        # Data
         self.app = app
 
-        # CentralWidget
         central_widget = CentralWidget(self.app)
         self.setCentralWidget(central_widget)
 
-        # self.centralWidget().reaction_list.itemActivated.connect(self.reaction_selected)
-
-        # Menu
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
 
@@ -54,7 +50,7 @@ class MainWindow(QMainWindow):
 
         save_as_project_action = QAction("Save project as...", self)
         self.file_menu.addAction(save_as_project_action)
-        # save_as_project_action.triggered.connect(self.save_project_as)
+        save_as_project_action.triggered.connect(self.save_project_as)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -124,9 +120,22 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.maps, fp)
 
-    # def reaction_selected(self, item, _column):
-    #     # print("something something itemActivated", item, column)
-    #     print(item.data(2, 0).name)
+    @Slot()
+    def save_project_as(self, _checked):
+
+        print("save_project_as")
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.pna")
+
+        folder = TemporaryDirectory()
+        folder = folder.name()
+
+        cobra.io.write_sbml_model(
+            self.app.appdata.cobra_py_model, folder + "model.sbml")
+
+        with ZipFile(filename[0], 'w') as zipObj:
+            zipObj.write(folder + "model.sbml")
 
     def update_view(self):
         self.centralWidget().reaction_list.update()
