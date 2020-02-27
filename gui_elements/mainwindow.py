@@ -29,6 +29,17 @@ class MainWindow(QMainWindow):
         new_project_action = QAction("New project...", self)
         self.file_menu.addAction(new_project_action)
 
+        open_project_action = QAction("Open project ...", self)
+        self.file_menu.addAction(open_project_action)
+        open_project_action.triggered.connect(self.open_project)
+
+        # save_project_action = QAction("Save project...", self)
+        # self.file_menu.addAction(save_project_action)
+
+        save_as_project_action = QAction("Save project as...", self)
+        self.file_menu.addAction(save_as_project_action)
+        save_as_project_action.triggered.connect(self.save_project_as)
+
         import_sbml_action = QAction("Import SBML...", self)
         self.file_menu.addAction(import_sbml_action)
         import_sbml_action.triggered.connect(self.import_sbml)
@@ -44,13 +55,6 @@ class MainWindow(QMainWindow):
         save_maps_action = QAction("Save maps...", self)
         self.file_menu.addAction(save_maps_action)
         save_maps_action.triggered.connect(self.save_maps)
-
-        save_project_action = QAction("Save project...", self)
-        self.file_menu.addAction(save_project_action)
-
-        save_as_project_action = QAction("Save project as...", self)
-        self.file_menu.addAction(save_as_project_action)
-        save_as_project_action.triggered.connect(self.save_project_as)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -121,21 +125,42 @@ class MainWindow(QMainWindow):
             json.dump(self.app.appdata.maps, fp)
 
     @Slot()
+    def open_project(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.cna")
+
+        folder = TemporaryDirectory()
+
+        with ZipFile(filename[0], 'r') as zip_ref:
+            zip_ref.extractall(folder.name)
+
+            with open(folder.name+"/maps.json", 'r') as fp:
+                self.app.appdata.maps = json.load(fp)
+
+            self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
+                folder.name+"/model.sbml")
+            self.update_view()
+
+    @Slot()
     def save_project_as(self, _checked):
 
         print("save_project_as")
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.pna")
+            dir=os.getcwd(), filter="*.cna")
 
-        folder = TemporaryDirectory()
-        folder = folder.name()
+        folder = TemporaryDirectory().name
 
         cobra.io.write_sbml_model(
             self.app.appdata.cobra_py_model, folder + "model.sbml")
 
+        with open(folder + "maps.json", 'w') as fp:
+            json.dump(self.app.appdata.maps, fp)
+
         with ZipFile(filename[0], 'w') as zipObj:
-            zipObj.write(folder + "model.sbml")
+            zipObj.write(folder + "model.sbml", arcname="model.sbml")
+            zipObj.write(folder + "maps.json", arcname="maps.json")
 
     def update_view(self):
         self.centralWidget().reaction_list.update()
