@@ -135,10 +135,6 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(exit_action)
         exit_action.triggered.connect(self.exit_app)
 
-        self.edit_menu = self.menu.addMenu("Edit")
-        network_compose_action = QAction("Network composer...", self)
-        self.edit_menu.addAction(network_compose_action)
-
         self.find_menu = self.menu.addMenu("Find")
         find_reaction_action = QAction("Find reaction...", self)
         self.find_menu.addAction(find_reaction_action)
