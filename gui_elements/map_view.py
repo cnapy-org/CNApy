@@ -94,28 +94,34 @@ class MapView(QGraphicsView):
             self.scene().addItem(ler1)
             self.reaction_boxes[key] = ler1
 
-    def set_values(self, values):
-        high = 0
-        low = 0
-        for i in values:
-            if i > high:
-                high = i
-            if i < low:
-                low = i
+        self.set_values()
+
+    def set_values(self):
+        high = 0.0
+        low = 0.0
+        for key in self.appdata.values.keys():
+            if self.appdata.values[key] > high:
+                high = self.appdata.values[key]
+            if self.appdata.values[key] < low:
+                low = self.appdata.values[key]
 
         for key in self.appdata.maps[0]:
-            self.reaction_boxes[key].item.setText(str(values[key]))
-            self.reaction_boxes[key].item.setCursorPosition(0)
-            if values[key] > 0:
-                h = values[key] * 255 / high
-                color = QColor.fromRgb(255-h, 255, 255-h)
-            else:
-                h = values[key]*255 / low
-                color = QColor.fromRgb(255, 255-h, 255-h)
+            if key in self.appdata.values.keys():
+                self.reaction_boxes[key].item.setText(
+                    str(self.appdata.values[key]))
+                self.reaction_boxes[key].item.setCursorPosition(0)
+                if self.appdata.values[key] > 0.0:
+                    h = self.appdata.values[key] * 255 / high
+                    color = QColor.fromRgb(255-h, 255, 255-h)
+                else:
+                    h = self.appdata.values[key]*255 / low
+                    color = QColor.fromRgb(255, 255-h, 255-h)
 
-            palette = self.reaction_boxes[key].item.palette()
-            palette.setColor(QPalette.Base, color)
-            self.reaction_boxes[key].item.setPalette(palette)
+                palette = self.reaction_boxes[key].item.palette()
+                palette.setColor(QPalette.Base, color)
+                role = self.reaction_boxes[key].item.foregroundRole()
+                palette.setColor(role, Qt.black)
+                self.reaction_boxes[key].item.setPalette(palette)
 
 
 class ReactionBox(QGraphicsItem):

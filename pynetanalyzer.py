@@ -17,10 +17,11 @@
 import os
 import sys
 import json
+from PySide2.QtCore import Qt
 from PySide2.QtCore import Slot
 from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
                                QGraphicsScene, QHBoxLayout,
-                               QMainWindow, QTabWidget,
+                               QMainWindow, QTabWidget, QPushButton,
                                QWidget)
 import cobra
 
@@ -58,6 +59,11 @@ class CentralWidget(QWidget):
 
         self.console = Console(self.app)
         self.tabs.addTab(self.console, "Console")
+        self.tabs.setTabsClosable(True)
+
+        self.add_tab_button = QPushButton("add map")
+        self.tabs.setCornerWidget(
+            self.add_tab_button, corner=Qt.TopRightCorner)
 
         layout = QHBoxLayout()
         layout.addWidget(self.tabs)
@@ -208,7 +214,10 @@ class MainWindow(QMainWindow):
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
         if solution.status == 'optimal':
-            self.centralWidget().map.set_values(solution.fluxes)
+            # self.values.clear()
+            for key in solution.fluxes.keys():
+                self.app.appdata.values[key] = solution.fluxes[key]
+            self.centralWidget().map.update()
 
 
 class PyNetAnalyzer:
