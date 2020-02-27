@@ -112,7 +112,6 @@ class ReactionList(QWidget):
         self.reaction_list.clear()
         for r in self.appdata.cobra_py_model.reactions:
             self.add_reaction(r)
-        self.reaction_mask.update()
 
         if self.last_selected is None:
             print("nothing was previosly selected")
@@ -125,6 +124,12 @@ class ReactionList(QWidget):
                 self.reaction_list.setCurrentItem(i)
                 print(i.text(0))
                 break
+
+        self.reaction_mask.update()
+
+    def setCurrentItem(self, key):
+        self.last_selected = key
+        self.update()
 
     def emit_changedMap(self):
         self.changedMap.emit()

@@ -1,9 +1,10 @@
 """The PyNetAnalyzer map view"""
-from PySide2.QtGui import QPainter, QDrag, QColor, QPalette
+from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
 from PySide2.QtCore import Qt, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
                                QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent)
 from PySide2.QtSvg import QGraphicsSvgItem
+from PySide2.QtCore import Signal
 
 
 class MapView(QGraphicsView):
@@ -88,7 +89,7 @@ class MapView(QGraphicsView):
             le1.setToolTip(self.appdata.maps[0][key][2])
             proxy1 = self.scene().addWidget(le1)
             proxy1.show()
-            ler1 = ReactionBox(proxy1, le1, key)
+            ler1 = ReactionBox(self, proxy1, le1, key)
             ler1.setPos(self.appdata.maps[0][key]
                         [0], self.appdata.maps[0][key][1])
             self.scene().addItem(ler1)
@@ -123,11 +124,18 @@ class MapView(QGraphicsView):
                 palette.setColor(role, Qt.black)
                 self.reaction_boxes[key].item.setPalette(palette)
 
+    def emit_doubleClickedReaction(self, reaction: str):
+        print("reaction", reaction, "doubleclicked")
+        self.doubleClickedReaction.emit(reaction)
+
+    doubleClickedReaction = Signal(str)
+
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
-    def __init__(self, proxy, item: QLineEdit, key: int):
+    def __init__(self, parent: MapView, proxy, item: QLineEdit, key: int):
+        self.map = parent
         self.key = key
         self.proxy = proxy
         self.item = item
@@ -157,6 +165,9 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.ClosedHandCursor)
         drag.exec_()
         # self.setCursor(Qt.OpenHandCursor)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        self.map.emit_doubleClickedReaction(self.key)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
