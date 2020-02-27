@@ -1,5 +1,5 @@
 """The PyNetAnalyzer reactions list"""
-from PySide2.QtGui import QIcon
+from PySide2.QtGui import QIcon, QColor, QPalette
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QHBoxLayout, QVBoxLayout,
@@ -24,7 +24,7 @@ class ReactionList(QWidget):
         self.add_button.setSizePolicy(policy)
 
         self.reaction_list = QTreeWidget()
-        self.reaction_list.setHeaderLabels(["Id", "Name"])
+        self.reaction_list.setHeaderLabels(["Id", "Name", "Flux"])
         self.reaction_list.setSortingEnabled(True)
 
         for r in self.appdata.cobra_py_model.reactions:
@@ -57,7 +57,19 @@ class ReactionList(QWidget):
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
-        item.setData(2, 0, reaction)
+        if reaction.id in self.appdata.values:
+            item.setText(2, str(self.appdata.values[reaction.id]))
+            if self.appdata.values[reaction.id] > 0.0:
+                h = self.appdata.values[reaction.id] * 255 / self.appdata.high
+                color = QColor.fromRgb(255-h, 255, 255-h)
+            else:
+                h = self.appdata.values[reaction.id]*255 / self.appdata.low
+                color = QColor.fromRgb(255, 255 - h, 255 - h)
+
+            item.setData(2, Qt.BackgroundRole, color)
+            item.setForeground(2, Qt.black)
+
+        item.setData(3, 0, reaction)
 
     def add_new_reaction(self):
         print("add_new_reaction")
@@ -86,7 +98,7 @@ class ReactionList(QWidget):
         else:
             print("last selected", self.last_selected)
             self.reaction_mask.show()
-            reaction: cobra.Reaction = item.data(2, 0)
+            reaction: cobra.Reaction = item.data(3, 0)
             self.reaction_mask.id.setText(reaction.id)
             self.reaction_mask.name.setText(reaction.name)
             self.reaction_mask.equation.setText(
@@ -243,7 +255,8 @@ class ReactionMask(QWidget):
 
     def apply(self):
         if self.old is None:
-            self.old = cobra.Reaction(id=self.id.text(), name=self.name.text())
+            self.old = cobra.Reaction(
+                id=self.id.text(), name=self.name.text())
             self.appdata.cobra_py_model.add_reaction(self.old)
 
         self.old.id = self.id.text()

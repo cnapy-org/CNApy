@@ -178,7 +178,14 @@ class MainWindow(QMainWindow):
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
         if solution.status == 'optimal':
-            # self.values.clear()
+            self.app.appdata.high = 0.0
+            self.app.appdata.low = 0.0
             for key in solution.fluxes.keys():
                 self.app.appdata.values[key] = solution.fluxes[key]
+                if self.app.appdata.values[key] > self.app.appdata.high:
+                    self.app.appdata.high = self.app.appdata.values[key]
+                if self.app.appdata.values[key] < self.app.appdata.low:
+                    self.app.appdata.low = self.app.appdata.values[key]
+
             self.centralWidget().map.update()
+            self.centralWidget().reaction_list.update()

@@ -12,6 +12,10 @@ class MapView(QGraphicsView):
 
     def __init__(self, appdata, scene: QGraphicsScene):
         QGraphicsView.__init__(self, scene)
+        palette = self.palette()
+        palette.setColor(QPalette.Base, Qt.white)
+        self.setPalette(palette)
+
         self.appdata = appdata
         self.setAcceptDrops(True)
         self.drag_over = False
@@ -98,13 +102,6 @@ class MapView(QGraphicsView):
         self.set_values()
 
     def set_values(self):
-        high = 0.0
-        low = 0.0
-        for key in self.appdata.values.keys():
-            if self.appdata.values[key] > high:
-                high = self.appdata.values[key]
-            if self.appdata.values[key] < low:
-                low = self.appdata.values[key]
 
         for key in self.appdata.maps[0]:
             if key in self.appdata.values.keys():
@@ -112,10 +109,10 @@ class MapView(QGraphicsView):
                     str(self.appdata.values[key]))
                 self.reaction_boxes[key].item.setCursorPosition(0)
                 if self.appdata.values[key] > 0.0:
-                    h = self.appdata.values[key] * 255 / high
+                    h = self.appdata.values[key] * 255 / self.appdata.high
                     color = QColor.fromRgb(255-h, 255, 255-h)
                 else:
-                    h = self.appdata.values[key]*255 / low
+                    h = self.appdata.values[key]*255 / self.appdata.low
                     color = QColor.fromRgb(255, 255-h, 255-h)
 
                 palette = self.reaction_boxes[key].item.palette()
