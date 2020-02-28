@@ -13,7 +13,7 @@ class Console(QtWidgets.QPlainTextEdit):
         self.prompt = prompt
         self.history = []
         myglobals = globals()
-        myglobals["pna"] = self.app
+        myglobals["cna"] = self.app
         self.namespace = myglobals
         self.construct = []
 

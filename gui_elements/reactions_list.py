@@ -1,4 +1,4 @@
-"""The PyNetAnalyzer reactions list"""
+"""The CellNetAnalyzer reactions list"""
 from PySide2.QtGui import QIcon, QColor, QPalette
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,

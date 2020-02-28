@@ -1,7 +1,7 @@
 import cobra
 
 
-class PnaData:
+class CnaData:
     def __init__(self):
         self.cobra_py_model = cobra.Model()
         self.maps = [{}]

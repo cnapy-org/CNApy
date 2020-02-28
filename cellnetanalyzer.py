@@ -13,22 +13,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The PyNetAnalyzer class"""
+"""The CellNetAnalyzer class"""
 import cobra
 
 import sys
 # Internal modules
-from pnadata import PnaData
+from cnadata import CnaData
 from gui_elements.mainwindow import MainWindow
 
 from PySide2.QtWidgets import QApplication
 
 
-class PyNetAnalyzer:
+class CellNetAnalyzer:
 
     def __init__(self):
         self.qapp = QApplication(sys.argv)
-        self.appdata = PnaData()
+        self.appdata = CnaData()
         self.window = MainWindow(self)
         self.window.resize(800, 600)
         self.window.show()

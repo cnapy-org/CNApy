@@ -1,13 +1,13 @@
-# PyNetAnalyzer
+# cnapy - A CellNetAnalyzer GUI in Python
 
-- create a conda environment for pynetanalyzer from the environment.yml
+- create a conda environment for cnapy from the environment.yml
 
       conda env create -f environment.yml
 
 - activate conda environment
 
-      conda activate pynetanalyzer
+      conda activate cnapy
 
-- run PyNetAnalyzer
+- run cnapy
 
-      python pna.py
+      python cnapy.py

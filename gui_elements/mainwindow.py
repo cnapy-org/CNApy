@@ -15,11 +15,11 @@ import cobra
 
 
 class MainWindow(QMainWindow):
-    """The PyNetAnalyzer main window"""
+    """The cnapy main window"""
 
     def __init__(self, app):
         QMainWindow.__init__(self)
-        self.setWindowTitle("PyNetAnalyzer")
+        self.setWindowTitle("cnapy")
         self.app = app
 
         central_widget = CentralWidget(self.app)
@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.help_menu = self.menu.addMenu("Help")
-        about_action = QAction("About PyNetAnalyzer...", self)
+        about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
