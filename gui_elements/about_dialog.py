@@ -1,4 +1,4 @@
-"""The PyNetAnalyzer about dialog"""
+"""The cnapy about dialog"""
 from PySide2.QtWidgets import (QDialog, QPushButton, QVBoxLayout, QLabel)
 from PySide2.QtCore import Qt
 
@@ -10,7 +10,7 @@ class AboutDialog(QDialog):
         QDialog.__init__(self)
 
         self.button = QPushButton("Ok!")
-        self.text = QLabel("Something something about PyNetAnalyzer!")
+        self.text = QLabel("Something something about cnapy!")
         self.text.setAlignment(Qt.AlignCenter)
 
         self.layout = QVBoxLayout()

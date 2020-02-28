@@ -1,9 +1,10 @@
 """The PyNetAnalyzer map view"""
-from PySide2.QtGui import QPainter, QDrag, QColor, QPalette
+from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
 from PySide2.QtCore import Qt, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
                                QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent)
 from PySide2.QtSvg import QGraphicsSvgItem
+from PySide2.QtCore import Signal
 
 
 class MapView(QGraphicsView):
@@ -11,6 +12,10 @@ class MapView(QGraphicsView):
 
     def __init__(self, appdata, scene: QGraphicsScene):
         QGraphicsView.__init__(self, scene)
+        palette = self.palette()
+        palette.setColor(QPalette.Base, Qt.white)
+        self.setPalette(palette)
+
         self.appdata = appdata
         self.setAcceptDrops(True)
         self.drag_over = False
@@ -88,46 +93,68 @@ class MapView(QGraphicsView):
             le1.setToolTip(self.appdata.maps[0][key][2])
             proxy1 = self.scene().addWidget(le1)
             proxy1.show()
-            ler1 = ReactionBox(proxy1, le1, key)
+            ler1 = ReactionBox(self, proxy1, le1, key)
             ler1.setPos(self.appdata.maps[0][key]
                         [0], self.appdata.maps[0][key][1])
             self.scene().addItem(ler1)
             self.reaction_boxes[key] = ler1
 
-    def set_values(self, values):
-        high = 0
-        low = 0
-        for i in values:
-            if i > high:
-                high = i
-            if i < low:
-                low = i
+        self.set_values()
+
+    def set_values(self):
 
         for key in self.appdata.maps[0]:
-            self.reaction_boxes[key].item.setText(str(values[key]))
-            self.reaction_boxes[key].item.setCursorPosition(0)
-            if values[key] > 0:
-                h = values[key] * 255 / high
-                color = QColor.fromRgb(255-h, 255, 255-h)
-            else:
-                h = values[key]*255 / low
-                color = QColor.fromRgb(255, 255-h, 255-h)
+            if key in self.appdata.values.keys():
+                self.reaction_boxes[key].item.setText(
+                    str(self.appdata.values[key]))
+                self.reaction_boxes[key].item.setCursorPosition(0)
+                if self.appdata.values[key] > 0.0:
+                    if self.appdata.high == 0.0:
+                        h = 255
+                    else:
+                        h = self.appdata.values[key] * 255 / self.appdata.high
+                    color = QColor.fromRgb(255-h, 255, 255-h)
+                else:
+                    if self.appdata.low == 0.0:
+                        h = 255
+                    else:
+                        h = self.appdata.values[key] * 255 / self.appdata.low
+                    color = QColor.fromRgb(255, 255-h, 255-h)
 
-            palette = self.reaction_boxes[key].item.palette()
-            palette.setColor(QPalette.Base, color)
-            self.reaction_boxes[key].item.setPalette(palette)
+                palette = self.reaction_boxes[key].item.palette()
+                palette.setColor(QPalette.Base, color)
+                role = self.reaction_boxes[key].item.foregroundRole()
+                palette.setColor(role, Qt.black)
+                self.reaction_boxes[key].item.setPalette(palette)
+
+    def emit_doubleClickedReaction(self, reaction: str):
+        self.doubleClickedReaction.emit(reaction)
+
+    def emit_value_changed(self, reaction: str, value: str):
+        print("emit_value_changed")
+        self.reactionValueChanged.emit(reaction, value)
+
+    doubleClickedReaction = Signal(str)
+    reactionValueChanged = Signal(str, str)
 
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
-    def __init__(self, proxy, item: QLineEdit, key: int):
+    def __init__(self, parent: MapView, proxy, item: QLineEdit, key: int):
+        self.map = parent
         self.key = key
         self.proxy = proxy
         self.item = item
         QGraphicsItem.__init__(self)
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
+        self.item.textChanged.connect(self.value_changed)
+
+    def value_changed(self):
+        print(self.key, "value changed to", self.item.text())
+        if verify_value(self.item.text()):
+            self.map.emit_value_changed(self.key, self.item.text())
 
     def boundingRect(self):
         return QRectF(-15, -15, 20, 20)
@@ -152,6 +179,14 @@ class ReactionBox(QGraphicsItem):
         drag.exec_()
         # self.setCursor(Qt.OpenHandCursor)
 
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        self.map.emit_doubleClickedReaction(self.key)
+
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
         super().setPos(x, y)
+
+
+def verify_value(value):
+    print("TODO: implement verify_value")
+    return True
