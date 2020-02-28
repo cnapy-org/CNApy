@@ -60,10 +60,18 @@ class ReactionList(QWidget):
         if reaction.id in self.appdata.values:
             item.setText(2, str(self.appdata.values[reaction.id]))
             if self.appdata.values[reaction.id] > 0.0:
-                h = self.appdata.values[reaction.id] * 255 / self.appdata.high
+                if self.appdata.high == 0.0:
+                    h = 255
+                else:
+                    h = self.appdata.values[reaction.id] * \
+                        255 / self.appdata.high
                 color = QColor.fromRgb(255-h, 255, 255-h)
             else:
-                h = self.appdata.values[reaction.id]*255 / self.appdata.low
+                if self.appdata.low == 0.0:
+                    h = 255
+                else:
+                    h = self.appdata.values[reaction.id] * \
+                        255 / self.appdata.low
                 color = QColor.fromRgb(255, 255 - h, 255 - h)
 
             item.setData(2, Qt.BackgroundRole, color)

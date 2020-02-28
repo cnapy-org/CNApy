@@ -109,10 +109,16 @@ class MapView(QGraphicsView):
                     str(self.appdata.values[key]))
                 self.reaction_boxes[key].item.setCursorPosition(0)
                 if self.appdata.values[key] > 0.0:
-                    h = self.appdata.values[key] * 255 / self.appdata.high
+                    if self.appdata.high == 0.0:
+                        h = 255
+                    else:
+                        h = self.appdata.values[key] * 255 / self.appdata.high
                     color = QColor.fromRgb(255-h, 255, 255-h)
                 else:
-                    h = self.appdata.values[key]*255 / self.appdata.low
+                    if self.appdata.low == 0.0:
+                        h = 255
+                    else:
+                        h = self.appdata.values[key] * 255 / self.appdata.low
                     color = QColor.fromRgb(255, 255-h, 255-h)
 
                 palette = self.reaction_boxes[key].item.palette()
@@ -122,10 +128,14 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[key].item.setPalette(palette)
 
     def emit_doubleClickedReaction(self, reaction: str):
-        print("reaction", reaction, "doubleclicked")
         self.doubleClickedReaction.emit(reaction)
 
+    def emit_value_changed(self, reaction: str, value: str):
+        print("emit_value_changed")
+        self.reactionValueChanged.emit(reaction, value)
+
     doubleClickedReaction = Signal(str)
+    reactionValueChanged = Signal(str, str)
 
 
 class ReactionBox(QGraphicsItem):
@@ -139,6 +149,12 @@ class ReactionBox(QGraphicsItem):
         QGraphicsItem.__init__(self)
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
+        self.item.textChanged.connect(self.value_changed)
+
+    def value_changed(self):
+        print(self.key, "value changed to", self.item.text())
+        if verify_value(self.item.text()):
+            self.map.emit_value_changed(self.key, self.item.text())
 
     def boundingRect(self):
         return QRectF(-15, -15, 20, 20)
@@ -169,3 +185,8 @@ class ReactionBox(QGraphicsItem):
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
         super().setPos(x, y)
+
+
+def verify_value(value):
+    print("TODO: implement verify_value")
+    return True

@@ -42,11 +42,20 @@ class CentralWidget(QWidget):
         self.reaction_list.changedModel.connect(self.update_model_view)
         self.specie_list.changedModel.connect(self.update_model_view)
         self.map.doubleClickedReaction.connect(self.switch_to_reaction)
+        self.map.reactionValueChanged.connect(self.update_reaction_value)
 
     def switch_to_reaction(self, reaction: str):
         print("update_model_view")
         self.tabs.setCurrentIndex(0)
         self.reaction_list.setCurrentItem(reaction)
+
+    def update_reaction_value(self, reaction: str, value: str):
+        if self.app.appdata.low > float(value):
+            self.app.appdata.low = float(value)
+        if self.app.appdata.high < float(value):
+            self.app.appdata.high = float(value)
+        self.app.appdata.values[reaction] = float(value)
+        self.reaction_list.update()
 
     def update_model_view(self):
         print("update_model_view")

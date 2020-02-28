@@ -9,6 +9,8 @@ from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
 
+from legacy import matlabcall
+
 import cobra
 
 
@@ -69,9 +71,10 @@ class MainWindow(QMainWindow):
         self.analysis_menu = self.menu.addMenu("Analysis")
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
         fba_action.triggered.connect(self.fba)
-
         self.analysis_menu.addAction(fba_action)
+
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
+        fba_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
         self.help_menu = self.menu.addMenu("Help")
@@ -189,3 +192,7 @@ class MainWindow(QMainWindow):
 
             self.centralWidget().map.update()
             self.centralWidget().reaction_list.update()
+
+    def fva(self):
+        res = matlabcall()
+        print("yeah", res)
