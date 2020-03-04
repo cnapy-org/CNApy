@@ -80,14 +80,13 @@ class ReactionList(QWidget):
         item.setData(3, 0, reaction)
 
     def add_new_reaction(self):
-        print("add_new_reaction")
+        print("ReactionList::add_new_reaction")
         self.reaction_mask.show()
         reaction = cobra.Reaction()
 
-        self.reaction_mask.id.setText("")
-        self.reaction_mask.name.setText("")
+        self.reaction_mask.id.setText(reaction.id)
+        self.reaction_mask.name.setText(reaction.name)
         self.reaction_mask.equation.setText(reaction.build_reaction_string())
-        # self.rate_default.setText()
         self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
         self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
         self.reaction_mask.coefficent.setText(
@@ -97,7 +96,7 @@ class ReactionList(QWidget):
 
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
-        self.reaction_mask.update()
+        self.reaction_mask.update_state()
 
     def reaction_selected(self, item, _column):
         print("reaction_selected")
@@ -111,7 +110,6 @@ class ReactionList(QWidget):
             self.reaction_mask.name.setText(reaction.name)
             self.reaction_mask.equation.setText(
                 reaction.build_reaction_string())
-            # self.rate_default.setText()
             self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
             self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
             self.reaction_mask.coefficent.setText(
@@ -121,7 +119,7 @@ class ReactionList(QWidget):
 
             self.reaction_mask.old = reaction
             self.reaction_mask.changed = False
-            self.reaction_mask.update()
+            self.reaction_mask.update_state()
 
     def emit_changedModel(self):
         self.last_selected = self.reaction_mask.id.text()
@@ -145,7 +143,7 @@ class ReactionList(QWidget):
                 print(i.text(0))
                 break
 
-        self.reaction_mask.update()
+        self.reaction_mask.update_state()
 
     def setCurrentItem(self, key):
         self.last_selected = key
@@ -181,7 +179,7 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QHBoxLayout()
-        label = QLabel("Reaction identifier:")
+        label = QLabel("Id:")
         self.id = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.id)
@@ -222,20 +220,20 @@ class ReactionMask(QWidget):
         l.addWidget(self.coefficent)
         layout.addItem(l)
 
-        l = QHBoxLayout()
-        label = QLabel("Variance of meassures:")
-        self.variance = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.variance)
-        layout.addItem(l)
+        # l = QHBoxLayout()
+        # label = QLabel("Variance of meassures:")
+        # self.variance = QLineEdit()
+        # l.addWidget(label)
+        # l.addWidget(self.variance)
+        # layout.addItem(l)
 
-        l = QVBoxLayout()
-        label = QLabel("Notes and Comments:")
-        self.comments = QTextEdit()
-        self.comments.setFixedHeight(200)
-        l.addWidget(label)
-        l.addWidget(self.comments)
-        layout.addItem(l)
+        # l = QVBoxLayout()
+        # label = QLabel("Notes and Comments:")
+        # self.comments = QTextEdit()
+        # self.comments.setFixedHeight(200)
+        # l.addWidget(label)
+        # l.addWidget(self.comments)
+        # layout.addItem(l)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
@@ -251,15 +249,15 @@ class ReactionMask(QWidget):
         self.id.textChanged.connect(self.reaction_id_changed)
         self.name.textChanged.connect(self.reaction_name_changed)
         self.equation.textChanged.connect(self.reaction_equation_changed)
-        self.rate_min.textChanged.connect(self.reaction_data_changed)
-        self.rate_max.textChanged.connect(self.reaction_data_changed)
-        self.coefficent.textChanged.connect(self.reaction_data_changed)
-        self.variance.textChanged.connect(self.reaction_data_changed)
-        self.comments.textChanged.connect(self.reaction_data_changed)
+        self.rate_min.textChanged.connect(self.reaction_rate_min_changed)
+        self.rate_max.textChanged.connect(self.reaction_rate_max_changed)
+        self.coefficent.textChanged.connect(self.reaction_coefficent_changed)
+        # self.variance.textChanged.connect(self.reaction_variance_changed)
+        # self.comments.textChanged.connect(self.reaction_comments_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
 
-        self.update()
+        self.update_state()
 
     def apply(self):
         if self.old is None:
@@ -285,7 +283,7 @@ class ReactionMask(QWidget):
         print("ReactionMask::add_to_map")
         self.appdata.maps[0][self.id.text()] = (100, 100, self.name.text())
         self.changedMap.emit()
-        self.update()
+        self.update_state()
 
     def verify_id(self):
         print("TODO reaction id changed! please verify")
@@ -296,7 +294,6 @@ class ReactionMask(QWidget):
         self.is_valid = True
 
     def verify_equation(self):
-        print("TODO reaction equation changed! please verify")
 
         with self.appdata.cobra_py_model as model:
             r = cobra.Reaction("test_id")
@@ -310,35 +307,79 @@ class ReactionMask(QWidget):
                 self.is_valid = True
                 self.equation.setStyleSheet("background: white")
 
+            palette = self.equation.palette()
+            role = self.equation.foregroundRole()
+            palette.setColor(role, Qt.black)
+            self.equation.setPalette(palette)
+
+    def verify_lowerbound(self):
+        try:
+            x = float(self.rate_min.text())
+        except:
+            self.is_valid = False
+            self.rate_min.setStyleSheet("background: #ff9999")
+        else:
+            self.is_valid = True
+            self.rate_min.setStyleSheet("background: white")
+
+        palette = self.rate_min.palette()
+        role = self.rate_min.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.rate_min.setPalette(palette)
+
+    def verify_upperbound(self):
+        try:
+            x = float(self.rate_max.text())
+        except:
+            self.is_valid = False
+            self.rate_max.setStyleSheet("background: #ff9999")
+        else:
+            self.is_valid = True
+            self.rate_max.setStyleSheet("background: white")
+
+        palette = self.rate_max.palette()
+        role = self.rate_max.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.rate_max.setPalette(palette)
+
     def reaction_id_changed(self):
         print("reaction_id_changed")
-        if self.id == self.id.text():
-            return
         self.changed = True
         self.verify_id()
-        self.update()
+        self.update_state()
 
     def reaction_name_changed(self):
         print("reaction_name_changed")
-        if self.name == self.name.text():
-            return
         self.changed = True
         self.verify_name()
-        self.update()
+        self.update_state()
 
     def reaction_equation_changed(self):
-        print("reaction_equation_changed")
-        if self.equation == self.equation.text():
-            return
         self.changed = True
         self.verify_equation()
-        self.update()
+        self.update_state()
 
-    def reaction_data_changed(self):
-        print("TODO reaction_data_changed")
+    def reaction_rate_min_changed(self):
+        self.changed = True
+        self.verify_lowerbound()
+        self.update_state()
 
-    def update(self):
-        print("update")
+    def reaction_rate_max_changed(self):
+        self.changed = True
+        self.verify_upperbound()
+        self.update_state()
+
+    # def reaction_variance_changed(self):
+    #     print("TODO reaction_variance_changed")
+
+    def reaction_coefficent_changed(self):
+        print("TODO reaction_coefficent_changed")
+
+    # def reaction_comments_changed(self):
+    #     print("TODO reaction_comments_changed")
+
+    def update_state(self):
+        print("reaction_mask::update_state")
         if self.old is None:
             self.apply_button.setText("add reaction")
             self.delete_button.hide()

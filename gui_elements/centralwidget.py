@@ -45,7 +45,7 @@ class CentralWidget(QWidget):
         self.map.reactionValueChanged.connect(self.update_reaction_value)
 
     def switch_to_reaction(self, reaction: str):
-        print("update_model_view")
+        # print("centralwidget::switch_to_reaction")
         self.tabs.setCurrentIndex(0)
         self.reaction_list.setCurrentItem(reaction)
 
@@ -58,11 +58,11 @@ class CentralWidget(QWidget):
         self.reaction_list.update()
 
     def update_model_view(self):
-        print("update_model_view")
+        # print("centralwidget::update_model_view")
         self.reaction_list.update()
         self.specie_list.update()
 
     def update_map(self):
-        print("update_map")
+        # print("centralwidget::update_map")
         self.map.update()
         self.tabs.setCurrentIndex(2)
