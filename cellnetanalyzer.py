@@ -17,7 +17,6 @@
 import cobra
 
 import sys
-# Internal modules
 from cnadata import CnaData
 from gui_elements.mainwindow import MainWindow
 

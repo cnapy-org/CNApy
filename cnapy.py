@@ -16,6 +16,4 @@
 from cellnetanalyzer import CellNetAnalyzer
 
 if __name__ == "__main__":
-    """The cnapy main"""
-
     cna = CellNetAnalyzer()
