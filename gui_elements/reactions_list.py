@@ -246,14 +246,14 @@ class ReactionMask(QWidget):
         self.setLayout(layout)
 
         self.delete_button.clicked.connect(self.delete_reaction)
-        self.id.textChanged.connect(self.reaction_id_changed)
-        self.name.textChanged.connect(self.reaction_name_changed)
-        self.equation.textChanged.connect(self.reaction_equation_changed)
-        self.rate_min.textChanged.connect(self.reaction_rate_min_changed)
-        self.rate_max.textChanged.connect(self.reaction_rate_max_changed)
-        self.coefficent.textChanged.connect(self.reaction_coefficent_changed)
-        # self.variance.textChanged.connect(self.reaction_variance_changed)
-        # self.comments.textChanged.connect(self.reaction_comments_changed)
+        self.id.textEdited.connect(self.reaction_data_changed)
+        self.name.textEdited.connect(self.reaction_data_changed)
+        self.equation.textEdited.connect(self.reaction_data_changed)
+        self.rate_min.textEdited.connect(self.reaction_data_changed)
+        self.rate_max.textEdited.connect(self.reaction_data_changed)
+        self.coefficent.textEdited.connect(self.reaction_data_changed)
+        # self.variance.textEdited.connect(self.reaction_data_changed)
+        # self.comments.textEdited.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
 
@@ -270,6 +270,8 @@ class ReactionMask(QWidget):
         self.old.build_reaction_from_string(self.equation.text())
         self.old.lower_bound = float(self.rate_min.text())
         self.old.upper_bound = float(self.rate_max.text())
+        print("TODO save coefficient")
+        # self.old.objective_coefficient = float(self.coefficent.text())
 
         self.changed = False
         self.changedReactionList.emit()
@@ -286,14 +288,46 @@ class ReactionMask(QWidget):
         self.update_state()
 
     def verify_id(self):
-        print("TODO reaction id changed! please verify")
-        self.is_valid = True
+
+        palette = self.id.palette()
+        role = self.id.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.id.setPalette(palette)
+
+        with self.appdata.cobra_py_model as model:
+            try:
+                r = cobra.Reaction(id=self.id.text())
+                model.add_reaction(r)
+            except:
+                self.id.setStyleSheet("background: #ff9999")
+                return False
+            else:
+                self.id.setStyleSheet("background: white")
+                return True
 
     def verify_name(self):
-        print("TODO reaction id changed! please verify")
-        self.is_valid = True
+        palette = self.name.palette()
+        role = self.name.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.name.setPalette(palette)
+
+        with self.appdata.cobra_py_model as model:
+            try:
+                r = cobra.Reaction(id="testid", name=self.name.text())
+                model.add_reaction(r)
+            except:
+                self.name.setStyleSheet("background: #ff9999")
+                return False
+            else:
+                self.name.setStyleSheet("background: white")
+                return True
 
     def verify_equation(self):
+
+        palette = self.equation.palette()
+        role = self.equation.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.equation.setPalette(palette)
 
         with self.appdata.cobra_py_model as model:
             r = cobra.Reaction("test_id")
@@ -301,82 +335,69 @@ class ReactionMask(QWidget):
             try:
                 r.build_reaction_from_string(self.equation.text())
             except:
-                self.is_valid = False
                 self.equation.setStyleSheet("background: #ff9999")
+                return False
             else:
-                self.is_valid = True
                 self.equation.setStyleSheet("background: white")
-
-            palette = self.equation.palette()
-            role = self.equation.foregroundRole()
-            palette.setColor(role, Qt.black)
-            self.equation.setPalette(palette)
+                return True
 
     def verify_lowerbound(self):
-        try:
-            x = float(self.rate_min.text())
-        except:
-            self.is_valid = False
-            self.rate_min.setStyleSheet("background: #ff9999")
-        else:
-            self.is_valid = True
-            self.rate_min.setStyleSheet("background: white")
 
         palette = self.rate_min.palette()
         role = self.rate_min.foregroundRole()
         palette.setColor(role, Qt.black)
         self.rate_min.setPalette(palette)
+        try:
+            x = float(self.rate_min.text())
+        except:
+            self.rate_min.setStyleSheet("background: #ff9999")
+            return False
+        else:
+            self.rate_min.setStyleSheet("background: white")
+            return True
 
     def verify_upperbound(self):
-        try:
-            x = float(self.rate_max.text())
-        except:
-            self.is_valid = False
-            self.rate_max.setStyleSheet("background: #ff9999")
-        else:
-            self.is_valid = True
-            self.rate_max.setStyleSheet("background: white")
 
         palette = self.rate_max.palette()
         role = self.rate_max.foregroundRole()
         palette.setColor(role, Qt.black)
         self.rate_max.setPalette(palette)
 
-    def reaction_id_changed(self):
-        print("reaction_id_changed")
+        try:
+            x = float(self.rate_max.text())
+        except:
+            self.rate_max.setStyleSheet("background: #ff9999")
+            return False
+        else:
+            self.rate_max.setStyleSheet("background: white")
+            return True
+
+    def verify_coefficient(self):
+
+        palette = self.coefficent.palette()
+        role = self.coefficent.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.coefficent.setPalette(palette)
+
+        try:
+            x = float(self.coefficent.text())
+        except:
+            self.coefficent.setStyleSheet("background: #ff9999")
+            return False
+        else:
+            self.coefficent.setStyleSheet("background: white")
+            return True
+
+    def verify_mask(self):
+        if self.verify_id() & self.verify_name() & self.verify_equation() & self.verify_lowerbound() & self.verify_upperbound() & self.verify_coefficient():
+            self.is_valid = True
+        else:
+            self.is_valid = False
+
+    def reaction_data_changed(self):
         self.changed = True
-        self.verify_id()
+        self.verify_mask()
         self.update_state()
-
-    def reaction_name_changed(self):
-        print("reaction_name_changed")
-        self.changed = True
-        self.verify_name()
-        self.update_state()
-
-    def reaction_equation_changed(self):
-        self.changed = True
-        self.verify_equation()
-        self.update_state()
-
-    def reaction_rate_min_changed(self):
-        self.changed = True
-        self.verify_lowerbound()
-        self.update_state()
-
-    def reaction_rate_max_changed(self):
-        self.changed = True
-        self.verify_upperbound()
-        self.update_state()
-
-    # def reaction_variance_changed(self):
-    #     print("TODO reaction_variance_changed")
-
-    def reaction_coefficent_changed(self):
-        print("TODO reaction_coefficent_changed")
-
-    # def reaction_comments_changed(self):
-    #     print("TODO reaction_comments_changed")
 
     def update_state(self):
         print("reaction_mask::update_state")
