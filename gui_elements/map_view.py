@@ -149,7 +149,7 @@ class ReactionBox(QGraphicsItem):
         QGraphicsItem.__init__(self)
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
-        self.item.textChanged.connect(self.value_changed)
+        self.item.textEdited.connect(self.value_changed)
 
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
