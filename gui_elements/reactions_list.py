@@ -80,7 +80,7 @@ class ReactionList(QWidget):
         item.setData(3, 0, reaction)
 
     def add_new_reaction(self):
-        print("ReactionList::add_new_reaction")
+        # print("ReactionList::add_new_reaction")
         self.reaction_mask.show()
         reaction = cobra.Reaction()
 
@@ -99,11 +99,11 @@ class ReactionList(QWidget):
         self.reaction_mask.update_state()
 
     def reaction_selected(self, item, _column):
-        print("reaction_selected")
+        # print("reaction_selected")
         if item is None:
             self.reaction_mask.hide()
         else:
-            print("last selected", self.last_selected)
+            # print("last selected", self.last_selected)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
             self.reaction_mask.id.setText(reaction.id)
@@ -123,7 +123,7 @@ class ReactionList(QWidget):
 
     def emit_changedModel(self):
         self.last_selected = self.reaction_mask.id.text()
-        print("last selected", self.last_selected)
+        # print("last selected", self.last_selected)
         self.changedModel.emit()
 
     def update(self):
@@ -132,9 +132,9 @@ class ReactionList(QWidget):
             self.add_reaction(r)
 
         if self.last_selected is None:
-            print("nothing was previosly selected")
+            pass
         else:
-            print("something was previosly selected")
+            # print("something was previosly selected")
             items = self.reaction_list.findItems(
                 self.last_selected, Qt.MatchExactly)
 
@@ -400,7 +400,7 @@ class ReactionMask(QWidget):
         self.update_state()
 
     def update_state(self):
-        print("reaction_mask::update_state")
+        # print("reaction_mask::update_state")
         if self.old is None:
             self.apply_button.setText("add reaction")
             self.delete_button.hide()

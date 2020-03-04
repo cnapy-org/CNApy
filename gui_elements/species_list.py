@@ -48,7 +48,7 @@ class SpeciesList(QWidget):
         self.changedModel.emit()
 
     def species_selected(self, item, _column):
-        print("species_selected")
+        # print("species_selected")
         if item is None:
             self.species_mask.hide()
         else:
@@ -65,7 +65,7 @@ class SpeciesList(QWidget):
             self.species_mask.update_state()
 
     def update(self):
-        print("SpeciesList::update")
+        # print("SpeciesList::update")
         self.species_list.clear()
         for m in self.appdata.cobra_py_model.metabolites:
             self.add_species(m)
@@ -156,7 +156,7 @@ class SpeciesMask(QWidget):
         self.changedspeciesList.emit()
 
     def verify_id(self):
-        print("SpeciesMask::verify_id")
+        # print("SpeciesMask::verify_id")
         palette = self.id.palette()
         role = self.id.foregroundRole()
         palette.setColor(role, Qt.black)
@@ -175,7 +175,7 @@ class SpeciesMask(QWidget):
                 return True
 
     def verify_name(self):
-        print("SpeciesMask::verify_name")
+        # print("SpeciesMask::verify_name")
         palette = self.name.palette()
         role = self.name.foregroundRole()
         palette.setColor(role, Qt.black)
@@ -237,7 +237,7 @@ class SpeciesMask(QWidget):
         self.update_state()
 
     def update_state(self):
-        print("SpeciesMask::update_state")
+        # print("SpeciesMask::update_state")
 
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
