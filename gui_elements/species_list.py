@@ -3,7 +3,7 @@
 from PySide2.QtWidgets import QWidget, QLineEdit, QTextEdit, QLabel
 from PySide2.QtCore import Qt
 from PySide2.QtCore import Signal
-from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton
+from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton, QMessageBox
 import cobra
 
 
@@ -146,14 +146,21 @@ class SpeciesMask(QWidget):
         self.apply_button.clicked.connect(self.apply)
 
     def apply(self):
-        self.old.id = self.id.text()
-        self.old.name = self.name.text()
-        self.old.formula = self.formula.text()
-        self.old.charge = float(self.charge.text())
-        self.old.compartment = self.compartment.text()
+        try:
+            self.old.id = self.id.text()
+        except:
+            msgBox = QMessageBox()
+            msgBox.setText("Could not apply changes identifier already used.")
+            msgBox.exec()
+            pass
+        else:
+            self.old.name = self.name.text()
+            self.old.formula = self.formula.text()
+            self.old.charge = float(self.charge.text())
+            self.old.compartment = self.compartment.text()
 
-        self.changed = False
-        self.changedspeciesList.emit()
+            self.changed = False
+            self.changedspeciesList.emit()
 
     def verify_id(self):
         # print("SpeciesMask::verify_id")

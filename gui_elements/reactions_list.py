@@ -4,7 +4,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QHBoxLayout, QVBoxLayout,
                                QTreeWidget, QSizePolicy,
-                               QTreeWidgetItem, QWidget, QPushButton)
+                               QTreeWidgetItem, QWidget, QPushButton, QMessageBox)
 from PySide2.QtCore import Signal
 import cobra
 
@@ -265,16 +265,23 @@ class ReactionMask(QWidget):
                 id=self.id.text(), name=self.name.text())
             self.appdata.cobra_py_model.add_reaction(self.old)
 
-        self.old.id = self.id.text()
-        self.old.name = self.name.text()
-        self.old.build_reaction_from_string(self.equation.text())
-        self.old.lower_bound = float(self.rate_min.text())
-        self.old.upper_bound = float(self.rate_max.text())
-        print("TODO save coefficient")
-        # self.old.objective_coefficient = float(self.coefficent.text())
+        try:
+            self.old.id = self.id.text()
+        except:
+            msgBox = QMessageBox()
+            msgBox.setText("Could not apply changes identifier already used.")
+            msgBox.exec()
+            pass
+        else:
+            self.old.name = self.name.text()
+            self.old.build_reaction_from_string(self.equation.text())
+            self.old.lower_bound = float(self.rate_min.text())
+            self.old.upper_bound = float(self.rate_max.text())
+            print("TODO save coefficient")
+            # self.old.objective_coefficient = float(self.coefficent.text())
 
-        self.changed = False
-        self.changedReactionList.emit()
+            self.changed = False
+            self.changedReactionList.emit()
 
     def delete_reaction(self):
         self.appdata.cobra_py_model.remove_reactions([self.old])
