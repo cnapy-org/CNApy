@@ -3,8 +3,9 @@ import json
 from zipfile import ZipFile
 from tempfile import TemporaryDirectory
 from PySide2.QtCore import Slot
-from PySide2.QtWidgets import (
-    QAction, QApplication, QFileDialog, QMainWindow)
+from PySide2.QtWidgets import (QGraphicsItem,
+                               QAction, QApplication, QFileDialog, QMainWindow)
+from PySide2.QtSvg import QGraphicsSvgItem
 from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
@@ -51,7 +52,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
 
-        load_maps_action = QAction("Load map...", self)
+        load_maps_action = QAction("Load maps...", self)
         self.file_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_maps)
 
@@ -64,9 +65,14 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(exit_action)
         exit_action.triggered.connect(self.exit_app)
 
-        self.find_menu = self.menu.addMenu("Find")
-        find_reaction_action = QAction("Find reaction...", self)
-        self.find_menu.addAction(find_reaction_action)
+        # self.find_menu = self.menu.addMenu("Find")
+        # find_reaction_action = QAction("Find reaction...", self)
+        # self.find_menu.addAction(find_reaction_action)
+
+        self.map_menu = self.menu.addMenu("Map")
+        change_background_action = QAction("Change background", self)
+        self.map_menu.addAction(change_background_action)
+        change_background_action.triggered.connect(self.change_background)
 
         self.analysis_menu = self.menu.addMenu("Analysis")
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
@@ -120,6 +126,27 @@ class MainWindow(QMainWindow):
         self.update_view()
 
     @Slot()
+    def change_background(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.svg")
+
+        idx = self.centralWidget().tabs.currentIndex()
+        # try:
+        self.app.appdata.maps[idx - 3]["background"] = filename[0]
+        print(self.app.appdata.maps[idx - 3]["background"])
+
+        background = QGraphicsSvgItem(
+            self.app.appdata.maps[idx - 3]["background"])
+        background.setFlags(QGraphicsItem.ItemClipsToShape)
+        self.centralWidget().tabs.widget(idx).scene.addItem(background)
+        # except:
+        # print("could not update background")
+
+        self.update_view()
+        self.centralWidget().tabs.setCurrentIndex(idx)
+
+    @Slot()
     def save_maps(self, _checked):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -131,7 +158,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def new_project(self, _checked):
         self.app.appdata.cobra_py_model = cobra.Model()
-        self.app.appdata.maps = [{}]
+        self.app.appdata.maps = []
 
         self.update_view()
 
@@ -176,7 +203,8 @@ class MainWindow(QMainWindow):
     def update_view(self):
         self.centralWidget().reaction_list.update()
         self.centralWidget().specie_list.update()
-        self.centralWidget().map.update()
+        # for m in self.app.appdata.maps:
+        self.centralWidget().update_maps()
 
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
