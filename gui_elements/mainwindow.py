@@ -235,7 +235,7 @@ class MainWindow(QMainWindow):
                 if self.app.appdata.values[key] < self.app.appdata.low:
                     self.app.appdata.low = self.app.appdata.values[key]
 
-            self.centralWidget().map.update()
+            self.centralWidget().update_maps()
             self.centralWidget().reaction_list.update()
 
     def fva(self):
