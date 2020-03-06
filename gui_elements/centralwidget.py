@@ -63,8 +63,7 @@ class CentralWidget(QWidget):
         m = CnaMap("Map")
         self.app.appdata.maps.append(m)
         self.tabs.setCurrentIndex(2 + len(self.app.appdata.maps))
-        map = MapView(self.app.appdata.maps[len(
-            self.app.appdata.maps)-1], self.app.appdata.values)
+        map = MapView(self.app.appdata, len(self.app.appdata.maps)-1)
         map.doubleClickedReaction.connect(self.switch_to_reaction)
         map.reactionValueChanged.connect(self.update_reaction_value)
         self.tabs.addTab(map, m["name"])
@@ -88,8 +87,7 @@ class CentralWidget(QWidget):
 
         count = 0
         for m in self.app.appdata.maps:
-            map = MapView(
-                self.app.appdata.maps[count], self.app.appdata.values)
+            map = MapView(self.app.appdata, count)
             map.show()
             map.doubleClickedReaction.connect(self.switch_to_reaction)
             map.reactionValueChanged.connect(self.update_reaction_value)
