@@ -1,4 +1,5 @@
 import os
+from shutil import copyfile
 import json
 from zipfile import ZipFile
 from tempfile import TemporaryDirectory
@@ -176,6 +177,9 @@ class MainWindow(QMainWindow):
             with open(folder.name+"/maps.json", 'r') as fp:
                 self.app.appdata.maps = json.load(fp)
 
+                for m in self.app.appdata.maps:
+                    copyfile(folder.name+"/"+m["background"], m["background"])
+
             self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
                 folder.name+"/model.sbml")
             self.update_view()
@@ -193,12 +197,25 @@ class MainWindow(QMainWindow):
         cobra.io.write_sbml_model(
             self.app.appdata.cobra_py_model, folder + "model.sbml")
 
+        files = {}
+        for m in self.app.appdata.maps:
+            files[m["background"]] = ""
+        count = 1
+        for f in files.keys():
+            files[f] = ".bg" + str(count) + ".svg"
+            count += 1
+
+        for m in self.app.appdata.maps:
+            m["background"] = files[m["background"]]
+
         with open(folder + "maps.json", 'w') as fp:
             json.dump(self.app.appdata.maps, fp)
 
         with ZipFile(filename[0], 'w') as zipObj:
             zipObj.write(folder + "model.sbml", arcname="model.sbml")
             zipObj.write(folder + "maps.json", arcname="maps.json")
+            for key in files.keys():
+                zipObj.write(key, arcname=files[key])
 
     def update_view(self):
         self.centralWidget().reaction_list.update()
