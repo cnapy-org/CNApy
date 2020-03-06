@@ -1,4 +1,6 @@
+![cnapy](./cnapylogo.svg "cnapy logo")
 # cnapy - A CellNetAnalyzer GUI in Python
+
 
 - create a conda environment for cnapy from the environment.yml
 
