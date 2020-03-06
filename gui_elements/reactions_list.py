@@ -4,7 +4,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QHBoxLayout, QVBoxLayout,
                                QTreeWidget, QSizePolicy,
-                               QTreeWidgetItem, QWidget, QPushButton, QMessageBox)
+                               QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
 from PySide2.QtCore import Signal
 import cobra
 
@@ -149,12 +149,12 @@ class ReactionList(QWidget):
         self.last_selected = key
         self.update()
 
-    def emit_changedMap(self):
-        self.changedMap.emit()
+    def emit_changedMap(self, idx: int):
+        self.changedMap.emit(idx)
 
     itemActivated = Signal(str)
     changedModel = Signal()
-    changedMap = Signal()
+    changedMap = Signal(int)
 
 
 class ReactionMask(QWidget):
@@ -238,9 +238,12 @@ class ReactionMask(QWidget):
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
         self.add_map_button = QPushButton("add reaction to map")
+        self.map_combo = QComboBox()
+        self.map_combo.setMaximumWidth(40)
 
         l.addWidget(self.apply_button)
         l.addWidget(self.add_map_button)
+        l.addWidget(self.map_combo)
         layout.addItem(l)
 
         self.setLayout(layout)
@@ -289,9 +292,11 @@ class ReactionMask(QWidget):
         self.changedReactionList.emit()
 
     def add_to_map(self):
-        print("ReactionMask::add_to_map")
-        self.appdata.maps[0][self.id.text()] = (100, 100, self.name.text())
-        self.changedMap.emit()
+        idx = self.map_combo.currentText()
+        print("ReactionMask::add_to_map", idx)
+        self.appdata.maps[int(idx)-1]["boxes"][self.id.text()] = (
+            100, 100, self.name.text())
+        self.changedMap.emit(int(idx)-1)
         self.update_state()
 
     def verify_id(self):
@@ -415,10 +420,16 @@ class ReactionMask(QWidget):
             self.apply_button.setText("apply changes")
             self.delete_button.show()
 
-            if self.id.text() in self.appdata.maps[0]:
-                self.add_map_button.setEnabled(False)
-            else:
-                self.add_map_button.setEnabled(True)
+            self.add_map_button.setEnabled(False)
+            self.map_combo.clear()
+            count = 1
+            idx = 0
+            for m in self.appdata.maps:
+                if self.id.text() not in m["boxes"]:
+                    self.add_map_button.setEnabled(True)
+                    self.map_combo.insertItem(idx, str(count))
+                    idx += 1
+                count += 1
 
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
@@ -426,4 +437,4 @@ class ReactionMask(QWidget):
             self.apply_button.setEnabled(False)
 
     changedReactionList = Signal()
-    changedMap = Signal()
+    changedMap = Signal(int)
