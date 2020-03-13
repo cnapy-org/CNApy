@@ -11,7 +11,7 @@ from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
 
-from legacy import matlabcall
+from legacy import legacy_function
 
 import cobra
 
@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fba_action)
 
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
-        fba_action.triggered.connect(self.fva)
+        fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
         self.help_menu = self.menu.addMenu("Help")
@@ -239,5 +239,4 @@ class MainWindow(QMainWindow):
             self.centralWidget().reaction_list.update()
 
     def fva(self):
-        res = matlabcall()
-        print("yeah", res)
+        res = legacy_function(self.app.appdata.cobra_py_model)
