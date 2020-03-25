@@ -156,7 +156,8 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'r') as fp:
-            self.app.appdata.values = json.load(fp)
+            values=json.load(fp)
+            self.app.appdata.set_scen(values)
         self.centralWidget().update()
 
     @Slot()
@@ -168,7 +169,8 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'r') as fp:
             self.app.appdata.modes = json.load(fp)
             self.centralWidget().modenavigator.current = 0
-            self.app.appdata.values = self.app.appdata.modes[0].copy()
+            values = self.app.appdata.modes[0].copy()
+            self.app.appdata.set_scen(values)
         self.centralWidget().update()
 
     @Slot()
@@ -284,12 +286,7 @@ class MainWindow(QMainWindow):
         if solution.status == 'optimal':
             self.app.appdata.high = 0.0
             self.app.appdata.low = 0.0
-            for key in solution.fluxes.keys():
-                self.app.appdata.values[key] = solution.fluxes[key]
-                if self.app.appdata.values[key] > self.app.appdata.high:
-                    self.app.appdata.high = self.app.appdata.values[key]
-                if self.app.appdata.values[key] < self.app.appdata.low:
-                    self.app.appdata.low = self.app.appdata.values[key]
+            self.app.appdata.set_scen(solution.fluxes)
 
             self.centralWidget().update_maps()
             self.centralWidget().reaction_list.update()

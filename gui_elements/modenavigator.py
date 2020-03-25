@@ -43,7 +43,8 @@ class ModeNavigator(QWidget):
         else:
             self.current -= 1
         
-        self.appdata.values = self.appdata.modes[self.current].copy()
+        values = self.appdata.modes[self.current].copy()
+        self.appdata.set_scen(values)
         self.update()
         self.changedCurrentMode.emit(self.current)
 
@@ -52,8 +53,9 @@ class ModeNavigator(QWidget):
             self.current = 0
         else:
             self.current += 1
-        
-        self.appdata.values = self.appdata.modes[self.current].copy()
+
+        values = self.appdata.modes[self.current].copy()
+        self.appdata.set_scen(values)
         self.update()
         self.changedCurrentMode.emit(self.current)
         

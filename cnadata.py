@@ -17,6 +17,17 @@ class CnaData:
         self.high = 0.0
         self.low = 0.0
 
+    def set_scen(self, scen):
+            self.high = 0.0
+            self.low = 0.0
+            self.values.clear()
+            for key in scen.keys():
+                self.values[key] = scen[key]
+                if scen[key] > self.high:
+                    self.high = scen[key]
+                if scen[key] < self.low:
+                    self.low = scen[key]
+
 
 def CnaMap(name):
     return {"name": name,
