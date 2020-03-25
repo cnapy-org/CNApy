@@ -75,6 +75,10 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(change_background_action)
         change_background_action.triggered.connect(self.change_background)
 
+        self.szenario_menu = self.menu.addMenu("Scenario")
+        
+        self.modes_menu = self.menu.addMenu("Modes")
+
         self.analysis_menu = self.menu.addMenu("Analysis")
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
         fba_action.triggered.connect(self.fba)
