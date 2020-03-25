@@ -71,15 +71,33 @@ class MainWindow(QMainWindow):
         # self.find_menu.addAction(find_reaction_action)
 
         self.map_menu = self.menu.addMenu("Map")
+
         change_background_action = QAction("Change background", self)
         self.map_menu.addAction(change_background_action)
         change_background_action.triggered.connect(self.change_background)
 
-        self.szenario_menu = self.menu.addMenu("Scenario")
+        self.scenario_menu = self.menu.addMenu("Scenario")
+
+        load_scenario_action = QAction("Load scenario...", self)
+        self.scenario_menu.addAction(load_scenario_action)
+        load_scenario_action.triggered.connect(self.load_scenario)
+
+        save_scenario_action = QAction("Save scenario...", self)
+        self.scenario_menu.addAction(save_scenario_action)
+        save_scenario_action.triggered.connect(self.save_scenario)
         
         self.modes_menu = self.menu.addMenu("Modes")
 
+        load_modes_action = QAction("Load modes...", self)
+        self.modes_menu.addAction(load_modes_action)
+        load_modes_action.triggered.connect(self.load_modes)
+
+        save_modes_action = QAction("Save modes...", self)
+        self.modes_menu.addAction(save_modes_action)
+        save_modes_action.triggered.connect(self.save_modes)
+
         self.analysis_menu = self.menu.addMenu("Analysis")
+
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
@@ -89,6 +107,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.help_menu = self.menu.addMenu("Help")
+
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
@@ -109,7 +128,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.xml")
 
         self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
-        self.update_view()
+        self.centralWidget().update()
 
     @Slot()
     def export_sbml(self, _checked):
@@ -128,7 +147,29 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             self.app.appdata.maps = json.load(fp)
-        self.update_view()
+        self.centralWidget().update()
+
+    @Slot()
+    def load_scenario(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.scen")
+
+        with open(filename[0], 'r') as fp:
+            self.app.appdata.values = json.load(fp)
+        self.centralWidget().update()
+
+    @Slot()
+    def load_modes(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.modes")
+
+        with open(filename[0], 'r') as fp:
+            self.app.appdata.modes = json.load(fp)
+            self.centralWidget().modenavigator.current = 0
+            self.app.appdata.values = self.app.appdata.modes[0].copy()
+        self.centralWidget().update()
 
     @Slot()
     def change_background(self, _checked):
@@ -148,7 +189,7 @@ class MainWindow(QMainWindow):
         # except:
         # print("could not update background")
 
-        self.update_view()
+        self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
 
     @Slot()
@@ -159,13 +200,30 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.maps, fp)
+    @Slot()
+    def save_scenario(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.scen")
+
+        with open(filename[0], 'w') as fp:
+            json.dump(self.app.appdata.values, fp)
+
+    @Slot()
+    def save_modes(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.modes")
+
+        with open(filename[0], 'w') as fp:
+            json.dump(self.app.appdata.modes, fp)
 
     @Slot()
     def new_project(self, _checked):
         self.app.appdata.cobra_py_model = cobra.Model()
         self.app.appdata.maps = []
 
-        self.update_view()
+        self.centralWidget().update()
 
     @Slot()
     def open_project(self, _checked):
@@ -186,7 +244,7 @@ class MainWindow(QMainWindow):
 
             self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
                 folder.name+"/model.sbml")
-            self.update_view()
+            self.centralWidget().update()
 
     @Slot()
     def save_project_as(self, _checked):
@@ -220,12 +278,6 @@ class MainWindow(QMainWindow):
             zipObj.write(folder + "maps.json", arcname="maps.json")
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
-
-    def update_view(self):
-        self.centralWidget().reaction_list.update()
-        self.centralWidget().specie_list.update()
-        # for m in self.app.appdata.maps:
-        self.centralWidget().update_maps()
 
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()

@@ -17,7 +17,7 @@ class ModeNavigator(QWidget):
 
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
-        self.label = QLabel(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
+        self.label = QLabel()
 
         
         self.layout = QHBoxLayout()
@@ -32,14 +32,19 @@ class ModeNavigator(QWidget):
         self.prev_button.clicked.connect(self.prev)
         self.next_button.clicked.connect(self.next)
 
+        self.update()
+
+    def update(self):
+        self.label.setText(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
+
     def prev(self):
         if self.current == 0:
             self.current = len(self.appdata.modes)-1
         else:
             self.current -= 1
         
-        self.label.setText(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
         self.appdata.values = self.appdata.modes[self.current].copy()
+        self.update()
         self.changedCurrentMode.emit(self.current)
 
     def next(self):
@@ -48,8 +53,8 @@ class ModeNavigator(QWidget):
         else:
             self.current += 1
         
-        self.label.setText(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
         self.appdata.values = self.appdata.modes[self.current].copy()
+        self.update()
         self.changedCurrentMode.emit(self.current)
         
     changedCurrentMode = Signal(int)

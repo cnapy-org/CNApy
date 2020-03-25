@@ -45,11 +45,13 @@ class CentralWidget(QWidget):
         self.setLayout(layout)
 
         self.reaction_list.changedMap.connect(self.update_map)
-        self.reaction_list.changedModel.connect(self.update_model_view)
-        self.specie_list.changedModel.connect(self.update_model_view)
+        self.reaction_list.changedModel.connect(self.update)
+        self.specie_list.changedModel.connect(self.update)
         self.add_tab_button.clicked.connect(self.add_map)
         self.tabs.tabCloseRequested.connect(self.remove_map)
-        self.modenavigator.changedCurrentMode.connect(self.update_model_view)
+        self.modenavigator.changedCurrentMode.connect(self.update)
+
+        self.update()
 
     def switch_to_reaction(self, reaction: str):
         # print("centralwidget::switch_to_reaction")
@@ -78,8 +80,13 @@ class CentralWidget(QWidget):
         del self.app.appdata.maps[idx-3]
         self.update_maps()
 
-    def update_model_view(self):
-        # print("centralwidget::update_model_view")
+    def update(self):
+        # print("centralwidget::update")
+        if len(self.app.appdata.modes) == 0:
+            self.modenavigator.hide()
+        else:
+            self.modenavigator.show()
+            self.modenavigator.update()
         self.reaction_list.update()
         self.specie_list.update()
         self.update_maps()
