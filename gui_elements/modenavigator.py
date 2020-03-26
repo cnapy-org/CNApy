@@ -35,7 +35,6 @@ class ModeNavigator(QWidget):
         l1.addLayout(l12)
 
         l2 = QHBoxLayout()   
-        # l.addWidget(self.add_button)
         l2.addWidget(self.prev_button)
         l2.addWidget(self.label)
         l2.addWidget(self.next_button)

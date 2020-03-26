@@ -2,7 +2,7 @@
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
 from PySide2.QtCore import Qt, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent)
+                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
 from PySide2.QtSvg import QGraphicsSvgItem
 from PySide2.QtCore import Signal
 
@@ -132,6 +132,11 @@ class MapView(QGraphicsView):
                 palette.setColor(role, Qt.black)
                 self.reaction_boxes[key].item.setPalette(palette)
 
+    def delete_box(self, key):
+        # print("MapView::delete_box", key)
+        del self.appdata.maps[self.idx]["boxes"][key]
+        self.update()
+
     def emit_doubleClickedReaction(self, reaction: str):
         self.doubleClickedReaction.emit(reaction)
 
@@ -156,6 +161,16 @@ class ReactionBox(QGraphicsItem):
         self.setAcceptedMouseButtons(Qt.LeftButton)
         self.item.textEdited.connect(self.value_changed)
 
+        self.item.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.item.customContextMenuRequested.connect(self.on_context_menu)
+
+        # create context menu
+        self.popMenu = QMenu(parent)
+        delete_action = QAction('remove from map', parent)
+        self.popMenu.addAction(delete_action)
+        delete_action.triggered.connect(self.delete)
+        self.popMenu.addSeparator()
+            
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
         if verify_value(self.item.text()):
@@ -191,6 +206,13 @@ class ReactionBox(QGraphicsItem):
         self.proxy.setPos(x, y)
         super().setPos(x, y)
 
+    def on_context_menu(self, point):
+        # show context menu
+        self.popMenu.exec_(self.item.mapToGlobal(point)) 
+
+    def delete(self):
+        # print('ReactionBox:delete')
+        self.map.delete_box(self.key)
 
 def verify_value(value):
     print("TODO: implement verify_value")
