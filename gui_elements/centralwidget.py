@@ -112,4 +112,4 @@ class CentralWidget(QWidget):
         print("centralwidget::update_map", str(idx))
         m = self.tabs.widget(3+idx)
         m.update()
-        # self.tabs.setCurrentIndex(3+idx)
+        self.tabs.setCurrentIndex(3+idx)
