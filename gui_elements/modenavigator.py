@@ -15,27 +15,47 @@ class ModeNavigator(QWidget):
         self.appdata = appdata
         self.current = 0
 
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.clear_button = QPushButton()
+        self.clear_button.setIcon(QIcon.fromTheme("edit-delete"))
+        self.clear_button.setToolTip("clear modes")
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
 
+        l1 = QHBoxLayout()
+        label = QLabel("Mode Navigation")
         
-        self.layout = QHBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        # l.setAlignment(Qt.AlignRight)
+        l12 = QHBoxLayout()
+        l12.setAlignment(Qt.AlignRight)
+        l12.addWidget(self.clear_button)
+        l1.addWidget(label)
+        l1.addLayout(l12)
+
+        l2 = QHBoxLayout()   
         # l.addWidget(self.add_button)
-        self.layout.addWidget(self.prev_button)
-        self.layout.addWidget(self.label)
-        self.layout.addWidget(self.next_button)
+        l2.addWidget(self.prev_button)
+        l2.addWidget(self.label)
+        l2.addWidget(self.next_button)
+
+        self.layout.addLayout(l1)
+        self.layout.addLayout(l2)
         self.setLayout(self.layout)
 
         self.prev_button.clicked.connect(self.prev)
         self.next_button.clicked.connect(self.next)
+        self.clear_button.clicked.connect(self.clear)
 
         self.update()
 
     def update(self):
         self.label.setText(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
+
+    def clear(self):
+        self.appdata.modes.clear()
+        self.hide()
 
     def prev(self):
         if self.current == 0:
