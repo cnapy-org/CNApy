@@ -70,12 +70,6 @@ class MainWindow(QMainWindow):
         # find_reaction_action = QAction("Find reaction...", self)
         # self.find_menu.addAction(find_reaction_action)
 
-        self.map_menu = self.menu.addMenu("Map")
-
-        change_background_action = QAction("Change background", self)
-        self.map_menu.addAction(change_background_action)
-        change_background_action.triggered.connect(self.change_background)
-
         self.scenario_menu = self.menu.addMenu("Scenario")
 
         load_scenario_action = QAction("Load scenario...", self)
@@ -85,7 +79,7 @@ class MainWindow(QMainWindow):
         save_scenario_action = QAction("Save scenario...", self)
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
-        
+
         self.modes_menu = self.menu.addMenu("Modes")
 
         load_modes_action = QAction("Load modes...", self)
@@ -95,6 +89,13 @@ class MainWindow(QMainWindow):
         save_modes_action = QAction("Save modes...", self)
         self.modes_menu.addAction(save_modes_action)
         save_modes_action.triggered.connect(self.save_modes)
+
+        self.map_menu = self.menu.addMenu("Map")
+        self.map_menu.setEnabled(False)
+
+        change_background_action = QAction("Change background", self)
+        self.map_menu.addAction(change_background_action)
+        change_background_action.triggered.connect(self.change_background)
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -111,6 +112,8 @@ class MainWindow(QMainWindow):
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
+
+        self.centralWidget().tabs.currentChanged.connect(self.on_tab_change)
 
     @Slot()
     def exit_app(self, _checked):
@@ -156,7 +159,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'r') as fp:
-            values=json.load(fp)
+            values = json.load(fp)
             self.app.appdata.set_scen(values)
         self.centralWidget().update()
 
@@ -202,6 +205,7 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.maps, fp)
+
     @Slot()
     def save_scenario(self, _checked):
         dialog = QFileDialog(self)
@@ -280,6 +284,13 @@ class MainWindow(QMainWindow):
             zipObj.write(folder + "maps.json", arcname="maps.json")
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
+
+    def on_tab_change(self, idx):
+        print("currentTab changed", str(idx))
+        if idx >= 3:
+            self.map_menu.setEnabled(True)
+        else:
+            self.map_menu.setEnabled(False)
 
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
