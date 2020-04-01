@@ -90,6 +90,7 @@ class MapView(QGraphicsView):
         background = QGraphicsSvgItem(
             self.appdata.maps[self.idx]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
+        background.setScale(self.appdata.maps[self.idx]["bg-size"])
         self.scene.addItem(background)
 
         for key in self.appdata.maps[self.idx]["boxes"]:
@@ -170,7 +171,7 @@ class ReactionBox(QGraphicsItem):
         self.popMenu.addAction(delete_action)
         delete_action.triggered.connect(self.delete)
         self.popMenu.addSeparator()
-            
+
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
         if verify_value(self.item.text()):
@@ -208,11 +209,12 @@ class ReactionBox(QGraphicsItem):
 
     def on_context_menu(self, point):
         # show context menu
-        self.popMenu.exec_(self.item.mapToGlobal(point)) 
+        self.popMenu.exec_(self.item.mapToGlobal(point))
 
     def delete(self):
         # print('ReactionBox:delete')
         self.map.delete_box(self.key)
+
 
 def verify_value(value):
     print("TODO: implement verify_value")

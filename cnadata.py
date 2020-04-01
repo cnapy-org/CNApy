@@ -7,7 +7,7 @@ class CnaData:
         self.cobra_py_model = cobra.Model()
         self.maps = []
         self.values = {}
-        self.modes =[]
+        self.modes = []
         # self.modes = [{'ACALD':0.0, 'ACALDt':0.0, 'ACKr':0.0, 'ACONTa':6.007249575350342, 'ACONTb':6.007249575350342, 'ACt2r':0.0, 'ADK1':0.0},
         # {'AKGDH':5.064375661482104, 'AKGt2r':0.0, 'ALCD2x':0.0, 'ATPM':8.39, 'ATPS4r':45.514009774517554},
         # {'BIOMASS_Ecoli_core_w_GAM':0.8739215069684307, 'CO2t':-22.80983331020498, 'CS':6.007249575350342, 'CYTBD':43.598985311997595, 'D_LACt2':0.0, 'ENO':14.716139568742857, 'ETOHt2r':0.0, 'EX_ac_e':0.0, 'EX_acald_e':0.0, 'EX_akg_e':0.0, 'EX_co2_e':22.80983331020498, 'EX_etoh_e':0.0, 'EX_for_e':0.0, 'EX_fru_e':0.0, 'EX_fum_e':0.0, 'EX_glc__D_e':-10.0, 'EX_gln__L_e':0.0},
@@ -18,19 +18,20 @@ class CnaData:
         self.low = 0.0
 
     def set_scen(self, scen):
-            self.high = 0.0
-            self.low = 0.0
-            self.values.clear()
-            for key in scen.keys():
-                self.values[key] = scen[key]
-                if scen[key] > self.high:
-                    self.high = scen[key]
-                if scen[key] < self.low:
-                    self.low = scen[key]
+        self.high = 0.0
+        self.low = 0.0
+        self.values.clear()
+        for key in scen.keys():
+            self.values[key] = scen[key]
+            if scen[key] > self.high:
+                self.high = scen[key]
+            if scen[key] < self.low:
+                self.low = scen[key]
 
 
 def CnaMap(name):
     return {"name": name,
             "boxes": {},
-            "background": "cnapylogo.svg"
+            "background": "cnapylogo.svg",
+            "bg-size": 1
             }

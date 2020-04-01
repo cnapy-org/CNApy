@@ -97,6 +97,10 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(change_background_action)
         change_background_action.triggered.connect(self.change_background)
 
+        change_bg_size_action = QAction("Change background size", self)
+        self.map_menu.addAction(change_bg_size_action)
+        change_bg_size_action.triggered.connect(self.change_bg_size)
+
         self.analysis_menu = self.menu.addMenu("Analysis")
 
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
@@ -183,16 +187,35 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.svg")
 
         idx = self.centralWidget().tabs.currentIndex()
-        # try:
-        self.app.appdata.maps[idx - 3]["background"] = filename[0]
-        print(self.app.appdata.maps[idx - 3]["background"])
+        if filename[0] != '':
+            # try:
+            self.app.appdata.maps[idx - 3]["background"] = filename[0]
+            print(self.app.appdata.maps[idx - 3]["background"])
 
-        background = QGraphicsSvgItem(
-            self.app.appdata.maps[idx - 3]["background"])
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        self.centralWidget().tabs.widget(idx).scene.addItem(background)
-        # except:
-        # print("could not update background")
+            background = QGraphicsSvgItem(
+                self.app.appdata.maps[idx - 3]["background"])
+            background.setFlags(QGraphicsItem.ItemClipsToShape)
+            self.centralWidget().tabs.widget(idx).scene.addItem(background)
+            # except:
+            # print("could not update background")
+
+            self.centralWidget().update()
+            self.centralWidget().tabs.setCurrentIndex(idx)
+
+    @Slot()
+    def change_bg_size(self, _checked):
+        # dialog = QFileDialog(self)
+        # filename: str = dialog.getOpenFileName(
+        #     dir=os.getcwd(), filter="*.svg")
+
+        idx = self.centralWidget().tabs.currentIndex()
+        self.app.appdata.maps[idx - 3]["bg-size"] = 3
+
+        # background = QGraphicsSvgItem(
+        #     self.app.appdata.maps[idx - 3]["background"])
+        # background.setFlags(QGraphicsItem.ItemClipsToShape)
+        # background.setScale(self.app.appdata.maps[idx - 3]["bg-size"])
+        # self.centralWidget().tabs.widget(idx).scene.addItem(background)
 
         self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
