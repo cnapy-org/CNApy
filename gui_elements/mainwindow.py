@@ -97,9 +97,13 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(change_background_action)
         change_background_action.triggered.connect(self.change_background)
 
-        change_bg_size_action = QAction("Change background size", self)
-        self.map_menu.addAction(change_bg_size_action)
-        change_bg_size_action.triggered.connect(self.change_bg_size)
+        inc_bg_size_action = QAction("Increase background size", self)
+        self.map_menu.addAction(inc_bg_size_action)
+        inc_bg_size_action.triggered.connect(self.inc_bg_size)
+
+        dec_bg_size_action = QAction("Decrease background size", self)
+        self.map_menu.addAction(dec_bg_size_action)
+        dec_bg_size_action.triggered.connect(self.dec_bg_size)
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -203,19 +207,19 @@ class MainWindow(QMainWindow):
             self.centralWidget().tabs.setCurrentIndex(idx)
 
     @Slot()
-    def change_bg_size(self, _checked):
-        # dialog = QFileDialog(self)
-        # filename: str = dialog.getOpenFileName(
-        #     dir=os.getcwd(), filter="*.svg")
+    def inc_bg_size(self, _checked):
 
         idx = self.centralWidget().tabs.currentIndex()
-        self.app.appdata.maps[idx - 3]["bg-size"] = 3
+        self.app.appdata.maps[idx - 3]["bg-size"] += 0.2
 
-        # background = QGraphicsSvgItem(
-        #     self.app.appdata.maps[idx - 3]["background"])
-        # background.setFlags(QGraphicsItem.ItemClipsToShape)
-        # background.setScale(self.app.appdata.maps[idx - 3]["bg-size"])
-        # self.centralWidget().tabs.widget(idx).scene.addItem(background)
+        self.centralWidget().update()
+        self.centralWidget().tabs.setCurrentIndex(idx)
+
+    @Slot()
+    def dec_bg_size(self, _checked):
+
+        idx = self.centralWidget().tabs.currentIndex()
+        self.app.appdata.maps[idx - 3]["bg-size"] -= 0.2
 
         self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)

@@ -1,6 +1,6 @@
 """The PyNetAnalyzer map view"""
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt, QRectF, QMimeData
+from PySide2.QtCore import Qt, QPoint, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
                                QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
 from PySide2.QtSvg import QGraphicsSvgItem
@@ -63,6 +63,7 @@ class MapView(QGraphicsView):
             factor = 0.8
             self._zoom -= 1
 
+        self.appdata.maps[self.idx]["zoom"] = self._zoom
         self.scale(factor, factor)
 
     # def toggleDragMode(self):
@@ -78,6 +79,8 @@ class MapView(QGraphicsView):
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         if self.drag:
             self.centerOn(event.pos())
+            self.appdata.maps[self.idx]["pos"] = (
+                self.horizontalScrollBar().value(), self.verticalScrollBar().value())
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
@@ -106,6 +109,19 @@ class MapView(QGraphicsView):
             self.reaction_boxes[key] = ler1
 
         self.set_values()
+
+        self._zoom = self.appdata.maps[self.idx]["zoom"]
+        if self._zoom > 0:
+            for i in range(1, self._zoom):
+                self.scale(1.25, 1.25)
+        if self._zoom < 0:
+            for i in range(self._zoom, -1):
+                self.scale(0.8, 0.8)
+
+        self.horizontalScrollBar().setValue(
+            self.appdata.maps[self.idx]["pos"][0])
+        self.verticalScrollBar().setValue(
+            self.appdata.maps[self.idx]["pos"][1])
 
     def set_values(self):
 

@@ -31,7 +31,9 @@ class CnaData:
 
 def CnaMap(name):
     return {"name": name,
-            "boxes": {},
             "background": "cnapylogo.svg",
-            "bg-size": 1
+            "bg-size": 1,
+            "zoom": 0,
+            "pos": (0, 0),
+            "boxes": {}
             }
