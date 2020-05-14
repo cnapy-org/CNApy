@@ -25,6 +25,27 @@ class MapView(QGraphicsView):
         self._zoom = 0
         self.drag = False
 
+        # initial scale
+        self._zoom = self.appdata.maps[self.idx]["zoom"]
+        if self._zoom > 0:
+            for i in range(1, self._zoom):
+                self.scale(1.25, 1.25)
+        if self._zoom < 0:
+            for i in range(self._zoom, -1):
+                self.scale(0.8, 0.8)
+
+        # connect events to methods
+        self.horizontalScrollBar().valueChanged.connect(self.on_hbar_change)
+        self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
+
+    def on_hbar_change(self, x):
+        self.appdata.maps[self.idx]["pos"] = (
+            x, self.verticalScrollBar().value())
+
+    def on_vbar_change(self, y):
+        self.appdata.maps[self.idx]["pos"] = (
+            self.horizontalScrollBar().value(), y)
+
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
         event.setAccepted(True)
         event.accept()
@@ -79,8 +100,6 @@ class MapView(QGraphicsView):
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         if self.drag:
             self.centerOn(event.pos())
-            self.appdata.maps[self.idx]["pos"] = (
-                self.horizontalScrollBar().value(), self.verticalScrollBar().value())
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
@@ -110,13 +129,7 @@ class MapView(QGraphicsView):
 
         self.set_values()
 
-        self._zoom = self.appdata.maps[self.idx]["zoom"]
-        if self._zoom > 0:
-            for i in range(1, self._zoom):
-                self.scale(1.25, 1.25)
-        if self._zoom < 0:
-            for i in range(self._zoom, -1):
-                self.scale(0.8, 0.8)
+        # set scrollbars
 
         self.horizontalScrollBar().setValue(
             self.appdata.maps[self.idx]["pos"][0])
