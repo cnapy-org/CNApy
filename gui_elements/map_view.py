@@ -1,8 +1,8 @@
 """The PyNetAnalyzer map view"""
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt, QRectF, QMimeData
+from PySide2.QtCore import Qt, QPoint, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent)
+                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
 from PySide2.QtSvg import QGraphicsSvgItem
 from PySide2.QtCore import Signal
 
@@ -24,6 +24,27 @@ class MapView(QGraphicsView):
         self.reaction_boxes = {}
         self._zoom = 0
         self.drag = False
+
+        # initial scale
+        self._zoom = self.appdata.maps[self.idx]["zoom"]
+        if self._zoom > 0:
+            for i in range(1, self._zoom):
+                self.scale(1.25, 1.25)
+        if self._zoom < 0:
+            for i in range(self._zoom, -1):
+                self.scale(0.8, 0.8)
+
+        # connect events to methods
+        self.horizontalScrollBar().valueChanged.connect(self.on_hbar_change)
+        self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
+
+    def on_hbar_change(self, x):
+        self.appdata.maps[self.idx]["pos"] = (
+            x, self.verticalScrollBar().value())
+
+    def on_vbar_change(self, y):
+        self.appdata.maps[self.idx]["pos"] = (
+            self.horizontalScrollBar().value(), y)
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
         event.setAccepted(True)
@@ -63,6 +84,7 @@ class MapView(QGraphicsView):
             factor = 0.8
             self._zoom -= 1
 
+        self.appdata.maps[self.idx]["zoom"] = self._zoom
         self.scale(factor, factor)
 
     # def toggleDragMode(self):
@@ -90,6 +112,7 @@ class MapView(QGraphicsView):
         background = QGraphicsSvgItem(
             self.appdata.maps[self.idx]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
+        background.setScale(self.appdata.maps[self.idx]["bg-size"])
         self.scene.addItem(background)
 
         for key in self.appdata.maps[self.idx]["boxes"]:
@@ -105,6 +128,13 @@ class MapView(QGraphicsView):
             self.reaction_boxes[key] = ler1
 
         self.set_values()
+
+        # set scrollbars
+
+        self.horizontalScrollBar().setValue(
+            self.appdata.maps[self.idx]["pos"][0])
+        self.verticalScrollBar().setValue(
+            self.appdata.maps[self.idx]["pos"][1])
 
     def set_values(self):
 
@@ -132,6 +162,11 @@ class MapView(QGraphicsView):
                 palette.setColor(role, Qt.black)
                 self.reaction_boxes[key].item.setPalette(palette)
 
+    def delete_box(self, key):
+        # print("MapView::delete_box", key)
+        del self.appdata.maps[self.idx]["boxes"][key]
+        self.update()
+
     def emit_doubleClickedReaction(self, reaction: str):
         self.doubleClickedReaction.emit(reaction)
 
@@ -155,6 +190,16 @@ class ReactionBox(QGraphicsItem):
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
         self.item.textEdited.connect(self.value_changed)
+
+        self.item.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.item.customContextMenuRequested.connect(self.on_context_menu)
+
+        # create context menu
+        self.popMenu = QMenu(parent)
+        delete_action = QAction('remove from map', parent)
+        self.popMenu.addAction(delete_action)
+        delete_action.triggered.connect(self.delete)
+        self.popMenu.addSeparator()
 
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
@@ -190,6 +235,14 @@ class ReactionBox(QGraphicsItem):
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
         super().setPos(x, y)
+
+    def on_context_menu(self, point):
+        # show context menu
+        self.popMenu.exec_(self.item.mapToGlobal(point))
+
+    def delete(self):
+        # print('ReactionBox:delete')
+        self.map.delete_box(self.key)
 
 
 def verify_value(value):
