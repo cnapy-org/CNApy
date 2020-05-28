@@ -12,3 +12,8 @@
 - run cnapy
 
       python cnapy.py
+
+## install matlab engine 2019b for python
+
+- `cd /usr/local/net/MATLAB/R2019b/extern/engines/python`
+- `python setup.py build --build-base="/scratch/mebuild" install`
