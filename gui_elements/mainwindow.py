@@ -70,12 +70,43 @@ class MainWindow(QMainWindow):
         # find_reaction_action = QAction("Find reaction...", self)
         # self.find_menu.addAction(find_reaction_action)
 
+        self.scenario_menu = self.menu.addMenu("Scenario")
+
+        load_scenario_action = QAction("Load scenario...", self)
+        self.scenario_menu.addAction(load_scenario_action)
+        load_scenario_action.triggered.connect(self.load_scenario)
+
+        save_scenario_action = QAction("Save scenario...", self)
+        self.scenario_menu.addAction(save_scenario_action)
+        save_scenario_action.triggered.connect(self.save_scenario)
+
+        self.modes_menu = self.menu.addMenu("Modes")
+
+        load_modes_action = QAction("Load modes...", self)
+        self.modes_menu.addAction(load_modes_action)
+        load_modes_action.triggered.connect(self.load_modes)
+
+        save_modes_action = QAction("Save modes...", self)
+        self.modes_menu.addAction(save_modes_action)
+        save_modes_action.triggered.connect(self.save_modes)
+
         self.map_menu = self.menu.addMenu("Map")
+        self.map_menu.setEnabled(False)
+
         change_background_action = QAction("Change background", self)
         self.map_menu.addAction(change_background_action)
         change_background_action.triggered.connect(self.change_background)
 
+        inc_bg_size_action = QAction("Increase background size", self)
+        self.map_menu.addAction(inc_bg_size_action)
+        inc_bg_size_action.triggered.connect(self.inc_bg_size)
+
+        dec_bg_size_action = QAction("Decrease background size", self)
+        self.map_menu.addAction(dec_bg_size_action)
+        dec_bg_size_action.triggered.connect(self.dec_bg_size)
+
         self.analysis_menu = self.menu.addMenu("Analysis")
+
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
@@ -85,9 +116,12 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.help_menu = self.menu.addMenu("Help")
+
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
+
+        self.centralWidget().tabs.currentChanged.connect(self.on_tab_change)
 
     @Slot()
     def exit_app(self, _checked):
@@ -105,7 +139,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.xml")
 
         self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
-        self.update_view()
+        self.centralWidget().update()
 
     @Slot()
     def export_sbml(self, _checked):
@@ -124,7 +158,31 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             self.app.appdata.maps = json.load(fp)
-        self.update_view()
+        self.centralWidget().update()
+
+    @Slot()
+    def load_scenario(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.scen")
+
+        with open(filename[0], 'r') as fp:
+            values = json.load(fp)
+            self.app.appdata.set_scen(values)
+        self.centralWidget().update()
+
+    @Slot()
+    def load_modes(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            dir=os.getcwd(), filter="*.modes")
+
+        with open(filename[0], 'r') as fp:
+            self.app.appdata.modes = json.load(fp)
+            self.centralWidget().modenavigator.current = 0
+            values = self.app.appdata.modes[0].copy()
+            self.app.appdata.set_scen(values)
+        self.centralWidget().update()
 
     @Slot()
     def change_background(self, _checked):
@@ -133,18 +191,37 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.svg")
 
         idx = self.centralWidget().tabs.currentIndex()
-        # try:
-        self.app.appdata.maps[idx - 3]["background"] = filename[0]
-        print(self.app.appdata.maps[idx - 3]["background"])
+        if filename[0] != '':
+            # try:
+            self.app.appdata.maps[idx - 3]["background"] = filename[0]
+            print(self.app.appdata.maps[idx - 3]["background"])
 
-        background = QGraphicsSvgItem(
-            self.app.appdata.maps[idx - 3]["background"])
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        self.centralWidget().tabs.widget(idx).scene.addItem(background)
-        # except:
-        # print("could not update background")
+            background = QGraphicsSvgItem(
+                self.app.appdata.maps[idx - 3]["background"])
+            background.setFlags(QGraphicsItem.ItemClipsToShape)
+            self.centralWidget().tabs.widget(idx).scene.addItem(background)
+            # except:
+            # print("could not update background")
 
-        self.update_view()
+            self.centralWidget().update()
+            self.centralWidget().tabs.setCurrentIndex(idx)
+
+    @Slot()
+    def inc_bg_size(self, _checked):
+
+        idx = self.centralWidget().tabs.currentIndex()
+        self.app.appdata.maps[idx - 3]["bg-size"] += 0.2
+
+        self.centralWidget().update()
+        self.centralWidget().tabs.setCurrentIndex(idx)
+
+    @Slot()
+    def dec_bg_size(self, _checked):
+
+        idx = self.centralWidget().tabs.currentIndex()
+        self.app.appdata.maps[idx - 3]["bg-size"] -= 0.2
+
+        self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
 
     @Slot()
@@ -157,11 +234,29 @@ class MainWindow(QMainWindow):
             json.dump(self.app.appdata.maps, fp)
 
     @Slot()
+    def save_scenario(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.scen")
+
+        with open(filename[0], 'w') as fp:
+            json.dump(self.app.appdata.values, fp)
+
+    @Slot()
+    def save_modes(self, _checked):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            dir=os.getcwd(), filter="*.modes")
+
+        with open(filename[0], 'w') as fp:
+            json.dump(self.app.appdata.modes, fp)
+
+    @Slot()
     def new_project(self, _checked):
         self.app.appdata.cobra_py_model = cobra.Model()
         self.app.appdata.maps = []
 
-        self.update_view()
+        self.centralWidget().update()
 
     @Slot()
     def open_project(self, _checked):
@@ -182,7 +277,7 @@ class MainWindow(QMainWindow):
 
             self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
                 folder.name+"/model.sbml")
-            self.update_view()
+            self.centralWidget().update()
 
     @Slot()
     def save_project_as(self, _checked):
@@ -217,23 +312,19 @@ class MainWindow(QMainWindow):
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
 
-    def update_view(self):
-        self.centralWidget().reaction_list.update()
-        self.centralWidget().specie_list.update()
-        # for m in self.app.appdata.maps:
-        self.centralWidget().update_maps()
+    def on_tab_change(self, idx):
+        print("currentTab changed", str(idx))
+        if idx >= 3:
+            self.map_menu.setEnabled(True)
+        else:
+            self.map_menu.setEnabled(False)
 
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
         if solution.status == 'optimal':
             self.app.appdata.high = 0.0
             self.app.appdata.low = 0.0
-            for key in solution.fluxes.keys():
-                self.app.appdata.values[key] = solution.fluxes[key]
-                if self.app.appdata.values[key] > self.app.appdata.high:
-                    self.app.appdata.high = self.app.appdata.values[key]
-                if self.app.appdata.values[key] < self.app.appdata.low:
-                    self.app.appdata.low = self.app.appdata.values[key]
+            self.app.appdata.set_scen(solution.fluxes)
 
             self.centralWidget().update_maps()
             self.centralWidget().reaction_list.update()
