@@ -7,9 +7,10 @@ dependencies:
   - _libgcc_mutex=0.1=main
   - astroid=2.3.3=py37_0
   - autopep8=1.4.4=py_0
+  - blas=1.0=mkl
   - bzip2=1.0.8=h7b6447c_0
-  - ca-certificates=2019.10.16=0
-  - certifi=2019.9.11=py37_0
+  - ca-certificates=2020.1.1=0
+  - certifi=2019.11.28=py37_0
   - dbus=1.13.12=h746ee38_0
   - expat=2.2.6=he6710b0_0
   - fontconfig=2.13.1=h86ecdb6_1001
@@ -18,6 +19,7 @@ dependencies:
   - gst-plugins-base=1.14.5=h0935bb2_0
   - gstreamer=1.14.5=h36ae1b5_0
   - icu=64.2=he1b5a44_1
+  - intel-openmp=2020.0=166
   - isort=4.3.21=py37_0
   - jpeg=9c=h14c3975_1001
   - lazy-object-proxy=1.4.3=py37h7b6447c_0
@@ -25,6 +27,7 @@ dependencies:
   - libedit=3.1.20181209=hc058e9b_0
   - libffi=3.2.1=hd88cf55_4
   - libgcc-ng=9.1.0=hdf63c60_0
+  - libgfortran-ng=7.3.0=hdf63c60_0
   - libiconv=1.15=h516909a_1005
   - libllvm9=9.0.0=hc9558a2_3
   - libpng=1.6.37=hbc83047_0
@@ -35,12 +38,17 @@ dependencies:
   - libxml2=2.9.10=hee79883_0
   - libxslt=1.1.33=h31b3aaa_0
   - mccabe=0.6.1=py37_1
+  - mkl=2020.0=166
+  - mkl-service=2.3.0=py37he904b0f_0
+  - mkl_fft=1.0.15=py37ha843d7b_0
+  - mkl_random=1.1.0=py37hd6b4f25_0
   - mypy=0.740=py_0
   - mypy_extensions=0.4.1=py37_0
   - ncurses=6.1=he6710b0_1
   - nspr=4.23=he1b5a44_0
   - nss=3.47=he751ad9_0
-  - openssl=1.1.1d=h7b6447c_3
+  - numpy-base=1.18.1=py37hde5b4d6_1
+  - openssl=1.1.1d=h7b6447c_4
   - pcre=8.43=he1b5a44_0
   - pip=19.3.1=py37_0
   - psutil=5.6.5=py37h7b6447c_0
@@ -52,6 +60,7 @@ dependencies:
   - python-libsbml=5.18.0=py37hff43929_0
   - qt=5.12.5=hd8c4c69_1
   - readline=7.0=h7b6447c_5
+  - scipy=1.4.1=py37h0b6359f_0
   - setuptools=41.6.0=py37_0
   - six=1.13.0=py37_0
   - sqlite=3.30.1=h7b6447c_0
@@ -68,6 +77,7 @@ dependencies:
     - cobra==0.17.1
     - depinfo==1.5.3
     - future==0.18.2
+    - matlabengineforpython==R2019b
     - mpmath==1.1.0
     - numpy==1.18.1
     - optlang==1.4.4
