@@ -140,34 +140,11 @@ class MapView(QGraphicsView):
 
         for key in self.appdata.maps[self.idx]["boxes"]:
             if key in self.appdata.scen_values.keys():
-                self.set_val_and_color(key, self.appdata.scen_values)
+                self.reaction_boxes[key].set_val_and_color(
+                    self.appdata.scen_values[key])
             elif key in self.appdata.comp_values.keys():
-                self.set_val_and_color(key, self.appdata.comp_values)
-
-    def set_val_and_color(self, key, values):
-        # TODO: refactor see also reaction_list:set_flux_value
-        self.reaction_boxes[key].item.setText(
-            str(values[key]))
-        self.reaction_boxes[key].item.setCursorPosition(0)
-        if values[key] > 0.0:
-            if self.appdata.high == 0.0:
-                h = 255
-            else:
-                h = values[key] * \
-                    255 / self.appdata.high
-            color = QColor.fromRgb(255-h, 255, 255-h)
-        else:
-            if self.appdata.low == 0.0:
-                h = 255
-            else:
-                h = values[key] * \
-                    255 / self.appdata.low
-            color = QColor.fromRgb(255, 255-h, 255-h)
-        palette = self.reaction_boxes[key].item.palette()
-        palette.setColor(QPalette.Base, color)
-        role = self.reaction_boxes[key].item.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.reaction_boxes[key].item.setPalette(palette)
+                self.reaction_boxes[key].set_val_and_color(
+                    self.appdata.comp_values[key])
 
     def delete_box(self, key):
         # print("MapView::delete_box", key)
@@ -224,10 +201,25 @@ class ReactionBox(QGraphicsItem):
             self.map.emit_value_changed(self.key, self.item.text())
         elif verify_value(self.item.text()):
             self.map.emit_value_changed(self.key, self.item.text())
+            self.set_color(self.map.appdata.compute_color(
+                float(self.item.text())))
 
         # TODO: actually I want to repaint not scale
         self.map.scale(2, 2)
         self.map.scale(0.5, 0.5)
+
+    def set_val_and_color(self, value):
+        self.item.setText(str(value))
+        self.item.setCursorPosition(0)
+        color = self.map.appdata.compute_color(value)
+        self.set_color(color)
+
+    def set_color(self, color: QColor):
+        palette = self.item.palette()
+        palette.setColor(QPalette.Base, color)
+        role = self.item.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.item.setPalette(palette)
 
     def boundingRect(self):
         return QRectF(-15, -15, 20, 20)

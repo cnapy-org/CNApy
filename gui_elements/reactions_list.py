@@ -65,22 +65,8 @@ class ReactionList(QWidget):
         item.setData(3, 0, reaction)
 
     def set_flux_value(self, item, key, values):
-        # TODO: refactor see also mapview:set_val_and_color
         item.setText(2, str(values[key]))
-        if values[key] > 0.0:
-            if self.appdata.high == 0.0:
-                h = 255
-            else:
-                h = values[key] * \
-                    255 / self.appdata.high
-            color = QColor.fromRgb(255-h, 255, 255-h)
-        else:
-            if self.appdata.low == 0.0:
-                h = 255
-            else:
-                h = values[key] * \
-                    255 / self.appdata.low
-            color = QColor.fromRgb(255, 255 - h, 255 - h)
+        color = self.appdata.compute_color(values[key])
         item.setData(2, Qt.BackgroundRole, color)
         item.setForeground(2, Qt.black)
 

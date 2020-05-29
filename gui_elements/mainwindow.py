@@ -271,8 +271,10 @@ class MainWindow(QMainWindow):
         print("TODO: implement reset scenario")
 
     def clear_scenario(self):
-        self.app.appdata.values.clear()
-
+        self.app.appdata.scen_values.clear()
+        self.app.appdata.comp_values.clear()
+        self.app.appdata.high = 0
+        self.app.appdata.low = 0
         self.centralWidget().update()
 
     @Slot()
@@ -352,7 +354,7 @@ class MainWindow(QMainWindow):
         if solution.status == 'optimal':
             self.app.appdata.high = 0.0
             self.app.appdata.low = 0.0
-            self.app.appdata.set_comp_values(solution.fluxes)
+            self.app.appdata.set_comp_values(solution.fluxes.to_dict())
 
             self.centralWidget().update()
 
