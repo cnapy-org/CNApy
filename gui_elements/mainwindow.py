@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
     def new_project(self, _checked):
         self.app.appdata.cobra_py_model = cobra.Model()
         self.app.appdata.maps = []
-
+        self.centralWidget().remove_map_tabs()
         self.centralWidget().update()
 
     @Slot()

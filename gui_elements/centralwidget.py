@@ -78,6 +78,10 @@ class CentralWidget(QWidget):
         self.update_maps()
         self.tabs.setCurrentIndex(2 + len(self.app.appdata.maps))
 
+    def remove_map_tabs(self):
+        for idx in range(3, self.tabs.count()):
+            self.tabs.removeTab(3)
+
     def remove_map(self, idx: int):
         del self.app.appdata.maps[idx-3]
         self.recreate_maps()
@@ -99,11 +103,10 @@ class CentralWidget(QWidget):
             self.update_tab(idx)
 
     def recreate_maps(self):
+        print("recreate_maps", str(self.tabs.count()))
         last = self.tabs.currentIndex()
         self.tabs.setCurrentIndex(0)
-        print("recreate_maps", str(self.tabs.count()))
-        for idx in range(3, self.tabs.count()):
-            self.tabs.removeTab(3)
+        self.remove_map_tabs()
 
         count = 0
         for m in self.app.appdata.maps:
