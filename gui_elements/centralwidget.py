@@ -1,5 +1,5 @@
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QGraphicsScene, QHBoxLayout,QVBoxLayout,
+from PySide2.QtWidgets import (QGraphicsScene, QHBoxLayout, QVBoxLayout,
                                QTabWidget, QTabBar, QPushButton,
                                QWidget)
 
@@ -37,7 +37,6 @@ class CentralWidget(QWidget):
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
 
-
         self.modenavigator = ModeNavigator(self.app.appdata)
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
@@ -59,12 +58,15 @@ class CentralWidget(QWidget):
         self.reaction_list.setCurrentItem(reaction)
 
     def update_reaction_value(self, reaction: str, value: str):
-        if self.app.appdata.low > float(value):
-            self.app.appdata.low = float(value)
-        if self.app.appdata.high < float(value):
-            self.app.appdata.high = float(value)
-        self.app.appdata.values[reaction] = float(value)
-        self.reaction_list.update()
+        print("update_reaction_value", value)
+        if value == "":
+            self.app.appdata.scen_values.pop(reaction, None)
+        else:
+            if self.app.appdata.low > float(value):
+                self.app.appdata.low = float(value)
+            if self.app.appdata.high < float(value):
+                self.app.appdata.high = float(value)
+            self.app.appdata.scen_values[reaction] = float(value)
 
     def add_map(self):
         m = CnaMap("Map")
@@ -78,7 +80,7 @@ class CentralWidget(QWidget):
 
     def remove_map(self, idx: int):
         del self.app.appdata.maps[idx-3]
-        self.update_maps()
+        self.recreate_maps()
 
     def update(self):
         # print("centralwidget::update")
@@ -87,13 +89,19 @@ class CentralWidget(QWidget):
         else:
             self.modenavigator.show()
             self.modenavigator.update()
-        self.reaction_list.update()
-        self.specie_list.update()
-        self.update_maps()
+
+        for idx in range(0, self.tabs.count()):
+            self.update_tab(idx)
 
     def update_maps(self):
-        last = self.tabs.currentIndex()
         print("update_maps", str(self.tabs.count()))
+        for idx in range(3, self.tabs.count()):
+            self.update_tab(idx)
+
+    def recreate_maps(self):
+        last = self.tabs.currentIndex()
+        self.tabs.setCurrentIndex(0)
+        print("recreate_maps", str(self.tabs.count()))
         for idx in range(3, self.tabs.count()):
             self.tabs.removeTab(3)
 
@@ -106,10 +114,24 @@ class CentralWidget(QWidget):
             self.tabs.addTab(map, m["name"])
             map.update()
             count += 1
-        self.tabs.setCurrentIndex(last)
+        if last >= self.tabs.count():
+            self.tabs.setCurrentIndex(self.tabs.count() - 1)
+        else:
+            self.tabs.setCurrentIndex(last)
+
+    def update_tab(self, idx: int):
+        print("centralwidget::update_tab", str(idx))
+        if idx == 0:
+            self.reaction_list.update()
+        elif idx == 1:
+            self.specie_list.update()
+        elif idx == 2:
+            pass
+        elif idx > 0:
+            self.update_map(idx-2)
 
     def update_map(self, idx: int):
         print("centralwidget::update_map", str(idx))
-        m = self.tabs.widget(3+idx)
+        m = self.tabs.widget(2+idx)
         m.update()
-        self.tabs.setCurrentIndex(3+idx)
+        # self.tabs.setCurrentIndex(3+idx)

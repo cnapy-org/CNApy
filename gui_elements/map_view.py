@@ -107,7 +107,7 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
 
     def update(self):
-        print("MapView::update")
+        print("MapView::update", self.idx)
         self.scene.clear()
         background = QGraphicsSvgItem(
             self.appdata.maps[self.idx]["background"])
@@ -139,28 +139,35 @@ class MapView(QGraphicsView):
     def set_values(self):
 
         for key in self.appdata.maps[self.idx]["boxes"]:
-            if key in self.appdata.values.keys():
-                self.reaction_boxes[key].item.setText(
-                    str(self.appdata.values[key]))
-                self.reaction_boxes[key].item.setCursorPosition(0)
-                if self.appdata.values[key] > 0.0:
-                    if self.appdata.high == 0.0:
-                        h = 255
-                    else:
-                        h = self.appdata.values[key] * 255 / self.appdata.high
-                    color = QColor.fromRgb(255-h, 255, 255-h)
-                else:
-                    if self.appdata.low == 0.0:
-                        h = 255
-                    else:
-                        h = self.appdata.values[key] * 255 / self.appdata.low
-                    color = QColor.fromRgb(255, 255-h, 255-h)
+            if key in self.appdata.scen_values.keys():
+                self.set_val_and_color(key, self.appdata.scen_values)
+            elif key in self.appdata.comp_values.keys():
+                self.set_val_and_color(key, self.appdata.comp_values)
 
-                palette = self.reaction_boxes[key].item.palette()
-                palette.setColor(QPalette.Base, color)
-                role = self.reaction_boxes[key].item.foregroundRole()
-                palette.setColor(role, Qt.black)
-                self.reaction_boxes[key].item.setPalette(palette)
+    def set_val_and_color(self, key, values):
+        # TODO: refactor see also reaction_list:set_flux_value
+        self.reaction_boxes[key].item.setText(
+            str(values[key]))
+        self.reaction_boxes[key].item.setCursorPosition(0)
+        if values[key] > 0.0:
+            if self.appdata.high == 0.0:
+                h = 255
+            else:
+                h = values[key] * \
+                    255 / self.appdata.high
+            color = QColor.fromRgb(255-h, 255, 255-h)
+        else:
+            if self.appdata.low == 0.0:
+                h = 255
+            else:
+                h = values[key] * \
+                    255 / self.appdata.low
+            color = QColor.fromRgb(255, 255-h, 255-h)
+        palette = self.reaction_boxes[key].item.palette()
+        palette.setColor(QPalette.Base, color)
+        role = self.reaction_boxes[key].item.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.reaction_boxes[key].item.setPalette(palette)
 
     def delete_box(self, key):
         # print("MapView::delete_box", key)
@@ -190,6 +197,7 @@ class ReactionBox(QGraphicsItem):
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
         self.item.textEdited.connect(self.value_changed)
+        self.item.returnPressed.connect(self.returnPressed)
 
         self.item.setContextMenuPolicy(Qt.CustomContextMenu)
         self.item.customContextMenuRequested.connect(self.on_context_menu)
@@ -201,17 +209,37 @@ class ReactionBox(QGraphicsItem):
         delete_action.triggered.connect(self.delete)
         self.popMenu.addSeparator()
 
-    def value_changed(self):
-        print(self.key, "value changed to", self.item.text())
+    def returnPressed(self):
+        print(self.key, "return pressed to", self.item.text())
         if verify_value(self.item.text()):
             self.map.emit_value_changed(self.key, self.item.text())
+
+        # TODO: actually I want to repaint not scale
+        self.map.scale(2, 2)
+        self.map.scale(0.5, 0.5)
+
+    def value_changed(self):
+        print(self.key, "value changed to", self.item.text())
+        if self.item.text() == "":
+            self.map.emit_value_changed(self.key, self.item.text())
+        elif verify_value(self.item.text()):
+            self.map.emit_value_changed(self.key, self.item.text())
+
+        # TODO: actually I want to repaint not scale
+        self.map.scale(2, 2)
+        self.map.scale(0.5, 0.5)
 
     def boundingRect(self):
         return QRectF(-15, -15, 20, 20)
 
-    def paint(self, painter: QPainter, _option, _widget: QWidget):
+    def paint(self, painter: QPainter, option, widget: QWidget):
         painter.setPen(Qt.NoPen)
-        painter.setBrush(Qt.darkGray)
+        # set color depending on wether the value belongs to the scenario
+        if self.key in self.map.appdata.scen_values.keys():
+            painter.setBrush(Qt.darkGreen)
+        else:
+            painter.setBrush(Qt.darkGray)
+
         painter.drawEllipse(-8, -8, 10, 10)
 
     def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):

@@ -7,8 +7,9 @@ from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
 from PySide2.QtCore import Signal
 
+
 class ModeNavigator(QWidget):
-    """A navigator widget""" 
+    """A navigator widget"""
 
     def __init__(self, appdata):
         QWidget.__init__(self)
@@ -17,7 +18,7 @@ class ModeNavigator(QWidget):
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.clear_button = QPushButton()
         self.clear_button.setIcon(QIcon.fromTheme("edit-delete"))
         self.clear_button.setToolTip("clear modes")
@@ -27,14 +28,14 @@ class ModeNavigator(QWidget):
 
         l1 = QHBoxLayout()
         label = QLabel("Mode Navigation")
-        
+
         l12 = QHBoxLayout()
         l12.setAlignment(Qt.AlignRight)
         l12.addWidget(self.clear_button)
         l1.addWidget(label)
         l1.addLayout(l12)
 
-        l2 = QHBoxLayout()   
+        l2 = QHBoxLayout()
         l2.addWidget(self.prev_button)
         l2.addWidget(self.label)
         l2.addWidget(self.next_button)
@@ -50,7 +51,8 @@ class ModeNavigator(QWidget):
         self.update()
 
     def update(self):
-        self.label.setText(str(self.current + 1) + "/" + str(len(self.appdata.modes)))
+        self.label.setText(str(self.current + 1) + "/" +
+                           str(len(self.appdata.modes)))
 
     def clear(self):
         self.appdata.modes.clear()
@@ -61,11 +63,9 @@ class ModeNavigator(QWidget):
             self.current = len(self.appdata.modes)-1
         else:
             self.current -= 1
-        
+
         values = self.appdata.modes[self.current].copy()
-        self.appdata.set_scen(values)
-        self.update()
-        self.changedCurrentMode.emit(self.current)
+        self.set_mode(values)
 
     def next(self):
         if self.current == len(self.appdata.modes)-1:
@@ -74,8 +74,12 @@ class ModeNavigator(QWidget):
             self.current += 1
 
         values = self.appdata.modes[self.current].copy()
-        self.appdata.set_scen(values)
+        self.set_mode(values)
+
+    def set_mode(self, values):
+        self.appdata.set_scen_values({})
+        self.appdata.set_comp_values(values)
         self.update()
         self.changedCurrentMode.emit(self.current)
-        
+
     changedCurrentMode = Signal(int)

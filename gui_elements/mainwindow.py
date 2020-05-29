@@ -80,6 +80,14 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
 
+        clear_scenario_action = QAction("Clear scenario", self)
+        self.scenario_menu.addAction(clear_scenario_action)
+        clear_scenario_action.triggered.connect(self.clear_scenario)
+
+        reset_scenario_action = QAction("Reset scenario", self)
+        self.scenario_menu.addAction(reset_scenario_action)
+        reset_scenario_action.triggered.connect(self.reset_scenario)
+
         self.modes_menu = self.menu.addMenu("Modes")
 
         load_modes_action = QAction("Load modes...", self)
@@ -114,6 +122,10 @@ class MainWindow(QMainWindow):
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        efm_action = QAction("Elementary Flux Mode ...", self)
+        efm_action.triggered.connect(self.efm)
+        self.analysis_menu.addAction(efm_action)
 
         self.help_menu = self.menu.addMenu("Help")
 
@@ -158,6 +170,8 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             self.app.appdata.maps = json.load(fp)
+
+        self.centralWidget().recreate_maps()
         self.centralWidget().update()
 
     @Slot()
@@ -168,7 +182,7 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
-            self.app.appdata.set_scen(values)
+            self.app.appdata.set_scen_values(values)
         self.centralWidget().update()
 
     @Slot()
@@ -181,7 +195,9 @@ class MainWindow(QMainWindow):
             self.app.appdata.modes = json.load(fp)
             self.centralWidget().modenavigator.current = 0
             values = self.app.appdata.modes[0].copy()
-            self.app.appdata.set_scen(values)
+            # TODO: should we really overwrite scenario_values
+            self.app.appdata.set_scen_values({})
+            self.app.appdata.set_comp_values(values)
         self.centralWidget().update()
 
     @Slot()
@@ -240,7 +256,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.app.appdata.values, fp)
+            json.dump(self.app.appdata.scen_values, fp)
 
     @Slot()
     def save_modes(self, _checked):
@@ -250,6 +266,14 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.modes, fp)
+
+    def reset_scenario(self):
+        print("TODO: implement reset scenario")
+
+    def clear_scenario(self):
+        self.app.appdata.values.clear()
+
+        self.centralWidget().update()
 
     @Slot()
     def new_project(self, _checked):
@@ -276,7 +300,9 @@ class MainWindow(QMainWindow):
                     copyfile(folder.name+"/"+m["background"], m["background"])
 
             self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
-                folder.name+"/model.sbml")
+                folder.name + "/model.sbml")
+
+            self.centralWidget().recreate_maps()
             self.centralWidget().update()
 
     @Slot()
@@ -319,15 +345,24 @@ class MainWindow(QMainWindow):
         else:
             self.map_menu.setEnabled(False)
 
+        self.centralWidget().update_tab(idx)
+
     def fba(self):
         solution = self.app.appdata.cobra_py_model.optimize()
         if solution.status == 'optimal':
             self.app.appdata.high = 0.0
             self.app.appdata.low = 0.0
-            self.app.appdata.set_scen(solution.fluxes)
+            self.app.appdata.set_comp_values(solution.fluxes)
 
-            self.centralWidget().update_maps()
-            self.centralWidget().reaction_list.update()
+            self.centralWidget().update()
 
     def fva(self):
+        from cobra.flux_analysis import flux_variability_analysis
+
+        solution = flux_variability_analysis(
+            self.app.appdata.cobra_py_model)
+        print(solution)
+        # TODO: show results in UI
+
+    def efm(self):
         res = legacy_function(self.app.appdata.cobra_py_model)
