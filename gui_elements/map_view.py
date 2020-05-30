@@ -6,6 +6,9 @@ from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphics
 from PySide2.QtSvg import QGraphicsSvgItem
 from PySide2.QtCore import Signal
 
+INCREASE_FACTOR = 1.1
+DECREASE_FACTOR = 0.9
+
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
@@ -29,10 +32,10 @@ class MapView(QGraphicsView):
         self._zoom = self.appdata.maps[self.idx]["zoom"]
         if self._zoom > 0:
             for i in range(1, self._zoom):
-                self.scale(1.25, 1.25)
+                self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
         if self._zoom < 0:
             for i in range(self._zoom, -1):
-                self.scale(0.8, 0.8)
+                self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
         # connect events to methods
         self.horizontalScrollBar().valueChanged.connect(self.on_hbar_change)
@@ -78,10 +81,10 @@ class MapView(QGraphicsView):
 
     def wheelEvent(self, event):
         if event.angleDelta().y() > 0:
-            factor = 1.25
+            factor = INCREASE_FACTOR
             self._zoom += 1
         else:
-            factor = 0.8
+            factor = DECREASE_FACTOR
             self._zoom -= 1
 
         self.appdata.maps[self.idx]["zoom"] = self._zoom
