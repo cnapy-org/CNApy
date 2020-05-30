@@ -146,6 +146,10 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[key].set_val_and_color(
                     self.appdata.comp_values[key])
 
+    def recolor(self):
+        for key in self.appdata.maps[self.idx]["boxes"]:
+            self.reaction_boxes[key].recolor()
+
     def delete_box(self, key):
         # print("MapView::delete_box", key)
         del self.appdata.maps[self.idx]["boxes"][key]
@@ -154,9 +158,10 @@ class MapView(QGraphicsView):
     def emit_doubleClickedReaction(self, reaction: str):
         self.doubleClickedReaction.emit(reaction)
 
-    def emit_value_changed(self, reaction: str, value: str):
+    def value_changed(self, reaction: str, value: str):
         print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
+        self.recolor()
 
     doubleClickedReaction = Signal(str)
     reactionValueChanged = Signal(str, str)
@@ -189,7 +194,7 @@ class ReactionBox(QGraphicsItem):
     def returnPressed(self):
         print(self.key, "return pressed to", self.item.text())
         if verify_value(self.item.text()):
-            self.map.emit_value_changed(self.key, self.item.text())
+            self.map.value_changed(self.key, self.item.text())
 
         # TODO: actually I want to repaint not scale
         self.map.scale(2, 2)
@@ -199,12 +204,9 @@ class ReactionBox(QGraphicsItem):
         print(self.key, "value changed to", self.item.text())
         test = self.item.text().replace(" ", "")
         if test == "":
-            self.map.emit_value_changed(self.key, test)
-            self.set_color(Qt.white)
+            self.map.value_changed(self.key, test)
         elif verify_value(self.item.text()):
-            self.map.emit_value_changed(self.key, self.item.text())
-            self.set_color(self.map.appdata.compute_color(
-                float(self.item.text())))
+            self.map.value_changed(self.key, self.item.text())
         else:
             self.set_color(Qt.magenta)
 
@@ -213,10 +215,23 @@ class ReactionBox(QGraphicsItem):
         self.map.scale(0.5, 0.5)
 
     def set_val_and_color(self, value):
-        self.item.setText(str(value))
-        self.item.setCursorPosition(0)
+        self.set_value(value)
         color = self.map.appdata.compute_color(value)
         self.set_color(color)
+
+    def set_value(self, value):
+        self.item.setText(str(value))
+        self.item.setCursorPosition(0)
+
+    def recolor(self):
+        test = self.item.text().replace(" ", "")
+        if test == "":
+            self.set_color(Qt.white)
+        elif verify_value(self.item.text()):
+            self.set_color(self.map.appdata.compute_color(
+                float(self.item.text())))
+        else:
+            self.set_color(Qt.magenta)
 
     def set_color(self, color: QColor):
         palette = self.item.palette()
@@ -232,7 +247,7 @@ class ReactionBox(QGraphicsItem):
         painter.setPen(Qt.NoPen)
         # set color depending on wether the value belongs to the scenario
         if self.key in self.map.appdata.scen_values.keys():
-            painter.setBrush(Qt.darkGreen)
+            painter.setBrush(Qt.magenta)
         else:
             painter.setBrush(Qt.darkGray)
 
