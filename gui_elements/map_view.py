@@ -197,12 +197,16 @@ class ReactionBox(QGraphicsItem):
 
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
-        if self.item.text() == "":
-            self.map.emit_value_changed(self.key, self.item.text())
+        test = self.item.text().replace(" ", "")
+        if test == "":
+            self.map.emit_value_changed(self.key, test)
+            self.set_color(Qt.white)
         elif verify_value(self.item.text()):
             self.map.emit_value_changed(self.key, self.item.text())
             self.set_color(self.map.appdata.compute_color(
                 float(self.item.text())))
+        else:
+            self.set_color(Qt.magenta)
 
         # TODO: actually I want to repaint not scale
         self.map.scale(2, 2)
@@ -266,5 +270,9 @@ class ReactionBox(QGraphicsItem):
 
 
 def verify_value(value):
-    print("TODO: implement verify_value")
-    return True
+    try:
+        x = float(value)
+    except:
+        return False
+    else:
+        return True
