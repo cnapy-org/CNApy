@@ -14,44 +14,43 @@ class CnaData:
         self.low = 0.0
 
     def set_scen_values(self, scen_values):
-        (self.low, self.high) = high_and_low(0, 0, scen_values)
         self.scen_values = scen_values
-        (self.low, self.high) = high_and_low(
-            self.low, self.high, self.comp_values)
 
     def set_comp_values(self, comp_values):
-        (self.low, self.high) = high_and_low(0, 0, comp_values)
         self.comp_values = comp_values
-        (self.low, self.high) = high_and_low(
-            self.low, self.high, self.scen_values)
 
     def compute_color(self, value: float):
+        (low, high) = self.high_and_low()
         if value > 0.0:
-            if self.high == 0.0:
+            if high == 0.0:
                 h = 255
             else:
                 h = value * \
-                    255 / self.high
+                    255 / high
             return QColor.fromRgb(255-h, 255, 255-h)
         else:
-            if self.low == 0.0:
+            if low == 0.0:
                 h = 255
             else:
                 h = value * \
-                    255 / self.low
+                    255 / low
             return QColor.fromRgb(255, 255 - h, 255 - h)
 
+    def high_and_low(self):
+        low = 0
+        high = 0
+        for key in self.scen_values.keys():
+            if self.scen_values[key] < low:
+                low = self.scen_values[key]
+            if self.scen_values[key] > high:
+                high = self.scen_values[key]
+        for key in self.comp_values.keys():
+            if self.comp_values[key] < low:
+                low = self.comp_values[key]
+            if self.comp_values[key] > high:
+                high = self.comp_values[key]
 
-def high_and_low(low, high, values):
-    low = low
-    high = high
-    for key in values.keys():
-        if values[key] < low:
-            low = values[key]
-        if values[key] > high:
-            high = values[key]
-
-    return (low, high)
+        return (low, high)
 
 
 def CnaMap(name):
