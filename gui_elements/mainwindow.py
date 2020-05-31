@@ -129,6 +129,11 @@ class MainWindow(QMainWindow):
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
 
+        pfba_action = QAction(
+            "Parsimonious Flux Balance Analysis (pFBA)...", self)
+        pfba_action.triggered.connect(self.pfba)
+        self.analysis_menu.addAction(pfba_action)
+
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
@@ -363,17 +368,29 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().update_tab(idx)
 
+    def load_scenario_into_model(self, model):
+        for x in self.app.appdata.scen_values:
+            y = model.reactions.get_by_id(x)
+            y.lower_bound = self.app.appdata.scen_values[x]
+            y.upper_bound = self.app.appdata.scen_values[x]
+
     def fba(self):
         with self.app.appdata.cobra_py_model as model:
-            for x in self.app.appdata.scen_values:
-                y = model.reactions.get_by_id(x)
-                y.lower_bound = self.app.appdata.scen_values[x]
-                y.upper_bound = self.app.appdata.scen_values[x]
+            self.load_scenario_into_model(model)
 
             solution = model.optimize()
             if solution.status == 'optimal':
-                self.app.appdata.high = 0.0
-                self.app.appdata.low = 0.0
+                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+            else:
+                self.app.appdata.comp_values.clear()
+            self.centralWidget().update()
+
+    def pfba(self):
+        with self.app.appdata.cobra_py_model as model:
+            self.load_scenario_into_model(model)
+
+            solution = cobra.flux_analysis.pfba(model)
+            if solution.status == 'optimal':
                 self.app.appdata.set_comp_values(solution.fluxes.to_dict())
             else:
                 self.app.appdata.comp_values.clear()
@@ -382,10 +399,18 @@ class MainWindow(QMainWindow):
     def fva(self):
         from cobra.flux_analysis import flux_variability_analysis
 
-        solution = flux_variability_analysis(
-            self.app.appdata.cobra_py_model)
-        print(solution)
-        # TODO: show results in UI
+        with self.app.appdata.cobra_py_model as model:
+            self.load_scenario_into_model(model)
+
+            solution = flux_variability_analysis(model)
+
+            minimum = solution.minimum.to_dict()
+            maximum = solution.maximum.to_dict()
+            for i in minimum:
+                self.app.appdata.comp_values[i] = (minimum[i], maximum[i])
+
+            self.app.appdata.compute_color_type = 3
+            self.centralWidget().update()
 
     def efm(self):
         res = legacy_function(self.app.appdata.cobra_py_model)
