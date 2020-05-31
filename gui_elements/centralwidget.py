@@ -61,11 +61,8 @@ class CentralWidget(QWidget):
         print("update_reaction_value", value)
         if value == "":
             self.app.appdata.scen_values.pop(reaction, None)
+            self.app.appdata.comp_values.pop(reaction, None)
         else:
-            if self.app.appdata.low > float(value):
-                self.app.appdata.low = float(value)
-            if self.app.appdata.high < float(value):
-                self.app.appdata.high = float(value)
             self.app.appdata.scen_values[reaction] = float(value)
 
     def add_map(self):
