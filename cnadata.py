@@ -8,6 +8,7 @@ class CnaData:
         self.cobra_py_model = cobra.Model()
         self.maps = []
         self.scen_values = {}
+        self.scenario_backup = {}
         self.comp_values = {}
         self.modes = []
         self.compute_color_type = 1

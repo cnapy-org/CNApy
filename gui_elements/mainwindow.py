@@ -198,6 +198,7 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
             self.app.appdata.set_scen_values(values)
+            self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
             self.app.appdata.comp_values.clear()
         self.centralWidget().update()
 
@@ -273,6 +274,7 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.scen_values, fp)
+        self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
 
     @Slot()
     def save_modes(self, _checked):
@@ -284,7 +286,8 @@ class MainWindow(QMainWindow):
             json.dump(self.app.appdata.modes, fp)
 
     def reset_scenario(self):
-        print("TODO: implement reset scenario")
+        self.app.appdata.scen_values = self.app.appdata.scenario_backup.copy()
+        self.centralWidget().update()
 
     def clear_scenario(self):
         self.app.appdata.scen_values.clear()
