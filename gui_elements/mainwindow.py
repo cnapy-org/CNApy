@@ -364,12 +364,19 @@ class MainWindow(QMainWindow):
         self.centralWidget().update_tab(idx)
 
     def fba(self):
-        solution = self.app.appdata.cobra_py_model.optimize()
-        if solution.status == 'optimal':
-            self.app.appdata.high = 0.0
-            self.app.appdata.low = 0.0
-            self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+        with self.app.appdata.cobra_py_model as model:
+            for x in self.app.appdata.scen_values:
+                y = model.reactions.get_by_id(x)
+                y.lower_bound = self.app.appdata.scen_values[x]
+                y.upper_bound = self.app.appdata.scen_values[x]
 
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                self.app.appdata.high = 0.0
+                self.app.appdata.low = 0.0
+                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+            else:
+                self.app.appdata.comp_values.clear()
             self.centralWidget().update()
 
     def fva(self):
