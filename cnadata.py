@@ -10,8 +10,7 @@ class CnaData:
         self.scen_values = {}
         self.comp_values = {}
         self.modes = []
-        self.high = 0.0
-        self.low = 0.0
+        self.compute_color_type = 1
 
     def set_scen_values(self, scen_values):
         self.scen_values = scen_values
@@ -20,6 +19,14 @@ class CnaData:
         self.comp_values = comp_values
 
     def compute_color(self, value: float):
+        if self.compute_color_type == 1:
+            return self.compute_color_heat(value)
+        elif self.compute_color_type == 2:
+            return self.compute_color_onoff(value)
+        else:
+            return QColor.fromRgb(255, 255, 255)
+
+    def compute_color_heat(self, value: float):
         (low, high) = self.high_and_low()
         if value > 0.0:
             if high == 0.0:
@@ -35,6 +42,12 @@ class CnaData:
                 h = value * \
                     255 / low
             return QColor.fromRgb(255, 255 - h, 255 - h)
+
+    def compute_color_onoff(self, value: float):
+        if value != 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        else:
+            return QColor.fromRgb(255, 0, 0)
 
     def high_and_low(self):
         low = 0

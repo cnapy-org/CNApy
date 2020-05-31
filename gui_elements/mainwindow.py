@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
 
-        new_project_action = QAction("New project...", self)
+        new_project_action = QAction("New project", self)
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
@@ -113,6 +113,16 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(dec_bg_size_action)
         dec_bg_size_action.triggered.connect(self.dec_bg_size)
 
+        self.coloring_menu = self.menu.addMenu("Coloring")
+
+        heaton_action = QAction("Heatmap", self)
+        heaton_action.triggered.connect(self.set_heaton)
+        self.coloring_menu.addAction(heaton_action)
+
+        onoff_action = QAction("On/Off", self)
+        onoff_action.triggered.connect(self.set_onoff)
+        self.coloring_menu.addAction(onoff_action)
+
         self.analysis_menu = self.menu.addMenu("Analysis")
 
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
@@ -183,6 +193,7 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
             self.app.appdata.set_scen_values(values)
+            self.app.appdata.comp_values.clear()
         self.centralWidget().update()
 
     @Slot()
@@ -282,7 +293,9 @@ class MainWindow(QMainWindow):
         self.app.appdata.cobra_py_model = cobra.Model()
         self.app.appdata.maps = []
         self.centralWidget().remove_map_tabs()
-        self.centralWidget().update()
+
+        self.centralWidget().modenavigator.clear()
+        self.clear_scenario()
 
     @Slot()
     def open_project(self, _checked):
@@ -305,7 +318,8 @@ class MainWindow(QMainWindow):
                 folder.name + "/model.sbml")
 
             self.centralWidget().recreate_maps()
-            self.centralWidget().update()
+            self.centralWidget().modenavigator.clear()
+            self.clear_scenario()
 
     @Slot()
     def save_project_as(self, _checked):
@@ -368,3 +382,11 @@ class MainWindow(QMainWindow):
 
     def efm(self):
         res = legacy_function(self.app.appdata.cobra_py_model)
+
+    def set_heaton(self):
+        self.app.appdata.compute_color_type = 1
+        self.centralWidget().update()
+
+    def set_onoff(self):
+        self.app.appdata.compute_color_type = 2
+        self.centralWidget().update()
