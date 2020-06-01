@@ -109,6 +109,15 @@ class MapView(QGraphicsView):
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
+    def update_selected(self, string):
+        print("mapview:update_selected", string)
+
+        for id in self.reaction_boxes:
+            if string.lower() in id.lower():
+                self.reaction_boxes[id].item.setHidden(False)
+            else:
+                self.reaction_boxes[id].item.setHidden(True)
+
     def update(self):
         print("MapView::update", self.idx)
         self.scene.clear()

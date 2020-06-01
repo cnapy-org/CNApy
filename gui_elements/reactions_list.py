@@ -117,6 +117,17 @@ class ReactionList(QWidget):
         # print("last selected", self.last_selected)
         self.changedModel.emit()
 
+    def update_selected(self, string):
+        print("reaction_list:update_selected", string)
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            item.setHidden(True)
+
+        for item in self.reaction_list.findItems(string, Qt.MatchContains):
+            item.setHidden(False)
+
     def update(self):
         self.reaction_list.clear()
         for r in self.appdata.cobra_py_model.reactions:

@@ -1,6 +1,6 @@
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QGraphicsScene, QHBoxLayout, QVBoxLayout,
-                               QTabWidget, QTabBar, QPushButton,
+                               QTabWidget, QTabBar, QPushButton, QLineEdit,
                                QWidget)
 
 from gui_elements.reactions_list import ReactionList
@@ -17,6 +17,10 @@ class CentralWidget(QWidget):
     def __init__(self, app):
         QWidget.__init__(self)
         self.app = app
+
+        self.searchbar = QLineEdit()
+        self.searchbar.textChanged.connect(self.update_selected)
+
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.app.appdata)
         self.specie_list = SpeciesList(self.app.appdata)
@@ -39,6 +43,7 @@ class CentralWidget(QWidget):
 
         self.modenavigator = ModeNavigator(self.app.appdata)
         layout = QVBoxLayout()
+        layout.addWidget(self.searchbar)
         layout.addWidget(self.tabs)
         layout.addWidget(self.modenavigator)
         self.setLayout(layout)
@@ -82,6 +87,17 @@ class CentralWidget(QWidget):
     def remove_map(self, idx: int):
         del self.app.appdata.maps[idx-3]
         self.recreate_maps()
+
+    def update_selected(self):
+        # print("centralwidget::update_selected")
+        idx = self.tabs.currentIndex()
+        if idx == 0:
+            x = self.searchbar.text()
+            self.reaction_list.update_selected(x)
+        elif idx > 2:
+            x = self.searchbar.text()
+            m = self.tabs.widget(idx)
+            m.update_selected(x)
 
     def update(self):
         # print("centralwidget::update")
