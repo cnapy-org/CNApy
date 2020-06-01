@@ -23,7 +23,7 @@ class MapView(QGraphicsView):
         self.appdata = appdata
         self.idx = idx
         self.setAcceptDrops(True)
-        self.drag_over = False
+        self.drag = False
         self.reaction_boxes = {}
         self._zoom = 0
         self.drag = False
@@ -53,7 +53,6 @@ class MapView(QGraphicsView):
         event.setAccepted(True)
         event.accept()
         event.acceptProposedAction()
-        self.drag_over = True
 
     def dragMoveEvent(self, event: QGraphicsSceneDragDropEvent):
         event.setAccepted(True)
@@ -66,11 +65,10 @@ class MapView(QGraphicsView):
         self.update()
 
     def dragLeaveEvent(self, _event):
-        self.drag_over = False
         self.update()
 
     def dropEvent(self, event: QGraphicsSceneDragDropEvent):
-        self.drag_over = False
+        self.drag = False
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
@@ -101,11 +99,17 @@ class MapView(QGraphicsView):
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        # print("mouse-move")
         if self.drag:
-            self.centerOn(event.pos())
+            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+            self.translate(1, 1)
         super(MapView, self).mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        # print("mouse-release")
+        if self.drag:
+            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+            self.translate(1, 1)
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
