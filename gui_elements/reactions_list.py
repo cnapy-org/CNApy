@@ -57,27 +57,18 @@ class ReactionList(QWidget):
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
-        if reaction.id in self.appdata.values:
-            item.setText(2, str(self.appdata.values[reaction.id]))
-            if self.appdata.values[reaction.id] > 0.0:
-                if self.appdata.high == 0.0:
-                    h = 255
-                else:
-                    h = self.appdata.values[reaction.id] * \
-                        255 / self.appdata.high
-                color = QColor.fromRgb(255-h, 255, 255-h)
-            else:
-                if self.appdata.low == 0.0:
-                    h = 255
-                else:
-                    h = self.appdata.values[reaction.id] * \
-                        255 / self.appdata.low
-                color = QColor.fromRgb(255, 255 - h, 255 - h)
-
-            item.setData(2, Qt.BackgroundRole, color)
-            item.setForeground(2, Qt.black)
+        if reaction.id in self.appdata.scen_values:
+            self.set_flux_value(item, reaction.id, self.appdata.scen_values)
+        elif reaction.id in self.appdata.comp_values:
+            self.set_flux_value(item, reaction.id, self.appdata.comp_values)
 
         item.setData(3, 0, reaction)
+
+    def set_flux_value(self, item, key, values):
+        item.setText(2, str(values[key]))
+        color = self.appdata.compute_color(values[key])
+        item.setData(2, Qt.BackgroundRole, color)
+        item.setForeground(2, Qt.black)
 
     def add_new_reaction(self):
         # print("ReactionList::add_new_reaction")
@@ -125,6 +116,17 @@ class ReactionList(QWidget):
         self.last_selected = self.reaction_mask.id.text()
         # print("last selected", self.last_selected)
         self.changedModel.emit()
+
+    def update_selected(self, string):
+        print("reaction_list:update_selected", string)
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            item.setHidden(True)
+
+        for item in self.reaction_list.findItems(string, Qt.MatchContains):
+            item.setHidden(False)
 
     def update(self):
         self.reaction_list.clear()

@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("File")
 
-        new_project_action = QAction("New project...", self)
+        new_project_action = QAction("New project", self)
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
@@ -80,6 +80,14 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
 
+        clear_scenario_action = QAction("Clear scenario", self)
+        self.scenario_menu.addAction(clear_scenario_action)
+        clear_scenario_action.triggered.connect(self.clear_scenario)
+
+        reset_scenario_action = QAction("Reset scenario", self)
+        self.scenario_menu.addAction(reset_scenario_action)
+        reset_scenario_action.triggered.connect(self.reset_scenario)
+
         self.modes_menu = self.menu.addMenu("Modes")
 
         load_modes_action = QAction("Load modes...", self)
@@ -105,15 +113,34 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(dec_bg_size_action)
         dec_bg_size_action.triggered.connect(self.dec_bg_size)
 
+        self.coloring_menu = self.menu.addMenu("Coloring")
+
+        heaton_action = QAction("Heatmap", self)
+        heaton_action.triggered.connect(self.set_heaton)
+        self.coloring_menu.addAction(heaton_action)
+
+        onoff_action = QAction("On/Off", self)
+        onoff_action.triggered.connect(self.set_onoff)
+        self.coloring_menu.addAction(onoff_action)
+
         self.analysis_menu = self.menu.addMenu("Analysis")
 
         fba_action = QAction("Flux Balance Analysis (FBA)...", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
 
+        pfba_action = QAction(
+            "Parsimonious Flux Balance Analysis (pFBA)...", self)
+        pfba_action.triggered.connect(self.pfba)
+        self.analysis_menu.addAction(pfba_action)
+
         fva_action = QAction("Flux Variability Analysis (FVA)...", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        efm_action = QAction("Elementary Flux Mode ...", self)
+        efm_action.triggered.connect(self.efm)
+        self.analysis_menu.addAction(efm_action)
 
         self.help_menu = self.menu.addMenu("Help")
 
@@ -158,6 +185,8 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             self.app.appdata.maps = json.load(fp)
+
+        self.centralWidget().recreate_maps()
         self.centralWidget().update()
 
     @Slot()
@@ -168,7 +197,9 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
-            self.app.appdata.set_scen(values)
+            self.app.appdata.set_scen_values(values)
+            self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
+            self.app.appdata.comp_values.clear()
         self.centralWidget().update()
 
     @Slot()
@@ -181,7 +212,9 @@ class MainWindow(QMainWindow):
             self.app.appdata.modes = json.load(fp)
             self.centralWidget().modenavigator.current = 0
             values = self.app.appdata.modes[0].copy()
-            self.app.appdata.set_scen(values)
+            # TODO: should we really overwrite scenario_values
+            self.app.appdata.set_scen_values({})
+            self.app.appdata.set_comp_values(values)
         self.centralWidget().update()
 
     @Slot()
@@ -240,7 +273,8 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.app.appdata.values, fp)
+            json.dump(self.app.appdata.scen_values, fp)
+        self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
 
     @Slot()
     def save_modes(self, _checked):
@@ -251,12 +285,25 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'w') as fp:
             json.dump(self.app.appdata.modes, fp)
 
+    def reset_scenario(self):
+        self.app.appdata.scen_values = self.app.appdata.scenario_backup.copy()
+        self.centralWidget().update()
+
+    def clear_scenario(self):
+        self.app.appdata.scen_values.clear()
+        self.app.appdata.comp_values.clear()
+        self.app.appdata.high = 0
+        self.app.appdata.low = 0
+        self.centralWidget().update()
+
     @Slot()
     def new_project(self, _checked):
         self.app.appdata.cobra_py_model = cobra.Model()
         self.app.appdata.maps = []
+        self.centralWidget().remove_map_tabs()
 
-        self.centralWidget().update()
+        self.centralWidget().modenavigator.clear()
+        self.clear_scenario()
 
     @Slot()
     def open_project(self, _checked):
@@ -276,8 +323,11 @@ class MainWindow(QMainWindow):
                     copyfile(folder.name+"/"+m["background"], m["background"])
 
             self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
-                folder.name+"/model.sbml")
-            self.centralWidget().update()
+                folder.name + "/model.sbml")
+
+            self.centralWidget().recreate_maps()
+            self.centralWidget().modenavigator.clear()
+            self.clear_scenario()
 
     @Slot()
     def save_project_as(self, _checked):
@@ -319,15 +369,59 @@ class MainWindow(QMainWindow):
         else:
             self.map_menu.setEnabled(False)
 
-    def fba(self):
-        solution = self.app.appdata.cobra_py_model.optimize()
-        if solution.status == 'optimal':
-            self.app.appdata.high = 0.0
-            self.app.appdata.low = 0.0
-            self.app.appdata.set_scen(solution.fluxes)
+        self.centralWidget().update_tab(idx)
 
-            self.centralWidget().update_maps()
-            self.centralWidget().reaction_list.update()
+    def load_scenario_into_model(self, model):
+        for x in self.app.appdata.scen_values:
+            y = model.reactions.get_by_id(x)
+            y.lower_bound = self.app.appdata.scen_values[x]
+            y.upper_bound = self.app.appdata.scen_values[x]
+
+    def fba(self):
+        with self.app.appdata.cobra_py_model as model:
+            self.load_scenario_into_model(model)
+
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+            else:
+                self.app.appdata.comp_values.clear()
+            self.centralWidget().update()
+
+    def pfba(self):
+        with self.app.appdata.cobra_py_model as model:
+            self.load_scenario_into_model(model)
+
+            solution = cobra.flux_analysis.pfba(model)
+            if solution.status == 'optimal':
+                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+            else:
+                self.app.appdata.comp_values.clear()
+            self.centralWidget().update()
 
     def fva(self):
+        from cobra.flux_analysis import flux_variability_analysis
+
+        with self.app.appdata.cobra_py_model as model:
+            self.load_scenario_into_model(model)
+
+            solution = flux_variability_analysis(model)
+
+            minimum = solution.minimum.to_dict()
+            maximum = solution.maximum.to_dict()
+            for i in minimum:
+                self.app.appdata.comp_values[i] = (minimum[i], maximum[i])
+
+            self.app.appdata.compute_color_type = 3
+            self.centralWidget().update()
+
+    def efm(self):
         res = legacy_function(self.app.appdata.cobra_py_model)
+
+    def set_heaton(self):
+        self.app.appdata.compute_color_type = 1
+        self.centralWidget().update()
+
+    def set_onoff(self):
+        self.app.appdata.compute_color_type = 2
+        self.centralWidget().update()
