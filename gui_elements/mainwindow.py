@@ -11,7 +11,7 @@ from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
 
-from legacy import legacy_function
+from legacy import matlab_CNAcomputeEFM
 
 import cobra
 
@@ -416,7 +416,9 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def efm(self):
-        res = legacy_function(self.app.appdata.cobra_py_model)
+        self.app.appdata.modes = matlab_CNAcomputeEFM(
+            self.app.appdata.cobra_py_model)
+        self.centralWidget().update()
 
     def set_heaton(self):
         self.app.appdata.compute_color_type = 1

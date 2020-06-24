@@ -23,7 +23,7 @@ def createCobraModel(model):
             model, CNA_PATH+"cobra_model.mat", varname="cbmodel")
 
 
-def legacy_function(model):
+def matlab_CNAcomputeEFM(model):
     if me:
         createCobraModel(model)
         print(".")
@@ -32,12 +32,28 @@ def legacy_function(model):
         a = eng.eval("load('cobra_model.mat')",
                      nargout=0, stdout=out, stderr=err)
         print(".")
-        a = eng.eval("cnap =CNAcobra2cna(cbmodel);",
+        a = eng.eval("cnap = CNAcobra2cna(cbmodel);",
                      nargout=0, stdout=out, stderr=err)
         print(".")
         a = eng.eval(
             "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap);", nargout=0, stdout=out, stderr=err)
         ems = eng.workspace['ems']
-        print(ems)
-        print("ems length:", str(len(ems)))
-    return
+        idx = eng.workspace['ems_idx']
+        a = eng.eval("reac_id = cellstr(cnap.reacID).';",
+                     nargout=0, stdout=out, stderr=err)
+        reac_id = eng.workspace['reac_id']
+
+        # turn vectors into maps
+        oems = []
+        for mode in ems:
+            count_ccc = 0
+            omode = {}
+            for e in mode:
+                idx2 = int(idx[0][count_ccc])-1
+                reaction = reac_id[idx2]
+                print("element: ", count_ccc, idx2, reaction, e)
+                count_ccc += 1
+                omode[reaction] = e
+            oems.append(omode)
+
+    return oems
