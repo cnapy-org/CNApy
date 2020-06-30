@@ -142,6 +142,10 @@ class MainWindow(QMainWindow):
         efm_action.triggered.connect(self.efm)
         self.analysis_menu.addAction(efm_action)
 
+        phase_plane_action = QAction("Phase plane ...", self)
+        phase_plane_action.triggered.connect(self.phase_plane)
+        self.analysis_menu.addAction(phase_plane_action)
+
         self.help_menu = self.menu.addMenu("Help")
 
         about_action = QAction("About cnapy...", self)
@@ -158,6 +162,24 @@ class MainWindow(QMainWindow):
     def show_about(self, _checked):
         dialog = AboutDialog()
         dialog.exec_()
+
+    @Slot()
+    def phase_plane(self, _checked):
+
+        with self.app.appdata.cobra_py_model as model:
+            import matplotlib.pyplot as plt
+
+            import cobra.test
+            from cobra.flux_analysis import production_envelope
+            # model = cobra.test.create_test_model("textbook")
+            # prod_env = production_envelope(model, ["EX_glc__D_e", "EX_o2_e"])
+            prod_env = production_envelope(
+                model, ["EX_o2_e"], objective="EX_ac_e", carbon_sources="EX_glc__D_e")
+
+            prod_env.plot(
+                kind='line', x='EX_o2_e', y='carbon_yield_maximum')
+
+            plt.show()
 
     @Slot()
     def import_sbml(self, _checked):
