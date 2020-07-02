@@ -48,7 +48,7 @@ class CentralWidget(QWidget):
         layout.addWidget(self.modenavigator)
         self.setLayout(layout)
 
-        self.reaction_list.changedMap.connect(self.update_map)
+        self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.changedModel.connect(self.update)
         self.specie_list.changedModel.connect(self.update)
         self.add_tab_button.clicked.connect(self.add_map)
@@ -150,4 +150,12 @@ class CentralWidget(QWidget):
         print("centralwidget::update_map", str(idx))
         m = self.tabs.widget(2+idx)
         m.update()
-        # self.tabs.setCurrentIndex(3+idx)
+
+    def jump_to_map(self, idx: int, reaction):
+        print("centralwidget::jump_to_map", str(idx))
+        m = self.tabs.widget(2+idx)
+        self.tabs.setCurrentIndex(2+idx)
+
+        m.update()
+        self.searchbar.setText(reaction)
+        # m.highlight_reaction(reaction)

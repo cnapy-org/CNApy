@@ -1,11 +1,10 @@
 """The CellNetAnalyzer reactions list"""
 from PySide2.QtGui import QIcon, QColor, QPalette
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Signal, Slot, Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QHBoxLayout, QVBoxLayout,
                                QTreeWidget, QSizePolicy,
                                QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
-from PySide2.QtCore import Signal
 import cobra
 
 
@@ -45,7 +44,7 @@ class ReactionList(QWidget):
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
         self.reaction_mask.changedReactionList.connect(self.emit_changedModel)
-        self.reaction_mask.changedMap.connect(self.emit_changedMap)
+        self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
@@ -151,12 +150,65 @@ class ReactionList(QWidget):
         self.last_selected = key
         self.update()
 
-    def emit_changedMap(self, idx: int):
-        self.changedMap.emit(idx)
+    def emit_jump_to_map(self, idx: int, reaction):
+        # print("ReactionList::emit jump to map", idx, reaction)
+        self.jumpToMap.emit(idx, reaction)
 
     itemActivated = Signal(str)
     changedModel = Signal()
-    changedMap = Signal(int)
+    jumpToMap = Signal(int, str)
+
+
+class JumpButton(QPushButton):
+    """button to jump to reactions on map"""
+
+    def __init__(self, parent, id: int):
+        QPushButton.__init__(self, str(id))
+        self.parent = parent
+        self.id: int = id
+        self.clicked.connect(self.emit_jump_to_map)
+
+    def emit_jump_to_map(self):
+        # print("JumpButton::emit jump to map", self.id)
+        self.jumpToMap.emit(self.id)
+
+    jumpToMap = Signal(int)
+
+
+class JumpList(QWidget):
+    """List of buttons to jump to reactions on map"""
+
+    def __init__(self, parent):
+        QWidget.__init__(self)
+        self.parent = parent
+        self.layout = QHBoxLayout()
+        self.layout.setAlignment(Qt.AlignLeft)
+
+    def clear(self):
+        for i in reversed(range(self.layout.count())):
+            self.layout.itemAt(i).widget().setParent(None)
+
+    def add(self, map_id: int):
+        # print("JumpList::add")
+        if self.layout.count() == 0:
+            label = QLabel("Jump to reaction on map:")
+            self.layout.addWidget(label)
+
+        jb = JumpButton(self, map_id)
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        jb.setSizePolicy(policy)
+        self.layout.addWidget(jb)
+        self.setLayout(self.layout)
+
+        jb.jumpToMap.connect(self.emit_jump_to_map)
+
+    @ Slot(int)
+    def emit_jump_to_map(self: JumpButton, id: int):
+        print("JumpList::emit_jump_to_map", id)
+        self.parent.emit_jump_to_map(id)
+
+    jumpToMap = Signal(int)
 
 
 class ReactionMask(QWidget):
@@ -248,6 +300,9 @@ class ReactionMask(QWidget):
         l.addWidget(self.map_combo)
         layout.addItem(l)
 
+        self.jump_list = JumpList(self)
+        layout.addWidget(self.jump_list)
+
         self.setLayout(layout)
 
         self.delete_button.clicked.connect(self.delete_reaction)
@@ -294,11 +349,12 @@ class ReactionMask(QWidget):
         self.changedReactionList.emit()
 
     def add_to_map(self):
+        # print("add to map")
         idx = self.map_combo.currentText()
         print("ReactionMask::add_to_map", idx)
         self.appdata.maps[int(idx)-1]["boxes"][self.id.text()] = (
             100, 100, self.name.text())
-        self.changedMap.emit(int(idx)-1)
+        self.emit_jump_to_map(int(idx))
         self.update_state()
 
     def verify_id(self):
@@ -415,6 +471,13 @@ class ReactionMask(QWidget):
 
     def update_state(self):
         # print("reaction_mask::update_state")
+        self.jump_list.clear()
+        c = 1
+        for m in self.appdata.maps:
+            if self.id.text() in m["boxes"]:
+                self.jump_list.add(c)
+            c += 1
+
         if self.old is None:
             self.apply_button.setText("add reaction")
             self.delete_button.hide()
@@ -438,5 +501,9 @@ class ReactionMask(QWidget):
         else:
             self.apply_button.setEnabled(False)
 
+    def emit_jump_to_map(self, idx):
+        # print("ReactionMask::emit_jump_to_map", idx, self.id.text())
+        self.jumpToMap.emit(idx, self.id.text())
+
+    jumpToMap = Signal(int, str)
     changedReactionList = Signal()
-    changedMap = Signal(int)
