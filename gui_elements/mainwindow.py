@@ -177,7 +177,7 @@ class MainWindow(QMainWindow):
                 model, ["EX_o2_e"], objective="EX_ac_e", carbon_sources="EX_glc__D_e")
 
             prod_env.plot(
-                kind='line', x='EX_o2_e', y='carbon_yield_maximum')
+                kind='line', x='EX_o2_e', y='carbon_yield_maximum', yerr=None)
 
             plt.show()
 

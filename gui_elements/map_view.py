@@ -1,8 +1,8 @@
 """The PyNetAnalyzer map view"""
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt, QPoint, QRectF, QMimeData
+from PySide2.QtCore import Qt, QPoint, QRectF, QRect, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
+                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu, QToolTip)
 from PySide2.QtSvg import QGraphicsSvgItem
 from PySide2.QtCore import Signal
 
@@ -122,6 +122,20 @@ class MapView(QGraphicsView):
             else:
                 self.reaction_boxes[id].item.setHidden(True)
 
+    # def highlight_reaction(self, string):
+    #     print("mapview:highlight", string)
+
+    #     for id in self.reaction_boxes:
+    #         self.reaction_boxes[id].item.setHidden(True)
+
+    #     treffer = self.reaction_boxes[string]
+    #     treffer.item.setHidden(False)
+
+    #     # set_color(Qt.magenta)
+    #     # import time
+    #     # time.sleep(0.2)
+    #     # treffer.recolor()
+
     def update(self):
         print("MapView::update", self.idx)
         self.scene.clear()
@@ -172,6 +186,7 @@ class MapView(QGraphicsView):
         self.update()
 
     def emit_doubleClickedReaction(self, reaction: str):
+        print("emit_doubleClickedReaction")
         self.doubleClickedReaction.emit(reaction)
 
     def value_changed(self, reaction: str, value: str):
@@ -270,9 +285,11 @@ class ReactionBox(QGraphicsItem):
         painter.drawEllipse(-8, -8, 10, 10)
 
     def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
+        print("mousePressedEvent")
         pass
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
+        print("mouseReleaseEvent")
         pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
@@ -285,6 +302,7 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.OpenHandCursor)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
+        print("double_clickEvent")
         self.map.emit_doubleClickedReaction(self.key)
 
     def setPos(self, x, y):
