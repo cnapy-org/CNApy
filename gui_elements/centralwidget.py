@@ -157,5 +157,5 @@ class CentralWidget(QWidget):
         self.tabs.setCurrentIndex(2+idx)
 
         m.update()
-        self.searchbar.setText(reaction)
-        # m.highlight_reaction(reaction)
+        # self.searchbar.setText(reaction)
+        m.highlight_reaction(reaction)
