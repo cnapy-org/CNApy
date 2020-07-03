@@ -10,6 +10,7 @@ from PySide2.QtSvg import QGraphicsSvgItem
 from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
+from gui_elements.clipboard_calculator import ClipboardCalculator
 
 from legacy import legacy_function
 
@@ -28,20 +29,20 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.menu = self.menuBar()
-        self.file_menu = self.menu.addMenu("File")
+        self.file_menu = self.menu.addMenu("&File")
 
         new_project_action = QAction("New project", self)
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
-        open_project_action = QAction("Open project ...", self)
+        open_project_action = QAction("&Open project ...", self)
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project)
 
         # save_project_action = QAction("Save project...", self)
         # self.file_menu.addAction(save_project_action)
 
-        save_as_project_action = QAction("Save project as...", self)
+        save_as_project_action = QAction("&Save project as...", self)
         self.file_menu.addAction(save_as_project_action)
         save_as_project_action.triggered.connect(self.save_project_as)
 
@@ -65,10 +66,6 @@ class MainWindow(QMainWindow):
         exit_action.setShortcut("Ctrl+Q")
         self.file_menu.addAction(exit_action)
         exit_action.triggered.connect(self.exit_app)
-
-        # self.find_menu = self.menu.addMenu("Find")
-        # find_reaction_action = QAction("Find reaction...", self)
-        # self.find_menu.addAction(find_reaction_action)
 
         self.scenario_menu = self.menu.addMenu("Scenario")
 
@@ -97,6 +94,22 @@ class MainWindow(QMainWindow):
         save_modes_action = QAction("Save modes...", self)
         self.modes_menu.addAction(save_modes_action)
         save_modes_action.triggered.connect(self.save_modes)
+
+        self.clipboard_menu = self.menu.addMenu("Clipboard")
+
+        copy_to_clipboard_action = QAction("Copy to clipboard", self)
+        self.clipboard_menu.addAction(copy_to_clipboard_action)
+        copy_to_clipboard_action.triggered.connect(self.copy_to_clipboard)
+
+        paste_clipboard_action = QAction("Paste clipboard", self)
+        self.clipboard_menu.addAction(paste_clipboard_action)
+        paste_clipboard_action.triggered.connect(self.paste_clipboard)
+
+        clipboard_arithmetics_action = QAction(
+            "Clipboard arithmetics ...", self)
+        self.clipboard_menu.addAction(clipboard_arithmetics_action)
+        clipboard_arithmetics_action.triggered.connect(
+            self.clipboard_arithmetics)
 
         self.map_menu = self.menu.addMenu("Map")
         self.map_menu.setEnabled(False)
@@ -398,6 +411,22 @@ class MainWindow(QMainWindow):
             y = model.reactions.get_by_id(x)
             y.lower_bound = self.app.appdata.scen_values[x]
             y.upper_bound = self.app.appdata.scen_values[x]
+
+    def copy_to_clipboard(self):
+        print("copy_to_clipboard")
+        self.app.appdata.clipboard = self.app.appdata.comp_values.copy()
+
+    def paste_clipboard(self):
+        print("paste_clipboard")
+        self.app.appdata.comp_values = self.app.appdata.clipboard
+        self.centralWidget().update()
+
+    @Slot()
+    def clipboard_arithmetics(self, _checked):
+        print("clipboard_arithmetics")
+        dialog = ClipboardCalculator(self.app.appdata)
+        dialog.exec_()
+        self.centralWidget().update()
 
     def fba(self):
         with self.app.appdata.cobra_py_model as model:
