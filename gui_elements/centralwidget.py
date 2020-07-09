@@ -41,11 +41,11 @@ class CentralWidget(QWidget):
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
 
-        self.modenavigator = ModeNavigator(self.app.appdata)
+        self.mode_navigator = ModeNavigator(self.app.appdata)
         layout = QVBoxLayout()
         layout.addWidget(self.searchbar)
         layout.addWidget(self.tabs)
-        layout.addWidget(self.modenavigator)
+        layout.addWidget(self.mode_navigator)
         self.setLayout(layout)
 
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
@@ -53,7 +53,7 @@ class CentralWidget(QWidget):
         self.specie_list.changedModel.connect(self.update)
         self.add_tab_button.clicked.connect(self.add_map)
         self.tabs.tabCloseRequested.connect(self.remove_map)
-        self.modenavigator.changedCurrentMode.connect(self.update)
+        self.mode_navigator.changedCurrentMode.connect(self.update)
 
         self.update()
 
@@ -102,10 +102,10 @@ class CentralWidget(QWidget):
     def update(self):
         # print("centralwidget::update")
         if len(self.app.appdata.modes) == 0:
-            self.modenavigator.hide()
+            self.mode_navigator.hide()
         else:
-            self.modenavigator.show()
-            self.modenavigator.update()
+            self.mode_navigator.show()
+            self.mode_navigator.update()
 
         for idx in range(0, self.tabs.count()):
             self.update_tab(idx)

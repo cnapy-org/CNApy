@@ -1,0 +1,28 @@
+= CNApy - A CellNetAnalyzer GUI in Python
+
+image::cnapylogo.svg[cnapy logo]
+
+
+== Setup the CNApy development environment with conda
+
+. Create a conda environment for cnapy from the environment.yml
+
+  conda env create -f environment.yml
+
+. Activate conda environment
+
+  conda activate cnapy
+
+. Run cnapy
+      
+  python cnapy.py
+
+
+IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the Python API for the MATLAB engine installed and of course CNA
+
+== Install Python API for MATLAB engine in MATLAB 2019b
+
+----
+cd /usr/local/net/MATLAB/R2019b/extern/engines/python
+python setup.py build --build-base="/scratch/mebuild" install
+----

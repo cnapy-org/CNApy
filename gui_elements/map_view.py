@@ -9,6 +9,10 @@ from PySide2.QtCore import Signal
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 0.9
 
+Scencolor = Qt.green
+Compcolor = Qt.cyan
+Defaultcolor = Qt.gray
+
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
@@ -131,7 +135,7 @@ class MapView(QGraphicsView):
         treffer = self.reaction_boxes[string]
         treffer.item.setHidden(False)
 
-        # set_color(Qt.magenta)
+        treffer.set_color(Qt.magenta)
         # import time
         # time.sleep(0.2)
         # treffer.recolor()
@@ -202,11 +206,19 @@ class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
     def __init__(self, parent: MapView, proxy, item: QLineEdit, key: int):
+        QGraphicsItem.__init__(self)
+
         self.map = parent
         self.key = key
         self.proxy = proxy
         self.item = item
-        QGraphicsItem.__init__(self)
+
+        palette = self.item.palette()
+        palette.setColor(QPalette.Base, Defaultcolor)
+        role = self.item.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.item.setPalette(palette)
+
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
         self.item.textEdited.connect(self.value_changed)
@@ -236,8 +248,13 @@ class ReactionBox(QGraphicsItem):
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.key, test)
+            self.set_color(Defaultcolor)
         elif verify_value(self.item.text()):
             self.map.value_changed(self.key, self.item.text())
+            if self.key in self.map.appdata.scen_values.keys():
+                self.set_color(Scencolor)
+            else:
+                self.set_color(Compcolor)
         else:
             self.set_color(Qt.magenta)
 
@@ -247,8 +264,10 @@ class ReactionBox(QGraphicsItem):
 
     def set_val_and_color(self, value):
         self.set_value(value)
-        color = self.map.appdata.compute_color(value)
-        self.set_color(color)
+        if self.key in self.map.appdata.scen_values.keys():
+            self.set_color(Scencolor)
+        else:
+            self.set_color(Compcolor)
 
     def set_value(self, value):
         self.item.setText(str(value))
@@ -257,10 +276,12 @@ class ReactionBox(QGraphicsItem):
     def recolor(self):
         test = self.item.text().replace(" ", "")
         if test == "":
-            self.set_color(Qt.white)
+            self.set_color(Defaultcolor)
         elif verify_value(self.item.text()):
-            self.set_color(self.map.appdata.compute_color(
-                float(self.item.text())))
+            if self.key in self.map.appdata.scen_values.keys():
+                self.set_color(Scencolor)
+            else:
+                self.set_color(Compcolor)
         else:
             self.set_color(Qt.magenta)
 
@@ -275,14 +296,17 @@ class ReactionBox(QGraphicsItem):
         return QRectF(-15, -15, 20, 20)
 
     def paint(self, painter: QPainter, option, widget: QWidget):
-        painter.setPen(Qt.NoPen)
+        # painter.setPen(Qt.NoPen)
         # set color depending on wether the value belongs to the scenario
         if self.key in self.map.appdata.scen_values.keys():
-            painter.setBrush(Qt.magenta)
+            painter.setPen(Qt.magenta)
         else:
-            painter.setBrush(Qt.darkGray)
+            # painter.setBrush(Qt.darkGray)
+            painter.setPen(Qt.darkGray)
 
-        painter.drawEllipse(-8, -8, 10, 10)
+        # painter.drawEllipse(-8, -8, 10, 10)
+        painter.drawLine(-5, 0, -5, -10)
+        painter.drawLine(0, -5, -10,  -5)
 
     def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
         print("mousePressedEvent")

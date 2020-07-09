@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from PySide2.QtCore import Slot
 from PySide2.QtWidgets import (QGraphicsItem,
                                QAction, QApplication, QFileDialog, QMainWindow)
+from PySide2.QtGui import QColor
 from PySide2.QtSvg import QGraphicsSvgItem
 from gui_elements.centralwidget import CentralWidget
 
@@ -29,7 +30,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.menu = self.menuBar()
-        self.file_menu = self.menu.addMenu("&File")
+        self.file_menu = self.menu.addMenu("&Project")
 
         new_project_action = QAction("New project", self)
         self.file_menu.addAction(new_project_action)
@@ -54,14 +55,6 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
 
-        load_maps_action = QAction("Load maps...", self)
-        self.file_menu.addAction(load_maps_action)
-        load_maps_action.triggered.connect(self.load_maps)
-
-        save_maps_action = QAction("Save maps...", self)
-        self.file_menu.addAction(save_maps_action)
-        save_maps_action.triggered.connect(self.save_maps)
-
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
         self.file_menu.addAction(exit_action)
@@ -85,15 +78,13 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(reset_scenario_action)
         reset_scenario_action.triggered.connect(self.reset_scenario)
 
-        self.modes_menu = self.menu.addMenu("Modes")
+        heaton_action = QAction("Apply heatmap coloring", self)
+        heaton_action.triggered.connect(self.set_heaton)
+        self.scenario_menu.addAction(heaton_action)
 
-        load_modes_action = QAction("Load modes...", self)
-        self.modes_menu.addAction(load_modes_action)
-        load_modes_action.triggered.connect(self.load_modes)
-
-        save_modes_action = QAction("Save modes...", self)
-        self.modes_menu.addAction(save_modes_action)
-        save_modes_action.triggered.connect(self.save_modes)
+        onoff_action = QAction("Apply On/Off coloring", self)
+        onoff_action.triggered.connect(self.set_onoff)
+        self.scenario_menu.addAction(onoff_action)
 
         self.clipboard_menu = self.menu.addMenu("Clipboard")
 
@@ -112,29 +103,29 @@ class MainWindow(QMainWindow):
             self.clipboard_arithmetics)
 
         self.map_menu = self.menu.addMenu("Map")
-        self.map_menu.setEnabled(False)
 
-        change_background_action = QAction("Change background", self)
-        self.map_menu.addAction(change_background_action)
-        change_background_action.triggered.connect(self.change_background)
+        load_maps_action = QAction("Load map positions...", self)
+        self.map_menu.addAction(load_maps_action)
+        load_maps_action.triggered.connect(self.load_maps)
 
-        inc_bg_size_action = QAction("Increase background size", self)
-        self.map_menu.addAction(inc_bg_size_action)
-        inc_bg_size_action.triggered.connect(self.inc_bg_size)
+        save_maps_action = QAction("Save map positions...", self)
+        self.map_menu.addAction(save_maps_action)
+        save_maps_action.triggered.connect(self.save_maps)
 
-        dec_bg_size_action = QAction("Decrease background size", self)
-        self.map_menu.addAction(dec_bg_size_action)
-        dec_bg_size_action.triggered.connect(self.dec_bg_size)
+        self.change_background_action = QAction("Change background", self)
+        self.map_menu.addAction(self.change_background_action)
+        self.change_background_action.triggered.connect(self.change_background)
+        self.change_background_action.setEnabled(False)
 
-        self.coloring_menu = self.menu.addMenu("Coloring")
+        self.inc_bg_size_action = QAction("Increase background size", self)
+        self.map_menu.addAction(self.inc_bg_size_action)
+        self.inc_bg_size_action.triggered.connect(self.inc_bg_size)
+        self.inc_bg_size_action.setEnabled(False)
 
-        heaton_action = QAction("Heatmap", self)
-        heaton_action.triggered.connect(self.set_heaton)
-        self.coloring_menu.addAction(heaton_action)
-
-        onoff_action = QAction("On/Off", self)
-        onoff_action.triggered.connect(self.set_onoff)
-        self.coloring_menu.addAction(onoff_action)
+        self.dec_bg_size_action = QAction("Decrease background size", self)
+        self.map_menu.addAction(self.dec_bg_size_action)
+        self.dec_bg_size_action.triggered.connect(self.dec_bg_size)
+        self.dec_bg_size_action.setEnabled(False)
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -151,9 +142,18 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        efm_action = QAction("Elementary Flux Mode ...", self)
+        self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
+        efm_action = QAction("Compute Elementary Flux Modes", self)
         efm_action.triggered.connect(self.efm)
-        self.analysis_menu.addAction(efm_action)
+        self.efm_menu.addAction(efm_action)
+
+        load_modes_action = QAction("Load modes...", self)
+        self.efm_menu.addAction(load_modes_action)
+        load_modes_action.triggered.connect(self.load_modes)
+
+        self.save_modes_action = QAction("Save modes...", self)
+        self.efm_menu.addAction(self.save_modes_action)
+        self.save_modes_action.triggered.connect(self.save_modes)
 
         phase_plane_action = QAction("Phase plane ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -187,10 +187,10 @@ class MainWindow(QMainWindow):
             # model = cobra.test.create_test_model("textbook")
             # prod_env = production_envelope(model, ["EX_glc__D_e", "EX_o2_e"])
             prod_env = production_envelope(
-                model, ["EX_o2_e"], objective="EX_ac_e", carbon_sources="EX_glc__D_e")
+                model, ["Growth", "EthEx"])
 
             prod_env.plot(
-                kind='line', x='EX_o2_e', y='carbon_yield_maximum', yerr=None)
+                kind='line', x='Growth', y='EthEx', yerr=None)
 
             plt.show()
 
@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             self.app.appdata.modes = json.load(fp)
-            self.centralWidget().modenavigator.current = 0
+            self.centralWidget().mode_navigator.current = 0
             values = self.app.appdata.modes[0].copy()
             # TODO: should we really overwrite scenario_values
             self.app.appdata.set_scen_values({})
@@ -337,7 +337,7 @@ class MainWindow(QMainWindow):
         self.app.appdata.maps = []
         self.centralWidget().remove_map_tabs()
 
-        self.centralWidget().modenavigator.clear()
+        self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
 
     @Slot()
@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
                 folder.name + "/model.sbml")
 
             self.centralWidget().recreate_maps()
-            self.centralWidget().modenavigator.clear()
+            self.centralWidget().mode_navigator.clear()
             self.clear_scenario()
 
     @Slot()
@@ -397,12 +397,28 @@ class MainWindow(QMainWindow):
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
 
+    def get_current_view(self):
+        idx = self.centralWidget().tabs.currentIndex()
+        print(idx)
+        if idx == 0:
+            view = self.centralWidget().reaction_list
+        elif idx > 2:
+            view = self.centralWidget().tabs.widget(idx)
+        else:
+            view = None
+
+        return view
+
     def on_tab_change(self, idx):
         print("currentTab changed", str(idx))
         if idx >= 3:
-            self.map_menu.setEnabled(True)
+            self.change_background_action.setEnabled(True)
+            self.inc_bg_size_action.setEnabled(True)
+            self.dec_bg_size_action.setEnabled(True)
         else:
-            self.map_menu.setEnabled(False)
+            self.change_background_action.setEnabled(False)
+            self.inc_bg_size_action.setEnabled(False)
+            self.dec_bg_size_action.setEnabled(False)
 
         self.centralWidget().update_tab(idx)
 
@@ -471,10 +487,63 @@ class MainWindow(QMainWindow):
             self.app.appdata.cobra_py_model)
         self.centralWidget().update()
 
-    def set_heaton(self):
-        self.app.appdata.compute_color_type = 1
-        self.centralWidget().update()
-
     def set_onoff(self):
-        self.app.appdata.compute_color_type = 2
-        self.centralWidget().update()
+        view = self.get_current_view()
+        idx = 0
+        for key in self.app.appdata.maps[idx]["boxes"]:
+            value = view.reaction_boxes[key].item.text()
+            color = self.compute_color_onoff(float(value))
+            view.reaction_boxes[key].set_color(color)
+
+    def compute_color_onoff(self, value: float):
+        if value != 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        else:
+            return QColor.fromRgb(255, 0, 0)
+
+    def compute_color_onoff2(self, value: float):
+        (low, high) = self.high_and_low()
+        high = max(abs(low), high)
+        if value != 0.0:
+            h = abs(value) * 255 / high
+            return QColor.fromRgb(255-h, 255, 255-h)
+        else:
+            return QColor.fromRgb(255, 0, 0)
+
+    def set_heaton(self):
+        view = self.get_current_view()
+        idx = 0
+        for key in self.app.appdata.maps[idx]["boxes"]:
+            value = view.reaction_boxes[key].item.text()
+            color = self.compute_color_heat(float(value))
+            view.reaction_boxes[key].set_color(color)
+
+    def compute_color_heat(self, value: float):
+        (low, high) = self.high_and_low()
+        if value > 0.0:
+            if high == 0.0:
+                h = 255
+            else:
+                h = value * 255 / high
+            return QColor.fromRgb(255-h, 255, 255-h)
+        else:
+            if low == 0.0:
+                h = 255
+            else:
+                h = value * 255 / low
+            return QColor.fromRgb(255, 255 - h, 255 - h)
+
+    def high_and_low(self):
+        low = 0
+        high = 0
+        for key in self.app.appdata.scen_values.keys():
+            if self.app.appdata.scen_values[key] < low:
+                low = self.app.appdata.scen_values[key]
+            if self.app.appdata.scen_values[key] > high:
+                high = self.app.appdata.scen_values[key]
+        for key in self.app.appdata.comp_values.keys():
+            if self.app.appdata.comp_values[key] < low:
+                low = self.app.appdata.comp_values[key]
+            if self.app.appdata.comp_values[key] > high:
+                high = self.app.appdata.comp_values[key]
+        return (low, high)
