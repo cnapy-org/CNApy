@@ -10,7 +10,7 @@ INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 0.9
 
 Scencolor = Qt.green
-Compcolor = Qt.cyan
+Compcolor = QColor(170, 170, 255)
 Defaultcolor = Qt.gray
 
 
