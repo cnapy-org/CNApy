@@ -8,7 +8,7 @@ from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
 import cobra
 
 Scencolor = Qt.green
-Compcolor = Qt.cyan
+Compcolor = QColor(170, 170, 255)
 
 
 class ReactionList(QWidget):
@@ -60,7 +60,6 @@ class ReactionList(QWidget):
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
         self.set_flux_value(item, reaction.id)
-
         item.setData(3, 0, reaction)
 
     def set_flux_value(self, item, key):

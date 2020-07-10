@@ -488,12 +488,24 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def set_onoff(self):
-        view = self.get_current_view()
-        idx = 0
-        for key in self.app.appdata.maps[idx]["boxes"]:
-            value = view.reaction_boxes[key].item.text()
-            color = self.compute_color_onoff(float(value))
-            view.reaction_boxes[key].set_color(color)
+        idx = self.centralWidget().tabs.currentIndex()
+        if idx == 0:
+            view = self.centralWidget().reaction_list
+            root = view.reaction_list.invisibleRootItem()
+            child_count = root.childCount()
+            for i in range(child_count):
+                item = root.child(i)
+                key = item.text(1)
+                value = item.text(2)
+                color = self.compute_color_onoff(float(value))
+                item.setBackground(2, color)
+
+        elif idx > 2:
+            view = self.centralWidget().tabs.widget(idx)
+            for key in self.app.appdata.maps[idx-3]["boxes"]:
+                value = view.reaction_boxes[key].item.text()
+                color = self.compute_color_onoff(float(value))
+                view.reaction_boxes[key].set_color(color)
 
     def compute_color_onoff(self, value: float):
         if value != 0.0:
@@ -511,12 +523,23 @@ class MainWindow(QMainWindow):
             return QColor.fromRgb(255, 0, 0)
 
     def set_heaton(self):
-        view = self.get_current_view()
-        idx = 0
-        for key in self.app.appdata.maps[idx]["boxes"]:
-            value = view.reaction_boxes[key].item.text()
-            color = self.compute_color_heat(float(value))
-            view.reaction_boxes[key].set_color(color)
+        idx = self.centralWidget().tabs.currentIndex()
+        if idx == 0:
+            view = self.centralWidget().reaction_list
+            root = view.reaction_list.invisibleRootItem()
+            child_count = root.childCount()
+            for i in range(child_count):
+                item = root.child(i)
+                key = item.text(1)
+                value = item.text(2)
+                color = self.compute_color_heat(float(value))
+                item.setBackground(2, color)
+        elif idx > 2:
+            view = self.centralWidget().tabs.widget(idx)
+            for key in self.app.appdata.maps[idx-3]["boxes"]:
+                value = view.reaction_boxes[key].item.text()
+                color = self.compute_color_heat(float(value))
+                view.reaction_boxes[key].set_color(color)
 
     def compute_color_heat(self, value: float):
         (low, high) = self.high_and_low()
