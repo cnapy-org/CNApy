@@ -22,6 +22,7 @@ class ClipboardCalculator(QDialog):
         h1.addWidget(self.left_value)
         self.lqb = QButtonGroup()
         self.lqb.addButton(self.l1)
+        self.l1.setChecked(True)
         self.lqb.addButton(self.l2)
         self.lqb.addButton(self.l3)
 
@@ -46,6 +47,7 @@ class ClipboardCalculator(QDialog):
 
         self.rqb = QButtonGroup()
         self.rqb.addButton(self.r1)
+        self.r1.setChecked(True)
         self.rqb.addButton(self.r2)
         self.rqb.addButton(self.r3)
 

@@ -7,6 +7,9 @@ from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
                                QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
 import cobra
 
+Scencolor = Qt.green
+Compcolor = Qt.cyan
+
 
 class ReactionList(QWidget):
     """A list of reaction"""
@@ -56,18 +59,19 @@ class ReactionList(QWidget):
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
-        if reaction.id in self.appdata.scen_values:
-            self.set_flux_value(item, reaction.id, self.appdata.scen_values)
-        elif reaction.id in self.appdata.comp_values:
-            self.set_flux_value(item, reaction.id, self.appdata.comp_values)
+        self.set_flux_value(item, reaction.id)
 
         item.setData(3, 0, reaction)
 
-    def set_flux_value(self, item, key, values):
-        item.setText(2, str(values[key]))
-        color = self.appdata.compute_color(values[key])
-        item.setData(2, Qt.BackgroundRole, color)
-        item.setForeground(2, Qt.black)
+    def set_flux_value(self, item, key):
+        if key in self.appdata.scen_values.keys():
+            item.setText(2, str(self.appdata.scen_values[key]))
+            item.setBackground(2, Scencolor)
+            item.setForeground(2, Qt.black)
+        elif key in self.appdata.comp_values.keys():
+            item.setText(2, str(self.appdata.comp_values[key]))
+            item.setBackground(2, Compcolor)
+            item.setForeground(2, Qt.black)
 
     def add_new_reaction(self):
         # print("ReactionList::add_new_reaction")
