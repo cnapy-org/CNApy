@@ -1,6 +1,4 @@
 import cobra
-from dataclasses import dataclass
-from PySide2.QtGui import QColor
 
 
 class CnaData:
