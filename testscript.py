@@ -23,7 +23,7 @@ def work(cna):
     cna.window.centralWidget().update()
     time.sleep(1)
 
-    # disco(cna)
+    disco(cna)
 
 
 def disco(cna):

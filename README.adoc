@@ -26,3 +26,11 @@ IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the
 cd /usr/local/net/MATLAB/R2019b/extern/engines/python
 python setup.py build --build-base="/scratch/mebuild" install
 ----
+
+
+== How to run a script in the cnapy terminal
+
+----
+import testscript
+testscript.work(cna)
+----
