@@ -183,7 +183,7 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[key].set_val_and_color(
                     self.appdata.project.comp_values[key])
 
-    def recolor(self):
+    def recolor_all(self):
         for key in self.appdata.project.maps[self.idx]["boxes"]:
             self.reaction_boxes[key].recolor()
 
@@ -199,7 +199,8 @@ class MapView(QGraphicsView):
     def value_changed(self, reaction: str, value: str):
         print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
-        self.recolor()
+        # self.reaction_boxes[reaction].recolor()
+        self.recolor_all()
 
     doubleClickedReaction = Signal(str)
     reactionValueChanged = Signal(str, str)
