@@ -126,19 +126,23 @@ class MapView(QGraphicsView):
             else:
                 self.reaction_boxes[id].item.setHidden(True)
 
+    def focus_reaction(self, reaction: str):
+        print("mapview:focus_reaction", reaction)
+        x = self.appdata.maps[self.idx]["boxes"][reaction][0]
+        y = self.appdata.maps[self.idx]["boxes"][reaction][1]
+        self.centerOn(x, y)
+
     def highlight_reaction(self, string):
         print("mapview:highlight", string)
 
-        for id in self.reaction_boxes:
-            self.reaction_boxes[id].item.setHidden(True)
+        # hide other boxes
+        # for id in self.reaction_boxes:
+        #     self.reaction_boxes[id].item.setHidden(True)
 
         treffer = self.reaction_boxes[string]
         treffer.item.setHidden(False)
 
         treffer.set_color(Qt.magenta)
-        # import time
-        # time.sleep(0.2)
-        # treffer.recolor()
 
     def update(self):
         print("MapView::update", self.idx)

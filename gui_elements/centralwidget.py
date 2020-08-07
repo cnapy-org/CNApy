@@ -158,4 +158,5 @@ class CentralWidget(QWidget):
 
         m.update()
         # self.searchbar.setText(reaction)
+        m.focus_reaction(reaction)
         m.highlight_reaction(reaction)
