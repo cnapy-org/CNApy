@@ -107,8 +107,11 @@ class CentralWidget(QWidget):
             self.mode_navigator.show()
             self.mode_navigator.update()
 
-        for idx in range(0, self.tabs.count()):
-            self.update_tab(idx)
+        self.update_active_tab()
+
+    def update_active_tab(self):
+        idx = self.tabs.currentIndex()
+        self.update_tab(idx)
 
     def update_maps(self):
         print("update_maps", str(self.tabs.count()))
