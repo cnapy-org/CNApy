@@ -1,4 +1,3 @@
-
 from PySide2.QtGui import QIcon, QColor, QPalette
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
@@ -52,33 +51,33 @@ class ModeNavigator(QWidget):
 
     def update(self):
         self.label.setText(str(self.current + 1) + "/" +
-                           str(len(self.appdata.modes)))
+                           str(len(self.appdata.project.modes)))
 
     def clear(self):
-        self.appdata.modes.clear()
+        self.appdata.project.modes.clear()
         self.hide()
 
     def prev(self):
         if self.current == 0:
-            self.current = len(self.appdata.modes)-1
+            self.current = len(self.appdata.project.modes)-1
         else:
             self.current -= 1
 
-        values = self.appdata.modes[self.current].copy()
+        values = self.appdata.project.modes[self.current].copy()
         self.set_mode(values)
 
     def next(self):
-        if self.current == len(self.appdata.modes)-1:
+        if self.current == len(self.appdata.project.modes)-1:
             self.current = 0
         else:
             self.current += 1
 
-        values = self.appdata.modes[self.current].copy()
+        values = self.appdata.project.modes[self.current].copy()
         self.set_mode(values)
 
     def set_mode(self, values):
-        self.appdata.set_scen_values({})
-        self.appdata.set_comp_values(values)
+        self.appdata.project.set_scen_values({})
+        self.appdata.project.set_comp_values(values)
         self.update()
         self.changedCurrentMode.emit(self.current)
 
