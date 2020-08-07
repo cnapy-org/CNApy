@@ -1,7 +1,18 @@
 import cobra
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QColor
 
 
 class CnaData:
+
+    def __init__(self):
+        self.project = ProjectData()
+        self.Scencolor = Qt.green
+        self.Compcolor = QColor(170, 170, 255)
+        self.Defaultcolor = Qt.gray
+
+
+class ProjectData:
     def __init__(self):
         self.cobra_py_model = cobra.Model()
         self.maps = []

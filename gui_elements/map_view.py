@@ -1,6 +1,8 @@
 """The PyNetAnalyzer map view"""
+from typing import Dict
+from cnadata import CnaData
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt, QPoint, QRectF, QRect, QMimeData
+from PySide2.QtCore import Qt, QRectF, QMimeData
 from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
                                QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu, QToolTip)
 from PySide2.QtSvg import QGraphicsSvgItem
@@ -9,15 +11,11 @@ from PySide2.QtCore import Signal
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 0.9
 
-Scencolor = Qt.green
-Compcolor = QColor(170, 170, 255)
-Defaultcolor = Qt.gray
-
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, appdata, idx):
+    def __init__(self, appdata: CnaData, idx):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
@@ -28,12 +26,12 @@ class MapView(QGraphicsView):
         self.idx = idx
         self.setAcceptDrops(True)
         self.drag = False
-        self.reaction_boxes = {}
+        self.reaction_boxes: Dict[str, ReactionBox] = {}
         self._zoom = 0
         self.drag = False
 
         # initial scale
-        self._zoom = self.appdata.maps[self.idx]["zoom"]
+        self._zoom = self.appdata.project.maps[self.idx]["zoom"]
         if self._zoom > 0:
             for i in range(1, self._zoom):
                 self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
@@ -46,11 +44,11 @@ class MapView(QGraphicsView):
         self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
 
     def on_hbar_change(self, x):
-        self.appdata.maps[self.idx]["pos"] = (
+        self.appdata.project.maps[self.idx]["pos"] = (
             x, self.verticalScrollBar().value())
 
     def on_vbar_change(self, y):
-        self.appdata.maps[self.idx]["pos"] = (
+        self.appdata.project.maps[self.idx]["pos"] = (
             self.horizontalScrollBar().value(), y)
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
@@ -63,8 +61,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        (_, _, name) = self.appdata.maps[self.idx]["boxes"][key]
-        self.appdata.maps[self.idx]["boxes"][key] = (
+        (_, _, name) = self.appdata.project.maps[self.idx]["boxes"][key]
+        self.appdata.project.maps[self.idx]["boxes"][key] = (
             point_item.x(), point_item.y(), name)
         self.update()
 
@@ -76,8 +74,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         key = event.mimeData().text()
-        (_, _, name) = self.appdata.maps[self.idx]["boxes"][key]
-        self.appdata.maps[self.idx]["boxes"][key] = (
+        (_, _, name) = self.appdata.project.maps[self.idx]["boxes"][key]
+        self.appdata.project.maps[self.idx]["boxes"][key] = (
             point_item.x(), point_item.y(), name)
         self.update()
 
@@ -89,7 +87,7 @@ class MapView(QGraphicsView):
             factor = DECREASE_FACTOR
             self._zoom -= 1
 
-        self.appdata.maps[self.idx]["zoom"] = self._zoom
+        self.appdata.project.maps[self.idx]["zoom"] = self._zoom
         self.scale(factor, factor)
 
     # def toggleDragMode(self):
@@ -128,8 +126,8 @@ class MapView(QGraphicsView):
 
     def focus_reaction(self, reaction: str):
         print("mapview:focus_reaction", reaction)
-        x = self.appdata.maps[self.idx]["boxes"][reaction][0]
-        y = self.appdata.maps[self.idx]["boxes"][reaction][1]
+        x = self.appdata.project.maps[self.idx]["boxes"][reaction][0]
+        y = self.appdata.project.maps[self.idx]["boxes"][reaction][1]
         self.centerOn(x, y)
 
     def highlight_reaction(self, string):
@@ -148,20 +146,21 @@ class MapView(QGraphicsView):
         print("MapView::update", self.idx)
         self.scene.clear()
         background = QGraphicsSvgItem(
-            self.appdata.maps[self.idx]["background"])
+            self.appdata.project.maps[self.idx]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
-        background.setScale(self.appdata.maps[self.idx]["bg-size"])
+        background.setScale(self.appdata.project.maps[self.idx]["bg-size"])
         self.scene.addItem(background)
 
-        for key in self.appdata.maps[self.idx]["boxes"]:
+        for key in self.appdata.project.maps[self.idx]["boxes"]:
             le1 = QLineEdit()
             le1.setMaximumWidth(80)
-            le1.setToolTip(self.appdata.maps[self.idx]["boxes"][key][2])
+            le1.setToolTip(
+                self.appdata.project.maps[self.idx]["boxes"][key][2])
             proxy1 = self.scene.addWidget(le1)
             proxy1.show()
             ler1 = ReactionBox(self, proxy1, le1, key)
-            ler1.setPos(self.appdata.maps[self.idx]["boxes"][key]
-                        [0], self.appdata.maps[self.idx]["boxes"][key][1])
+            ler1.setPos(self.appdata.project.maps[self.idx]["boxes"][key]
+                        [0], self.appdata.project.maps[self.idx]["boxes"][key][1])
             self.scene.addItem(ler1)
             self.reaction_boxes[key] = ler1
 
@@ -170,27 +169,27 @@ class MapView(QGraphicsView):
         # set scrollbars
 
         self.horizontalScrollBar().setValue(
-            self.appdata.maps[self.idx]["pos"][0])
+            self.appdata.project.maps[self.idx]["pos"][0])
         self.verticalScrollBar().setValue(
-            self.appdata.maps[self.idx]["pos"][1])
+            self.appdata.project.maps[self.idx]["pos"][1])
 
     def set_values(self):
 
-        for key in self.appdata.maps[self.idx]["boxes"]:
-            if key in self.appdata.scen_values.keys():
+        for key in self.appdata.project.maps[self.idx]["boxes"]:
+            if key in self.appdata.project.scen_values.keys():
                 self.reaction_boxes[key].set_val_and_color(
-                    self.appdata.scen_values[key])
-            elif key in self.appdata.comp_values.keys():
+                    self.appdata.project.scen_values[key])
+            elif key in self.appdata.project.comp_values.keys():
                 self.reaction_boxes[key].set_val_and_color(
-                    self.appdata.comp_values[key])
+                    self.appdata.project.comp_values[key])
 
     def recolor(self):
-        for key in self.appdata.maps[self.idx]["boxes"]:
+        for key in self.appdata.project.maps[self.idx]["boxes"]:
             self.reaction_boxes[key].recolor()
 
     def delete_box(self, key):
         # print("MapView::delete_box", key)
-        del self.appdata.maps[self.idx]["boxes"][key]
+        del self.appdata.project.maps[self.idx]["boxes"][key]
         self.update()
 
     def emit_doubleClickedReaction(self, reaction: str):
@@ -218,7 +217,7 @@ class ReactionBox(QGraphicsItem):
         self.item = item
 
         palette = self.item.palette()
-        palette.setColor(QPalette.Base, Defaultcolor)
+        palette.setColor(QPalette.Base, self.map.appdata.Defaultcolor)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
@@ -252,13 +251,13 @@ class ReactionBox(QGraphicsItem):
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.key, test)
-            self.set_color(Defaultcolor)
+            self.set_color(self.map.appdata.Defaultcolor)
         elif verify_value(self.item.text()):
             self.map.value_changed(self.key, self.item.text())
-            if self.key in self.map.appdata.scen_values.keys():
-                self.set_color(Scencolor)
+            if self.key in self.map.appdata.project.scen_values.keys():
+                self.set_color(self.map.appdata.Scencolor)
             else:
-                self.set_color(Compcolor)
+                self.set_color(self.map.appdata.Compcolor)
         else:
             self.set_color(Qt.magenta)
 
@@ -268,10 +267,10 @@ class ReactionBox(QGraphicsItem):
 
     def set_val_and_color(self, value):
         self.set_value(value)
-        if self.key in self.map.appdata.scen_values.keys():
-            self.set_color(Scencolor)
+        if self.key in self.map.appdata.project.scen_values.keys():
+            self.set_color(self.map.appdata.Scencolor)
         else:
-            self.set_color(Compcolor)
+            self.set_color(self.map.appdata.Compcolor)
 
     def set_value(self, value):
         self.item.setText(str(value))
@@ -280,12 +279,12 @@ class ReactionBox(QGraphicsItem):
     def recolor(self):
         test = self.item.text().replace(" ", "")
         if test == "":
-            self.set_color(Defaultcolor)
+            self.set_color(self.map.appdata.Defaultcolor)
         elif verify_value(self.item.text()):
-            if self.key in self.map.appdata.scen_values.keys():
-                self.set_color(Scencolor)
+            if self.key in self.map.appdata.project.scen_values.keys():
+                self.set_color(self.map.appdata.Scencolor)
             else:
-                self.set_color(Compcolor)
+                self.set_color(self.map.appdata.Compcolor)
         else:
             self.set_color(Qt.magenta)
 
@@ -302,7 +301,7 @@ class ReactionBox(QGraphicsItem):
     def paint(self, painter: QPainter, option, widget: QWidget):
         # painter.setPen(Qt.NoPen)
         # set color depending on wether the value belongs to the scenario
-        if self.key in self.map.appdata.scen_values.keys():
+        if self.key in self.map.appdata.project.scen_values.keys():
             painter.setPen(Qt.magenta)
         else:
             # painter.setBrush(Qt.darkGray)
@@ -331,7 +330,7 @@ class ReactionBox(QGraphicsItem):
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         print("double_clickEvent")
-        self.map.emit_doubleClickedReaction(self.key)
+        self.map.emit_doubleClickedReaction(str(self.key))
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)

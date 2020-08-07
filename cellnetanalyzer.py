@@ -28,7 +28,7 @@ class CellNetAnalyzer:
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
-        self.window = MainWindow(self)
+        self.window = MainWindow(self.appdata)
         self.window.resize(800, 600)
         self.window.show()
 
@@ -36,7 +36,7 @@ class CellNetAnalyzer:
         sys.exit(self.qapp.exec_())
 
     def model(self):
-        return self.appdata.cobra_py_model
+        return self.appdata.project.cobra_py_model
 
     def set_model(self, model: cobra.Model):
-        self.appdata.cobra_py_model = model
+        self.appdata.project.cobra_py_model = model

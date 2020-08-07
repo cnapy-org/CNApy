@@ -1,20 +1,18 @@
 """The CellNetAnalyzer reactions list"""
-from PySide2.QtGui import QIcon, QColor, QPalette
+from cnadata import CnaData
+from PySide2.QtGui import QIcon
 from PySide2.QtCore import Signal, Slot, Qt
-from PySide2.QtWidgets import (QLineEdit, QTextEdit, QLabel,
+from PySide2.QtWidgets import (QLineEdit, QLabel,
                                QHBoxLayout, QVBoxLayout,
                                QTreeWidget, QSizePolicy,
                                QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
 import cobra
 
-Scencolor = Qt.green
-Compcolor = QColor(170, 170, 255)
-
 
 class ReactionList(QWidget):
     """A list of reaction"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata: CnaData):
         QWidget.__init__(self)
         self.appdata = appdata
         self.last_selected = None
@@ -29,10 +27,10 @@ class ReactionList(QWidget):
         self.reaction_list.setHeaderLabels(["Id", "Name", "Flux"])
         self.reaction_list.setSortingEnabled(True)
 
-        for r in self.appdata.cobra_py_model.reactions:
+        for r in self.appdata.project.cobra_py_model.reactions:
             self.add_reaction(r)
 
-        self.reaction_mask = ReactionMask(appdata)
+        self.reaction_mask = ReactionMask(self.appdata)
         self.reaction_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -63,13 +61,13 @@ class ReactionList(QWidget):
         item.setData(3, 0, reaction)
 
     def set_flux_value(self, item, key):
-        if key in self.appdata.scen_values.keys():
-            item.setText(2, str(self.appdata.scen_values[key]))
-            item.setBackground(2, Scencolor)
+        if key in self.appdata.project.scen_values.keys():
+            item.setText(2, str(self.appdata.project.scen_values[key]))
+            item.setBackground(2, self.appdata.Scencolor)
             item.setForeground(2, Qt.black)
-        elif key in self.appdata.comp_values.keys():
-            item.setText(2, str(self.appdata.comp_values[key]))
-            item.setBackground(2, Compcolor)
+        elif key in self.appdata.project.comp_values.keys():
+            item.setText(2, str(self.appdata.project.comp_values[key]))
+            item.setBackground(2, self.appdata.Compcolor)
             item.setForeground(2, Qt.black)
 
     def add_new_reaction(self):
@@ -132,7 +130,7 @@ class ReactionList(QWidget):
 
     def update(self):
         self.reaction_list.clear()
-        for r in self.appdata.cobra_py_model.reactions:
+        for r in self.appdata.project.cobra_py_model.reactions:
             self.add_reaction(r)
 
         if self.last_selected is None:
@@ -217,7 +215,7 @@ class JumpList(QWidget):
 class ReactionMask(QWidget):
     """The input mask for a reaction"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata: CnaData):
         QWidget.__init__(self)
         self.appdata = appdata
         self.old = None
@@ -326,7 +324,7 @@ class ReactionMask(QWidget):
         if self.old is None:
             self.old = cobra.Reaction(
                 id=self.id.text(), name=self.name.text())
-            self.appdata.cobra_py_model.add_reaction(self.old)
+            self.appdata.project.cobra_py_model.add_reaction(self.old)
 
         try:
             self.old.id = self.id.text()
@@ -347,7 +345,7 @@ class ReactionMask(QWidget):
             self.changedReactionList.emit()
 
     def delete_reaction(self):
-        self.appdata.cobra_py_model.remove_reactions([self.old])
+        self.appdata.project.cobra_py_model.remove_reactions([self.old])
         self.hide()
         self.changedReactionList.emit()
 
@@ -355,7 +353,7 @@ class ReactionMask(QWidget):
         # print("add to map")
         idx = self.map_combo.currentText()
         print("ReactionMask::add_to_map", idx)
-        self.appdata.maps[int(idx)-1]["boxes"][self.id.text()] = (
+        self.appdata.project.maps[int(idx)-1]["boxes"][self.id.text()] = (
             100, 100, self.name.text())
         self.emit_jump_to_map(int(idx))
         self.update_state()
@@ -367,7 +365,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.id.setPalette(palette)
 
-        with self.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id=self.id.text())
                 model.add_reaction(r)
@@ -384,7 +382,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.name.setPalette(palette)
 
-        with self.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id="testid", name=self.name.text())
                 model.add_reaction(r)
@@ -402,7 +400,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.equation.setPalette(palette)
 
-        with self.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             r = cobra.Reaction("test_id")
             model.add_reaction(r)
             try:
@@ -476,7 +474,7 @@ class ReactionMask(QWidget):
         # print("reaction_mask::update_state")
         self.jump_list.clear()
         c = 1
-        for m in self.appdata.maps:
+        for m in self.appdata.project.maps:
             if self.id.text() in m["boxes"]:
                 self.jump_list.add(c)
             c += 1
@@ -492,7 +490,7 @@ class ReactionMask(QWidget):
             self.map_combo.clear()
             count = 1
             idx = 0
-            for m in self.appdata.maps:
+            for m in self.appdata.project.maps:
                 if self.id.text() not in m["boxes"]:
                     self.add_map_button.setEnabled(True)
                     self.map_combo.insertItem(idx, str(count))

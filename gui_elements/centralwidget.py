@@ -1,6 +1,5 @@
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QGraphicsScene, QHBoxLayout, QVBoxLayout,
-                               QTabWidget, QTabBar, QPushButton, QLineEdit,
+from PySide2.QtWidgets import (QVBoxLayout, QTabWidget, QTabBar, QPushButton, QLineEdit,
                                QWidget)
 
 from gui_elements.reactions_list import ReactionList
@@ -8,27 +7,28 @@ from gui_elements.species_list import SpeciesList
 from gui_elements.map_view import MapView
 from gui_elements.console import Console
 from gui_elements.modenavigator import ModeNavigator
-from cnadata import CnaMap
+from cnadata import CnaData, CnaMap
 
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
 
-    def __init__(self, app):
+    def __init__(self, parent):
         QWidget.__init__(self)
-        self.app = app
+        self.parent = parent
+        self.appdata: CnaData = parent.appdata
 
         self.searchbar = QLineEdit()
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()
-        self.reaction_list = ReactionList(self.app.appdata)
-        self.specie_list = SpeciesList(self.app.appdata)
+        self.reaction_list = ReactionList(self.appdata)
+        self.specie_list = SpeciesList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.specie_list, "Species")
-        self.maps = []
+        self.maps: list = []
 
-        self.console = Console(self.app)
+        self.console = Console(self.parent)
         self.tabs.addTab(self.console, "Console")
         self.tabs.setTabsClosable(True)
 
@@ -41,7 +41,7 @@ class CentralWidget(QWidget):
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
 
-        self.mode_navigator = ModeNavigator(self.app.appdata)
+        self.mode_navigator = ModeNavigator(self.appdata)
         layout = QVBoxLayout()
         layout.addWidget(self.searchbar)
         layout.addWidget(self.tabs)
@@ -65,27 +65,27 @@ class CentralWidget(QWidget):
     def update_reaction_value(self, reaction: str, value: str):
         print("update_reaction_value", value)
         if value == "":
-            self.app.appdata.scen_values.pop(reaction, None)
-            self.app.appdata.comp_values.pop(reaction, None)
+            self.appdata.project.scen_values.pop(reaction, None)
+            self.appdata.project.comp_values.pop(reaction, None)
         else:
-            self.app.appdata.scen_values[reaction] = float(value)
+            self.appdata.project.scen_values[reaction] = float(value)
 
     def add_map(self):
         m = CnaMap("Map")
-        self.app.appdata.maps.append(m)
-        map = MapView(self.app.appdata, len(self.app.appdata.maps)-1)
+        self.appdata.project.maps.append(m)
+        map = MapView(self.appdata, len(self.appdata.project.maps)-1)
         map.doubleClickedReaction.connect(self.switch_to_reaction)
         map.reactionValueChanged.connect(self.update_reaction_value)
         self.tabs.addTab(map, m["name"])
         self.update_maps()
-        self.tabs.setCurrentIndex(2 + len(self.app.appdata.maps))
+        self.tabs.setCurrentIndex(2 + len(self.appdata.project.maps))
 
     def remove_map_tabs(self):
         for idx in range(3, self.tabs.count()):
             self.tabs.removeTab(3)
 
     def remove_map(self, idx: int):
-        del self.app.appdata.maps[idx-3]
+        del self.appdata.project.maps[idx-3]
         self.recreate_maps()
 
     def update_selected(self):
@@ -101,7 +101,7 @@ class CentralWidget(QWidget):
 
     def update(self):
         # print("centralwidget::update")
-        if len(self.app.appdata.modes) == 0:
+        if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
         else:
             self.mode_navigator.show()
@@ -122,8 +122,8 @@ class CentralWidget(QWidget):
         self.remove_map_tabs()
 
         count = 0
-        for m in self.app.appdata.maps:
-            map = MapView(self.app.appdata, count)
+        for m in self.appdata.project.maps:
+            map = MapView(self.appdata, count)
             map.show()
             map.doubleClickedReaction.connect(self.switch_to_reaction)
             map.reactionValueChanged.connect(self.update_reaction_value)

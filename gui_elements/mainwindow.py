@@ -1,3 +1,4 @@
+from cnadata import CnaData
 import os
 from shutil import copyfile
 import json
@@ -21,12 +22,12 @@ import cobra
 class MainWindow(QMainWindow):
     """The cnapy main window"""
 
-    def __init__(self, app):
+    def __init__(self, appdata: CnaData):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
-        self.app = app
+        self.appdata = appdata
 
-        central_widget = CentralWidget(self.app)
+        central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
 
         self.menu = self.menuBar()
@@ -179,7 +180,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def phase_plane(self, _checked):
 
-        with self.app.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             import matplotlib.pyplot as plt
 
             import cobra.test
@@ -200,7 +201,8 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.xml")
 
-        self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(filename[0])
+        self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
+            filename[0])
         self.centralWidget().update()
 
     @Slot()
@@ -210,7 +212,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.xml")
 
         cobra.io.write_sbml_model(
-            self.app.appdata.cobra_py_model, filename[0])
+            self.appdata.project.cobra_py_model, filename[0])
 
     @Slot()
     def load_maps(self, _checked):
@@ -219,7 +221,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'r') as fp:
-            self.app.appdata.maps = json.load(fp)
+            self.appdata.project.maps = json.load(fp)
 
         self.centralWidget().recreate_maps()
         self.centralWidget().update()
@@ -232,9 +234,9 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
-            self.app.appdata.set_scen_values(values)
-            self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
-            self.app.appdata.comp_values.clear()
+            self.appdata.project.set_scen_values(values)
+            self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
+            self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
     @Slot()
@@ -244,12 +246,12 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.modes")
 
         with open(filename[0], 'r') as fp:
-            self.app.appdata.modes = json.load(fp)
+            self.appdata.project.modes = json.load(fp)
             self.centralWidget().mode_navigator.current = 0
-            values = self.app.appdata.modes[0].copy()
+            values = self.appdata.project.modes[0].copy()
             # TODO: should we really overwrite scenario_values
-            self.app.appdata.set_scen_values({})
-            self.app.appdata.set_comp_values(values)
+            self.appdata.project.set_scen_values({})
+            self.appdata.project.set_comp_values(values)
         self.centralWidget().update()
 
     @Slot()
@@ -261,11 +263,11 @@ class MainWindow(QMainWindow):
         idx = self.centralWidget().tabs.currentIndex()
         if filename[0] != '':
             # try:
-            self.app.appdata.maps[idx - 3]["background"] = filename[0]
-            print(self.app.appdata.maps[idx - 3]["background"])
+            self.appdata.project.maps[idx - 3]["background"] = filename[0]
+            print(self.appdata.project.maps[idx - 3]["background"])
 
             background = QGraphicsSvgItem(
-                self.app.appdata.maps[idx - 3]["background"])
+                self.appdata.project.maps[idx - 3]["background"])
             background.setFlags(QGraphicsItem.ItemClipsToShape)
             self.centralWidget().tabs.widget(idx).scene.addItem(background)
             # except:
@@ -278,7 +280,7 @@ class MainWindow(QMainWindow):
     def inc_bg_size(self, _checked):
 
         idx = self.centralWidget().tabs.currentIndex()
-        self.app.appdata.maps[idx - 3]["bg-size"] += 0.2
+        self.appdata.project.maps[idx - 3]["bg-size"] += 0.2
 
         self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
@@ -287,7 +289,7 @@ class MainWindow(QMainWindow):
     def dec_bg_size(self, _checked):
 
         idx = self.centralWidget().tabs.currentIndex()
-        self.app.appdata.maps[idx - 3]["bg-size"] -= 0.2
+        self.appdata.project.maps[idx - 3]["bg-size"] -= 0.2
 
         self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
@@ -299,7 +301,7 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.app.appdata.maps, fp)
+            json.dump(self.appdata.project.maps, fp)
 
     @Slot()
     def save_scenario(self, _checked):
@@ -308,8 +310,8 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.app.appdata.scen_values, fp)
-        self.app.appdata.scenario_backup = self.app.appdata.scen_values.copy()
+            json.dump(self.appdata.project.scen_values, fp)
+        self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
 
     @Slot()
     def save_modes(self, _checked):
@@ -318,23 +320,23 @@ class MainWindow(QMainWindow):
             dir=os.getcwd(), filter="*.modes")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.app.appdata.modes, fp)
+            json.dump(self.appdata.project.modes, fp)
 
     def reset_scenario(self):
-        self.app.appdata.scen_values = self.app.appdata.scenario_backup.copy()
+        self.appdata.project.scen_values = self.appdata.project.scenario_backup.copy()
         self.centralWidget().update()
 
     def clear_scenario(self):
-        self.app.appdata.scen_values.clear()
-        self.app.appdata.comp_values.clear()
-        self.app.appdata.high = 0
-        self.app.appdata.low = 0
+        self.appdata.project.scen_values.clear()
+        self.appdata.project.comp_values.clear()
+        self.appdata.project.high = 0
+        self.appdata.project.low = 0
         self.centralWidget().update()
 
     @Slot()
     def new_project(self, _checked):
-        self.app.appdata.cobra_py_model = cobra.Model()
-        self.app.appdata.maps = []
+        self.appdata.project.cobra_py_model = cobra.Model()
+        self.appdata.project.maps = []
         self.centralWidget().remove_map_tabs()
 
         self.centralWidget().mode_navigator.clear()
@@ -352,12 +354,12 @@ class MainWindow(QMainWindow):
             zip_ref.extractall(folder.name)
 
             with open(folder.name+"/maps.json", 'r') as fp:
-                self.app.appdata.maps = json.load(fp)
+                self.appdata.project.maps = json.load(fp)
 
-                for m in self.app.appdata.maps:
+                for m in self.appdata.project.maps:
                     copyfile(folder.name+"/"+m["background"], m["background"])
 
-            self.app.appdata.cobra_py_model = cobra.io.read_sbml_model(
+            self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
                 folder.name + "/model.sbml")
 
             self.centralWidget().recreate_maps()
@@ -375,21 +377,21 @@ class MainWindow(QMainWindow):
         folder = TemporaryDirectory().name
 
         cobra.io.write_sbml_model(
-            self.app.appdata.cobra_py_model, folder + "model.sbml")
+            self.appdata.project.cobra_py_model, folder + "model.sbml")
 
         files = {}
-        for m in self.app.appdata.maps:
+        for m in self.appdata.project.maps:
             files[m["background"]] = ""
         count = 1
         for f in files.keys():
             files[f] = ".bg" + str(count) + ".svg"
             count += 1
 
-        for m in self.app.appdata.maps:
+        for m in self.appdata.project.maps:
             m["background"] = files[m["background"]]
 
         with open(folder + "maps.json", 'w') as fp:
-            json.dump(self.app.appdata.maps, fp)
+            json.dump(self.appdata.project.maps, fp)
 
         with ZipFile(filename[0], 'w') as zipObj:
             zipObj.write(folder + "model.sbml", arcname="model.sbml")
@@ -423,53 +425,53 @@ class MainWindow(QMainWindow):
         self.centralWidget().update_tab(idx)
 
     def load_scenario_into_model(self, model):
-        for x in self.app.appdata.scen_values:
+        for x in self.appdata.project.scen_values:
             y = model.reactions.get_by_id(x)
-            y.lower_bound = self.app.appdata.scen_values[x]
-            y.upper_bound = self.app.appdata.scen_values[x]
+            y.lower_bound = self.appdata.project.scen_values[x]
+            y.upper_bound = self.appdata.project.scen_values[x]
 
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
-        self.app.appdata.clipboard = self.app.appdata.comp_values.copy()
+        self.appdata.project.clipboard = self.appdata.project.comp_values.copy()
 
     def paste_clipboard(self):
         print("paste_clipboard")
-        self.app.appdata.comp_values = self.app.appdata.clipboard
+        self.appdata.project.comp_values = self.appdata.project.clipboard
         self.centralWidget().update()
 
     @Slot()
     def clipboard_arithmetics(self, _checked):
         print("clipboard_arithmetics")
-        dialog = ClipboardCalculator(self.app.appdata)
+        dialog = ClipboardCalculator(self.appdata.project)
         dialog.exec_()
         self.centralWidget().update()
 
     def fba(self):
-        with self.app.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             self.load_scenario_into_model(model)
 
             solution = model.optimize()
             if solution.status == 'optimal':
-                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+                self.appdata.project.set_comp_values(solution.fluxes.to_dict())
             else:
-                self.app.appdata.comp_values.clear()
+                self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
     def pfba(self):
-        with self.app.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             self.load_scenario_into_model(model)
 
             solution = cobra.flux_analysis.pfba(model)
             if solution.status == 'optimal':
-                self.app.appdata.set_comp_values(solution.fluxes.to_dict())
+                self.appdata.project.set_comp_values(solution.fluxes.to_dict())
             else:
-                self.app.appdata.comp_values.clear()
+                self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
     def fva(self):
         from cobra.flux_analysis import flux_variability_analysis
 
-        with self.app.appdata.cobra_py_model as model:
+        with self.appdata.project.cobra_py_model as model:
             self.load_scenario_into_model(model)
 
             solution = flux_variability_analysis(model)
@@ -477,14 +479,14 @@ class MainWindow(QMainWindow):
             minimum = solution.minimum.to_dict()
             maximum = solution.maximum.to_dict()
             for i in minimum:
-                self.app.appdata.comp_values[i] = (minimum[i], maximum[i])
+                self.appdata.project.comp_values[i] = (minimum[i], maximum[i])
 
-            self.app.appdata.compute_color_type = 3
+            self.appdata.project.compute_color_type = 3
             self.centralWidget().update()
 
     def efm(self):
-        self.app.appdata.modes = matlab_CNAcomputeEFM(
-            self.app.appdata.cobra_py_model)
+        self.appdata.project.modes = matlab_CNAcomputeEFM(
+            self.appdata.project.cobra_py_model)
         self.centralWidget().update()
 
     def set_onoff(self):
@@ -502,7 +504,7 @@ class MainWindow(QMainWindow):
 
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
-            for key in self.app.appdata.maps[idx-3]["boxes"]:
+            for key in self.appdata.project.maps[idx-3]["boxes"]:
                 value = view.reaction_boxes[key].item.text()
                 color = self.compute_color_onoff(float(value))
                 view.reaction_boxes[key].set_color(color)
@@ -536,7 +538,7 @@ class MainWindow(QMainWindow):
                 item.setBackground(2, color)
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
-            for key in self.app.appdata.maps[idx-3]["boxes"]:
+            for key in self.appdata.project.maps[idx-3]["boxes"]:
                 value = view.reaction_boxes[key].item.text()
                 color = self.compute_color_heat(float(value))
                 view.reaction_boxes[key].set_color(color)
@@ -559,14 +561,14 @@ class MainWindow(QMainWindow):
     def high_and_low(self):
         low = 0
         high = 0
-        for key in self.app.appdata.scen_values.keys():
-            if self.app.appdata.scen_values[key] < low:
-                low = self.app.appdata.scen_values[key]
-            if self.app.appdata.scen_values[key] > high:
-                high = self.app.appdata.scen_values[key]
-        for key in self.app.appdata.comp_values.keys():
-            if self.app.appdata.comp_values[key] < low:
-                low = self.app.appdata.comp_values[key]
-            if self.app.appdata.comp_values[key] > high:
-                high = self.app.appdata.comp_values[key]
+        for key in self.appdata.project.scen_values.keys():
+            if self.appdata.project.scen_values[key] < low:
+                low = self.appdata.project.scen_values[key]
+            if self.appdata.project.scen_values[key] > high:
+                high = self.appdata.project.scen_values[key]
+        for key in self.appdata.project.comp_values.keys():
+            if self.appdata.project.comp_values[key] < low:
+                low = self.appdata.project.comp_values[key]
+            if self.appdata.project.comp_values[key] > high:
+                high = self.appdata.project.comp_values[key]
         return (low, high)

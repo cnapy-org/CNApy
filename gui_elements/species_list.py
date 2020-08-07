@@ -1,5 +1,5 @@
 """The PyNetAnalyzer species list"""
-
+from cnadata import CnaData
 from PySide2.QtWidgets import QWidget, QLineEdit, QTextEdit, QLabel
 from PySide2.QtCore import Qt
 from PySide2.QtCore import Signal
@@ -10,7 +10,7 @@ import cobra
 class SpeciesList(QWidget):
     """A list of species"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata: CnaData):
         QWidget.__init__(self)
         self.appdata = appdata
 
@@ -19,7 +19,7 @@ class SpeciesList(QWidget):
         self.species_list.setHeaderLabels(["Id", "Name"])
         self.species_list.setSortingEnabled(True)
 
-        for r in self.appdata.cobra_py_model.metabolites:
+        for r in self.appdata.project.cobra_py_model.metabolites:
             self.add_species(r)
 
         self.species_mask = SpeciesMask(appdata)
@@ -67,7 +67,7 @@ class SpeciesList(QWidget):
     def update(self):
         # print("SpeciesList::update")
         self.species_list.clear()
-        for m in self.appdata.cobra_py_model.metabolites:
+        for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_species(m)
 
     itemActivated = Signal(str)
