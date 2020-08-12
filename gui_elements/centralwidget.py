@@ -1,3 +1,4 @@
+from ast import literal_eval as make_tuple
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (QVBoxLayout, QTabWidget, QTabBar, QPushButton, QLineEdit,
                                QWidget)
@@ -68,7 +69,12 @@ class CentralWidget(QWidget):
             self.appdata.project.scen_values.pop(reaction, None)
             self.appdata.project.comp_values.pop(reaction, None)
         else:
-            self.appdata.project.scen_values[reaction] = float(value)
+            try:
+                x = float(value)
+                self.appdata.project.scen_values[reaction] = (x, x)
+            except:
+                (vl, vh) = make_tuple(value)
+                self.appdata.project.scen_values[reaction] = (vl, vh)
 
     def add_map(self):
         m = CnaMap("Map")
