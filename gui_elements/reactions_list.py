@@ -1,4 +1,5 @@
 """The CellNetAnalyzer reactions list"""
+from ast import literal_eval as make_tuple
 from cnadata import CnaData
 from PySide2.QtGui import QIcon
 from PySide2.QtCore import Signal, Slot, Qt
@@ -62,12 +63,24 @@ class ReactionList(QWidget):
 
     def set_flux_value(self, item, key):
         if key in self.appdata.project.scen_values.keys():
-            item.setText(2, str(self.appdata.project.scen_values[key]))
+            (vl, vh) = self.appdata.project.scen_values[key]
+            if vl == vh:
+                item.setText(2, str(vl))
+            else:
+                item.setText(2, str((vl, vh)))
             item.setBackground(2, self.appdata.Scencolor)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
-            item.setText(2, str(self.appdata.project.comp_values[key]))
-            item.setBackground(2, self.appdata.Compcolor)
+            (vl, vh) = self.appdata.project.comp_values[key]
+
+            # We differentiate special cases like (vl==vh)
+            if vl == vh:
+                item.setBackground(2, self.appdata.SpecialColor)
+                item.setText(2, str(vl))
+            else:
+                item.setBackground(2, self.appdata.Compcolor)
+                item.setText(2, str((vl, vh)))
+
             item.setForeground(2, Qt.black)
 
     def add_new_reaction(self):

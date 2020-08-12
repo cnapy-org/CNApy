@@ -1,4 +1,5 @@
 """The PyNetAnalyzer map view"""
+from ast import literal_eval as make_tuple
 from typing import Dict
 from cnadata import CnaData
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
@@ -174,7 +175,6 @@ class MapView(QGraphicsView):
             self.appdata.project.maps[self.idx]["pos"][1])
 
     def set_values(self):
-
         for key in self.appdata.project.maps[self.idx]["boxes"]:
             if key in self.appdata.project.scen_values.keys():
                 self.reaction_boxes[key].set_val_and_color(
@@ -182,10 +182,6 @@ class MapView(QGraphicsView):
             elif key in self.appdata.project.comp_values.keys():
                 self.reaction_boxes[key].set_val_and_color(
                     self.appdata.project.comp_values[key])
-
-    # def recolor_all(self):
-    #     for key in self.appdata.project.maps[self.idx]["boxes"]:
-    #         self.reaction_boxes[key].recolor()
 
     def delete_box(self, key):
         # print("MapView::delete_box", key)
@@ -200,7 +196,6 @@ class MapView(QGraphicsView):
         print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
-        # self.recolor_all()
 
     doubleClickedReaction = Signal(str)
     reactionValueChanged = Signal(str, str)
@@ -266,35 +261,47 @@ class ReactionBox(QGraphicsItem):
         self.map.scale(2, 2)
         self.map.scale(0.5, 0.5)
 
-    def set_val_and_color(self, value):
+    def set_val_and_color(self, value: (float, float)):
         self.set_value(value)
         self.recolor()
-        # if self.key in self.map.appdata.project.scen_values.keys():
-        #     self.set_color(self.map.appdata.Scencolor)
-        # else:
-        #     self.set_color(self.map.appdata.Compcolor)
 
-    def set_value(self, value):
-        self.item.setText(str(value))
+    def set_value(self, value: (float, float)):
+        (vl, vh) = value
+        if vl == vh:
+            self.item.setText(str(vl))
+        else:
+            self.item.setText(str(value))
         self.item.setCursorPosition(0)
 
     def recolor(self):
-        print("in recolor")
-        test = self.item.text().replace(" ", "")
+        value = self.item.text()
+        test = value.replace(" ", "")
         if test == "":
             self.set_color(self.map.appdata.Defaultcolor)
-        elif verify_value(self.item.text()):
+        elif verify_value(value):
             if self.key in self.map.appdata.project.scen_values.keys():
+                value = self.map.appdata.project.scen_values[self.key]
 
-                # Here we continue
                 # We differentiate special cases like (vl==vh)
-
+                # try:
+                #     x_ = float(value)
+                #     self.set_color(self.map.appdata.Scencolor)
+                # except:
+                #     (vl, vh) = make_tuple(value)
+                #     if vl == vh:
+                #         self.set_color(self.map.appdata.Specialcolor)
                 self.set_color(self.map.appdata.Scencolor)
             else:
+                value = self.map.appdata.project.comp_values[self.key]
                 # We differentiate special cases like (vl==vh)
-
-                print("set Compcolor")
-                self.set_color(self.map.appdata.Compcolor)
+                if isinstance(value, float):
+                    self.set_color(self.map.appdata.Compcolor)
+                else:
+                    (vl, vh) = value
+                    if vl == vh:
+                        self.set_color(self.map.appdata.SpecialColor)
+                    else:
+                        self.set_color(self.map.appdata.Compcolor)
         else:
             self.set_color(Qt.magenta)
 
@@ -356,7 +363,6 @@ class ReactionBox(QGraphicsItem):
 
 
 def verify_value(value):
-    from ast import literal_eval as make_tuple
     try:
         x = float(value)
     except:

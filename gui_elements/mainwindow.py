@@ -236,8 +236,11 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
-            self.appdata.project.set_scen_values(values)
             self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
+            self.appdata.project.scenario_backup = self.appdata.project.scen_values.clear()
+            for i in values:
+                self.appdata.project.scen_values[i] = values[i]
+
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
@@ -429,8 +432,9 @@ class MainWindow(QMainWindow):
     def load_scenario_into_model(self, model):
         for x in self.appdata.project.scen_values:
             y = model.reactions.get_by_id(x)
-            y.lower_bound = self.appdata.project.scen_values[x]
-            y.upper_bound = self.appdata.project.scen_values[x]
+            (vl, vu) = self.appdata.project.scen_values[x]
+            y.lower_bound = vl
+            y.upper_bound = vu
 
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
@@ -454,7 +458,10 @@ class MainWindow(QMainWindow):
 
             solution = model.optimize()
             if solution.status == 'optimal':
-                self.appdata.project.set_comp_values(solution.fluxes.to_dict())
+                soldict = solution.fluxes.to_dict()
+                for i in soldict:
+                    self.appdata.project.comp_values[i] = (
+                        soldict[i], soldict[i])
             else:
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
@@ -465,7 +472,10 @@ class MainWindow(QMainWindow):
 
             solution = cobra.flux_analysis.pfba(model)
             if solution.status == 'optimal':
-                self.appdata.project.set_comp_values(solution.fluxes.to_dict())
+                soldict = solution.fluxes.to_dict()
+                for i in soldict:
+                    self.appdata.project.comp_values[i] = (
+                        soldict[i], soldict[i])
             else:
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
