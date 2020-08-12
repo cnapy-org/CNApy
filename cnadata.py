@@ -11,6 +11,8 @@ class CnaData:
         self.Compcolor = QColor(170, 170, 255)
         self.SpecialColor = Qt.yellow
         self.Defaultcolor = Qt.gray
+        self.rel_tol = 1e-9
+        self.rounding = 3
 
 
 class ProjectData:

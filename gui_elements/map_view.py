@@ -1,4 +1,5 @@
 """The PyNetAnalyzer map view"""
+import math
 from ast import literal_eval as make_tuple
 from typing import Dict
 from cnadata import CnaData
@@ -266,11 +267,12 @@ class ReactionBox(QGraphicsItem):
         self.recolor()
 
     def set_value(self, value: (float, float)):
-        (vl, vh) = value
-        if vl == vh:
-            self.item.setText(str(vl))
+        (vl, vu) = value
+        if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
+            self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
-            self.item.setText(str(value))
+            self.item.setText(
+                str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
         self.item.setCursorPosition(0)
 
     def recolor(self):
@@ -282,26 +284,22 @@ class ReactionBox(QGraphicsItem):
             if self.key in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.key]
 
-                # We differentiate special cases like (vl==vh)
+                # We differentiate special cases like (vl==vu)
                 # try:
                 #     x_ = float(value)
                 #     self.set_color(self.map.appdata.Scencolor)
                 # except:
-                #     (vl, vh) = make_tuple(value)
-                #     if vl == vh:
+                #     (vl, vu) = make_tuple(value)
+                #     if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
                 #         self.set_color(self.map.appdata.Specialcolor)
                 self.set_color(self.map.appdata.Scencolor)
             else:
                 value = self.map.appdata.project.comp_values[self.key]
-                # We differentiate special cases like (vl==vh)
-                if isinstance(value, float):
-                    self.set_color(self.map.appdata.Compcolor)
+                (vl, vu) = value
+                if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
+                    self.set_color(self.map.appdata.SpecialColor)
                 else:
-                    (vl, vh) = value
-                    if vl == vh:
-                        self.set_color(self.map.appdata.SpecialColor)
-                    else:
-                        self.set_color(self.map.appdata.Compcolor)
+                    self.set_color(self.map.appdata.Compcolor)
         else:
             self.set_color(Qt.magenta)
 
