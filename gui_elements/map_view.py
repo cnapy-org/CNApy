@@ -183,9 +183,9 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[key].set_val_and_color(
                     self.appdata.project.comp_values[key])
 
-    def recolor_all(self):
-        for key in self.appdata.project.maps[self.idx]["boxes"]:
-            self.reaction_boxes[key].recolor()
+    # def recolor_all(self):
+    #     for key in self.appdata.project.maps[self.idx]["boxes"]:
+    #         self.reaction_boxes[key].recolor()
 
     def delete_box(self, key):
         # print("MapView::delete_box", key)
@@ -199,8 +199,8 @@ class MapView(QGraphicsView):
     def value_changed(self, reaction: str, value: str):
         print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
-        # self.reaction_boxes[reaction].recolor()
-        self.recolor_all()
+        self.reaction_boxes[reaction].recolor()
+        # self.recolor_all()
 
     doubleClickedReaction = Signal(str)
     reactionValueChanged = Signal(str, str)
@@ -268,23 +268,32 @@ class ReactionBox(QGraphicsItem):
 
     def set_val_and_color(self, value):
         self.set_value(value)
-        if self.key in self.map.appdata.project.scen_values.keys():
-            self.set_color(self.map.appdata.Scencolor)
-        else:
-            self.set_color(self.map.appdata.Compcolor)
+        self.recolor()
+        # if self.key in self.map.appdata.project.scen_values.keys():
+        #     self.set_color(self.map.appdata.Scencolor)
+        # else:
+        #     self.set_color(self.map.appdata.Compcolor)
 
     def set_value(self, value):
         self.item.setText(str(value))
         self.item.setCursorPosition(0)
 
     def recolor(self):
+        print("in recolor")
         test = self.item.text().replace(" ", "")
         if test == "":
             self.set_color(self.map.appdata.Defaultcolor)
         elif verify_value(self.item.text()):
             if self.key in self.map.appdata.project.scen_values.keys():
+
+                # Here we continue
+                # We differentiate special cases like (vl==vh)
+
                 self.set_color(self.map.appdata.Scencolor)
             else:
+                # We differentiate special cases like (vl==vh)
+
+                print("set Compcolor")
                 self.set_color(self.map.appdata.Compcolor)
         else:
             self.set_color(Qt.magenta)
@@ -347,9 +356,19 @@ class ReactionBox(QGraphicsItem):
 
 
 def verify_value(value):
+    from ast import literal_eval as make_tuple
     try:
         x = float(value)
     except:
-        return False
+        try:
+            (vl, vh) = make_tuple(value)
+            if not isinstance(vl, float):
+                return False
+            if not isinstance(vh, float):
+                return False
+        except:
+            return False
+        else:
+            return True
     else:
         return True
