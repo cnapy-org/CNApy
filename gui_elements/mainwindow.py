@@ -258,8 +258,10 @@ class MainWindow(QMainWindow):
             self.centralWidget().mode_navigator.current = 0
             values = self.appdata.project.modes[0].copy()
             # TODO: should we really overwrite scenario_values
-            self.appdata.project.set_scen_values({})
-            self.appdata.project.set_comp_values(values)
+            self.appdata.project.scen_values.clear()
+            self.appdata.project.comp_values.clear()
+            for i in values:
+                self.appdata.project.comp_values[i] = (values[i], values[i])
         self.centralWidget().update()
 
     @Slot()

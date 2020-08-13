@@ -1,7 +1,7 @@
 # TODOs
 
 - Priority 1: add CNA functions
-  - [-] improve coloring
+  - [-] improve coloring - need to discuss
   - [ ] Elementary modes dialog
   - [ ] Phaseplane dialog
 
@@ -23,6 +23,7 @@
 
 - [-] Elementary modes
 - [-] Phaseplane analysis (from cobrapy)
+- [-] improve coloring
 
 - [x] improve findabillity of reaction boxes
 

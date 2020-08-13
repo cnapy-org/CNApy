@@ -76,8 +76,10 @@ class ModeNavigator(QWidget):
         self.set_mode(values)
 
     def set_mode(self, values):
-        self.appdata.project.set_scen_values({})
-        self.appdata.project.set_comp_values(values)
+        self.appdata.project.scen_values.clear()
+        self.appdata.project.comp_values.clear()
+        for i in values:
+            self.appdata.project.comp_values[i] = (values[i], values[i])
         self.update()
         self.changedCurrentMode.emit(self.current)
 
