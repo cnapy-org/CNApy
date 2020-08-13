@@ -512,7 +512,7 @@ class MainWindow(QMainWindow):
             child_count = root.childCount()
             for i in range(child_count):
                 item = root.child(i)
-                key = item.text(1)
+                key = item.text(0)
                 if key in self.appdata.project.scen_values:
                     value = self.appdata.project.scen_values[key]
                     color = self.compute_color_onoff(value)
@@ -551,7 +551,7 @@ class MainWindow(QMainWindow):
             child_count = root.childCount()
             for i in range(child_count):
                 item = root.child(i)
-                key = item.text(1)
+                key = item.text(0)
                 if key in self.appdata.project.scen_values:
                     value = self.appdata.project.scen_values[key]
                     color = self.compute_color_heat(value)
