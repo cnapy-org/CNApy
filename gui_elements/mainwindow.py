@@ -1,4 +1,5 @@
 import re
+from typing import Tuple
 from cnadata import CnaData
 import os
 from shutil import copyfile
@@ -190,7 +191,9 @@ class MainWindow(QMainWindow):
             # model = cobra.test.create_test_model("textbook")
             # prod_env = production_envelope(model, ["EX_glc__D_e", "EX_o2_e"])
             prod_env = production_envelope(
-                model, ["Growth", "EthEx"])
+                model, ["EthEx", "Growth"], objective="Growth")
+
+            print(str(prod_env))
 
             prod_env.plot(
                 kind='line', x='Growth', y='EthEx', yerr=None)
@@ -510,32 +513,35 @@ class MainWindow(QMainWindow):
             for i in range(child_count):
                 item = root.child(i)
                 key = item.text(1)
-                value = item.text(2)
-                color = self.compute_color_onoff(value)
-                item.setBackground(2, color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_onoff(value)
+                    item.setBackground(2, color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_onoff(value)
+                    item.setBackground(2, color)
 
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
             for key in self.appdata.project.maps[idx-3]["boxes"]:
-                value = view.reaction_boxes[key].item.text()
-                color = self.compute_color_onoff(value)
-                view.reaction_boxes[key].set_color(color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_onoff(value)
+                    view.reaction_boxes[key].set_color(color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_onoff(value)
+                    view.reaction_boxes[key].set_color(color)
 
-    def compute_color_onoff(self, value: str):
-        if value[0] == '(':
-            (vl, vh) = make_tuple(value)
-            if vl < 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            elif vh > 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            else:
-                return QColor.fromRgb(255, 0, 0)
+    def compute_color_onoff(self, value: Tuple[float, float]):
+        (vl, vh) = value
+        if vl < 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        elif vh > 0.0:
+            return QColor.fromRgb(0, 255, 0)
         else:
-            v = float(value)
-            if v != 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            else:
-                return QColor.fromRgb(255, 0, 0)
+            return QColor.fromRgb(255, 0, 0)
 
     def set_heaton(self):
         idx = self.centralWidget().tabs.currentIndex()
@@ -546,47 +552,43 @@ class MainWindow(QMainWindow):
             for i in range(child_count):
                 item = root.child(i)
                 key = item.text(1)
-                value = item.text(2)
-                color = self.compute_color_heat(value)
-                item.setBackground(2, color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_heat(value)
+                    item.setBackground(2, color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_heat(value)
+                    item.setBackground(2, color)
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
             for key in self.appdata.project.maps[idx-3]["boxes"]:
-                value = view.reaction_boxes[key].item.text()
-                color = self.compute_color_heat(value)
-                view.reaction_boxes[key].set_color(color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_heat(value)
+                    view.reaction_boxes[key].set_color(color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_heat(value)
+                    view.reaction_boxes[key].set_color(color)
 
-    def compute_color_heat(self, value: str):
+    def compute_color_heat(self, value: Tuple[float, float]):
         (low, high) = self.high_and_low()
-        if value[0] == '(':
-            (vl, vh) = make_tuple(value)
-            mean = my_mean((vl, vh))
-            if mean > 0.0:
-                if high == 0.0:
-                    h = 255
-                else:
-                    h = mean * 255 / high
-                return QColor.fromRgb(255-h, 255, 255-h)
+
+        (vl, vh) = value
+        mean = my_mean((vl, vh))
+        if mean > 0.0:
+            if high == 0.0:
+                h = 255
             else:
-                if low == 0.0:
-                    h = 255
-                else:
-                    h = mean * 255 / low
-                return QColor.fromRgb(255, 255 - h, 255 - h)
+                h = mean * 255 / high
+            return QColor.fromRgb(255-h, 255, 255-h)
         else:
-            v = float(value)
-            if v > 0.0:
-                if high == 0.0:
-                    h = 255
-                else:
-                    h = v * 255 / high
-                return QColor.fromRgb(255-h, 255, 255-h)
+            if low == 0.0:
+                h = 255
             else:
-                if low == 0.0:
-                    h = 255
-                else:
-                    h = v * 255 / low
-                return QColor.fromRgb(255, 255 - h, 255 - h)
+                h = mean * 255 / low
+            return QColor.fromRgb(255, 255 - h, 255 - h)
 
     def high_and_low(self):
         low = 0
