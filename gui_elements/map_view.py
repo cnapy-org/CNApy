@@ -282,11 +282,13 @@ class ReactionBox(QGraphicsItem):
 
     def set_value(self, value: Tuple[float, float]):
         (vl, vu) = value
-        if math.isclose(round(vl, 7), round(vu, 7), rel_tol=self.map.appdata.rel_tol):
-            # print("isclose", round(vl, 7), round(vu, 7))
+        if round(vl, self.map.appdata.rounding) == round(vu, self.map.appdata.rounding):
+            print("isclose", vl, round(vl, self.map.appdata.rounding),
+                  vu, round(vu, self.map.appdata.rounding))
             self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
-            # print("notclose", round(vl, 7), round(vu, 7))
+            print("notclose", vl, round(vl, self.map.appdata.rounding),
+                  vu, round(vu, self.map.appdata.rounding))
             self.item.setText(
                 str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
         self.item.setCursorPosition(0)

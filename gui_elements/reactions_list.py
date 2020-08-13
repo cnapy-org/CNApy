@@ -65,7 +65,7 @@ class ReactionList(QWidget):
     def set_flux_value(self, item, key):
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
-            if math.isclose(round(vl, 7), round(vu, 10), rel_tol=self.appdata.rel_tol):
+            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
                 item.setText(2, str(round(vl, self.appdata.rounding)))
             else:
                 item.setText(
@@ -75,8 +75,8 @@ class ReactionList(QWidget):
         elif key in self.appdata.project.comp_values.keys():
             (vl, vu) = self.appdata.project.comp_values[key]
 
-            # We differentiate special cases like (vl==vh)
-            if math.isclose(round(vl, 7), round(vu, 10), rel_tol=self.appdata.rel_tol):
+            # We differentiate special cases like (vl==vu)
+            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
                 item.setBackground(2, self.appdata.SpecialColor)
                 item.setText(2, str(round(vl, self.appdata.rounding)))
             else:
