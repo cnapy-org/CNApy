@@ -1,5 +1,6 @@
 """The PyNetAnalyzer map view"""
 import math
+from typing import Tuple
 from ast import literal_eval as make_tuple
 from typing import Dict
 from cnadata import CnaData
@@ -262,15 +263,17 @@ class ReactionBox(QGraphicsItem):
         self.map.scale(2, 2)
         self.map.scale(0.5, 0.5)
 
-    def set_val_and_color(self, value: (float, float)):
+    def set_val_and_color(self, value: Tuple[float, float]):
         self.set_value(value)
         self.recolor()
 
-    def set_value(self, value: (float, float)):
+    def set_value(self, value: Tuple[float, float]):
         (vl, vu) = value
-        if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
+        if math.isclose(round(vl, 7), round(vu, 7), rel_tol=self.map.appdata.rel_tol):
+            # print("isclose", round(vl, 7), round(vu, 7))
             self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
+            # print("notclose", round(vl, 7), round(vu, 7))
             self.item.setText(
                 str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
         self.item.setCursorPosition(0)
@@ -296,7 +299,7 @@ class ReactionBox(QGraphicsItem):
             else:
                 value = self.map.appdata.project.comp_values[self.key]
                 (vl, vu) = value
-                if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
+                if math.isclose(round(vl, 7), round(vu, 7), rel_tol=self.map.appdata.rel_tol):
                     self.set_color(self.map.appdata.SpecialColor)
                 else:
                     self.set_color(self.map.appdata.Compcolor)
