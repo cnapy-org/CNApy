@@ -184,19 +184,30 @@ class MainWindow(QMainWindow):
     def phase_plane(self, _checked):
 
         with self.appdata.project.cobra_py_model as model:
+            from cameo import phenotypic_phase_plane
+            self.load_scenario_into_model(model)
+            # model.reactions.EX_o2_ex.lower_bound = -10
+            result = phenotypic_phase_plane(model,
+                                            variables=[model.reactions.Growth],
+                                            objective=model.reactions.EthEx,
+                                            points=10)
+            result.plot()
+
+
+        with self.appdata.project.cobra_py_model as model:
             import matplotlib.pyplot as plt
 
             import cobra.test
             from cobra.flux_analysis import production_envelope
-            # model = cobra.test.create_test_model("textbook")
-            # prod_env = production_envelope(model, ["EX_glc__D_e", "EX_o2_e"])
+
+            self.load_scenario_into_model(model)
             prod_env = production_envelope(
-                model, ["EthEx", "Growth"], objective="Growth")
+                model, ["Growth"], objective="EthEx", carbon_sources=["GlcUp"])
 
             print(str(prod_env))
 
             prod_env.plot(
-                kind='line', x='Growth', y='EthEx', yerr=None)
+                kind='line', x='Growth', y='carbon_yield_maximum', yerr=None)
 
             plt.show()
 
