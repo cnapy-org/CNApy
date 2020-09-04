@@ -1,11 +1,14 @@
 """The PyNetAnalyzer map view"""
+import math
+from math import isclose
+from typing import Tuple
 from ast import literal_eval as make_tuple
 from typing import Dict
 from cnadata import CnaData
 from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt, QRectF, QMimeData
-from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu, QToolTip)
+from PySide2.QtCore import Qt,  QRectF, QMimeData
+from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit, QGraphicsProxyWidget,
+                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
 from PySide2.QtSvg import QGraphicsSvgItem
 from PySide2.QtCore import Signal
 
@@ -96,8 +99,22 @@ class MapView(QGraphicsView):
     #         self.setDragMode(QGraphicsView.NoDrag)
     #     elif not self._photo.pixmap().isNull():
     #         self.setDragMode(QGraphicsView.ScrollHandDrag)
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        print("Mapview::double_clickEvent")
+        x = self.itemAt(event.pos())
+        print(x)
+        if isinstance(x, QGraphicsProxyWidget):
+            print("yeah")
+            w = x.widget()
+            print(w)
+        elif isinstance(x, ReactionBox):
+            print("juuh")
+            self.doubleClickedReaction.emit(x.key)
+            # check if reaction box is under the cursor
+        super(MapView, self).mouseDoubleClickEvent(event)
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent):
+        print("MapView::mousePressEvent")
         self.drag = True
         super(MapView, self).mousePressEvent(event)
 
@@ -109,7 +126,7 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        # print("mouse-release")
+        print("Mapview::mouseReleaseEvent")
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
             self.translate(1, 1)
@@ -153,17 +170,11 @@ class MapView(QGraphicsView):
         self.scene.addItem(background)
 
         for key in self.appdata.project.maps[self.idx]["boxes"]:
-            le1 = QLineEdit()
-            le1.setMaximumWidth(80)
-            le1.setToolTip(
-                self.appdata.project.maps[self.idx]["boxes"][key][2])
-            proxy1 = self.scene.addWidget(le1)
-            proxy1.show()
-            ler1 = ReactionBox(self, proxy1, le1, key)
-            ler1.setPos(self.appdata.project.maps[self.idx]["boxes"][key]
-                        [0], self.appdata.project.maps[self.idx]["boxes"][key][1])
-            self.scene.addItem(ler1)
-            self.reaction_boxes[key] = ler1
+            box = ReactionBox(self, key)
+            box.setPos(self.appdata.project.maps[self.idx]["boxes"][key]
+                       [0], self.appdata.project.maps[self.idx]["boxes"][key][1])
+            self.scene.addItem(box)
+            self.reaction_boxes[key] = box
 
         self.set_values()
 
@@ -204,13 +215,18 @@ class MapView(QGraphicsView):
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
-    def __init__(self, parent: MapView, proxy, item: QLineEdit, key: int):
+    def __init__(self, parent: MapView, key: int):
         QGraphicsItem.__init__(self)
 
         self.map = parent
         self.key = key
-        self.proxy = proxy
-        self.item = item
+
+        self.item = QLineEdit()
+        self.item.setMaximumWidth(80)
+        self.item.setToolTip(
+            self.map.appdata.project.maps[self.map.idx]["boxes"][key][2])
+        self.proxy = self.map.scene.addWidget(self.item)
+        self.proxy.show()
 
         palette = self.item.palette()
         palette.setColor(QPalette.Base, self.map.appdata.Defaultcolor)
@@ -261,16 +277,21 @@ class ReactionBox(QGraphicsItem):
         self.map.scale(2, 2)
         self.map.scale(0.5, 0.5)
 
-    def set_val_and_color(self, value: (float, float)):
+    def set_val_and_color(self, value: Tuple[float, float]):
         self.set_value(value)
         self.recolor()
 
-    def set_value(self, value: (float, float)):
-        (vl, vh) = value
-        if vl == vh:
-            self.item.setText(str(vl))
+    def set_value(self, value: Tuple[float, float]):
+        (vl, vu) = value
+        if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
+            # print("isclose", vl, round(vl, self.map.appdata.rounding),
+            #   vu, round(vu, self.map.appdata.rounding))
+            self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
-            self.item.setText(str(value))
+            # print("notclose", vl, round(vl, self.map.appdata.rounding),
+            #       vu, round(vu, self.map.appdata.rounding))
+            self.item.setText(
+                str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
         self.item.setCursorPosition(0)
 
     def recolor(self):
@@ -282,26 +303,22 @@ class ReactionBox(QGraphicsItem):
             if self.key in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.key]
 
-                # We differentiate special cases like (vl==vh)
+                # We differentiate special cases like (vl==vu)
                 # try:
                 #     x_ = float(value)
                 #     self.set_color(self.map.appdata.Scencolor)
                 # except:
-                #     (vl, vh) = make_tuple(value)
-                #     if vl == vh:
+                #     (vl, vu) = make_tuple(value)
+                #     if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                 #         self.set_color(self.map.appdata.Specialcolor)
                 self.set_color(self.map.appdata.Scencolor)
             else:
                 value = self.map.appdata.project.comp_values[self.key]
-                # We differentiate special cases like (vl==vh)
-                if isinstance(value, float):
+                (vl, vu) = value
+                if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                     self.set_color(self.map.appdata.Compcolor)
                 else:
-                    (vl, vh) = value
-                    if vl == vh:
-                        self.set_color(self.map.appdata.SpecialColor)
-                    else:
-                        self.set_color(self.map.appdata.Compcolor)
+                    self.set_color(self.map.appdata.SpecialColor)
         else:
             self.set_color(Qt.magenta)
 
@@ -325,15 +342,16 @@ class ReactionBox(QGraphicsItem):
             painter.setPen(Qt.darkGray)
 
         # painter.drawEllipse(-8, -8, 10, 10)
+        painter.drawRect(-15, -15, 20, 20)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
-    def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
-        print("mousePressedEvent")
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        print("ReactionBox::mousePressedEvent")
         pass
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
-        print("mouseReleaseEvent")
+        print("ReactionBox::mouseReleaseEvent")
         pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
@@ -346,7 +364,7 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.OpenHandCursor)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
-        print("double_clickEvent")
+        print("ReactionBox::double_clickEvent")
         self.map.emit_doubleClickedReaction(str(self.key))
 
     def setPos(self, x, y):

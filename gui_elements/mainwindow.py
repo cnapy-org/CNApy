@@ -1,4 +1,5 @@
 import re
+from typing import Tuple
 from cnadata import CnaData
 import os
 from shutil import copyfile
@@ -15,6 +16,7 @@ from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
 from gui_elements.clipboard_calculator import ClipboardCalculator
+from gui_elements.phase_plane_dialog import PhasePlaneDialog
 
 from legacy import matlab_CNAcomputeEFM
 
@@ -181,21 +183,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def phase_plane(self, _checked):
-
-        with self.appdata.project.cobra_py_model as model:
-            import matplotlib.pyplot as plt
-
-            import cobra.test
-            from cobra.flux_analysis import production_envelope
-            # model = cobra.test.create_test_model("textbook")
-            # prod_env = production_envelope(model, ["EX_glc__D_e", "EX_o2_e"])
-            prod_env = production_envelope(
-                model, ["Growth", "EthEx"])
-
-            prod_env.plot(
-                kind='line', x='Growth', y='EthEx', yerr=None)
-
-            plt.show()
+        dialog = PhasePlaneDialog(self.appdata)
+        dialog.exec_()
 
     @Slot()
     def import_sbml(self, _checked):
@@ -255,8 +244,10 @@ class MainWindow(QMainWindow):
             self.centralWidget().mode_navigator.current = 0
             values = self.appdata.project.modes[0].copy()
             # TODO: should we really overwrite scenario_values
-            self.appdata.project.set_scen_values({})
-            self.appdata.project.set_comp_values(values)
+            self.appdata.project.scen_values.clear()
+            self.appdata.project.comp_values.clear()
+            for i in values:
+                self.appdata.project.comp_values[i] = (values[i], values[i])
         self.centralWidget().update()
 
     @Slot()
@@ -429,13 +420,6 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().update_tab(idx)
 
-    def load_scenario_into_model(self, model):
-        for x in self.appdata.project.scen_values:
-            y = model.reactions.get_by_id(x)
-            (vl, vu) = self.appdata.project.scen_values[x]
-            y.lower_bound = vl
-            y.upper_bound = vu
-
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
         self.appdata.project.clipboard = self.appdata.project.comp_values.copy()
@@ -454,7 +438,7 @@ class MainWindow(QMainWindow):
 
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = model.optimize()
             if solution.status == 'optimal':
@@ -468,7 +452,7 @@ class MainWindow(QMainWindow):
 
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = cobra.flux_analysis.pfba(model)
             if solution.status == 'optimal':
@@ -484,7 +468,7 @@ class MainWindow(QMainWindow):
         from cobra.flux_analysis import flux_variability_analysis
 
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = flux_variability_analysis(model)
 
@@ -509,33 +493,38 @@ class MainWindow(QMainWindow):
             child_count = root.childCount()
             for i in range(child_count):
                 item = root.child(i)
-                key = item.text(1)
-                value = item.text(2)
-                color = self.compute_color_onoff(value)
-                item.setBackground(2, color)
+                key = item.text(0)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_onoff(value)
+                    item.setBackground(2, color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_onoff(value)
+                    item.setBackground(2, color)
 
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
             for key in self.appdata.project.maps[idx-3]["boxes"]:
-                value = view.reaction_boxes[key].item.text()
-                color = self.compute_color_onoff(value)
-                view.reaction_boxes[key].set_color(color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_onoff(value)
+                    view.reaction_boxes[key].set_color(color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_onoff(value)
+                    view.reaction_boxes[key].set_color(color)
 
-    def compute_color_onoff(self, value: str):
-        if value[0] == '(':
-            (vl, vh) = make_tuple(value)
-            if vl < 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            elif vh > 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            else:
-                return QColor.fromRgb(255, 0, 0)
+    def compute_color_onoff(self, value: Tuple[float, float]):
+        (vl, vh) = value
+        vl = round(vl, self.appdata.rounding)
+        vh = round(vh, self.appdata.rounding)
+        if vl < 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        elif vh > 0.0:
+            return QColor.fromRgb(0, 255, 0)
         else:
-            v = float(value)
-            if v != 0.0:
-                return QColor.fromRgb(0, 255, 0)
-            else:
-                return QColor.fromRgb(255, 0, 0)
+            return QColor.fromRgb(255, 0, 0)
 
     def set_heaton(self):
         idx = self.centralWidget().tabs.currentIndex()
@@ -545,48 +534,45 @@ class MainWindow(QMainWindow):
             child_count = root.childCount()
             for i in range(child_count):
                 item = root.child(i)
-                key = item.text(1)
-                value = item.text(2)
-                color = self.compute_color_heat(value)
-                item.setBackground(2, color)
+                key = item.text(0)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_heat(value)
+                    item.setBackground(2, color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_heat(value)
+                    item.setBackground(2, color)
         elif idx > 2:
             view = self.centralWidget().tabs.widget(idx)
             for key in self.appdata.project.maps[idx-3]["boxes"]:
-                value = view.reaction_boxes[key].item.text()
-                color = self.compute_color_heat(value)
-                view.reaction_boxes[key].set_color(color)
+                if key in self.appdata.project.scen_values:
+                    value = self.appdata.project.scen_values[key]
+                    color = self.compute_color_heat(value)
+                    view.reaction_boxes[key].set_color(color)
+                elif key in self.appdata.project.comp_values:
+                    value = self.appdata.project.comp_values[key]
+                    color = self.compute_color_heat(value)
+                    view.reaction_boxes[key].set_color(color)
 
-    def compute_color_heat(self, value: str):
+    def compute_color_heat(self, value: Tuple[float, float]):
         (low, high) = self.high_and_low()
-        if value[0] == '(':
-            (vl, vh) = make_tuple(value)
-            mean = my_mean((vl, vh))
-            if mean > 0.0:
-                if high == 0.0:
-                    h = 255
-                else:
-                    h = mean * 255 / high
-                return QColor.fromRgb(255-h, 255, 255-h)
+        (vl, vh) = value
+        vl = round(vl, self.appdata.rounding)
+        vh = round(vh, self.appdata.rounding)
+        mean = my_mean((vl, vh))
+        if mean > 0.0:
+            if high == 0.0:
+                h = 255
             else:
-                if low == 0.0:
-                    h = 255
-                else:
-                    h = mean * 255 / low
-                return QColor.fromRgb(255, 255 - h, 255 - h)
+                h = mean * 255 / high
+            return QColor.fromRgb(255-h, 255-h, 255)
         else:
-            v = float(value)
-            if v > 0.0:
-                if high == 0.0:
-                    h = 255
-                else:
-                    h = v * 255 / high
-                return QColor.fromRgb(255-h, 255, 255-h)
+            if low == 0.0:
+                h = 255
             else:
-                if low == 0.0:
-                    h = 255
-                else:
-                    h = v * 255 / low
-                return QColor.fromRgb(255, 255 - h, 255 - h)
+                h = mean * 255 / low
+            return QColor.fromRgb(255, 255 - h, 255 - h)
 
     def high_and_low(self):
         low = 0

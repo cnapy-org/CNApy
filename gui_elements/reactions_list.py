@@ -1,4 +1,5 @@
 """The CellNetAnalyzer reactions list"""
+import math
 from ast import literal_eval as make_tuple
 from cnadata import CnaData
 from PySide2.QtGui import QIcon
@@ -63,23 +64,25 @@ class ReactionList(QWidget):
 
     def set_flux_value(self, item, key):
         if key in self.appdata.project.scen_values.keys():
-            (vl, vh) = self.appdata.project.scen_values[key]
-            if vl == vh:
-                item.setText(2, str(vl))
+            (vl, vu) = self.appdata.project.scen_values[key]
+            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
+                item.setText(2, str(round(vl, self.appdata.rounding)))
             else:
-                item.setText(2, str((vl, vh)))
+                item.setText(
+                    2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
             item.setBackground(2, self.appdata.Scencolor)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
-            (vl, vh) = self.appdata.project.comp_values[key]
+            (vl, vu) = self.appdata.project.comp_values[key]
 
-            # We differentiate special cases like (vl==vh)
-            if vl == vh:
-                item.setBackground(2, self.appdata.SpecialColor)
-                item.setText(2, str(vl))
-            else:
+            # We differentiate special cases like (vl==vu)
+            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
                 item.setBackground(2, self.appdata.Compcolor)
-                item.setText(2, str((vl, vh)))
+                item.setText(2, str(round(vl, self.appdata.rounding)))
+            else:
+                item.setBackground(2, self.appdata.SpecialColor)
+                item.setText(
+                    2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 
             item.setForeground(2, Qt.black)
 

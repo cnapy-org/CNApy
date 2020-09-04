@@ -1,3 +1,4 @@
+from typing import Dict, Tuple
 import cobra
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor
@@ -11,18 +12,32 @@ class CnaData:
         self.Compcolor = QColor(170, 170, 255)
         self.SpecialColor = Qt.yellow
         self.Defaultcolor = Qt.gray
+        self.rel_tol = 1e-9
+        self.abs_tol = 0.0001
+        self.rounding = 3
 
 
 class ProjectData:
     def __init__(self):
         self.cobra_py_model = cobra.Model()
         self.maps = []
-        self.scen_values = {}
-        self.clipboard = {}
-        self.scenario_backup = {}
-        self.comp_values = {}
-        self.modes = []
+        self.scen_values: Dict[str, Tuple[float, float]] = {}
+        self.clipboard: Dict[str, Tuple[float, float]] = {}
+        self.scenario_backup: Dict[str, Tuple[float, float]] = {}
+        self.comp_values: Dict[str, Tuple[float, float]] = {}
+        self.modes: Dict[str, Tuple[float, float]] = []
         self.compute_color_type = 1
+
+    def load_scenario_into_model(self, model):
+        for x in self.scen_values:
+            try:
+                y = model.reactions.get_by_id(x)
+            except:
+                print('reaction', x, 'not found!')
+            else:
+                (vl, vu) = self.scen_values[x]
+                y.lower_bound = vl
+                y.upper_bound = vu
 
 
 def CnaMap(name):
