@@ -1,5 +1,7 @@
-import cobra
 import io
+
+import cobra
+
 try:
     import matlab.engine
     eng = matlab.engine.start_matlab()

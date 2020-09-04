@@ -1,16 +1,18 @@
 """The PyNetAnalyzer map view"""
 import math
-from math import isclose
-from typing import Tuple
 from ast import literal_eval as make_tuple
-from typing import Dict
-from cnadata import CnaData
-from PySide2.QtGui import QPainter, QDrag, QColor, QPalette, QMouseEvent
-from PySide2.QtCore import Qt,  QRectF, QMimeData
-from PySide2.QtWidgets import (QWidget, QGraphicsItem, QGraphicsScene, QGraphicsView, QLineEdit, QGraphicsProxyWidget,
-                               QGraphicsSceneDragDropEvent, QGraphicsSceneMouseEvent, QAction, QMenu)
+from math import isclose
+from typing import Dict, Tuple
+
+from PySide2.QtCore import QMimeData, QRectF, Qt, Signal
+from PySide2.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
 from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtCore import Signal
+from PySide2.QtWidgets import (QAction, QGraphicsItem, QGraphicsProxyWidget,
+                               QGraphicsScene, QGraphicsSceneDragDropEvent,
+                               QGraphicsSceneMouseEvent, QGraphicsView,
+                               QLineEdit, QMenu, QWidget)
+
+from cnapy.cnadata import CnaData
 
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 0.9

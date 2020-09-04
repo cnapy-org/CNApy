@@ -1,6 +1,6 @@
 """The cnapy about dialog"""
-from PySide2.QtWidgets import (QDialog, QPushButton, QVBoxLayout, QLabel)
 from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QDialog, QLabel, QPushButton, QVBoxLayout
 
 
 class AboutDialog(QDialog):

@@ -1,14 +1,13 @@
 """The CellNetAnalyzer reactions list"""
-import math
-from ast import literal_eval as make_tuple
-from cnadata import CnaData
-from PySide2.QtGui import QIcon
-from PySide2.QtCore import Signal, Slot, Qt
-from PySide2.QtWidgets import (QLineEdit, QLabel,
-                               QHBoxLayout, QVBoxLayout,
-                               QTreeWidget, QSizePolicy,
-                               QTreeWidgetItem, QWidget, QPushButton, QMessageBox, QComboBox)
 import cobra
+from PySide2.QtCore import Qt, Signal, Slot
+from PySide2.QtGui import QIcon
+from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit,
+                               QMessageBox, QPushButton, QSizePolicy,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+                               QWidget)
+
+from cnapy.cnadata import CnaData
 
 
 class ReactionList(QWidget):
