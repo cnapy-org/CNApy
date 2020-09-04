@@ -38,7 +38,7 @@
 - [x] clipboard
 - [x] add a search bar
 - [x] highlight reaction
-- [x] highlight scenario on <- v!=0
+- [x] highlight scenario on <- v!=0 off v==0
 - [x] better map movement
 - [x] fva from cobrapy
 - [x] pfba from cobrapy

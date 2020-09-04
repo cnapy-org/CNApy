@@ -1,5 +1,6 @@
 """The PyNetAnalyzer map view"""
 import math
+from math import isclose
 from typing import Tuple
 from ast import literal_eval as make_tuple
 from typing import Dict
@@ -282,9 +283,9 @@ class ReactionBox(QGraphicsItem):
 
     def set_value(self, value: Tuple[float, float]):
         (vl, vu) = value
-        if round(vl, self.map.appdata.rounding) == round(vu, self.map.appdata.rounding):
+        if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
             # print("isclose", vl, round(vl, self.map.appdata.rounding),
-                #   vu, round(vu, self.map.appdata.rounding))
+            #   vu, round(vu, self.map.appdata.rounding))
             self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
             # print("notclose", vl, round(vl, self.map.appdata.rounding),
@@ -308,16 +309,16 @@ class ReactionBox(QGraphicsItem):
                 #     self.set_color(self.map.appdata.Scencolor)
                 # except:
                 #     (vl, vu) = make_tuple(value)
-                #     if math.isclose(vl, vu, rel_tol=self.map.appdata.rel_tol):
+                #     if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                 #         self.set_color(self.map.appdata.Specialcolor)
                 self.set_color(self.map.appdata.Scencolor)
             else:
                 value = self.map.appdata.project.comp_values[self.key]
                 (vl, vu) = value
-                if round(vl, self.map.appdata.rounding) == round(vu, self.map.appdata.rounding):
-                    self.set_color(self.map.appdata.SpecialColor)
-                else:
+                if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                     self.set_color(self.map.appdata.Compcolor)
+                else:
+                    self.set_color(self.map.appdata.SpecialColor)
         else:
             self.set_color(Qt.magenta)
 

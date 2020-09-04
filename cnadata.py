@@ -12,7 +12,8 @@ class CnaData:
         self.Compcolor = QColor(170, 170, 255)
         self.SpecialColor = Qt.yellow
         self.Defaultcolor = Qt.gray
-        self.rel_tol = 1e-7
+        self.rel_tol = 1e-9
+        self.abs_tol = 0.0001
         self.rounding = 3
 
 
@@ -26,6 +27,17 @@ class ProjectData:
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.modes: Dict[str, Tuple[float, float]] = []
         self.compute_color_type = 1
+
+    def load_scenario_into_model(self, model):
+        for x in self.scen_values:
+            try:
+                y = model.reactions.get_by_id(x)
+            except:
+                print('reaction', x, 'not found!')
+            else:
+                (vl, vu) = self.scen_values[x]
+                y.lower_bound = vl
+                y.upper_bound = vu
 
 
 def CnaMap(name):

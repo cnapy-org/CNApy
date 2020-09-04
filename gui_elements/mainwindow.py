@@ -16,6 +16,7 @@ from gui_elements.centralwidget import CentralWidget
 
 from gui_elements.about_dialog import AboutDialog
 from gui_elements.clipboard_calculator import ClipboardCalculator
+from gui_elements.phase_plane_dialog import PhasePlaneDialog
 
 from legacy import matlab_CNAcomputeEFM
 
@@ -182,34 +183,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def phase_plane(self, _checked):
-
-        with self.appdata.project.cobra_py_model as model:
-            from cameo import phenotypic_phase_plane
-            self.load_scenario_into_model(model)
-            # model.reactions.EX_o2_ex.lower_bound = -10
-            result = phenotypic_phase_plane(model,
-                                            variables=[model.reactions.Growth],
-                                            objective=model.reactions.EthEx,
-                                            points=10)
-            result.plot()
-
-
-        with self.appdata.project.cobra_py_model as model:
-            import matplotlib.pyplot as plt
-
-            import cobra.test
-            from cobra.flux_analysis import production_envelope
-
-            self.load_scenario_into_model(model)
-            prod_env = production_envelope(
-                model, ["Growth"], objective="EthEx", carbon_sources=["GlcUp"])
-
-            print(str(prod_env))
-
-            prod_env.plot(
-                kind='line', x='Growth', y='carbon_yield_maximum', yerr=None)
-
-            plt.show()
+        dialog = PhasePlaneDialog(self.appdata)
+        dialog.exec_()
 
     @Slot()
     def import_sbml(self, _checked):
@@ -445,13 +420,6 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().update_tab(idx)
 
-    def load_scenario_into_model(self, model):
-        for x in self.appdata.project.scen_values:
-            y = model.reactions.get_by_id(x)
-            (vl, vu) = self.appdata.project.scen_values[x]
-            y.lower_bound = vl
-            y.upper_bound = vu
-
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
         self.appdata.project.clipboard = self.appdata.project.comp_values.copy()
@@ -470,7 +438,7 @@ class MainWindow(QMainWindow):
 
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = model.optimize()
             if solution.status == 'optimal':
@@ -484,7 +452,7 @@ class MainWindow(QMainWindow):
 
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = cobra.flux_analysis.pfba(model)
             if solution.status == 'optimal':
@@ -500,7 +468,7 @@ class MainWindow(QMainWindow):
         from cobra.flux_analysis import flux_variability_analysis
 
         with self.appdata.project.cobra_py_model as model:
-            self.load_scenario_into_model(model)
+            self.appdata.project.load_scenario_into_model(model)
 
             solution = flux_variability_analysis(model)
 
@@ -549,6 +517,8 @@ class MainWindow(QMainWindow):
 
     def compute_color_onoff(self, value: Tuple[float, float]):
         (vl, vh) = value
+        vl = round(vl, self.appdata.rounding)
+        vh = round(vh, self.appdata.rounding)
         if vl < 0.0:
             return QColor.fromRgb(0, 255, 0)
         elif vh > 0.0:
@@ -587,15 +557,16 @@ class MainWindow(QMainWindow):
 
     def compute_color_heat(self, value: Tuple[float, float]):
         (low, high) = self.high_and_low()
-
         (vl, vh) = value
+        vl = round(vl, self.appdata.rounding)
+        vh = round(vh, self.appdata.rounding)
         mean = my_mean((vl, vh))
         if mean > 0.0:
             if high == 0.0:
                 h = 255
             else:
                 h = mean * 255 / high
-            return QColor.fromRgb(255-h, 255, 255-h)
+            return QColor.fromRgb(255-h, 255-h, 255)
         else:
             if low == 0.0:
                 h = 255

@@ -77,10 +77,10 @@ class ReactionList(QWidget):
 
             # We differentiate special cases like (vl==vu)
             if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
-                item.setBackground(2, self.appdata.SpecialColor)
+                item.setBackground(2, self.appdata.Compcolor)
                 item.setText(2, str(round(vl, self.appdata.rounding)))
             else:
-                item.setBackground(2, self.appdata.Compcolor)
+                item.setBackground(2, self.appdata.SpecialColor)
                 item.setText(
                     2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 

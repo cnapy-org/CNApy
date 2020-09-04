@@ -1,4 +1,4 @@
-"""The cnapy about dialog"""
+"""The cnapy clipboard calculator dialog"""
 from PySide2.QtWidgets import (
     QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QRadioButton, QButtonGroup)
 from PySide2.QtCore import Qt
