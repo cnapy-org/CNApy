@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """The CellNetAnalyzer class"""
-import cobra
-
 import sys
-from cnadata import CnaData
-from gui_elements.mainwindow import MainWindow
 
+import cobra
 from PySide2.QtWidgets import QApplication
+
+from cnapy.cnadata import CnaData
+from cnapy.gui_elements.mainwindow import MainWindow
 
 
 class CellNetAnalyzer:

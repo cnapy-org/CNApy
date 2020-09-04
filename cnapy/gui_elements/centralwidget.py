@@ -1,14 +1,15 @@
 from ast import literal_eval as make_tuple
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QVBoxLayout, QTabWidget, QTabBar, QPushButton, QLineEdit,
-                               QWidget)
 
-from gui_elements.reactions_list import ReactionList
-from gui_elements.species_list import SpeciesList
-from gui_elements.map_view import MapView
-from gui_elements.console import Console
-from gui_elements.modenavigator import ModeNavigator
-from cnadata import CnaData, CnaMap
+from PySide2.QtCore import Qt
+from PySide2.QtWidgets import (QLineEdit, QPushButton, QTabBar, QTabWidget,
+                               QVBoxLayout, QWidget)
+
+from cnapy.cnadata import CnaData, CnaMap
+from cnapy.gui_elements.console import Console
+from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.modenavigator import ModeNavigator
+from cnapy.gui_elements.reactions_list import ReactionList
+from cnapy.gui_elements.species_list import SpeciesList
 
 
 class CentralWidget(QWidget):

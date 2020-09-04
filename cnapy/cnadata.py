@@ -1,4 +1,5 @@
 from typing import Dict, Tuple
+
 import cobra
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor
@@ -42,7 +43,7 @@ class ProjectData:
 
 def CnaMap(name):
     return {"name": name,
-            "background": "cnapylogo.svg",
+            "background": "cnapy/data/cnapylogo.svg",
             "bg-size": 1,
             "zoom": 0,
             "pos": (0, 0),

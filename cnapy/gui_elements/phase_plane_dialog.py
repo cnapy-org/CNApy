@@ -1,7 +1,7 @@
 """The cnapy phase plane plot dialog"""
-from PySide2.QtWidgets import (
-    QCompleter, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QRadioButton, QButtonGroup)
 from PySide2.QtCore import Qt
+from PySide2.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
+                               QLineEdit, QPushButton, QVBoxLayout)
 
 
 class PhasePlaneDialog(QDialog):

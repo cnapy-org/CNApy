@@ -1,12 +1,13 @@
 #!/usr/bin/python
-from PySide2.QtGui import QColor
-from zipfile import ZipFile
-from shutil import copyfile
 import json
-from tempfile import TemporaryDirectory
 import time
-import cobra
 from random import *
+from shutil import copyfile
+from tempfile import TemporaryDirectory
+from zipfile import ZipFile
+
+import cobra
+from PySide2.QtGui import QColor
 
 
 def work(cna):

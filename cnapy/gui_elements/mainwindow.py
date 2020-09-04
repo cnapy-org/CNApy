@@ -1,26 +1,23 @@
-import re
-from typing import Tuple
-from cnadata import CnaData
+import json
 import os
 from shutil import copyfile
-import json
-from zipfile import ZipFile
-from ast import literal_eval as make_tuple
 from tempfile import TemporaryDirectory
-from PySide2.QtCore import Slot
-from PySide2.QtWidgets import (QGraphicsItem,
-                               QAction, QApplication, QFileDialog, QMainWindow)
-from PySide2.QtGui import QColor
-from PySide2.QtSvg import QGraphicsSvgItem
-from gui_elements.centralwidget import CentralWidget
-
-from gui_elements.about_dialog import AboutDialog
-from gui_elements.clipboard_calculator import ClipboardCalculator
-from gui_elements.phase_plane_dialog import PhasePlaneDialog
-
-from legacy import matlab_CNAcomputeEFM
+from typing import Tuple
+from zipfile import ZipFile
 
 import cobra
+from PySide2.QtCore import Slot
+from PySide2.QtGui import QColor
+from PySide2.QtSvg import QGraphicsSvgItem
+from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+                               QGraphicsItem, QMainWindow)
+
+from cnapy.cnadata import CnaData
+from cnapy.gui_elements.about_dialog import AboutDialog
+from cnapy.gui_elements.centralwidget import CentralWidget
+from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
+from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+from cnapy.legacy import matlab_CNAcomputeEFM
 
 
 class MainWindow(QMainWindow):

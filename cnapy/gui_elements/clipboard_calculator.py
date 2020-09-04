@@ -1,7 +1,8 @@
 """The cnapy clipboard calculator dialog"""
-from PySide2.QtWidgets import (
-    QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QRadioButton, QButtonGroup)
 from PySide2.QtCore import Qt
+from PySide2.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout,
+                               QLineEdit, QPushButton, QRadioButton,
+                               QVBoxLayout)
 
 
 class ClipboardCalculator(QDialog):

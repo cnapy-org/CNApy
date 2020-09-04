@@ -1,10 +1,11 @@
 """The PyNetAnalyzer species list"""
-from cnadata import CnaData
-from PySide2.QtWidgets import QWidget, QLineEdit, QTextEdit, QLabel
-from PySide2.QtCore import Qt
-from PySide2.QtCore import Signal
-from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QPushButton, QMessageBox
 import cobra
+from PySide2.QtCore import Qt, Signal
+from PySide2.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPushButton, QTreeWidget, QTreeWidgetItem,
+                               QVBoxLayout, QWidget)
+
+from cnapy.cnadata import CnaData
 
 
 class SpeciesList(QWidget):
