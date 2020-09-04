@@ -3,10 +3,8 @@
 - Priority 1: add CNA functions
   - [-] improve coloring - need to discuss
   - [ ] Elementary modes dialog
-  - [ ] Phaseplane dialog
-
-- Priority 3: add CNA functions
   - [ ] Minimal cut sets
+
 - Priority 4: add CNA functions
   - [ ] MFA
   - [ ] netconversion of external metabolites
@@ -42,3 +40,4 @@
 - [x] better map movement
 - [x] fva from cobrapy
 - [x] pfba from cobrapy
+- [x] Phaseplane dialog
