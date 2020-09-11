@@ -22,6 +22,7 @@ class EFMDialog(QDialog):
 
         l1 = QHBoxLayout()
         self.constraints = QCheckBox("consider current scenario")
+        self.constraints.setCheckState(Qt.Checked)
         l1.addWidget(self.constraints)
         self.layout.addItem(l1)
 
@@ -34,6 +35,7 @@ class EFMDialog(QDialog):
         l3 = QHBoxLayout()
         self.check_reversibility = QCheckBox(
             "check reversibility")
+        self.check_reversibility.setCheckState(Qt.Checked)
         l3.addWidget(self.check_reversibility)
         self.layout.addItem(l3)
 
@@ -90,24 +92,84 @@ class EFMDialog(QDialog):
         a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
                           nargout=0, stdout=self.out, stderr=self.err)
         reac_id = self.eng.workspace['reac_id']
+        print(reac_id)
 
         # setting parameters
         oems = []
         print(".")
-        # if self.constraints.checkState() == Qt.Checked:
-        #     a = self.eng.eval("cnap.local.val_fixrates = 1;",
-        #                       nargout=0, stdout=self.out, stderr=self.err)
+        a = self.eng.eval("constraints = {};",
+                              nargout=0, stdout=self.out, stderr=self.err)
 
-        # if self.flux_bounds.checkState() == Qt.Checked:
-        #     a = self.eng.eval("cnap.local.val_fixbounds = 1;",
-        #                       nargout=0, stdout=self.out, stderr=self.err)
-        # else:
-        #     a = self.eng.eval("cnap.local.val_fixbounds = 0;",
-        #                       nargout=0, stdout=self.out, stderr=self.err)
+        if self.constraints.checkState() == Qt.Checked:
+            onoff_str=""
+            first = True
+            for r in reac_id:
+                print(r)
+                if r in self.appdata.project.scen_values.keys():
+                    (vl,vu) = self.appdata.project.scen_values[r]
+                    if vl == vu:
+                        if vl>0:
+                            if first:
+                                onoff_str="1"
+                                first=False
+                            else:
+                                onoff_str=onoff_str+", 1"
+                        elif vl == 0:
+                            if first:
+                                onoff_str="0"
+                                first=False
+                            else:
+                                onoff_str=onoff_str+", 0"
+                        else: print("WARN: negative value in scenario")
+                    else: print("WARN: not fixed value in scenario")
+                else:
+                    if first:
+                        onoff_str="NaN"
+                        first=False
+                    else:
+                        onoff_str=onoff_str+", NaN"
+
+            onoff_str = "reaconoff = ["+onoff_str+"];"
+            print(onoff_str)
+            a = self.eng.eval(onoff_str,
+                            nargout=0, stdout=self.out, stderr=self.err)
+
+            a = self.eng.eval("constraints.reaconoff = reaconoff;",
+                           nargout=0, stdout=self.out, stderr=self.err)
+        
+        if self.flux_bounds.checkState() == Qt.Checked:
+            lb_str=""
+            ub_str=""
+            first = True
+            for r in reac_id:
+                print(r)
+                c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(r)
+                vl = c_reaction.lower_bound 
+                vu = c_reaction.upper_bound
+                print(vl)
+                if first:
+                    lb_str=str(vl)
+                    ub_str=str(vu)
+                    first=False
+                else:
+                    lb_str=lb_str+","+str(vl)
+                    ub_str=ub_str+","+str(vu)
+            
+            lb_str = "lb = ["+lb_str+"];"
+            print(lb_str)
+            a = self.eng.eval(lb_str, nargout=0, stdout=self.out, stderr=self.err)
+            a = self.eng.eval("constraints.lb = lb;", nargout=0, stdout=self.out, stderr=self.err)
+
+            ub_str = "ub = ["+ub_str+"];"
+            print(ub_str)
+            a = self.eng.eval(ub_str, nargout=0, stdout=self.out, stderr=self.err)
+            a = self.eng.eval("constraints.ub = ub;", nargout=0, stdout=self.out, stderr=self.err)
+                           
+        # TODO set solver 4 = EFMTool 3 = MetaTool, 1 = cna Mex file, 0 = cna functions
+        a = self.eng.eval("solver = 4;", nargout=0, stdout=self.out, stderr=self.err)
 
         if self.check_reversibility.checkState() == Qt.Checked:
-            a = self.eng.eval("irrev_flag = 1;",
-                              nargout=0, stdout=self.out, stderr=self.err)
+            a = self.eng.eval("irrev_flag = 1;", nargout=0, stdout=self.out, stderr=self.err)
         else:
             a = self.eng.eval("irrev_flag = 0;",
                               nargout=0, stdout=self.out, stderr=self.err)
@@ -126,9 +188,8 @@ class EFMDialog(QDialog):
             a = self.eng.eval("iso_flag = 0;",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        # TODO set solver 4 = EFMTool 3 = MetaTool, 1 = cna Mex file, 0 = cna functions
-        a = self.eng.eval("solver = 4;",
-                          nargout=0, stdout=self.out, stderr=self.err)
+        # default we have no macromolecules and display is et to ALL
+        a = self.eng.eval("c_macro=[]; display= 'ALL';", nargout=0,stdout=self.out, stderr=self.err)
 
         if self.rational_numbers.checkState() == Qt.Checked:
             a = self.eng.eval("efmtool_options = {'arithmetic', 'fractional'};",
@@ -138,51 +199,17 @@ class EFMDialog(QDialog):
                               nargout=0, stdout=self.out, stderr=self.err)
 
         print(".")
-        a = self.eng.eval("c_makro=[]; display= 'ALL';", nargout=0,
-                          stdout=self.out, stderr=self.err)
 
-        a = self.eng.eval("constraints= [];", nargout=0,
-                          stdout=self.out, stderr=self.err)
 
-        # get_rates(cnap);
-        a = self.eng.eval("cnap.local.rb = [];",
-                          nargout=0, stdout=self.out, stderr=self.err)
 
-        i = 0
-
-        print(self.appdata.project.scen_values)
-        for r in self.appdata.project.scen_values:
-            i = i + 1
-
-            idx = 0
-            count = 1
-            for r2 in reac_id:
-                if r2 == r:
-                    idx = count
-                    break
-                else:
-                    count += 1
-
-            val = self.appdata.project.scen_values[r]
-
-            if val != "":
-                (vl, vu) = val
-                if vl != vu:
-                    print("Error scenario contains flux range in reaction", r)
-                    print("this is not allowed for elementary mode computation")
-                    return
-
-                a = self.eng.eval("cnap.local.rb(" + str(i) + ",1) = " + str(idx) + ";" +
-                                  "cnap.local.rb("+str(i)+", 2)="+str(vl)+";",
-                                  nargout=0, stdout=self.out, stderr=self.err)
-
-        a = eng.eval(
-            "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,convbasis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0, stdout=out, stderr=err)
-        ems = eng.workspace['ems']
-        idx = eng.workspace['ems_idx']
+        a = self.eng.eval(
+            "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0, stdout=self.out, stderr=self.err)
+        print(a)
+        ems = self.eng.workspace['ems']
+        idx = self.eng.workspace['ems_idx']
 
        # turn vectors into maps
-       for mode in ems:
+        for mode in ems:
             print("Mode:")
             count_ccc=0
             omode={}
