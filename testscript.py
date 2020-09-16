@@ -29,7 +29,7 @@ def work(cna):
 
 def disco(cna):
     print("hello DISCO")
-    open_project(cna, 'Disco.cna')
+    open_project(cna, 'examples/cna-projects/Disco.cna')
 
     view = cna.centralWidget().tabs.widget(3)
     for i in range(1, 100):
