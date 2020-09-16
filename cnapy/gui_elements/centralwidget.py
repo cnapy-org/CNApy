@@ -125,6 +125,7 @@ class CentralWidget(QWidget):
         # print("centralwidget::update")
         if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
+            self.mode_navigator.current = 0
         else:
             self.mode_navigator.show()
             self.mode_navigator.update()

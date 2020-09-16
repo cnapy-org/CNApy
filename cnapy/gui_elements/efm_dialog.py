@@ -22,7 +22,7 @@ class EFMDialog(QDialog):
         self.layout = QVBoxLayout()
 
         l1 = QHBoxLayout()
-        self.constraints = QCheckBox("consider current scenario")
+        self.constraints = QCheckBox("consider 0 in current scenario as off")
         self.constraints.setCheckState(Qt.Checked)
         l1.addWidget(self.constraints)
         self.layout.addItem(l1)
@@ -111,7 +111,7 @@ class EFMDialog(QDialog):
                     if vl == vu:
                         if vl > 0:
                             if first:
-                                onoff_str = "1"
+                                onoff_str = "NaN"  # efmtool does not support 1
                                 first = False
                             else:
                                 onoff_str = onoff_str+", 1"
@@ -212,8 +212,11 @@ class EFMDialog(QDialog):
         print(".")
 
         a = self.eng.eval(
-            "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0, stdout=self.out, stderr=self.err)
+            "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
         print(a)
+        for e in self.err:
+            print(e)
+
         ems = self.eng.workspace['ems']
         idx = self.eng.workspace['ems_idx']
 
