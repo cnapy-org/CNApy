@@ -2,7 +2,6 @@
 
 - Priority 1: add CNA functions
   - [-] improve coloring - need to discuss
-  - [ ] Elementary modes dialog
   - [ ] Minimal cut sets
 
 - Priority 4: add CNA functions
@@ -19,9 +18,10 @@
 
 # Done
 
-- [-] Elementary modes
-- [-] Phaseplane analysis (from cobrapy)
-- [-] improve coloring
+- [X] Elementary modes
+  - [x] Elementary modes dialog
+- [X] Phaseplane analysis (from cobrapy)
+- [X] improve coloring
 
 - [x] improve findabillity of reaction boxes
 
