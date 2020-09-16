@@ -5,6 +5,9 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 
 == Setup the CNApy development environment with conda
 
+We use conda as package manager to install all dependencies. You can either use https://www.anaconda.com/[Anaconda] or https://docs.conda.io/en/latest/miniconda.html[miniconda].
+If you have conda installed you can:
+
 . Create a conda environment for cnapy from the environment.yml
 
   conda env create -f environment.yml
