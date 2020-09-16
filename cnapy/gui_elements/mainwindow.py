@@ -478,9 +478,8 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def efm(self):
-        self.appdata.project.modes = matlab_CNAcomputeEFM(
-            self.appdata.project.cobra_py_model)
-        self.centralWidget().update()
+        matlab_CNAcomputeEFM(
+            self.appdata, self.centralWidget())
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()

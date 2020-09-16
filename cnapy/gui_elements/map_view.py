@@ -257,8 +257,7 @@ class ReactionBox(QGraphicsItem):
             self.map.value_changed(self.key, self.item.text())
 
         # TODO: actually I want to repaint not scale
-        self.map.scale(2, 2)
-        self.map.scale(0.5, 0.5)
+        self.map.scale(1, 1)
 
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
@@ -276,8 +275,7 @@ class ReactionBox(QGraphicsItem):
             self.set_color(Qt.magenta)
 
         # TODO: actually I want to repaint not scale
-        self.map.scale(2, 2)
-        self.map.scale(0.5, 0.5)
+        self.map.scale(1, 1)
 
     def set_val_and_color(self, value: Tuple[float, float]):
         self.set_value(value)
@@ -318,7 +316,13 @@ class ReactionBox(QGraphicsItem):
                 value = self.map.appdata.project.comp_values[self.key]
                 (vl, vu) = value
                 if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
-                    self.set_color(self.map.appdata.Compcolor)
+                    if len(self.map.appdata.project.modes) == 0:
+                        self.set_color(self.map.appdata.Compcolor)
+                    else:
+                        if vl == 0:
+                            self.set_color(Qt.gray)
+                        else:
+                            self.set_color(Qt.green)
                 else:
                     self.set_color(self.map.appdata.SpecialColor)
         else:

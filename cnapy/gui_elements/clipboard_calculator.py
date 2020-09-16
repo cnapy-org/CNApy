@@ -4,11 +4,13 @@ from PySide2.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout,
                                QLineEdit, QPushButton, QRadioButton,
                                QVBoxLayout)
 
+from cnapy.cnadata import CnaData
+
 
 class ClipboardCalculator(QDialog):
     """A dialog to perform arithmetics with the clipboard"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata: CnaData):
         QDialog.__init__(self)
         self.appdata = appdata
         self.layout = QVBoxLayout()
