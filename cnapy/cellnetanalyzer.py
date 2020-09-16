@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """The CellNetAnalyzer class"""
+import configparser
 import sys
 
 import cobra
@@ -28,6 +29,16 @@ class CellNetAnalyzer:
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
+
+        try:
+            configParser = configparser.RawConfigParser()
+            configFilePath = r'cnapy-config.txt'
+            configParser.read(configFilePath)
+            self.appdata.cna_path = configParser.get(
+                'cnapy-config', 'cna_path')
+        except:
+            print("CNA not found please check the cna_path in cnapy-config.txt")
+
         self.window = MainWindow(self.appdata)
         self.window.resize(800, 600)
         self.window.show()

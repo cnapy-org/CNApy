@@ -76,7 +76,7 @@ class EFMDialog(QDialog):
     def compute(self):
 
         # create CobraModel for matlab
-        cnapy.legacy.createCobraModel(self.appdata.project.cobra_py_model)
+        cnapy.legacy.createCobraModel(self.appdata)
 
         print(".")
         a = self.eng.eval("startcna(1)", nargout=0,

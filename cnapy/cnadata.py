@@ -16,6 +16,7 @@ class CnaData:
         self.rel_tol = 1e-9
         self.abs_tol = 0.0001
         self.rounding = 3
+        self.cna_path = ""
 
 
 class ProjectData:
