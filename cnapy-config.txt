@@ -1,0 +1,2 @@
+[cnapy-config]
+cna_path = /scratch/CellNetAnalyzer/

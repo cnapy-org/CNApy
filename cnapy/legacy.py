@@ -18,14 +18,11 @@ except:
     me = False
 
 
-CNA_PATH = "/scratch/CellNetAnalyzer/"
-
-
-def createCobraModel(model):
+def createCobraModel(appdata):
     if me:
-        a = eng.eval('cd("'+CNA_PATH+'")')
+        a = eng.eval('cd("'+appdata.cna_path+'")')
         cobra.io.save_matlab_model(
-            model, CNA_PATH+"cobra_model.mat", varname="cbmodel")
+            appdata.project.cobra_py_model, appdata.cna_path+"cobra_model.mat", varname="cbmodel")
 
 
 def matlab_CNAcomputeEFM(appdata: CnaData, centralwidget):

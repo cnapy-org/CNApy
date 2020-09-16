@@ -18,7 +18,8 @@
 
 # Done
 
-- [X] Elementary modes
+- [x] add config file
+- [x] Elementary modes
   - [x] Elementary modes dialog
 - [X] Phaseplane analysis (from cobrapy)
 - [X] improve coloring
