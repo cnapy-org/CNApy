@@ -184,8 +184,9 @@ class EFMDialog(QDialog):
             a = self.eng.eval("irrev_flag = 0;",
                               nargout=0, stdout=self.out, stderr=self.err)
 
+        # convex basis computation is only possible with METATOOL solver=3
         if self.convex_basis.checkState() == Qt.Checked:
-            a = self.eng.eval("conv_basis_flag = 1;",
+            a = self.eng.eval("conv_basis_flag = 1; solver = 3;",
                               nargout=0, stdout=self.out, stderr=self.err)
         else:
             a = self.eng.eval("conv_basis_flag = 0;",
@@ -235,6 +236,7 @@ class EFMDialog(QDialog):
 
         self.appdata.project.modes = oems
 
+        self.centralwidget.mode_navigator.current = 0
         self.centralwidget.update_mode()
         self.accept()
 
