@@ -8,16 +8,25 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 We use conda as package manager to install all dependencies. You can either use https://www.anaconda.com/[Anaconda] or https://docs.conda.io/en/latest/miniconda.html[miniconda].
 If you have conda installed you can:
 
-. Create a conda environment for cnapy from the environment.yml
+. Create a conda environment with all dependencies for cnapy from the environment.yml
 
   conda env create -f environment.yml
 
-. Activate conda environment
+. Activate the cnapy conda environment
 
   conda activate cnapy
 
-. Install cnapy
+. Download cnapy
+
+.. either use `git`
       
+  git clone https://github.com/ARB-Lab/CNApy.git
+
+.. or click on the big green button above, download and unpack zip archive. The folder is then `CNApy-master` not `CNApy`.
+
+. Change into the source directory and install CNApy
+  
+  cd CNApy
   python setup.py install
 
 . Run cnapy
@@ -28,6 +37,12 @@ If you have conda installed you can:
 IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the Python API for the MATLAB engine installed and of course CNA
 
 == Install Python API for MATLAB engine in MATLAB 2019b
+
+First activate the cnapy conda environment
+
+  conda activate cnapy
+
+then
 
 ----
 cd /usr/local/net/MATLAB/R2019b/extern/engines/python
