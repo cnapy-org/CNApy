@@ -318,7 +318,13 @@ class ReactionBox(QGraphicsItem):
                 value = self.map.appdata.project.comp_values[self.key]
                 (vl, vu) = value
                 if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
-                    self.set_color(self.map.appdata.Compcolor)
+                    if len(self.map.appdata.project.modes) == 0:
+                        self.set_color(self.map.appdata.Compcolor)
+                    else:
+                        if vl == 0:
+                            self.set_color(Qt.red)
+                        else:
+                            self.set_color(Qt.green)
                 else:
                     self.set_color(self.map.appdata.SpecialColor)
         else:
