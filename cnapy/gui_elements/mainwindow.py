@@ -479,8 +479,7 @@ class MainWindow(QMainWindow):
 
     def efm(self):
         matlab_CNAcomputeEFM(
-            self.appdata)
-        self.centralWidget().update()
+            self.appdata, self.centralWidget())
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()

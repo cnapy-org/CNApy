@@ -47,6 +47,7 @@ class ModeNavigator(QWidget):
         self.update()
 
     def update(self):
+        print("ModeNavigator update")
         self.label.setText(str(self.current + 1) + "/" +
                            str(len(self.appdata.project.modes)))
 
@@ -60,8 +61,8 @@ class ModeNavigator(QWidget):
         else:
             self.current -= 1
 
-        values = self.appdata.project.modes[self.current].copy()
-        self.set_mode(values)
+        self.update()
+        self.changedCurrentMode.emit(self.current)
 
     def next(self):
         if self.current == len(self.appdata.project.modes)-1:
@@ -69,14 +70,6 @@ class ModeNavigator(QWidget):
         else:
             self.current += 1
 
-        values = self.appdata.project.modes[self.current].copy()
-        self.set_mode(values)
-
-    def set_mode(self, values):
-        self.appdata.project.scen_values.clear()
-        self.appdata.project.comp_values.clear()
-        for i in values:
-            self.appdata.project.comp_values[i] = (values[i], values[i])
         self.update()
         self.changedCurrentMode.emit(self.current)
 

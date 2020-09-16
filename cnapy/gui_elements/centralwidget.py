@@ -55,7 +55,7 @@ class CentralWidget(QWidget):
         self.specie_list.changedModel.connect(self.update)
         self.add_tab_button.clicked.connect(self.add_map)
         self.tabs.tabCloseRequested.connect(self.remove_map)
-        self.mode_navigator.changedCurrentMode.connect(self.update)
+        self.mode_navigator.changedCurrentMode.connect(self.update_mode)
 
         self.update()
 
@@ -105,6 +105,21 @@ class CentralWidget(QWidget):
             x = self.searchbar.text()
             m = self.tabs.widget(idx)
             m.update_selected(x)
+
+    def update_mode(self):
+        # print("centralwidget::update")
+        if len(self.appdata.project.modes) > self.mode_navigator.current:
+            print(self.mode_navigator.current)
+            values = self.appdata.project.modes[self.mode_navigator.current].copy(
+            )
+
+            # set values
+            self.appdata.project.scen_values.clear()
+            self.appdata.project.comp_values.clear()
+            for i in values:
+                self.appdata.project.comp_values[i] = (values[i], values[i])
+
+        self.update()
 
     def update(self):
         # print("centralwidget::update")
