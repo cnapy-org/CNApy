@@ -322,7 +322,7 @@ class ReactionBox(QGraphicsItem):
                         self.set_color(self.map.appdata.Compcolor)
                     else:
                         if vl == 0:
-                            self.set_color(Qt.red)
+                            self.set_color(Qt.gray)
                         else:
                             self.set_color(Qt.green)
                 else:
