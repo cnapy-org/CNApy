@@ -40,11 +40,13 @@ class CellNetAnalyzer:
                 'cnapy-config', 'cna_path')
         except:
             print("CNA not found please check the cna_path in cnapy-config.txt")
-            self.window.efm_menu.setEnabled(False)
+            self.window.efm_action.setEnabled(False)
+            self.window.mcs_action.setEnabled(False)
 
         if not is_matlab_engine_ready():
             print("MATLAB engine not found")
-            self.window.efm_menu.setEnabled(False)
+            self.window.efm_action.setEnabled(False)
+            self.window.mcs_action.setEnabled(False)
 
         self.window.resize(800, 600)
         self.window.show()

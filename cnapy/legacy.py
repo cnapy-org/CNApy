@@ -19,7 +19,7 @@ except:
 
 def createCobraModel(appdata):
     if me:
-        a = eng.eval('cd("'+appdata.cna_path+'")')
+        a = eng.eval('cd("' + appdata.cna_path + '")')
         cobra.io.save_matlab_model(
             appdata.project.cobra_py_model, appdata.cna_path+"cobra_model.mat", varname="cbmodel")
 

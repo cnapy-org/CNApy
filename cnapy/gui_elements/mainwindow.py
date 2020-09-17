@@ -18,6 +18,7 @@ from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
+from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.legacy import get_matlab_engine
 
 
@@ -146,9 +147,9 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        efm_action = QAction("Compute Elementary Flux Modes", self)
-        efm_action.triggered.connect(self.efm)
-        self.efm_menu.addAction(efm_action)
+        self.efm_action = QAction("Compute Elementary Flux Modes", self)
+        self.efm_action.triggered.connect(self.efm)
+        self.efm_menu.addAction(self.efm_action)
 
         load_modes_action = QAction("Load modes...", self)
         self.efm_menu.addAction(load_modes_action)
@@ -157,6 +158,10 @@ class MainWindow(QMainWindow):
         self.save_modes_action = QAction("Save modes...", self)
         self.efm_menu.addAction(self.save_modes_action)
         self.save_modes_action.triggered.connect(self.save_modes)
+
+        self.mcs_action = QAction("Minimal Cut Sets ...", self)
+        self.mcs_action.triggered.connect(self.mcs)
+        self.analysis_menu.addAction(self.mcs_action)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -484,6 +489,13 @@ class MainWindow(QMainWindow):
         self.efm_dialog = EFMDialog(
             self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
         self.efm_dialog.open()
+
+    def mcs(self):
+        import io
+        eng = get_matlab_engine()
+        self.mcs_dialog = MCSDialog(
+            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+        self.mcs_dialog.open()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()

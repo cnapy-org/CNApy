@@ -83,10 +83,10 @@ class EFMDialog(QDialog):
                           stdout=self.out, stderr=self.err)
         print(".")
         a = self.eng.eval("load('cobra_model.mat')",
-                          nargout=0, stdout=self.out, stderr=self.err)
+                          nargout=0)
         print(".")
         a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0, stdout=self.out, stderr=self.err)
+                          nargout=0)
         print(".")
 
         # get some data
@@ -114,7 +114,7 @@ class EFMDialog(QDialog):
                                 onoff_str = "NaN"  # efmtool does not support 1
                                 first = False
                             else:
-                                onoff_str = onoff_str+", 1"
+                                onoff_str = onoff_str+", NaN"  # efmtool does not support 1
                         elif vl == 0:
                             if first:
                                 onoff_str = "0"
@@ -231,7 +231,8 @@ class EFMDialog(QDialog):
                 reaction = reac_id[idx2]
                 print("element: ", count_ccc, idx2, reaction, e)
                 count_ccc += 1
-                omode[reaction] = e
+                if e != 0:
+                    omode[reaction] = e
             oems.append(omode)
 
         self.appdata.project.modes = oems

@@ -53,9 +53,9 @@ class PhasePlaneDialog(QDialog):
             y_axis = self.y_axis.text()
             result = phenotypic_phase_plane(model,
                                             variables=[
-                                                model.reactions.get_by_id(y_axis)],
+                                                model.reactions.get_by_id(x_axis)],
                                             objective=model.reactions.get_by_id(
-                                                x_axis),
+                                                y_axis),
                                             points=10)
             print(result)
             result.plot()
