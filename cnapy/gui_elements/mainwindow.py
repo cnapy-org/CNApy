@@ -132,16 +132,16 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
-        fba_action = QAction("Flux Balance Analysis (FBA)...", self)
+        fba_action = QAction("Flux Balance Analysis (FBA)", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
 
         pfba_action = QAction(
-            "Parsimonious Flux Balance Analysis (pFBA)...", self)
+            "Parsimonious Flux Balance Analysis (pFBA)", self)
         pfba_action.triggered.connect(self.pfba)
         self.analysis_menu.addAction(pfba_action)
 
-        fva_action = QAction("Flux Variability Analysis (FVA)...", self)
+        fva_action = QAction("Flux Variability Analysis (FVA)", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
@@ -158,7 +158,7 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(self.save_modes_action)
         self.save_modes_action.triggered.connect(self.save_modes)
 
-        phase_plane_action = QAction("Phase plane ...", self)
+        phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
