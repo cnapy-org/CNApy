@@ -22,6 +22,7 @@ from PySide2.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
+from cnapy.legacy import is_matlab_engine_ready
 
 
 class CellNetAnalyzer:
@@ -29,6 +30,7 @@ class CellNetAnalyzer:
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
+        self.window = MainWindow(self.appdata)
 
         try:
             configParser = configparser.RawConfigParser()
@@ -38,8 +40,12 @@ class CellNetAnalyzer:
                 'cnapy-config', 'cna_path')
         except:
             print("CNA not found please check the cna_path in cnapy-config.txt")
+            self.window.efm_menu.setEnabled(False)
 
-        self.window = MainWindow(self.appdata)
+        if not is_matlab_engine_ready():
+            print("MATLAB engine not found")
+            self.window.efm_menu.setEnabled(False)
+
         self.window.resize(800, 600)
         self.window.show()
 

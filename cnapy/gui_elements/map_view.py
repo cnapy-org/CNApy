@@ -256,8 +256,8 @@ class ReactionBox(QGraphicsItem):
         if verify_value(self.item.text()):
             self.map.value_changed(self.key, self.item.text())
 
-        # TODO: actually I want to repaint not scale
-        self.map.scale(1, 1)
+        # TODO: actually I want to repaint
+        # self.map.update()
 
     def value_changed(self):
         print(self.key, "value changed to", self.item.text())
@@ -274,8 +274,8 @@ class ReactionBox(QGraphicsItem):
         else:
             self.set_color(Qt.magenta)
 
-        # TODO: actually I want to repaint not scale
-        self.map.scale(1, 1)
+        # TODO: actually I want to repaint
+        # self.map.update()
 
     def set_val_and_color(self, value: Tuple[float, float]):
         self.set_value(value)
@@ -343,12 +343,13 @@ class ReactionBox(QGraphicsItem):
         # set color depending on wether the value belongs to the scenario
         if self.key in self.map.appdata.project.scen_values.keys():
             painter.setPen(Qt.magenta)
+            painter.setBrush(Qt.magenta)
         else:
             # painter.setBrush(Qt.darkGray)
             painter.setPen(Qt.darkGray)
-
-        # painter.drawEllipse(-8, -8, 10, 10)
+        # painter.drawEllipse(-15, -15, 20, 20)
         painter.drawRect(-15, -15, 20, 20)
+        painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 

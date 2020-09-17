@@ -3,7 +3,6 @@ import io
 import cobra
 
 from cnapy.cnadata import CnaData
-from cnapy.gui_elements.efm_dialog import EFMDialog
 
 try:
     import matlab.engine
@@ -25,11 +24,9 @@ def createCobraModel(appdata):
             appdata.project.cobra_py_model, appdata.cna_path+"cobra_model.mat", varname="cbmodel")
 
 
-def matlab_CNAcomputeEFM(appdata: CnaData, centralwidget):
+def get_matlab_engine():
+    return eng
 
-    if me:
-        model = appdata.project.cobra_py_model
-        dialog = EFMDialog(appdata, centralwidget, eng, out, err)
-        dialog.exec_()
-    else:
-        print("matlab_CNAcomputeEFM() needs MATLAB: No Matlab installed")
+
+def is_matlab_engine_ready():
+    return me

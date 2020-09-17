@@ -17,7 +17,8 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
-from cnapy.legacy import matlab_CNAcomputeEFM
+from cnapy.gui_elements.efm_dialog import EFMDialog
+from cnapy.legacy import get_matlab_engine
 
 
 class MainWindow(QMainWindow):
@@ -478,8 +479,11 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def efm(self):
-        matlab_CNAcomputeEFM(
-            self.appdata, self.centralWidget())
+        import io
+        eng = get_matlab_engine()
+        self.efm_dialog = EFMDialog(
+            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+        self.efm_dialog.open()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
