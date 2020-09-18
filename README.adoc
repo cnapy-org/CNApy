@@ -10,7 +10,13 @@ If you have conda installed you can:
 
 . Create a conda environment with all dependencies for cnapy from the environment.yml
 
+.. on linux
+
   conda env create -f environment.yml
+
+.. on windows
+
+  conda env create -f winvironment.yml
 
 . Activate the cnapy conda environment
 
