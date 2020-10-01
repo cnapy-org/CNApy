@@ -45,7 +45,9 @@ class MCSDialog(QDialog):
 
         s11 = QVBoxLayout()
         self.add_target = QPushButton("+")
+        self.add_target.clicked.connect(self.add_target_region)
         self.rem_target = QPushButton("-")
+        self.rem_target.clicked.connect(self.rem_target_region)
         s11.addWidget(self.add_target)
         s11.addWidget(self.rem_target)
         s1.addItem(s11)
@@ -75,7 +77,9 @@ class MCSDialog(QDialog):
 
         s21 = QVBoxLayout()
         self.add_desire = QPushButton("+")
+        self.add_desire.clicked.connect(self.add_desired_region)
         self.rem_desire = QPushButton("-")
+        self.rem_desire.clicked.connect(self.rem_desired_region)
         s21.addWidget(self.add_desire)
         s21.addWidget(self.rem_desire)
         s2.addItem(s21)
@@ -84,7 +88,7 @@ class MCSDialog(QDialog):
         s3 = QHBoxLayout()
 
         self.gen_kos = QGroupBox("Gene KOs")
-        self.gen_kos.setCheckable(True)
+        self.gen_kos.setCheckable(False)
         sg1 = QHBoxLayout()
         s31 = QVBoxLayout()
         l = QLabel("Max. Solutions")
@@ -179,8 +183,39 @@ class MCSDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
 
-    def compute(self):
+    def add_target_region(self):
+        i = self.target_list.rowCount()
+        self.target_list.insertRow(i)
+        item = QTableWidgetItem("1")
+        self.target_list.setItem(i, 0, item)
+        combo = QComboBox(self.target_list)
+        combo.insertItem(1, "≤")
+        combo.insertItem(2, "≥")
+        self.target_list.setCellWidget(i, 2, combo)
+        item = QTableWidgetItem("0")
+        self.target_list.setItem(i, 3, item)
 
+    def add_desired_region(self):
+        i = self.desired_list.rowCount()
+        self.desired_list.insertRow(i)
+        item = QTableWidgetItem("1")
+        self.desired_list.setItem(i, 0, item)
+        combo = QComboBox(self.desired_list)
+        combo.insertItem(1, "≤")
+        combo.insertItem(2, "≥")
+        self.desired_list.setCellWidget(i, 2, combo)
+        item = QTableWidgetItem("0")
+        self.desired_list.setItem(i, 3, item)
+
+    def rem_target_region(self):
+        i = self.target_list.rowCount()
+        self.target_list.removeRow(i-1)
+
+    def rem_desired_region(self):
+        i = self.desired_list.rowCount()
+        self.desired_list.removeRow(i-1)
+
+    def compute(self):
         # create CobraModel for matlab
         cnapy.legacy.createCobraModel(self.appdata)
 
@@ -195,8 +230,31 @@ class MCSDialog(QDialog):
                           nargout=0)
         print(".")
 
+        a = self.eng.eval("genes = [];", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("maxSolutions = Inf;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("maxSize = 7;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("milp_time_limit = Inf;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("gKOs = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("advanced_on = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("solver = 'intlinprog';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("reac_box_vals = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("dg_T = {[1],    'P:ex',    '>=',    [0.1000]};", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        a = self.eng.eval("dg_D = {[1],    '',    '<=',    [0]};", nargout=0,
+                          stdout=self.out, stderr=self.err)
+
         # get some data
-        a = self.eng.eval("cnap = compute_mcs(cnap);",
+        a = self.eng.eval("cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                           nargout=0)
 
         self.accept()
