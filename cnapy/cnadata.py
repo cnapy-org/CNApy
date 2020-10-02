@@ -11,7 +11,8 @@ class CnaData:
         self.project = ProjectData()
         self.Scencolor = Qt.green
         self.Compcolor = QColor(170, 170, 255)
-        self.SpecialColor = Qt.yellow
+        self.SpecialColor1 = Qt.yellow
+        self.SpecialColor2 = QColor(170, 255, 0)  # for bounds excluding 0
         self.Defaultcolor = Qt.gray
         self.rel_tol = 1e-9
         self.abs_tol = 0.0001

@@ -228,11 +228,11 @@ class MainWindow(QMainWindow):
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
-            self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
-            self.appdata.project.scenario_backup = self.appdata.project.scen_values.clear()
+            self.appdata.project.scen_values.clear()
             for i in values:
                 self.appdata.project.scen_values[i] = values[i]
 
+            self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
@@ -322,6 +322,7 @@ class MainWindow(QMainWindow):
             json.dump(self.appdata.project.modes, fp)
 
     def reset_scenario(self):
+        self.appdata.project.comp_values.clear()
         self.appdata.project.scen_values = self.appdata.project.scenario_backup.copy()
         self.centralWidget().update()
 
@@ -578,7 +579,7 @@ class MainWindow(QMainWindow):
                 h = 255
             else:
                 h = mean * 255 / high
-            return QColor.fromRgb(255-h, 255-h, 255)
+            return QColor.fromRgb(255-h, 255, 255 - h)
         else:
             if low == 0.0:
                 h = 255

@@ -324,7 +324,10 @@ class ReactionBox(QGraphicsItem):
                         else:
                             self.set_color(Qt.green)
                 else:
-                    self.set_color(self.map.appdata.SpecialColor)
+                    if vl <= 0 and vu >= 0:
+                        self.set_color(self.map.appdata.SpecialColor1)
+                    else:
+                        self.set_color(self.map.appdata.SpecialColor2)
         else:
             self.set_color(Qt.magenta)
 

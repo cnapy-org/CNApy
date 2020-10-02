@@ -86,7 +86,10 @@ class ReactionList(QWidget):
 
                 item.setText(2, str(round(vl, self.appdata.rounding)))
             else:
-                item.setBackground(2, self.appdata.SpecialColor)
+                if vl <= 0 and vu >= 0:
+                    item.setBackground(2, self.appdata.SpecialColor1)
+                else:
+                    item.setBackground(2, self.appdata.SpecialColor2)
                 item.setText(
                     2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 
