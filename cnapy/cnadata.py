@@ -22,6 +22,7 @@ class CnaData:
 
 class ProjectData:
     def __init__(self):
+        self.name = "Unnamed project"
         self.cobra_py_model = cobra.Model()
         self.maps = []
         self.scen_values: Dict[str, Tuple[float, float]] = {}

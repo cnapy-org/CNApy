@@ -36,18 +36,23 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("&Project")
 
-        new_project_action = QAction("New project", self)
+        new_project_action = QAction("&New project", self)
+        new_project_action.setShortcut("Ctrl+N")
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
         open_project_action = QAction("&Open project ...", self)
+        open_project_action.setShortcut("Ctrl+O")
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project)
 
-        # save_project_action = QAction("Save project...", self)
-        # self.file_menu.addAction(save_project_action)
+        self.save_project_action = QAction("&Save project...", self)
+        self.save_project_action.setShortcut("Ctrl+S")
+        self.file_menu.addAction(self.save_project_action)
+        self.save_project_action.triggered.connect(self.save_project)
 
         save_as_project_action = QAction("&Save project as...", self)
+        save_as_project_action.setShortcut("Ctrl+Shift+S")
         self.file_menu.addAction(save_as_project_action)
         save_as_project_action.triggered.connect(self.save_project_as)
 
@@ -342,6 +347,9 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
 
+        self.appdata.project.name = "Unnamed project"
+        self.save_project_action.setEnabled(False)
+
     @Slot()
     def open_project(self, _checked):
         dialog = QFileDialog(self)
@@ -365,11 +373,43 @@ class MainWindow(QMainWindow):
             self.centralWidget().recreate_maps()
             self.centralWidget().mode_navigator.clear()
             self.clear_scenario()
+            self.appdata.project.name = filename[0]
+            print(self.appdata.project.name)
+            self.save_project_action.setEnabled(True)
+
+    @Slot()
+    def save_project(self, _checked):
+
+        filename: str = self.appdata.project.name
+        print(self.appdata.project.name)
+        folder = TemporaryDirectory().name
+
+        cobra.io.write_sbml_model(
+            self.appdata.project.cobra_py_model, folder + "model.sbml")
+
+        files = {}
+        for m in self.appdata.project.maps:
+            files[m["background"]] = ""
+        count = 1
+        for f in files.keys():
+            files[f] = ".bg" + str(count) + ".svg"
+            count += 1
+
+        for m in self.appdata.project.maps:
+            m["background"] = files[m["background"]]
+
+        with open(folder + "maps.json", 'w') as fp:
+            json.dump(self.appdata.project.maps, fp)
+
+        with ZipFile(filename, 'w') as zipObj:
+            zipObj.write(folder + "model.sbml", arcname="model.sbml")
+            zipObj.write(folder + "maps.json", arcname="maps.json")
+            for key in files.keys():
+                zipObj.write(key, arcname=files[key])
 
     @Slot()
     def save_project_as(self, _checked):
 
-        print("save_project_as")
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             dir=os.getcwd(), filter="*.cna")
@@ -398,6 +438,8 @@ class MainWindow(QMainWindow):
             zipObj.write(folder + "maps.json", arcname="maps.json")
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
+            self.appdata.project.name = filename[0]
+            self.save_project_action.setEnabled(True)
 
     def get_current_view(self):
         idx = self.centralWidget().tabs.currentIndex()

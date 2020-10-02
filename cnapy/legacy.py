@@ -17,7 +17,7 @@ except:
     me = False
 
 
-def createCobraModel(appdata):
+def createCobraModel(appdata: CnaData):
     if me:
         a = eng.eval('cd("' + appdata.cna_path + '")')
         cobra.io.save_matlab_model(

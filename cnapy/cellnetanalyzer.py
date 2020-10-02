@@ -48,6 +48,7 @@ class CellNetAnalyzer:
             self.window.efm_action.setEnabled(False)
             self.window.mcs_action.setEnabled(False)
 
+        self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)
         self.window.show()
 
