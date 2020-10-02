@@ -101,6 +101,7 @@ class EFMDialog(QDialog):
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
 
+        scenario = {}
         if self.constraints.checkState() == Qt.Checked:
             onoff_str = ""
             first = True
@@ -117,6 +118,7 @@ class EFMDialog(QDialog):
                                 onoff_str = onoff_str+", NaN"  # efmtool does not support 1
                         elif vl == 0:
                             if first:
+                                scenario[r] = (0, 0)
                                 onoff_str = "0"
                                 first = False
                             else:
@@ -238,6 +240,7 @@ class EFMDialog(QDialog):
         self.appdata.project.modes = oems
 
         self.centralwidget.mode_navigator.current = 0
+        self.centralwidget.mode_navigator.scenario = scenario
         self.centralwidget.update_mode()
         self.accept()
 

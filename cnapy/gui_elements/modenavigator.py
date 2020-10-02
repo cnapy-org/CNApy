@@ -11,6 +11,7 @@ class ModeNavigator(QWidget):
         QWidget.__init__(self)
         self.appdata = appdata
         self.current = 0
+        self.scenario = {}
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
