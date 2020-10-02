@@ -363,8 +363,7 @@ class ReactionMask(QWidget):
             self.old.build_reaction_from_string(self.equation.text())
             self.old.lower_bound = float(self.rate_min.text())
             self.old.upper_bound = float(self.rate_max.text())
-            print("TODO save coefficient")
-            # self.old.objective_coefficient = float(self.coefficent.text())
+            self.old.objective_coefficient = float(self.coefficent.text())
 
             self.changed = False
             self.changedReactionList.emit()
