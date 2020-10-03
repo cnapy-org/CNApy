@@ -56,6 +56,7 @@ class CentralWidget(QWidget):
         self.add_tab_button.clicked.connect(self.add_map)
         self.tabs.tabCloseRequested.connect(self.remove_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
+        self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
         self.update()
 
@@ -109,11 +110,10 @@ class CentralWidget(QWidget):
     def update_mode(self):
         # print("centralwidget::update")
         if len(self.appdata.project.modes) > self.mode_navigator.current:
-            values = self.appdata.project.modes[self.mode_navigator.current].copy(
-            )
+            values = self.appdata.project.modes[self.mode_navigator.current].copy()
 
             # set values
-            self.appdata.project.scen_values = self.mode_navigator.scenario
+            self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
             for i in values:
                 self.appdata.project.comp_values[i] = (values[i], values[i])

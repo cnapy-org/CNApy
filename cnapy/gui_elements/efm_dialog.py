@@ -122,6 +122,7 @@ class EFMDialog(QDialog):
                                 onoff_str = "0"
                                 first = False
                             else:
+                                scenario[r] = (0, 0)
                                 onoff_str = onoff_str+", 0"
                         else:
                             print("WARN: negative value in scenario")

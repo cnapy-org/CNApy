@@ -53,8 +53,10 @@ class ModeNavigator(QWidget):
                            str(len(self.appdata.project.modes)))
 
     def clear(self):
+        self.appdata.project.scen_values= self.scenario
         self.appdata.project.modes.clear()
         self.hide()
+        self.modeNavigatorClosed.emit()
 
     def prev(self):
         if self.current == 0:
@@ -75,3 +77,4 @@ class ModeNavigator(QWidget):
         self.changedCurrentMode.emit(self.current)
 
     changedCurrentMode = Signal(int)
+    modeNavigatorClosed = Signal()
