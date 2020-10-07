@@ -97,8 +97,8 @@ class MCSDialog(QDialog):
 
         s3 = QHBoxLayout()
 
-        self.gen_kos = QGroupBox("Gene KOs")
-        self.gen_kos.setCheckable(False)
+        sgx = QVBoxLayout()
+        self.gen_kos = QCheckBox("Gene KOs")
         sg1 = QHBoxLayout()
         s31 = QVBoxLayout()
         l = QLabel("Max. Solutions")
@@ -122,7 +122,8 @@ class MCSDialog(QDialog):
         s32.addWidget(self.time_limit)
 
         sg1.addItem(s32)
-        self.gen_kos.setLayout(sg1)
+        sgx.addWidget(self.gen_kos)
+        sgx.addItem(sg1)
 
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
@@ -154,7 +155,7 @@ class MCSDialog(QDialog):
         self.bg2.addButton(self.smalles_mcs_first)
         g4.setLayout(s34)
 
-        s3.addWidget(self.gen_kos)
+        s3.addItem(sgx)
         s3.addWidget(g3)
         s3.addWidget(g4)
 
