@@ -1,6 +1,6 @@
 """The cnapy dialog for calculating minimal cut sets"""
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QGroupBox, QCheckBox, QHeaderView, QTableWidget, QTableWidgetItem, QSizePolicy, QLabel, QTreeWidget, QTreeWidgetItem, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
+from PySide2.QtWidgets import (QCompleter, QGroupBox, QCheckBox, QHeaderView, QTableWidget, QTableWidgetItem, QSizePolicy, QLabel, QTreeWidget, QTreeWidgetItem, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
                                QLineEdit, QPushButton, QRadioButton,
                                QVBoxLayout)
 
@@ -24,6 +24,10 @@ class MCSDialog(QDialog):
         self.layout.addWidget(l1)
         s1 = QHBoxLayout()
 
+        completer = QCompleter(
+            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+
         self.target_list = QTableWidget(1, 4)
         self.target_list.setHorizontalHeaderLabels(
             ["region no", "T", "≥/≤", "t"])
@@ -34,6 +38,9 @@ class MCSDialog(QDialog):
         self.target_list.horizontalHeader().resizeSection(2, 50)
         item = QTableWidgetItem("1")
         self.target_list.setItem(0, 0, item)
+        item2 = QLineEdit("")
+        item2.setCompleter(completer)
+        self.target_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.target_list)
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
@@ -66,6 +73,9 @@ class MCSDialog(QDialog):
         self.desired_list.horizontalHeader().resizeSection(2, 50)
         item = QTableWidgetItem("1")
         self.desired_list.setItem(0, 0, item)
+        item2 = QLineEdit("")
+        item2.setCompleter(completer)
+        self.desired_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.desired_list)
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
@@ -186,8 +196,16 @@ class MCSDialog(QDialog):
     def add_target_region(self):
         i = self.target_list.rowCount()
         self.target_list.insertRow(i)
+
+        completer = QCompleter(
+            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+
         item = QTableWidgetItem("1")
         self.target_list.setItem(i, 0, item)
+        item2 = QLineEdit("")
+        item2.setCompleter(completer)
+        self.target_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.target_list)
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
@@ -198,8 +216,16 @@ class MCSDialog(QDialog):
     def add_desired_region(self):
         i = self.desired_list.rowCount()
         self.desired_list.insertRow(i)
+
+        completer = QCompleter(
+            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+
         item = QTableWidgetItem("1")
         self.desired_list.setItem(i, 0, item)
+        item2 = QLineEdit("")
+        item2.setCompleter(completer)
+        self.desired_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.desired_list)
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
@@ -248,7 +274,7 @@ class MCSDialog(QDialog):
                           stdout=self.out, stderr=self.err)
         a = self.eng.eval("reac_box_vals = 0;", nargout=0,
                           stdout=self.out, stderr=self.err)
-        a = self.eng.eval("dg_T = {[1],    'P:ex',    '>=',    [0.1000]};", nargout=0,
+        a = self.eng.eval("dg_T = {[1],    'P_ex',    '>=',    [0.1000]};", nargout=0,
                           stdout=self.out, stderr=self.err)
         a = self.eng.eval("dg_D = {[1],    '',    '<=',    [0]};", nargout=0,
                           stdout=self.out, stderr=self.err)
