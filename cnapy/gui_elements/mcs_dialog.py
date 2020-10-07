@@ -36,8 +36,8 @@ class MCSDialog(QDialog):
         self.target_list.horizontalHeader().resizeSection(0, 100)
         self.target_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self.target_list.horizontalHeader().resizeSection(2, 50)
-        item = QTableWidgetItem("1")
-        self.target_list.setItem(0, 0, item)
+        item = QLineEdit("1")
+        self.target_list.setCellWidget(0, 0, item)
         item2 = QLineEdit("")
         item2.setCompleter(completer)
         self.target_list.setCellWidget(0, 1, item2)
@@ -45,8 +45,8 @@ class MCSDialog(QDialog):
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
         self.target_list.setCellWidget(0, 2, combo)
-        item = QTableWidgetItem("0")
-        self.target_list.setItem(0, 3, item)
+        item = QLineEdit("0")
+        self.target_list.setCellWidget(0, 3, item)
 
         s1.addWidget(self.target_list)
 
@@ -71,18 +71,17 @@ class MCSDialog(QDialog):
         self.desired_list.horizontalHeader().resizeSection(0, 100)
         self.desired_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self.desired_list.horizontalHeader().resizeSection(2, 50)
-        item = QTableWidgetItem("1")
-        self.desired_list.setItem(0, 0, item)
+        item = QLineEdit("1")
+        self.desired_list.setCellWidget(0, 0, item)
         item2 = QLineEdit("")
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.desired_list)
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
-        self.desired_list.setItem(0, 0, item)
         self.desired_list.setCellWidget(0, 2, combo)
-        item = QTableWidgetItem("0")
-        self.desired_list.setItem(0, 3, item)
+        item = QLineEdit("0")
+        self.desired_list.setCellWidget(0, 3, item)
         s2.addWidget(self.desired_list)
 
         s21 = QVBoxLayout()
@@ -202,8 +201,8 @@ class MCSDialog(QDialog):
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
 
-        item = QTableWidgetItem("1")
-        self.target_list.setItem(i, 0, item)
+        item = QLineEdit("1")
+        self.target_list.setCellWidget(i, 0, item)
         item2 = QLineEdit("")
         item2.setCompleter(completer)
         self.target_list.setCellWidget(i, 1, item2)
@@ -211,8 +210,8 @@ class MCSDialog(QDialog):
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
         self.target_list.setCellWidget(i, 2, combo)
-        item = QTableWidgetItem("0")
-        self.target_list.setItem(i, 3, item)
+        item = QLineEdit("0")
+        self.target_list.setCellWidget(i, 3, item)
 
     def add_desired_region(self):
         i = self.desired_list.rowCount()
@@ -222,8 +221,8 @@ class MCSDialog(QDialog):
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
 
-        item = QTableWidgetItem("1")
-        self.desired_list.setItem(i, 0, item)
+        item = QLineEdit("1")
+        self.desired_list.setCellWidget(i, 0, item)
         item2 = QLineEdit("")
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(i, 1, item2)
@@ -231,8 +230,8 @@ class MCSDialog(QDialog):
         combo.insertItem(1, "≤")
         combo.insertItem(2, "≥")
         self.desired_list.setCellWidget(i, 2, combo)
-        item = QTableWidgetItem("0")
-        self.desired_list.setItem(i, 3, item)
+        item = QLineEdit("0")
+        self.desired_list.setCellWidget(i, 3, item)
 
     def rem_target_region(self):
         i = self.target_list.rowCount()
@@ -259,26 +258,70 @@ class MCSDialog(QDialog):
 
         a = self.eng.eval("genes = [];", nargout=0,
                           stdout=self.out, stderr=self.err)
-        a = self.eng.eval("maxSolutions = Inf;", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("maxSize = 7;", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("milp_time_limit = Inf;", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("gKOs = 0;", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("advanced_on = 0;", nargout=0,
-                          stdout=self.out, stderr=self.err)
+        cmd = "maxSolutions = " + str(float(self.max_solu.text())) + ";"
+        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+
+        cmd = "maxSize = " + str(int(self.max_size.text())) + ";"
+        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+
+        cmd = "milp_time_limit = " + str(float(self.time_limit.text())) + ";"
+        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+
+        if self.gen_kos.isChecked():
+            a = self.eng.eval("gKOs = 1;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+        else:
+            a = self.eng.eval("gKOs = 0;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+        if self.advanced.isChecked():
+            a = self.eng.eval("advanced_on = 1;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+        else:
+            a = self.eng.eval("advanced_on = 0;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+        # TODO get solver
         a = self.eng.eval("solver = 'intlinprog';", nargout=0,
                           stdout=self.out, stderr=self.err)
+
+        # TODO get search mode
         a = self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
                           stdout=self.out, stderr=self.err)
-        a = self.eng.eval("reac_box_vals = 0;", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("dg_T = {[1],    'P_ex',    '>=',    [0.1000]};", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        a = self.eng.eval("dg_D = {[1],    '',    '<=',    [0]};", nargout=0,
-                          stdout=self.out, stderr=self.err)
+        if self.consider_scenario.isChecked():
+            a = self.eng.eval("reac_box_vals = 1;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+        else:
+            a = self.eng.eval("reac_box_vals = 0;", nargout=0,
+                              stdout=self.out, stderr=self.err)
+
+        rows = self.target_list.rowCount()
+        for i in range(0, rows):
+            p1 = self.target_list.cellWidget(i, 0).text()
+            p2 = self.target_list.cellWidget(i, 1).text()
+            if self.target_list.cellWidget(i, 2).currentText() == '≤':
+                p3 = "<="
+            else:
+                p3 = ">="
+            p4 = self.target_list.cellWidget(i, 3).text()
+            cmd = "dg_T = {[" + p1+"], '" + p2 + \
+                "', '" + p3 + "', [" + p4 + "']};"
+            print(cmd)
+            a = self.eng.eval(cmd, nargout=0,
+                              stdout=self.out, stderr=self.err)
+
+        rows = self.desired_list.rowCount()
+        for i in range(0, rows):
+            p1 = self.desired_list.cellWidget(i, 0).text()
+            p2 = self.desired_list.cellWidget(i, 1).text()
+            if self.desired_list.cellWidget(i, 2).currentText() == '≤':
+                p3 = "<="
+            else:
+                p3 = ">="
+            p4 = self.desired_list.cellWidget(i, 3).text()
+            cmd = "dg_D = {[" + p1+"], '" + p2 + \
+                "', '" + p3 + "', [" + p4 + "']};"
+            print(cmd)
+            a = self.eng.eval(cmd, nargout=0,
+                              stdout=self.out, stderr=self.err)
 
         # get some data
         a = self.eng.eval("cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
