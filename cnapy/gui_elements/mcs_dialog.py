@@ -324,7 +324,40 @@ class MCSDialog(QDialog):
                               stdout=self.out, stderr=self.err)
 
         # get some data
-        a = self.eng.eval("cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
-                          nargout=0)
+        a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
+                          nargout=0, stdout=self.out, stderr=self.err)
+        reac_id = self.eng.workspace['reac_id']
 
+        a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+                          nargout=0)
+        a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        reactions = self.eng.workspace['reaction']
+        mcs = self.eng.workspace['mcs']
+        values = self.eng.workspace['value']
+
+        last_mcs = 1
+        omcs = []
+        current_mcs = {}
+        for i in range(0, len(values)):
+            reacid = int(reactions[i][0])
+            reaction = reac_id[reacid-1]
+            c_mcs = int(mcs[i][0])
+            c_value = int(values[i][0])
+            if c_value == -1:  # -1 stands for removed which is 0 in the ui
+                c_value = 0
+            if c_mcs > last_mcs:
+                omcs.append(current_mcs)
+                print(current_mcs)
+                last_mcs = c_mcs
+                current_mcs = {}
+            current_mcs[reaction] = c_value
+
+        print(current_mcs)
+        omcs.append(current_mcs)
+        self.appdata.project.modes = omcs
+        # TODO if num_cutsets == 0 warning
+
+        self.centralwidget.mode_navigator.current = 0
+        self.centralwidget.update_mode()
         self.accept()

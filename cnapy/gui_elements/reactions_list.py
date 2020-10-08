@@ -80,7 +80,7 @@ class ReactionList(QWidget):
                     item.setBackground(2, self.appdata.Compcolor)
                 else:
                     if vl == 0:
-                        item.setBackground(2, Qt.white)
+                        item.setBackground(2, Qt.red)
                     else:
                         item.setBackground(2, Qt.green)
 
