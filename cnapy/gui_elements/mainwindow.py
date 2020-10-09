@@ -93,6 +93,12 @@ class MainWindow(QMainWindow):
         add_values_to_scenario_action.triggered.connect(
             self.add_values_to_scenario)
 
+        set_model_bounds_to_scenario_action = QAction(
+            "Set the model bounds to the current scenario values", self)
+        self.scenario_menu.addAction(set_model_bounds_to_scenario_action)
+        set_model_bounds_to_scenario_action.triggered.connect(
+            self.set_model_bounds_to_scenario)
+
         heaton_action = QAction("Apply heatmap coloring", self)
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
@@ -495,6 +501,14 @@ class MainWindow(QMainWindow):
     def add_values_to_scenario(self):
         for key in self.appdata.project.comp_values.keys():
             self.appdata.project.scen_values[key] = self.appdata.project.comp_values[key]
+        self.centralWidget().update()
+
+    def set_model_bounds_to_scenario(self):
+        for reaction in self.appdata.project.cobra_py_model.reactions:
+            if reaction.id in self.appdata.project.scen_values:
+                (vl, vu) = self.appdata.project.scen_values[reaction.id]
+                reaction.lower_bound = vl
+                reaction.upper_bound = vu
         self.centralWidget().update()
 
     def fba(self):
