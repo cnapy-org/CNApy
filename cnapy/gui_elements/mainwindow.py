@@ -138,6 +138,10 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
+        show_model_bounds_action = QAction("Show model bounds", self)
+        self.analysis_menu.addAction(show_model_bounds_action)
+        show_model_bounds_action.triggered.connect(self.show_model_bounds)
+
         fba_action = QAction("Flux Balance Analysis (FBA)", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
@@ -509,6 +513,12 @@ class MainWindow(QMainWindow):
             else:
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
+
+    def show_model_bounds(self):
+        for reaction in self.appdata.project.cobra_py_model.reactions:
+            self.appdata.project.comp_values[reaction.id] = (
+                reaction.lower_bound, reaction.upper_bound)
+        self.centralWidget().update()
 
     def fva(self):
         from cobra.flux_analysis import flux_variability_analysis
