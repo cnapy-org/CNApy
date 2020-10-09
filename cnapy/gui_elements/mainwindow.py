@@ -87,6 +87,12 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(reset_scenario_action)
         reset_scenario_action.triggered.connect(self.reset_scenario)
 
+        add_values_to_scenario_action = QAction(
+            "Add all values to scenario", self)
+        self.scenario_menu.addAction(add_values_to_scenario_action)
+        add_values_to_scenario_action.triggered.connect(
+            self.add_values_to_scenario)
+
         heaton_action = QAction("Apply heatmap coloring", self)
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
@@ -484,6 +490,11 @@ class MainWindow(QMainWindow):
         print("clipboard_arithmetics")
         dialog = ClipboardCalculator(self.appdata.project)
         dialog.exec_()
+        self.centralWidget().update()
+
+    def add_values_to_scenario(self):
+        for key in self.appdata.project.comp_values.keys():
+            self.appdata.project.scen_values[key] = self.appdata.project.comp_values[key]
         self.centralWidget().update()
 
     def fba(self):
