@@ -150,7 +150,9 @@ class ReactionList(QWidget):
             item = root.child(i)
             item.setHidden(True)
 
-        for item in self.reaction_list.findItems(string, Qt.MatchContains):
+        for item in self.reaction_list.findItems(string, Qt.MatchContains, 0):
+            item.setHidden(False)
+        for item in self.reaction_list.findItems(string, Qt.MatchContains, 1):
             item.setHidden(False)
 
     def update(self):
