@@ -1,6 +1,7 @@
 import io
 
 import cobra
+import oct2py
 
 from cnapy.cnadata import CnaData
 
@@ -14,7 +15,9 @@ try:
     me = True
 except:
     print("Matlab engine not found")
-    me = False
+    eng= oct2py.Oct2Py()
+    me= True
+#    me = False
 
 
 def createCobraModel(appdata):

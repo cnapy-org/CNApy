@@ -90,11 +90,15 @@ class EFMDialog(QDialog):
         print(".")
 
         # get some data
-        a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
+        a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
                           nargout=0, stdout=self.out, stderr=self.err)
-        reac_id = self.eng.workspace['reac_id']
+#        reac_id = self.eng.workspace['reac_id']
+        reac_id = self.eng.pull('reac_id')
         print(reac_id)
-
+        print(type(reac_id))
+        reac_id= reac_id[0]
+        print(reac_id)
+        print(type(reac_id))
         # setting parameters
         oems = []
         print(".")
@@ -218,8 +222,10 @@ class EFMDialog(QDialog):
         for e in self.err:
             print(e)
 
-        ems = self.eng.workspace['ems']
-        idx = self.eng.workspace['ems_idx']
+#        ems = self.eng.workspace['ems']
+#        idx = self.eng.workspace['ems_idx']
+        ems = self.eng.pull('ems')
+        idx = self.eng.pull('ems_idx')
 
        # turn vectors into maps
         for mode in ems:

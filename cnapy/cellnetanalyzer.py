@@ -45,7 +45,7 @@ class CellNetAnalyzer:
 
         if not is_matlab_engine_ready():
             print("MATLAB engine not found")
-            self.window.efm_action.setEnabled(False)
+            #self.window.efm_action.setEnabled(False)
             self.window.mcs_action.setEnabled(False)
 
         self.window.resize(800, 600)
