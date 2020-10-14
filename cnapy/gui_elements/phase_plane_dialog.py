@@ -1,7 +1,46 @@
 """The cnapy phase plane plot dialog"""
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, Signal
 from PySide2.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                                QLineEdit, QPushButton, QVBoxLayout)
+
+
+class CompleterLineEdit(QLineEdit):
+    # does new completion after COMMA ,
+
+    def __init__(self, wordlist, *args):
+        QLineEdit.__init__(self, *args)
+
+        self.mycompleter = QCompleter(wordlist)
+        self.mycompleter.setCaseSensitivity(Qt.CaseInsensitive)
+        self.mycompleter.setWidget(self)
+        self.textChanged.connect(self.text_changed)
+        self.mycompleter.activated.connect(self.complete_text)
+
+    def text_changed(self, text):
+        # print("hey text changed")
+        all_text = text
+        text = all_text[:self.cursorPosition()]
+        prefix = text.split(',')[-1].strip()
+        # print('prefix', prefix)
+
+        self.mycompleter.setCompletionPrefix(prefix)
+        # print('CC', self.mycompleter.currentCompletion())
+        # if prefix != '' and prefix != self.mycompleter.currentCompletion():
+        if prefix != '':
+            self.mycompleter.complete()
+
+    def complete_text(self, text):
+        # print("hey complete text", text)
+        cursor_pos = self.cursorPosition()
+        before_text = self.text()[:cursor_pos]
+        # print('before_text', before_text)
+        after_text = self.text()[cursor_pos:]
+        # print('after_text', after_text)
+        prefix_len = len(before_text.split(',')[-1].strip())
+        self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
+        self.setCursorPosition(cursor_pos - prefix_len + len(text))
+
+    textChanged = Signal(str)
 
 
 class PhasePlaneDialog(QDialog):
@@ -20,9 +59,10 @@ class PhasePlaneDialog(QDialog):
         l1 = QHBoxLayout()
         t1 = QLabel("Reaction (x-axis):")
         l1.addWidget(t1)
-        self.x_axis = QLineEdit("")
+        self.x_axis = CompleterLineEdit(
+            self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
         self.x_axis.setPlaceholderText("Enter reaction Id")
-        self.x_axis.setCompleter(completer)
+
         l1.addWidget(self.x_axis)
         l2 = QHBoxLayout()
         t2 = QLabel("Reaction (y-axis):")

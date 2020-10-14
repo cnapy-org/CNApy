@@ -39,10 +39,10 @@ class MapView(QGraphicsView):
         # initial scale
         self._zoom = self.appdata.project.maps[self.idx]["zoom"]
         if self._zoom > 0:
-            for i in range(1, self._zoom):
+            for _ in range(1, self._zoom):
                 self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
         if self._zoom < 0:
-            for i in range(self._zoom, -1):
+            for _ in range(self._zoom, -1):
                 self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
         # connect events to methods
