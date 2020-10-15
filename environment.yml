@@ -10,4 +10,6 @@ dependencies:
   - matplotlib=3.2.2=0
   - pyside2=5.13.2=py37hbee1fde_2
   - python=3.7.8=h6f2ec95_0_cpython
+  - oct2py=5.2
+  - openjdk=8
 prefix: /scratch/miniconda3/envs/cnapy
