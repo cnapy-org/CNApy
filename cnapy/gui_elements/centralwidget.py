@@ -94,7 +94,7 @@ class CentralWidget(QWidget):
 
     def delete_map(self, idx: int):
         diag = ConfirmMapDeleteDialog(self, idx)
-        diag.show()
+        diag.exec()
 
     def update_selected(self):
         # print("centralwidget::update_selected")
