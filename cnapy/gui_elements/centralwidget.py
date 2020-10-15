@@ -1,7 +1,7 @@
 from ast import literal_eval as make_tuple
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QLineEdit, QPushButton, QTabBar, QTabWidget,
+from PySide2.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QTabBar, QTabWidget,
                                QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData, CnaMap
@@ -34,9 +34,9 @@ class CentralWidget(QWidget):
         self.tabs.addTab(self.console, "Console")
         self.tabs.setTabsClosable(True)
 
-        self.add_tab_button = QPushButton("add map")
+        self.add_map_button = QPushButton("add map")
         self.tabs.setCornerWidget(
-            self.add_tab_button, corner=Qt.TopRightCorner)
+            self.add_map_button, corner=Qt.TopRightCorner)
 
         # disable close button on reactions, species and console tab
         self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
@@ -53,8 +53,8 @@ class CentralWidget(QWidget):
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.changedModel.connect(self.update)
         self.specie_list.changedModel.connect(self.update)
-        self.add_tab_button.clicked.connect(self.add_map)
-        self.tabs.tabCloseRequested.connect(self.remove_map)
+        self.add_map_button.clicked.connect(self.add_map)
+        self.tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
@@ -92,9 +92,9 @@ class CentralWidget(QWidget):
         for idx in range(3, self.tabs.count()):
             self.tabs.removeTab(3)
 
-    def remove_map(self, idx: int):
-        del self.appdata.project.maps[idx-3]
-        self.recreate_maps()
+    def delete_map(self, idx: int):
+        diag = ConfirmMapDeleteDialog(self, idx)
+        diag.show()
 
     def update_selected(self):
         # print("centralwidget::update_selected")
@@ -186,3 +186,30 @@ class CentralWidget(QWidget):
         # self.searchbar.setText(reaction)
         m.focus_reaction(reaction)
         m.highlight_reaction(reaction)
+
+
+class ConfirmMapDeleteDialog(QDialog):
+
+    def __init__(self, parent, idx):
+        super(ConfirmMapDeleteDialog, self).__init__(parent)
+        # Create widgets
+        self.parent = parent
+        self.idx = idx
+        self.lable = QLabel("Do you realy want to delete this map?")
+        self.button_yes = QPushButton("Yes delete")
+        self.button_no = QPushButton("No!")
+        # Create layout and add widgets
+        layout = QVBoxLayout()
+        layout.addWidget(self.lable)
+        layout.addWidget(self.button_yes)
+        layout.addWidget(self.button_no)
+        # Set dialog layout
+        self.setLayout(layout)
+        # Add button signals to the slots
+        self.button_yes.clicked.connect(self.delete)
+        self.button_no.clicked.connect(self.reject)
+
+    def delete(self):
+        del self.parent.appdata.project.maps[self.idx-3]
+        self.parent.recreate_maps()
+        self.accept()
