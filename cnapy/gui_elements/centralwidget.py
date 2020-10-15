@@ -82,7 +82,7 @@ class CentralWidget(QWidget):
         m = CnaMap("Map")
         self.appdata.project.maps.append(m)
         map = MapView(self.appdata, len(self.appdata.project.maps)-1)
-        map.doubleClickedReaction.connect(self.switch_to_reaction)
+        map.switchToReactionDialog.connect(self.switch_to_reaction)
         map.reactionValueChanged.connect(self.update_reaction_value)
         self.tabs.addTab(map, m["name"])
         self.update_maps()
@@ -110,7 +110,8 @@ class CentralWidget(QWidget):
     def update_mode(self):
         # print("centralwidget::update")
         if len(self.appdata.project.modes) > self.mode_navigator.current:
-            values = self.appdata.project.modes[self.mode_navigator.current].copy()
+            values = self.appdata.project.modes[self.mode_navigator.current].copy(
+            )
 
             # set values
             self.appdata.project.scen_values.clear()
@@ -150,7 +151,7 @@ class CentralWidget(QWidget):
         for m in self.appdata.project.maps:
             map = MapView(self.appdata, count)
             map.show()
-            map.doubleClickedReaction.connect(self.switch_to_reaction)
+            map.switchToReactionDialog.connect(self.switch_to_reaction)
             map.reactionValueChanged.connect(self.update_reaction_value)
             self.tabs.addTab(map, m["name"])
             map.update()
