@@ -7,9 +7,9 @@ from zipfile import ZipFile
 
 import cobra
 from PySide2.QtCore import Slot
-from PySide2.QtGui import QColor
+from PySide2.QtGui import QColor, QIcon
 from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+from PySide2.QtWidgets import (QToolBar, QAction, QApplication, QFileDialog,
                                QGraphicsItem, QMainWindow)
 
 from cnapy.cnadata import CnaData
@@ -80,10 +80,12 @@ class MainWindow(QMainWindow):
         save_scenario_action.triggered.connect(self.save_scenario)
 
         clear_scenario_action = QAction("Clear scenario", self)
+        clear_scenario_action.setIcon(QIcon.fromTheme("edit-clear"))
         self.scenario_menu.addAction(clear_scenario_action)
         clear_scenario_action.triggered.connect(self.clear_scenario)
 
         reset_scenario_action = QAction("Reset scenario", self)
+        reset_scenario_action.setIcon(QIcon.fromTheme("edit-undo"))
         self.scenario_menu.addAction(reset_scenario_action)
         reset_scenario_action.triggered.connect(self.reset_scenario)
 
@@ -100,6 +102,7 @@ class MainWindow(QMainWindow):
             self.set_model_bounds_to_scenario)
 
         heaton_action = QAction("Apply heatmap coloring", self)
+        heaton_action.setIcon(QIcon.fromTheme("weather-clear"))
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
 
@@ -193,6 +196,13 @@ class MainWindow(QMainWindow):
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
+
+        self.tool_bar = QToolBar()
+        self.tool_bar.addAction(clear_scenario_action)
+        self.tool_bar.addAction(reset_scenario_action)
+        self.tool_bar.addAction(heaton_action)
+        self.tool_bar.addAction(onoff_action)
+        self.addToolBar(self.tool_bar)
 
         self.centralWidget().tabs.currentChanged.connect(self.on_tab_change)
 
