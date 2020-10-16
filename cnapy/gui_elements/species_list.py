@@ -1,7 +1,7 @@
 """The PyNetAnalyzer species list"""
 import cobra
 from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+from PySide2.QtWidgets import (QTextEdit, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                                QPushButton, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
@@ -60,6 +60,7 @@ class SpeciesList(QWidget):
             self.species_mask.formula.setText(species.formula)
             self.species_mask.charge.setText(str(species.charge))
             self.species_mask.compartment.setText(species.compartment)
+            self.species_mask.comments.setText(str(species.annotation))
 
             self.species_mask.old = species
             self.species_mask.changed = False
@@ -120,17 +121,17 @@ class SpeciesMask(QWidget):
         l.addWidget(self.compartment)
         layout.addItem(l)
 
-        # l = QVBoxLayout()
-        # label = QLabel("Notes and Comments:")
-        # self.comments = QTextEdit()
-        # self.comments.setFixedHeight(200)
-        # l.addWidget(label)
-        # l.addWidget(self.comments)
-        # layout.addItem(l)
+        l = QVBoxLayout()
+        label = QLabel("Notes and Comments:")
+        self.comments = QTextEdit()
+        self.comments.setFixedHeight(200)
+        self.comments.setReadOnly(True)
+        l.addWidget(label)
+        l.addWidget(self.comments)
+        layout.addItem(l)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
-        self.apply_button.setEnabled(False)
 
         l.addWidget(self.apply_button)
         layout.addItem(l)
@@ -142,9 +143,9 @@ class SpeciesMask(QWidget):
         self.formula.textEdited.connect(self.species_data_changed)
         self.charge.textEdited.connect(self.species_data_changed)
         self.compartment.textEdited.connect(self.species_data_changed)
-
-        # TODO
+        self.comments.textChanged.connect(self.species_data_changed)
         self.apply_button.clicked.connect(self.apply)
+        self.update_state()
 
     def apply(self):
         try:
@@ -157,8 +158,9 @@ class SpeciesMask(QWidget):
         else:
             self.old.name = self.name.text()
             self.old.formula = self.formula.text()
-            self.old.charge = float(self.charge.text())
+            self.old.charge = int(self.charge.text())
             self.old.compartment = self.compartment.text()
+            self.old.comments = self.comments.toPlainText()
 
             self.changed = False
             self.changedspeciesList.emit()
@@ -170,10 +172,9 @@ class SpeciesMask(QWidget):
         palette.setColor(role, Qt.black)
         self.id.setPalette(palette)
 
-        with self.appdata.cobra_py_model as model:
-            m = cobra.Metabolite()
+        with self.appdata.project.cobra_py_model as model:
             try:
-                m.id = self.id.text()
+                m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
             except:
                 self.id.setStyleSheet("background: #ff9999")
@@ -189,10 +190,9 @@ class SpeciesMask(QWidget):
         palette.setColor(role, Qt.black)
         self.name.setPalette(palette)
 
-        with self.appdata.cobra_py_model as model:
-            m = cobra.Metabolite(id="test_id")
+        with self.appdata.project.cobra_py_model as model:
             try:
-                m.name = self.name.text()
+                m = cobra.Metabolite(id="test_id", name=self.name.text())
                 model.add_metabolites([m])
             except:
                 self.name.setStyleSheet("background: #ff9999")
@@ -217,7 +217,7 @@ class SpeciesMask(QWidget):
         palette.setColor(role, Qt.black)
         self.charge.setPalette(palette)
         try:
-            x = float(self.charge.text())
+            x = int(self.charge.text())
         except:
             self.charge.setStyleSheet("background: #ff9999")
             return False
@@ -226,12 +226,20 @@ class SpeciesMask(QWidget):
             return True
 
     def verify_compartment(self):
-        self.compartment.setStyleSheet("background: white")
+
         palette = self.compartment.palette()
         role = self.compartment.foregroundRole()
         palette.setColor(role, Qt.black)
         self.compartment.setPalette(palette)
-        return True
+
+        try:
+            m = cobra.Metabolite(id="test_id", name=self.compartment.text())
+        except:
+            self.compartment.setStyleSheet("background: #ff9999")
+            return False
+        else:
+            self.compartment.setStyleSheet("background: white")
+            return True
 
     def verify_mask(self):
         if self.verify_id() & self.verify_name() & self.verify_formula() & self.verify_charge() & self.verify_compartment():

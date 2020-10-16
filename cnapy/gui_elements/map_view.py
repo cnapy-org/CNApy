@@ -101,19 +101,19 @@ class MapView(QGraphicsView):
     #         self.setDragMode(QGraphicsView.NoDrag)
     #     elif not self._photo.pixmap().isNull():
     #         self.setDragMode(QGraphicsView.ScrollHandDrag)
-    def mouseDoubleClickEvent(self, event: QMouseEvent):
-        print("Mapview::double_clickEvent")
-        x = self.itemAt(event.pos())
-        print(x)
-        if isinstance(x, QGraphicsProxyWidget):
-            print("yeah")
-            w = x.widget()
-            print(w)
-        elif isinstance(x, ReactionBox):
-            print("juuh")
-            self.doubleClickedReaction.emit(x.id)
-            # check if reaction box is under the cursor
-        super(MapView, self).mouseDoubleClickEvent(event)
+    # def mouseDoubleClickEvent(self, event: QMouseEvent):
+    #     print("Mapview::double_clickEvent")
+    #     x = self.itemAt(event.pos())
+    #     print(x)
+    #     if isinstance(x, QGraphicsProxyWidget):
+    #         print("yeah")
+    #         w = x.widget()
+    #         print(w)
+    #     elif isinstance(x, ReactionBox):
+    #         print("juuh")
+    #         self.doubleClickedReaction.emit(x.id)
+    #         # check if reaction box is under the cursor
+    #     super(MapView, self).mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
         print("MapView::mousePressEvent")
@@ -205,16 +205,16 @@ class MapView(QGraphicsView):
         del self.appdata.project.maps[self.idx]["boxes"][id]
         self.update()
 
-    def emit_doubleClickedReaction(self, reaction: str):
-        print("emit_doubleClickedReaction")
-        self.doubleClickedReaction.emit(reaction)
+    # def emit_doubleClickedReaction(self, reaction: str):
+    #     print("emit_doubleClickedReaction")
+    #     self.doubleClickedReaction.emit(reaction)
 
     def value_changed(self, reaction: str, value: str):
         print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
 
-    doubleClickedReaction = Signal(str)
+    switchToReactionDialog = Signal(str)
     reactionValueChanged = Signal(str, str)
 
 
@@ -251,9 +251,13 @@ class ReactionBox(QGraphicsItem):
 
         # create context menu
         self.popMenu = QMenu(parent)
+        switch_action = QAction('switch to reaction dialog', parent)
+        self.popMenu.addAction(switch_action)
+        switch_action.triggered.connect(self.switch_to_reaction_dialog)
         delete_action = QAction('remove from map', parent)
         self.popMenu.addAction(delete_action)
         delete_action.triggered.connect(self.delete)
+
         self.popMenu.addSeparator()
 
     def returnPressed(self):
@@ -378,9 +382,9 @@ class ReactionBox(QGraphicsItem):
         drag.exec_()
         # self.setCursor(Qt.OpenHandCursor)
 
-    def mouseDoubleClickEvent(self, event: QMouseEvent):
-        print("ReactionBox::double_clickEvent")
-        self.map.emit_doubleClickedReaction(self.id)
+    # def mouseDoubleClickEvent(self, event: QMouseEvent):
+    #     print("ReactionBox::double_clickEvent")
+    #     self.map.emit_doubleClickedReaction(self.id)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
@@ -393,6 +397,12 @@ class ReactionBox(QGraphicsItem):
     def delete(self):
         # print('ReactionBox:delete')
         self.map.delete_box(self.id)
+        self.map.drag = False
+
+    def switch_to_reaction_dialog(self):
+        print('ReactionBox:switch')
+        self.map.switchToReactionDialog.emit(self.id)
+        self.map.drag = False
 
 
 def verify_value(value):
