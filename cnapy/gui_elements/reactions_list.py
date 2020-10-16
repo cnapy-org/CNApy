@@ -4,7 +4,7 @@ from PySide2.QtCore import Qt, Signal, Slot
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QPushButton, QSizePolicy,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+                               QTreeWidget, QTextEdit, QTreeWidgetItem, QVBoxLayout,
                                QWidget)
 
 from cnapy.cnadata import CnaData
@@ -108,7 +108,7 @@ class ReactionList(QWidget):
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
         # self.reaction_mask.variance.setText()
-        # self.reaction_mask.comments.setText()
+        self.reaction_mask.comments.setText(str(reaction.annotation))
 
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
@@ -131,7 +131,7 @@ class ReactionList(QWidget):
             self.reaction_mask.coefficent.setText(
                 str(reaction.objective_coefficient))
             # self.reaction_mask.variance.setText()
-            # self.reaction_mask.comments.setText()
+            self.reaction_mask.comments.setText(str(reaction.annotation))
 
             self.reaction_mask.old = reaction
             self.reaction_mask.changed = False
@@ -309,13 +309,14 @@ class ReactionMask(QWidget):
         # l.addWidget(self.variance)
         # layout.addItem(l)
 
-        # l = QVBoxLayout()
-        # label = QLabel("Notes and Comments:")
-        # self.comments = QTextEdit()
-        # self.comments.setFixedHeight(200)
-        # l.addWidget(label)
-        # l.addWidget(self.comments)
-        # layout.addItem(l)
+        l = QVBoxLayout()
+        label = QLabel("Notes and Comments:")
+        self.comments = QTextEdit()
+        self.comments.setFixedHeight(200)
+        l.addWidget(label)
+        l.addWidget(self.comments)
+        layout.addItem(l)
+        self.comments.setReadOnly(True)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
@@ -341,7 +342,7 @@ class ReactionMask(QWidget):
         self.rate_max.textEdited.connect(self.reaction_data_changed)
         self.coefficent.textEdited.connect(self.reaction_data_changed)
         # self.variance.textEdited.connect(self.reaction_data_changed)
-        # self.comments.textEdited.connect(self.reaction_data_changed)
+        self.comments.textChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
 
@@ -366,6 +367,7 @@ class ReactionMask(QWidget):
             self.old.lower_bound = float(self.rate_min.text())
             self.old.upper_bound = float(self.rate_max.text())
             self.old.objective_coefficient = float(self.coefficent.text())
+            self.old.annotation = self.comments.toPlainText()
 
             self.changed = False
             self.changedReactionList.emit()
