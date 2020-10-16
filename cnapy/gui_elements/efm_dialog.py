@@ -1,8 +1,9 @@
 """The cnapy elementary flux modes calculator dialog"""
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QCheckBox, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
+from PySide2.QtWidgets import (QGroupBox,QLabel, QCheckBox, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
                                QLineEdit, QPushButton, QRadioButton,
                                QVBoxLayout)
+from PySide2.QtGui import QIntValidator
 
 from cnapy.cnadata import CnaData
 import cnapy.legacy
@@ -28,8 +29,20 @@ class EFMDialog(QDialog):
         self.layout.addItem(l1)
 
         l2 = QHBoxLayout()
-        self.flux_bounds = QCheckBox(
+        self.flux_bounds = QGroupBox(
             "use flux bounds to calculate elementary flux vectors")
+        self.flux_bounds.setCheckable(True) 
+        self.flux_bounds.setChecked(False) 
+
+        vbox = QVBoxLayout()
+        label = QLabel("Threshold for bounds to assume infinity")
+        vbox.addWidget(label)
+        self.threshold = QLineEdit("100")
+        validator = QIntValidator()
+        validator.setBottom(0)
+        self.threshold.setValidator(validator)
+        vbox.addWidget(self.threshold)
+        self.flux_bounds.setLayout(vbox)
         l2.addWidget(self.flux_bounds)
         self.layout.addItem(l2)
 
@@ -143,16 +156,22 @@ class EFMDialog(QDialog):
             a = self.eng.eval("constraints.reaconoff = reaconoff;",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        if self.flux_bounds.checkState() == Qt.Checked:
+        if self.flux_bounds.isChecked():
+            threshold = int(self.threshold.text())
+            print("TH",threshold)
             lb_str = ""
             ub_str = ""
             first = True
             for r in reac_id:
                 print(r)
-                c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(
-                    r)
+                c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(r)
+
                 vl = c_reaction.lower_bound
                 vu = c_reaction.upper_bound
+                if vl <= -threshold:
+                    vl = "-inf"
+                if vu >= threshold:
+                    vu = "inf"
                 print(vl)
                 if first:
                     lb_str = str(vl)
