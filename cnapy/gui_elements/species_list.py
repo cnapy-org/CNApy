@@ -1,7 +1,7 @@
 """The PyNetAnalyzer species list"""
 import cobra
 from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+from PySide2.QtWidgets import (QTextEdit, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                                QPushButton, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
@@ -60,6 +60,7 @@ class SpeciesList(QWidget):
             self.species_mask.formula.setText(species.formula)
             self.species_mask.charge.setText(str(species.charge))
             self.species_mask.compartment.setText(species.compartment)
+            self.species_mask.comments.setText(str(species.annotation))
 
             self.species_mask.old = species
             self.species_mask.changed = False
@@ -120,13 +121,14 @@ class SpeciesMask(QWidget):
         l.addWidget(self.compartment)
         layout.addItem(l)
 
-        # l = QVBoxLayout()
-        # label = QLabel("Notes and Comments:")
-        # self.comments = QTextEdit()
-        # self.comments.setFixedHeight(200)
-        # l.addWidget(label)
-        # l.addWidget(self.comments)
-        # layout.addItem(l)
+        l = QVBoxLayout()
+        label = QLabel("Notes and Comments:")
+        self.comments = QTextEdit()
+        self.comments.setFixedHeight(200)
+        self.comments.setReadOnly(True)
+        l.addWidget(label)
+        l.addWidget(self.comments)
+        layout.addItem(l)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
@@ -141,6 +143,7 @@ class SpeciesMask(QWidget):
         self.formula.textEdited.connect(self.species_data_changed)
         self.charge.textEdited.connect(self.species_data_changed)
         self.compartment.textEdited.connect(self.species_data_changed)
+        self.comments.textChanged.connect(self.species_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.update_state()
 
@@ -157,6 +160,7 @@ class SpeciesMask(QWidget):
             self.old.formula = self.formula.text()
             self.old.charge = int(self.charge.text())
             self.old.compartment = self.compartment.text()
+            self.old.comments = self.comments.toPlainText()
 
             self.changed = False
             self.changedspeciesList.emit()
