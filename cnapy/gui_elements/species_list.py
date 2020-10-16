@@ -14,6 +14,7 @@ class SpeciesList(QWidget):
     def __init__(self, appdata: CnaData):
         QWidget.__init__(self)
         self.appdata = appdata
+        self.last_selected = None
 
         self.species_list = QTreeWidget()
         # self.species_list.setHeaderLabels(["Name", "Reversible"])
@@ -46,6 +47,7 @@ class SpeciesList(QWidget):
         item.setData(2, 0, species)
 
     def emit_changedModel(self):
+        self.last_selected = self.species_mask.id.text()
         self.changedModel.emit()
 
     def species_selected(self, item, _column):
@@ -71,6 +73,22 @@ class SpeciesList(QWidget):
         self.species_list.clear()
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_species(m)
+
+        if self.last_selected is None:
+            pass
+        else:
+            # print("something was previosly selected")
+            items = self.species_list.findItems(
+                self.last_selected, Qt.MatchExactly)
+
+            for i in items:
+                self.species_list.setCurrentItem(i)
+                print(i.text(0))
+                break
+
+    def setCurrentItem(self, key):
+        self.last_selected = key
+        self.update()
 
     itemActivated = Signal(str)
     changedModel = Signal()
@@ -148,6 +166,10 @@ class SpeciesMask(QWidget):
         self.update_state()
 
     def apply(self):
+        if self.old is None:
+            self.old = cobra.Species(
+                id=self.id.text())
+            self.appdata.project.cobra_py_model.add_species(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -254,10 +276,12 @@ class SpeciesMask(QWidget):
 
     def update_state(self):
         # print("SpeciesMask::update_state")
-
-        if self.is_valid & self.changed:
-            self.apply_button.setEnabled(True)
+        if self.old is None:
+            pass
         else:
-            self.apply_button.setEnabled(False)
+            if self.is_valid & self.changed:
+                self.apply_button.setEnabled(True)
+            else:
+                self.apply_button.setEnabled(False)
 
     changedspeciesList = Signal()
