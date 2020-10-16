@@ -427,9 +427,9 @@ class ReactionMask(QWidget):
         self.equation.setPalette(palette)
 
         with self.appdata.project.cobra_py_model as model:
-            r = cobra.Reaction("test_id")
-            model.add_reaction(r)
             try:
+                r = cobra.Reaction("test_id")
+                model.add_reaction(r)
                 r.build_reaction_from_string(self.equation.text())
             except:
                 self.equation.setStyleSheet("background: #ff9999")
