@@ -1,6 +1,8 @@
 """The cnapy elementary flux modes calculator dialog"""
+import traceback
+import sys
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QGroupBox,QLabel, QCheckBox, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
+from PySide2.QtWidgets import (QMessageBox, QGroupBox, QLabel, QCheckBox, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
                                QLineEdit, QPushButton, QRadioButton,
                                QVBoxLayout)
 from PySide2.QtGui import QIntValidator
@@ -31,8 +33,8 @@ class EFMDialog(QDialog):
         l2 = QHBoxLayout()
         self.flux_bounds = QGroupBox(
             "use flux bounds to calculate elementary flux vectors")
-        self.flux_bounds.setCheckable(True) 
-        self.flux_bounds.setChecked(False) 
+        self.flux_bounds.setCheckable(True)
+        self.flux_bounds.setChecked(False)
 
         vbox = QVBoxLayout()
         label = QLabel("Threshold for bounds to assume infinity")
@@ -158,13 +160,14 @@ class EFMDialog(QDialog):
 
         if self.flux_bounds.isChecked():
             threshold = int(self.threshold.text())
-            print("TH",threshold)
+            print("TH", threshold)
             lb_str = ""
             ub_str = ""
             first = True
             for r in reac_id:
                 print(r)
-                c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(r)
+                c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(
+                    r)
 
                 vl = c_reaction.lower_bound
                 vu = c_reaction.upper_bound
@@ -234,35 +237,39 @@ class EFMDialog(QDialog):
 
         print(".")
 
-        a = self.eng.eval(
-            "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
-        print(a)
-        for e in self.err:
-            print(e)
+        try:
+            a = self.eng.eval(
+                "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
+            print(a)
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            ret = QMessageBox.warning(self, 'Unknown exception occured!',
+                                      'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+        else:
 
-        ems = self.eng.workspace['ems']
-        idx = self.eng.workspace['ems_idx']
+            ems = self.eng.workspace['ems']
+            idx = self.eng.workspace['ems_idx']
 
-       # turn vectors into maps
-        for mode in ems:
-            print("Mode:")
-            count_ccc = 0
-            omode = {}
-            for e in mode:
-                idx2 = int(idx[0][count_ccc])-1
-                reaction = reac_id[idx2]
-                print("element: ", count_ccc, idx2, reaction, e)
-                count_ccc += 1
-                if e != 0:
-                    omode[reaction] = e
-            oems.append(omode)
+        # turn vectors into maps
+            for mode in ems:
+                print("Mode:")
+                count_ccc = 0
+                omode = {}
+                for element in mode:
+                    idx2 = int(idx[0][count_ccc])-1
+                    reaction = reac_id[idx2]
+                    print("element: ", count_ccc, idx2, reaction, element)
+                    count_ccc += 1
+                    if element != 0:
+                        omode[reaction] = element
+                oems.append(omode)
 
-        self.appdata.project.modes = oems
+            self.appdata.project.modes = oems
 
-        self.centralwidget.mode_navigator.current = 0
-        self.centralwidget.mode_navigator.scenario = scenario
-        self.centralwidget.update_mode()
-        self.accept()
+            self.centralwidget.mode_navigator.current = 0
+            self.centralwidget.mode_navigator.scenario = scenario
+            self.centralwidget.update_mode()
+            self.accept()
 
 
 def load_scenario_into_cnap_local_rb(self, model):

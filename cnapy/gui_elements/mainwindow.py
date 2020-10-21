@@ -547,7 +547,7 @@ class MainWindow(QMainWindow):
             self.appdata.project.load_scenario_into_model(model)
             try:
                 solution = cobra.flux_analysis.pfba(model)
-            except cobra.exceptions.Infeasible as e:
+            except cobra.exceptions.Infeasible:
                 ret = QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
             except Exception as e:
