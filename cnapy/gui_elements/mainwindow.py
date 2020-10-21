@@ -526,14 +526,19 @@ class MainWindow(QMainWindow):
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-
             solution = model.optimize()
             if solution.status == 'optimal':
                 soldict = solution.fluxes.to_dict()
                 for i in soldict:
                     self.appdata.project.comp_values[i] = (
                         soldict[i], soldict[i])
+            elif solution.status == 'infeasible':
+                ret = QMessageBox.information(
+                    self, 'No solution!', 'No solution the scenario is infeasible!')
+                self.appdata.project.comp_values.clear()
             else:
+                ret = QMessageBox.information(
+                    self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
@@ -543,7 +548,6 @@ class MainWindow(QMainWindow):
             try:
                 solution = cobra.flux_analysis.pfba(model)
             except cobra.exceptions.Infeasible as e:
-
                 ret = QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
             except Exception as e:
@@ -559,8 +563,9 @@ class MainWindow(QMainWindow):
                             soldict[i], soldict[i])
                 else:
                     ret = QMessageBox.information(
-                        self, 'No optimal solution!', 'No optimal solution!')
+                        self, 'No solution!', solution.status)
                     self.appdata.project.comp_values.clear()
+            finally:
                 self.centralWidget().update()
 
     def show_model_bounds(self):
