@@ -171,13 +171,13 @@ class MCSDialog(QDialog):
         self.layout.addItem(s4)
 
         buttons = QHBoxLayout()
-        self.save = QPushButton("save")
-        self.load = QPushButton("load")
+        # self.save = QPushButton("save")
+        # buttons.addWidget(self.save)
+        # self.load = QPushButton("load")
+        # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
-        self.cancel = QPushButton("Cancel")
-        buttons.addWidget(self.save)
-        buttons.addWidget(self.load)
         buttons.addWidget(self.compute_mcs)
+        self.cancel = QPushButton("Cancel")
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
 
