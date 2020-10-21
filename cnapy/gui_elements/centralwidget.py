@@ -1,8 +1,8 @@
 from ast import literal_eval as make_tuple
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QTabBar, QTabWidget,
-                               QVBoxLayout, QWidget)
+from PySide2.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton,
+                               QTabBar, QTabWidget, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData, CnaMap
 from cnapy.gui_elements.console import Console

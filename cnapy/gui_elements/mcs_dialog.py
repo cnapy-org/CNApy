@@ -360,7 +360,6 @@ class MCSDialog(QDialog):
             print(current_mcs)
             omcs.append(current_mcs)
             self.appdata.project.modes = omcs
-            # TODO if num_cutsets == 0 warning
 
             self.centralwidget.mode_navigator.current = 0
         self.centralwidget.update_mode()

@@ -1,7 +1,7 @@
 import json
 import os
-import traceback
 import sys
+import traceback
 from shutil import copyfile
 from tempfile import TemporaryDirectory
 from typing import Tuple
@@ -11,16 +11,17 @@ import cobra
 from PySide2.QtCore import Slot
 from PySide2.QtGui import QColor, QIcon
 from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QMessageBox, QToolBar, QAction, QApplication, QFileDialog,
-                               QGraphicsItem, QMainWindow)
+from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+                               QGraphicsItem, QMainWindow, QMessageBox,
+                               QToolBar)
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
-from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
+from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.legacy import get_matlab_engine
 
 
@@ -279,7 +280,6 @@ class MainWindow(QMainWindow):
             self.appdata.project.modes = json.load(fp)
             self.centralWidget().mode_navigator.current = 0
             values = self.appdata.project.modes[0].copy()
-            # TODO: should we really overwrite scenario_values
             self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
             for i in values:

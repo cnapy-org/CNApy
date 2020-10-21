@@ -1,14 +1,15 @@
 """The cnapy elementary flux modes calculator dialog"""
-import traceback
 import sys
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QMessageBox, QGroupBox, QLabel, QCheckBox, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
-                               QLineEdit, QPushButton, QRadioButton,
-                               QVBoxLayout)
-from PySide2.QtGui import QIntValidator
+import traceback
 
-from cnapy.cnadata import CnaData
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QIntValidator
+from PySide2.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout,
+                               QLabel, QLineEdit, QMessageBox, QPushButton,
+                               QVBoxLayout)
+
 import cnapy.legacy
+from cnapy.cnadata import CnaData
 
 
 class EFMDialog(QDialog):

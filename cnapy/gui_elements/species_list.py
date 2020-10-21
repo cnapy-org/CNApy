@@ -1,9 +1,9 @@
 """The PyNetAnalyzer species list"""
 import cobra
 from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QTextEdit, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QPushButton, QTreeWidget, QTreeWidgetItem,
-                               QVBoxLayout, QWidget)
+from PySide2.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPushButton, QTextEdit, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
 

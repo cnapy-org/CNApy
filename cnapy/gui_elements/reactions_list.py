@@ -4,8 +4,8 @@ from PySide2.QtCore import Qt, Signal, Slot
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QPushButton, QSizePolicy,
-                               QTreeWidget, QTextEdit, QTreeWidgetItem, QVBoxLayout,
-                               QWidget)
+                               QTextEdit, QTreeWidget, QTreeWidgetItem,
+                               QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
 

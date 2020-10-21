@@ -7,8 +7,8 @@ from typing import Dict, Tuple
 from PySide2.QtCore import QMimeData, QRectF, Qt, Signal
 from PySide2.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
 from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QGraphicsItem, QGraphicsProxyWidget,
-                               QGraphicsScene, QGraphicsSceneDragDropEvent,
+from PySide2.QtWidgets import (QAction, QGraphicsItem, QGraphicsScene,
+                               QGraphicsSceneDragDropEvent,
                                QGraphicsSceneMouseEvent, QGraphicsView,
                                QLineEdit, QMenu, QWidget)
 
