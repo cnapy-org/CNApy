@@ -554,7 +554,6 @@ class MainWindow(QMainWindow):
                 traceback.print_exception(*sys.exc_info())
                 ret = QMessageBox.warning(
                     self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
-
             else:
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
@@ -579,16 +578,25 @@ class MainWindow(QMainWindow):
 
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            try:
+                solution = flux_variability_analysis(model)
+            except cobra.exceptions.Infeasible as e:
+                ret = QMessageBox.information(
+                    self, 'No solution', 'The scenario is infeasible')
+            except Exception as e:
+                traceback.print_exception(*sys.exc_info())
+                ret = QMessageBox.warning(
+                    self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+            else:
+                minimum = solution.minimum.to_dict()
+                maximum = solution.maximum.to_dict()
+                for i in minimum:
+                    self.appdata.project.comp_values[i] = (
+                        minimum[i], maximum[i])
 
-            solution = flux_variability_analysis(model)
-
-            minimum = solution.minimum.to_dict()
-            maximum = solution.maximum.to_dict()
-            for i in minimum:
-                self.appdata.project.comp_values[i] = (minimum[i], maximum[i])
-
-            self.appdata.project.compute_color_type = 3
-            self.centralWidget().update()
+                self.appdata.project.compute_color_type = 3
+            finally:
+                self.centralWidget().update()
 
     def efm(self):
         import io
