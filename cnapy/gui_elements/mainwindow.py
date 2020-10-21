@@ -1,5 +1,7 @@
 import json
 import os
+import traceback
+import sys
 from shutil import copyfile
 from tempfile import TemporaryDirectory
 from typing import Tuple
@@ -9,7 +11,7 @@ import cobra
 from PySide2.QtCore import Slot
 from PySide2.QtGui import QColor, QIcon
 from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QToolBar, QAction, QApplication, QFileDialog,
+from PySide2.QtWidgets import (QMessageBox, QToolBar, QAction, QApplication, QFileDialog,
                                QGraphicsItem, QMainWindow)
 
 from cnapy.cnadata import CnaData
@@ -538,16 +540,28 @@ class MainWindow(QMainWindow):
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            try:
+                solution = cobra.flux_analysis.pfba(model)
+            except cobra.exceptions.Infeasible as e:
 
-            solution = cobra.flux_analysis.pfba(model)
-            if solution.status == 'optimal':
-                soldict = solution.fluxes.to_dict()
-                for i in soldict:
-                    self.appdata.project.comp_values[i] = (
-                        soldict[i], soldict[i])
+                ret = QMessageBox.information(
+                    self, 'No solution', 'The scenario is infeasible')
+            except Exception as e:
+                traceback.print_exception(*sys.exc_info())
+                ret = QMessageBox.warning(
+                    self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+
             else:
-                self.appdata.project.comp_values.clear()
-            self.centralWidget().update()
+                if solution.status == 'optimal':
+                    soldict = solution.fluxes.to_dict()
+                    for i in soldict:
+                        self.appdata.project.comp_values[i] = (
+                            soldict[i], soldict[i])
+                else:
+                    ret = QMessageBox.information(
+                        self, 'No optimal solution!', 'No optimal solution!')
+                    self.appdata.project.comp_values.clear()
+                self.centralWidget().update()
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
