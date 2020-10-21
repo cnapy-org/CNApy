@@ -1,6 +1,6 @@
 """The cnapy dialog for calculating minimal cut sets"""
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QCompleter, QGroupBox, QCheckBox, QHeaderView, QTableWidget, QTableWidgetItem, QSizePolicy, QLabel, QTreeWidget, QTreeWidgetItem, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
+from PySide2.QtWidgets import (QMessageBox, QCompleter, QGroupBox, QCheckBox, QHeaderView, QTableWidget, QTableWidgetItem, QSizePolicy, QLabel, QTreeWidget, QTreeWidgetItem, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
                                QLineEdit, QPushButton, QRadioButton,
                                QVBoxLayout)
 
@@ -336,28 +336,32 @@ class MCSDialog(QDialog):
         mcs = self.eng.workspace['mcs']
         values = self.eng.workspace['value']
 
-        last_mcs = 1
-        omcs = []
-        current_mcs = {}
-        for i in range(0, len(values)):
-            reacid = int(reactions[i][0])
-            reaction = reac_id[reacid-1]
-            c_mcs = int(mcs[i][0])
-            c_value = int(values[i][0])
-            if c_value == -1:  # -1 stands for removed which is 0 in the ui
-                c_value = 0
-            if c_mcs > last_mcs:
-                omcs.append(current_mcs)
-                print(current_mcs)
-                last_mcs = c_mcs
-                current_mcs = {}
-            current_mcs[reaction] = c_value
+        if len(mcs) == 0:
+            ret = QMessageBox.information(self, 'No cut sets',
+                                          'Cut sets have not been calculated or do not exist.')
+        else:
+            last_mcs = 1
+            omcs = []
+            current_mcs = {}
+            for i in range(0, len(values)):
+                reacid = int(reactions[i][0])
+                reaction = reac_id[reacid-1]
+                c_mcs = int(mcs[i][0])
+                c_value = int(values[i][0])
+                if c_value == -1:  # -1 stands for removed which is 0 in the ui
+                    c_value = 0
+                if c_mcs > last_mcs:
+                    omcs.append(current_mcs)
+                    print(current_mcs)
+                    last_mcs = c_mcs
+                    current_mcs = {}
+                current_mcs[reaction] = c_value
 
-        print(current_mcs)
-        omcs.append(current_mcs)
-        self.appdata.project.modes = omcs
-        # TODO if num_cutsets == 0 warning
+            print(current_mcs)
+            omcs.append(current_mcs)
+            self.appdata.project.modes = omcs
+            # TODO if num_cutsets == 0 warning
 
-        self.centralwidget.mode_navigator.current = 0
+            self.centralwidget.mode_navigator.current = 0
         self.centralwidget.update_mode()
         self.accept()

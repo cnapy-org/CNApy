@@ -37,7 +37,7 @@ class EFMDialog(QDialog):
         self.flux_bounds.setChecked(False)
 
         vbox = QVBoxLayout()
-        label = QLabel("Threshold for bounds to assume infinity")
+        label = QLabel("Threshold for bounds to be unconstrained")
         vbox.addWidget(label)
         self.threshold = QLineEdit("100")
         validator = QIntValidator()
@@ -172,9 +172,9 @@ class EFMDialog(QDialog):
                 vl = c_reaction.lower_bound
                 vu = c_reaction.upper_bound
                 if vl <= -threshold:
-                    vl = "-inf"
+                    vl = "NaN"
                 if vu >= threshold:
-                    vu = "inf"
+                    vu = "NaN"
                 print(vl)
                 if first:
                     lb_str = str(vl)
@@ -246,29 +246,30 @@ class EFMDialog(QDialog):
             ret = QMessageBox.warning(self, 'Unknown exception occured!',
                                       'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
         else:
-
             ems = self.eng.workspace['ems']
             idx = self.eng.workspace['ems_idx']
+            if len(ems) == 0:
+                ret = QMessageBox.information(self, 'No modes',
+                                              'Modes have not been calculated or do not exist.')
+            else:
+                for mode in ems:
+                    print("Mode:")
+                    count_ccc = 0
+                    omode = {}
+                    for element in mode:
+                        idx2 = int(idx[0][count_ccc])-1
+                        reaction = reac_id[idx2]
+                        print("element: ", count_ccc, idx2, reaction, element)
+                        count_ccc += 1
+                        if element != 0:
+                            omode[reaction] = element
+                    oems.append(omode)
 
-        # turn vectors into maps
-            for mode in ems:
-                print("Mode:")
-                count_ccc = 0
-                omode = {}
-                for element in mode:
-                    idx2 = int(idx[0][count_ccc])-1
-                    reaction = reac_id[idx2]
-                    print("element: ", count_ccc, idx2, reaction, element)
-                    count_ccc += 1
-                    if element != 0:
-                        omode[reaction] = element
-                oems.append(omode)
+                self.appdata.project.modes = oems
 
-            self.appdata.project.modes = oems
-
-            self.centralwidget.mode_navigator.current = 0
-            self.centralwidget.mode_navigator.scenario = scenario
-            self.centralwidget.update_mode()
+                self.centralwidget.mode_navigator.current = 0
+                self.centralwidget.mode_navigator.scenario = scenario
+                self.centralwidget.update_mode()
             self.accept()
 
 
