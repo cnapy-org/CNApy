@@ -5,7 +5,7 @@ from PySide2.QtWidgets import (QMessageBox, QCompleter, QGroupBox, QCheckBox, QH
                                QVBoxLayout)
 
 from cnapy.cnadata import CnaData
-import cnapy.legacy
+import cnapy.legacy as legacy
 
 
 class MCSDialog(QDialog):
@@ -243,7 +243,7 @@ class MCSDialog(QDialog):
 
     def compute(self):
         # create CobraModel for matlab
-        cnapy.legacy.createCobraModel(self.appdata)
+        legacy.createCobraModel(self.appdata)
 
         print(".")
         a = self.eng.eval("startcna(1)", nargout=0,
@@ -326,15 +326,29 @@ class MCSDialog(QDialog):
         # get some data
         a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
                           nargout=0, stdout=self.out, stderr=self.err)
-        reac_id = self.eng.workspace['reac_id']
 
-        a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
-                          nargout=0)
-        a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
-                          stdout=self.out, stderr=self.err)
-        reactions = self.eng.workspace['reaction']
-        mcs = self.eng.workspace['mcs']
-        values = self.eng.workspace['value']
+        mcs = []
+        values = []
+        reactions = []
+        reac_id = []
+        if legacy.is_matlab_ready():
+            reac_id = self.eng.workspace['reac_id']
+            a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+                              nargout=0)
+            a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
+                              stdout=self.out, stderr=self.err)
+            reactions = self.eng.workspace['reaction']
+            mcs = self.eng.workspace['mcs']
+            values = self.eng.workspace['value']
+        elif legacy.is_octave_ready():
+            reac_id = self.eng.pull('reac_id')
+            a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+                              nargout=0)
+            a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
+                              stdout=self.out, stderr=self.err)
+            reactions = self.eng.pull('reaction')
+            mcs = self.eng.pull('mcs')
+            values = self.eng.pull('value')
 
         if len(mcs) == 0:
             ret = QMessageBox.information(self, 'No cut sets',
@@ -356,11 +370,10 @@ class MCSDialog(QDialog):
                     last_mcs = c_mcs
                     current_mcs = {}
                 current_mcs[reaction] = c_value
-
             print(current_mcs)
             omcs.append(current_mcs)
             self.appdata.project.modes = omcs
-
             self.centralwidget.mode_navigator.current = 0
+
         self.centralwidget.update_mode()
         self.accept()
