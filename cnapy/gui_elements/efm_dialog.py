@@ -247,15 +247,15 @@ class EFMDialog(QDialog):
                 a = self.eng.eval(
                     "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
                 print(a)
-            except Exception as e:
+            except Exception:
                 traceback.print_exception(*sys.exc_info())
-                ret = QMessageBox.warning(self, 'Unknown exception occured!',
+                QMessageBox.warning(self, 'Unknown exception occured!',
                                           'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
                 if len(ems) == 0:
-                    ret = QMessageBox.information(self, 'No modes',
+                    QMessageBox.information(self, 'No modes',
                                                   'Modes have not been calculated or do not exist.')
                 else:
                     for mode in ems:

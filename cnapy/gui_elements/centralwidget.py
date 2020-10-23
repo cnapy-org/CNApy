@@ -89,7 +89,7 @@ class CentralWidget(QWidget):
         self.tabs.setCurrentIndex(2 + len(self.appdata.project.maps))
 
     def remove_map_tabs(self):
-        for idx in range(3, self.tabs.count()):
+        for _ in range(3, self.tabs.count()):
             self.tabs.removeTab(3)
 
     def delete_map(self, idx: int):

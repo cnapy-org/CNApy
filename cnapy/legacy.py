@@ -28,6 +28,7 @@ except:
 def createCobraModel(appdata: CnaData):
     if matlab or octave:
         a = eng.eval('cd("' + appdata.cna_path + '")')
+        print(a)
         cobra.io.save_matlab_model(
             appdata.project.cobra_py_model, appdata.cna_path+"cobra_model.mat", varname="cbmodel")
 
