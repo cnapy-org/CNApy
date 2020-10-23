@@ -23,6 +23,7 @@ from PySide2.QtWidgets import QApplication
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import is_matlab_ready, is_octave_ready
+from PySide2.QtGui import QColor
 
 
 class CellNetAnalyzer:
@@ -35,13 +36,16 @@ class CellNetAnalyzer:
         self.window.efm_action.setEnabled(False)
         self.window.mcs_action.setEnabled(False)
 
+        configParser = configparser.RawConfigParser()
+        configFilePath = r'cnapy-config.txt'
+        configParser.read(configFilePath)
+
         try:
-            configParser = configparser.RawConfigParser()
-            configFilePath = r'cnapy-config.txt'
-            configParser.read(configFilePath)
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
-
+        except:
+            print("CNA not found please check the cna_path in cnapy-config.txt")
+        else:
             if is_matlab_ready():
                 self.window.efm_action.setEnabled(True)
                 self.window.mcs_action.setEnabled(True)
@@ -50,8 +54,35 @@ class CellNetAnalyzer:
                 self.window.efm_action.setEnabled(True)
                 self.window.mcs_action.setEnabled(True)
 
+        try:
+            color = configParser.get(
+                'cnapy-config', 'scen_color')
+            self.appdata.Scencolor = QColor.fromRgb(int(color))
         except:
-            print("CNA not found please check the cna_path in cnapy-config.txt")
+            print("Could not read scen_color in cnapy-config.txt")
+            self.appdata.Scencolor = QColor.fromRgb(4278230527)
+        try:
+            color = configParser.get(
+                'cnapy-config', 'comp_color')
+            self.appdata.Compcolor = QColor.fromRgb(int(color))
+        except:
+            print("Could not read comp_color in cnapy-config.txt")
+            self.appdata.Compcolor = QColor.fromRgb(4290369023)
+        try:
+            color = configParser.get(
+                'cnapy-config', 'spec1_color')
+            self.appdata.SpecialColor1 = QColor.fromRgb(int(color))
+        except:
+            print("Could not read spec1_color in cnapy-config.txt")
+            self.appdata.SpecialColor1 = QColor.fromRgb(4294956551)
+        try:
+            color = configParser.get(
+                'cnapy-config', 'spec2_color')
+            self.appdata.SpecialColor2 = QColor.fromRgb(int(color))
+        except:
+            print("Could not read spec2_color in cnapy-config.txt")
+            self.appdata.SpecialColor2 = QColor.fromRgb(
+                4289396480)  # for bounds excluding 0
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)
