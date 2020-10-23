@@ -26,6 +26,8 @@ dependencies:
   - wincertstore=0.2=py37_0
   - zlib=1.2.11=h62dcd97_4
   - plotly
+  - oct2py=5.2
+  - openjdk=8
   - pip:
     - cameo
     - cobra==0.18.1

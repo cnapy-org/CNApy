@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import is_matlab_engine_ready
+from cnapy.legacy import is_matlab_ready, is_octave_ready
 
 
 class CellNetAnalyzer:
@@ -32,21 +32,26 @@ class CellNetAnalyzer:
         self.appdata = CnaData()
         self.window = MainWindow(self.appdata)
 
+        self.window.efm_action.setEnabled(False)
+        self.window.mcs_action.setEnabled(False)
+
         try:
             configParser = configparser.RawConfigParser()
             configFilePath = r'cnapy-config.txt'
             configParser.read(configFilePath)
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
+
+            if is_matlab_ready():
+                self.window.efm_action.setEnabled(True)
+                self.window.mcs_action.setEnabled(True)
+
+            if is_octave_ready():
+                self.window.efm_action.setEnabled(True)
+                self.window.mcs_action.setEnabled(True)
+
         except:
             print("CNA not found please check the cna_path in cnapy-config.txt")
-            self.window.efm_action.setEnabled(False)
-            self.window.mcs_action.setEnabled(False)
-
-        if not is_matlab_engine_ready():
-            print("MATLAB engine not found")
-            self.window.efm_action.setEnabled(False)
-            self.window.mcs_action.setEnabled(False)
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)
