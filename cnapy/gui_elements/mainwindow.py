@@ -206,11 +206,15 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
+        update_action = QAction("Default Coloring", self)
+        update_action.triggered.connect(central_widget.update)
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(reset_scenario_action)
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
+        self.tool_bar.addAction(update_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().tabs.currentChanged.connect(self.on_tab_change)
