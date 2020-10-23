@@ -65,10 +65,10 @@ class ReactionList(QWidget):
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
             if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
-                item.setText(2, str(round(vl, self.appdata.rounding)))
+                item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
-                item.setText(
-                    2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
+                item.setData(
+                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
             item.setBackground(2, self.appdata.Scencolor)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
@@ -84,14 +84,14 @@ class ReactionList(QWidget):
                     else:
                         item.setBackground(2, Qt.green)
 
-                item.setText(2, str(round(vl, self.appdata.rounding)))
+                item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
                 if vl <= 0 and vu >= 0:
                     item.setBackground(2, self.appdata.SpecialColor1)
                 else:
                     item.setBackground(2, self.appdata.SpecialColor2)
-                item.setText(
-                    2, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
+                item.setData(
+                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 
             item.setForeground(2, Qt.black)
 

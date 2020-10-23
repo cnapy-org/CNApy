@@ -1,8 +1,8 @@
 # TODOs
 
 - Priority 1: add CNA functions
-  - [-] improve coloring - need to discuss
-  - [ ] Minimal cut sets
+  - [_] Minimal cut sets
+    - [ ] under octave
 
 - Priority 4: add CNA functions
   - [ ] MFA
@@ -12,12 +12,13 @@
 - Priority 5:
   - [ ] CNA Model ex-/importieren
 - [ ] gapfilling (use meneco)
-- [ ] sort reaction flux numerical
 - [ ] save application state on save/exit
   - size, model
 
 # Done
 
+- [x] sort reaction flux numerical
+- [x] improve coloring - need to discuss
 - [x] add config file
 - [x] Elementary modes
   - [x] Elementary modes dialog
