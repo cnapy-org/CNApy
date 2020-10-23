@@ -8,7 +8,7 @@ from PySide2.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout,
                                QLabel, QLineEdit, QMessageBox, QPushButton,
                                QVBoxLayout)
 
-import cnapy.legacy
+import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
 
 
@@ -92,7 +92,7 @@ class EFMDialog(QDialog):
     def compute(self):
 
         # create CobraModel for matlab
-        cnapy.legacy.createCobraModel(self.appdata)
+        legacy.createCobraModel(self.appdata)
 
         print(".")
         a = self.eng.eval("startcna(1)", nargout=0,
@@ -106,11 +106,15 @@ class EFMDialog(QDialog):
         print(".")
 
         # get some data
-        a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
+        a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
                           nargout=0, stdout=self.out, stderr=self.err)
-        reac_id = self.eng.workspace['reac_id']
+#        reac_id = self.eng.workspace['reac_id']
+        reac_id = self.eng.pull('reac_id')
         print(reac_id)
-
+        print(type(reac_id))
+        reac_id = reac_id[0]
+        print(reac_id)
+        print(type(reac_id))
         # setting parameters
         oems = []
         print(".")
@@ -238,39 +242,68 @@ class EFMDialog(QDialog):
 
         print(".")
 
-        try:
+        if legacy.is_matlab_ready():
+            try:
+                a = self.eng.eval(
+                    "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
+                print(a)
+            except Exception:
+                traceback.print_exception(*sys.exc_info())
+                QMessageBox.warning(self, 'Unknown exception occured!',
+                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+            else:
+                ems = self.eng.workspace['ems']
+                idx = self.eng.workspace['ems_idx']
+                if len(ems) == 0:
+                    QMessageBox.information(self, 'No modes',
+                                                  'Modes have not been calculated or do not exist.')
+                else:
+                    for mode in ems:
+                        print("Mode:")
+                        count_ccc = 0
+                        omode = {}
+                        for element in mode:
+                            idx2 = int(idx[0][count_ccc])-1
+                            reaction = reac_id[idx2]
+                            print("element: ", count_ccc,
+                                  idx2, reaction, element)
+                            count_ccc += 1
+                            if element != 0:
+                                omode[reaction] = element
+                        oems.append(omode)
+
+                    self.appdata.project.modes = oems
+
+                    self.centralwidget.mode_navigator.current = 0
+                    self.centralwidget.mode_navigator.scenario = scenario
+                    self.centralwidget.update_mode()
+                self.accept()
+        elif legacy.is_octave_ready():
             a = self.eng.eval(
                 "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
             print(a)
-        except Exception as e:
-            traceback.print_exception(*sys.exc_info())
-            ret = QMessageBox.warning(self, 'Unknown exception occured!',
-                                      'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
-        else:
-            ems = self.eng.workspace['ems']
-            idx = self.eng.workspace['ems_idx']
-            if len(ems) == 0:
-                ret = QMessageBox.information(self, 'No modes',
-                                              'Modes have not been calculated or do not exist.')
-            else:
-                for mode in ems:
-                    print("Mode:")
-                    count_ccc = 0
-                    omode = {}
-                    for element in mode:
-                        idx2 = int(idx[0][count_ccc])-1
-                        reaction = reac_id[idx2]
-                        print("element: ", count_ccc, idx2, reaction, element)
-                        count_ccc += 1
-                        if element != 0:
-                            omode[reaction] = element
-                    oems.append(omode)
 
-                self.appdata.project.modes = oems
+            ems = self.eng.pull('ems')
+            idx = self.eng.pull('ems_idx')
 
-                self.centralwidget.mode_navigator.current = 0
-                self.centralwidget.mode_navigator.scenario = scenario
-                self.centralwidget.update_mode()
+        # turn vectors into maps
+            for mode in ems:
+                print("Mode:")
+                count_ccc = 0
+                omode = {}
+                for element in mode:
+                    idx2 = int(idx[0][count_ccc])-1
+                    reaction = reac_id[idx2]
+                    print("element: ", count_ccc, idx2, reaction, element)
+                    count_ccc += 1
+                    if element != 0:
+                        omode[reaction] = element
+                oems.append(omode)
+
+            self.appdata.project.modes = oems
+
+            self.centralwidget.mode_navigator.current = 0
+            self.centralwidget.update_mode()
             self.accept()
 
 
