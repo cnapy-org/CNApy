@@ -17,6 +17,7 @@ from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
+from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.efm_dialog import EFMDialog
@@ -200,6 +201,11 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
+        self.config_menu = self.menu.addMenu("Config")
+        config_action = QAction("Configure CNApy", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_dialog)
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(reset_scenario_action)
@@ -221,6 +227,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def phase_plane(self, _checked):
         dialog = PhasePlaneDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_config_dialog(self):
+        dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
