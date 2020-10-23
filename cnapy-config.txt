@@ -1,3 +1,7 @@
 [cnapy-config]
 cna_path = /scratch/CellNetAnalyzer
+scen_color = 4278230527
+comp_color = 4290369023
+spec1_color = 4294956551
+spec2_color = 4289396480
 
