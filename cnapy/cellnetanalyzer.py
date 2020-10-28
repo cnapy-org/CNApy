@@ -88,6 +88,13 @@ class CellNetAnalyzer:
             print("Could not read spec2_color in cnapy-config.txt")
             self.appdata.SpecialColor2 = QColor.fromRgb(
                 4289396480)  # for bounds excluding 0
+        try:
+            rounding = configParser.get(
+                'cnapy-config', 'rounding')
+            self.appdata.rounding = int(rounding)
+        except:
+            print("Could not read rounding in cnapy-config.txt")
+            self.appdata.rounding = 3
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)

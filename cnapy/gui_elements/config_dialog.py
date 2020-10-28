@@ -1,13 +1,9 @@
 """The cnapy configuration dialog"""
-from PySide2.QtWidgets import (QFileDialog, QColorDialog, QLabel, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
-                               QLineEdit, QPushButton, QRadioButton,
-                               QVBoxLayout)
+from PySide2.QtGui import QIntValidator, QPalette
+from PySide2.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
+                               QLabel, QLineEdit, QPushButton, QVBoxLayout)
 
-from PySide2.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
-
-from PySide2.QtCore import Qt
 from cnapy.cnadata import CnaData
-
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 
 
@@ -73,9 +69,20 @@ class ConfigDialog(QDialog):
         h5.addWidget(self.spec2_color_btn)
         self.layout.addItem(h5)
 
+        h6 = QHBoxLayout()
+        label = QLabel(
+            "Shown number of digits after the decimal point:")
+        h6.addWidget(label)
+        self.rounding = QLineEdit()
+        self.rounding.setText(str(self.appdata.rounding))
+        validator = QIntValidator(0, 20, self)
+        self.rounding.setValidator(validator)
+        h6.addWidget(self.rounding)
+        self.layout.addItem(h6)
         # self.Defaultcolor = Qt.gray
         # self.rel_tol = 1e-9
         # self.abs_tol = 0.0001
+
         # self.rounding = 3
 
         l2 = QHBoxLayout()
@@ -162,6 +169,8 @@ class ConfigDialog(QDialog):
         palette = self.spec2_color_btn.palette()
         self.appdata.SpecialColor2 = palette.color(QPalette.Button)
 
+        self.appdata.rounding = int(self.rounding.text())
+
         import configparser
         configFilePath = r'cnapy-config.txt'
         parser = configparser.ConfigParser()
@@ -175,6 +184,8 @@ class ConfigDialog(QDialog):
                    str(self.appdata.SpecialColor1.rgb()))
         parser.set('cnapy-config', 'spec2_color',
                    str(self.appdata.SpecialColor2.rgb()))
+        parser.set('cnapy-config', 'rounding',
+                   str(self.appdata.rounding))
 
         fp = open(configFilePath, 'w')
         parser.write(fp)
