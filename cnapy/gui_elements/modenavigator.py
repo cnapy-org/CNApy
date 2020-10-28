@@ -24,12 +24,12 @@ class ModeNavigator(QWidget):
         self.label = QLabel()
 
         l1 = QHBoxLayout()
-        label = QLabel("Mode Navigation")
+        self.title = QLabel("Mode Navigation")
 
         l12 = QHBoxLayout()
         l12.setAlignment(Qt.AlignRight)
         l12.addWidget(self.clear_button)
-        l1.addWidget(label)
+        l1.addWidget(self.title)
         l1.addLayout(l12)
 
         l2 = QHBoxLayout()

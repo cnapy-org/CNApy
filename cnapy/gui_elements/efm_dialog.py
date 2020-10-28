@@ -118,7 +118,6 @@ class EFMDialog(QDialog):
         print(reac_id)
 
         # setting parameters
-        oems = []
         print(".")
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
@@ -256,29 +255,9 @@ class EFMDialog(QDialog):
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
-                if len(ems) == 0:
-                    QMessageBox.information(self, 'No modes',
-                                                  'Modes have not been calculated or do not exist.')
-                else:
-                    for mode in ems:
-                        print("Mode:")
-                        count_ccc = 0
-                        omode = {}
-                        for element in mode:
-                            idx2 = int(idx[0][count_ccc])-1
-                            reaction = reac_id[idx2]
-                            print("element: ", count_ccc,
-                                  idx2, reaction, element)
-                            count_ccc += 1
-                            if element != 0:
-                                omode[reaction] = element
-                        oems.append(omode)
 
-                    self.appdata.project.modes = oems
+                self.result2ui(ems, idx, reac_id, scenario)
 
-                    self.centralwidget.mode_navigator.current = 0
-                    self.centralwidget.mode_navigator.scenario = scenario
-                    self.centralwidget.update_mode()
                 self.accept()
         elif legacy.is_octave_ready():
             a = self.eng.eval(
@@ -288,7 +267,15 @@ class EFMDialog(QDialog):
             ems = self.eng.pull('ems')
             idx = self.eng.pull('ems_idx')
 
-        # turn vectors into maps
+            self.result2ui(ems, idx, reac_id, scenario)
+            self.accept()
+
+    def result2ui(self, ems, idx, reac_id, scenario):
+        oems = []
+        if len(ems) == 0:
+            QMessageBox.information(self, 'No modes',
+                                    'Modes have not been calculated or do not exist.')
+        else:
             for mode in ems:
                 print("Mode:")
                 count_ccc = 0
@@ -296,26 +283,15 @@ class EFMDialog(QDialog):
                 for element in mode:
                     idx2 = int(idx[0][count_ccc])-1
                     reaction = reac_id[idx2]
-                    print("element: ", count_ccc, idx2, reaction, element)
+                    print("element: ", count_ccc,
+                          idx2, reaction, element)
                     count_ccc += 1
                     if element != 0:
                         omode[reaction] = element
                 oems.append(omode)
 
             self.appdata.project.modes = oems
-
             self.centralwidget.mode_navigator.current = 0
+            self.centralwidget.mode_navigator.scenario = scenario
+            self.centralwidget.mode_navigator.title.setText("Mode Navigation")
             self.centralwidget.update_mode()
-            self.accept()
-
-
-def load_scenario_into_cnap_local_rb(self, model):
-    for x in self.scen_values:
-        try:
-            y = model.reactions.get_by_id(x)
-        except:
-            print('reaction', x, 'not found!')
-        else:
-            (vl, vu) = self.scen_values[x]
-            y.lower_bound = vl
-            y.upper_bound = vu

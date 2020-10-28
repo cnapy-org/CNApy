@@ -389,4 +389,5 @@ class MCSDialog(QDialog):
             self.centralwidget.mode_navigator.current = 0
 
         self.centralwidget.update_mode()
+        self.centralwidget.mode_navigator.title.setText("MCS Navigation")
         self.accept()
