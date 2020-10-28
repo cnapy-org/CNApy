@@ -108,13 +108,15 @@ class EFMDialog(QDialog):
         # get some data
         a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
                           nargout=0, stdout=self.out, stderr=self.err)
-#        reac_id = self.eng.workspace['reac_id']
-        reac_id = self.eng.pull('reac_id')
+        reac_id = []
+        if legacy.is_matlab_ready():
+            reac_id = self.eng.workspace['reac_id']
+        elif legacy.is_octave_ready():
+            reac_id = self.eng.pull('reac_id')
+        else:
+            print("Error: Neither matlab nor octave found")
         print(reac_id)
-        print(type(reac_id))
-        reac_id = reac_id[0]
-        print(reac_id)
-        print(type(reac_id))
+
         # setting parameters
         oems = []
         print(".")

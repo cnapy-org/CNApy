@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import is_matlab_ready, is_octave_ready
+from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 from PySide2.QtGui import QColor
 
 
@@ -32,6 +32,7 @@ class CellNetAnalyzer:
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
         self.window = MainWindow(self.appdata)
+        self.appdata.window = self.window
 
         self.window.efm_action.setEnabled(False)
         self.window.mcs_action.setEnabled(False)
@@ -53,6 +54,10 @@ class CellNetAnalyzer:
             if is_octave_ready():
                 self.window.efm_action.setEnabled(True)
                 self.window.mcs_action.setEnabled(True)
+
+            if not restart_cna(self.appdata.cna_path):
+                self.window.efm_action.setEnabled(False)
+                self.window.mcs_action.setEnabled(False)
 
         try:
             color = configParser.get(

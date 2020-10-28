@@ -1,12 +1,14 @@
 import io
 import os
+
 import cobra
-import oct2py
 
 from cnapy.cnadata import CnaData
 
 out = io.StringIO()
 err = io.StringIO()
+matlab = False
+octave = False
 try:
     import matlab.engine
     eng = matlab.engine.start_matlab()
@@ -14,21 +16,29 @@ try:
     matlab = True
 except:
     print("Matlab engine not found")
-    eng = oct2py.Oct2Py()
-    matlab = False
     try:
+        import oct2py
         eng = oct2py.Oct2Py()
         print("Octave engine found")
         octave = True
     except:
         print("Octave engine not found")
-        octave = False
+
+
+def restart_cna(cna_path):
+    try:
+        a = eng.eval('cd("' + cna_path + '")')
+        print(a)
+        a = eng.eval("startcna(1)", nargout=0)
+        print(a)
+        return True
+    except:
+        print("CNA not found. Check your CNA path!")
+        return False
 
 
 def createCobraModel(appdata: CnaData):
     if matlab or octave:
-        a = eng.eval('cd("' + appdata.cna_path + '")')
-        print(a)
         cobra.io.save_matlab_model(
             appdata.project.cobra_py_model, os.path.join(appdata.cna_path+"/cobra_model.mat"), varname="cbmodel")
 

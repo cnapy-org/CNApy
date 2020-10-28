@@ -8,6 +8,8 @@ from PySide2.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
 from PySide2.QtCore import Qt
 from cnapy.cnadata import CnaData
 
+from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
@@ -140,6 +142,14 @@ class ConfigDialog(QDialog):
     def apply(self):
 
         self.appdata.cna_path = self.cna_path.text()
+        if is_matlab_ready() or is_octave_ready():
+            if restart_cna(self.appdata.cna_path):
+                self.appdata.window.efm_action.setEnabled(True)
+                self.appdata.window.mcs_action.setEnabled(True)
+            else:
+                self.appdata.window.efm_action.setEnabled(False)
+                self.appdata.window.mcs_action.setEnabled(False)
+
         palette = self.scen_color_btn.palette()
         self.appdata.Scencolor = palette.color(QPalette.Button)
 
