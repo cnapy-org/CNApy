@@ -1,11 +1,14 @@
 """The cnapy dialog for calculating minimal cut sets"""
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QMessageBox, QCompleter, QGroupBox, QCheckBox, QHeaderView, QTableWidget, QTableWidgetItem, QSizePolicy, QLabel, QTreeWidget, QTreeWidgetItem, QButtonGroup, QComboBox, QDialog, QHBoxLayout,
-                               QLineEdit, QPushButton, QRadioButton,
-                               QVBoxLayout)
 
-from cnapy.cnadata import CnaData
+import traceback
+import sys
 import cnapy.legacy as legacy
+from cnapy.cnadata import CnaData
+from PySide2.QtCore import Qt
+from PySide2.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
+                               QDialog, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLabel, QLineEdit, QMessageBox, QPushButton,
+                               QRadioButton, QTableWidget, QVBoxLayout)
 
 
 class MCSDialog(QDialog):
@@ -140,8 +143,6 @@ class MCSDialog(QDialog):
 
         g4 = QGroupBox("MCS search")
         s34 = QVBoxLayout()
-        # l = QLabel("MCS search")
-        # s34.addWidget(l)
         self.bg2 = QButtonGroup()
         self.any_mcs = QRadioButton("any MCS (fast)")
         s34.addWidget(self.any_mcs)
@@ -246,52 +247,52 @@ class MCSDialog(QDialog):
         legacy.createCobraModel(self.appdata)
 
         print(".")
-        a = self.eng.eval("startcna(1)", nargout=0,
-                          stdout=self.out, stderr=self.err)
+        self.eng.eval("startcna(1)", nargout=0,
+                      stdout=self.out, stderr=self.err)
         print(".")
-        a = self.eng.eval("load('cobra_model.mat')",
-                          nargout=0)
+        self.eng.eval("load('cobra_model.mat')",
+                      nargout=0)
         print(".")
-        a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0)
+        self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                      nargout=0)
         print(".")
 
-        a = self.eng.eval("genes = [];", nargout=0,
-                          stdout=self.out, stderr=self.err)
+        self.eng.eval("genes = [];", nargout=0,
+                      stdout=self.out, stderr=self.err)
         cmd = "maxSolutions = " + str(float(self.max_solu.text())) + ";"
-        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
 
         cmd = "maxSize = " + str(int(self.max_size.text())) + ";"
-        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
 
         cmd = "milp_time_limit = " + str(float(self.time_limit.text())) + ";"
-        a = self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
 
         if self.gen_kos.isChecked():
-            a = self.eng.eval("gKOs = 1;", nargout=0,
-                              stdout=self.out, stderr=self.err)
-        else:
-            a = self.eng.eval("gKOs = 0;", nargout=0,
-                              stdout=self.out, stderr=self.err)
-        if self.advanced.isChecked():
-            a = self.eng.eval("advanced_on = 1;", nargout=0,
-                              stdout=self.out, stderr=self.err)
-        else:
-            a = self.eng.eval("advanced_on = 0;", nargout=0,
-                              stdout=self.out, stderr=self.err)
-        # TODO get solver
-        a = self.eng.eval("solver = 'intlinprog';", nargout=0,
+            self.eng.eval("gKOs = 1;", nargout=0,
                           stdout=self.out, stderr=self.err)
+        else:
+            self.eng.eval("gKOs = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        if self.advanced.isChecked():
+            self.eng.eval("advanced_on = 1;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        else:
+            self.eng.eval("advanced_on = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        # TODO get solver
+        self.eng.eval("solver = 'intlinprog';", nargout=0,
+                      stdout=self.out, stderr=self.err)
 
         # TODO get search mode
-        a = self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
-                          stdout=self.out, stderr=self.err)
+        self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
+                      stdout=self.out, stderr=self.err)
         if self.consider_scenario.isChecked():
-            a = self.eng.eval("reac_box_vals = 1;", nargout=0,
-                              stdout=self.out, stderr=self.err)
+            self.eng.eval("reac_box_vals = 1;", nargout=0,
+                          stdout=self.out, stderr=self.err)
         else:
-            a = self.eng.eval("reac_box_vals = 0;", nargout=0,
-                              stdout=self.out, stderr=self.err)
+            self.eng.eval("reac_box_vals = 0;", nargout=0,
+                          stdout=self.out, stderr=self.err)
 
         rows = self.target_list.rowCount()
         for i in range(0, rows):
@@ -305,8 +306,8 @@ class MCSDialog(QDialog):
             cmd = "dg_T = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
             print(cmd)
-            a = self.eng.eval(cmd, nargout=0,
-                              stdout=self.out, stderr=self.err)
+            self.eng.eval(cmd, nargout=0,
+                          stdout=self.out, stderr=self.err)
 
         rows = self.desired_list.rowCount()
         for i in range(0, rows):
@@ -320,12 +321,12 @@ class MCSDialog(QDialog):
             cmd = "dg_D = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
             print(cmd)
-            a = self.eng.eval(cmd, nargout=0,
-                              stdout=self.out, stderr=self.err)
+            self.eng.eval(cmd, nargout=0,
+                          stdout=self.out, stderr=self.err)
 
         # get some data
-        a = self.eng.eval("reac_id = cellstr(cnap.reacID).';",
-                          nargout=0, stdout=self.out, stderr=self.err)
+        self.eng.eval("reac_id = cellstr(cnap.reacID).';",
+                      nargout=0, stdout=self.out, stderr=self.err)
 
         mcs = []
         values = []
@@ -333,25 +334,37 @@ class MCSDialog(QDialog):
         reac_id = []
         if legacy.is_matlab_ready():
             reac_id = self.eng.workspace['reac_id']
-            a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+            try:
+                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
-            a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
+            except Exception:
+                traceback.print_exception(*sys.exc_info())
+                QMessageBox.warning(self, 'Unknown exception occured!',
+                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+            else:
+                self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)
-            reactions = self.eng.workspace['reaction']
-            mcs = self.eng.workspace['mcs']
-            values = self.eng.workspace['value']
+                reactions = self.eng.workspace['reaction']
+                mcs = self.eng.workspace['mcs']
+                values = self.eng.workspace['value']
         elif legacy.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
-            a = self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+            try:
+                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
-            a = self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
+            except Exception:
+                traceback.print_exception(*sys.exc_info())
+                QMessageBox.warning(self, 'Unknown exception occured!',
+                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+            else:
+                self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)
-            reactions = self.eng.pull('reaction')
-            mcs = self.eng.pull('mcs')
-            values = self.eng.pull('value')
+                reactions = self.eng.pull('reaction')
+                mcs = self.eng.pull('mcs')
+                values = self.eng.pull('value')
 
         if len(mcs) == 0:
-            ret = QMessageBox.information(self, 'No cut sets',
+            QMessageBox.information(self, 'No cut sets',
                                           'Cut sets have not been calculated or do not exist.')
         else:
             last_mcs = 1
