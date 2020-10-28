@@ -1,5 +1,5 @@
 import io
-
+import os
 import cobra
 import oct2py
 
@@ -30,7 +30,7 @@ def createCobraModel(appdata: CnaData):
         a = eng.eval('cd("' + appdata.cna_path + '")')
         print(a)
         cobra.io.save_matlab_model(
-            appdata.project.cobra_py_model, appdata.cna_path+"cobra_model.mat", varname="cbmodel")
+            appdata.project.cobra_py_model, os.path.join(appdata.cna_path+"/cobra_model.mat"), varname="cbmodel")
 
 
 def get_matlab_engine():
