@@ -1,8 +1,9 @@
 """The PyNetAnalyzer species list"""
 import cobra
 from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QPushButton, QTextEdit, QTreeWidget,
+from PySide2.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+                               QMessageBox, QPushButton, QSplitter,
+                               QTableWidget, QTableWidgetItem, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
@@ -29,8 +30,11 @@ class SpeciesList(QWidget):
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.addWidget(self.species_list)
-        self.layout.addWidget(self.species_mask)
+
+        self.splitter = QSplitter()
+        self.splitter.addWidget(self.species_list)
+        self.splitter.addWidget(self.species_mask)
+        self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
         self.species_list.currentItemChanged.connect(self.species_selected)
@@ -45,6 +49,26 @@ class SpeciesList(QWidget):
         item.setText(0, species.id)
         item.setText(1, species.name)
         item.setData(2, 0, species)
+
+    def update_annotations(self, annotation):
+
+        self.species_mask.annotation.itemChanged.disconnect(
+            self.species_mask.species_data_changed)
+        c = self.species_mask.annotation.rowCount()
+        for i in range(0, c):
+            self.species_mask.annotation.removeRow(0)
+        i = 0
+        for key in annotation:
+            self.species_mask.annotation.insertRow(i)
+            print(i, key, annotation[key])
+            keyl = QTableWidgetItem(key)
+            iteml = QTableWidgetItem(str(annotation[key]))
+            self.species_mask.annotation.setItem(i, 0, keyl)
+            self.species_mask.annotation.setItem(i, 1, iteml)
+            i += 1
+
+        self.species_mask.annotation.itemChanged.connect(
+            self.species_mask.species_data_changed)
 
     def emit_changedModel(self):
         self.last_selected = self.species_mask.id.text()
@@ -62,8 +86,7 @@ class SpeciesList(QWidget):
             self.species_mask.formula.setText(species.formula)
             self.species_mask.charge.setText(str(species.charge))
             self.species_mask.compartment.setText(species.compartment)
-            self.species_mask.comments.setText(str(species.annotation))
-
+            self.update_annotations(species.annotation)
             self.species_mask.old = species
             self.species_mask.changed = False
             self.species_mask.update_state()
@@ -140,12 +163,19 @@ class SpeciesMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
-        label = QLabel("Notes and Comments:")
-        self.comments = QTextEdit()
-        self.comments.setFixedHeight(200)
-        self.comments.setReadOnly(True)
+        label = QLabel("Annotations:")
         l.addWidget(label)
-        l.addWidget(self.comments)
+        l2 = QHBoxLayout()
+        self.annotation = QTableWidget(0, 2)
+        self.annotation.setHorizontalHeaderLabels(
+            ["key", "value"])
+        self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        l2.addWidget(self.annotation)
+
+        self.add_anno = QPushButton("+")
+        self.add_anno.clicked.connect(self.add_anno_row)
+        l2.addWidget(self.add_anno)
+        l.addItem(l2)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -161,9 +191,14 @@ class SpeciesMask(QWidget):
         self.formula.textEdited.connect(self.species_data_changed)
         self.charge.textEdited.connect(self.species_data_changed)
         self.compartment.textEdited.connect(self.species_data_changed)
-        self.comments.textChanged.connect(self.species_data_changed)
+        self.annotation.itemChanged.connect(self.species_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.update_state()
+
+    def add_anno_row(self):
+        i = self.annotation.rowCount()
+        self.annotation.insertRow(i)
+        self.changed = True
 
     def apply(self):
         if self.old is None:
@@ -182,7 +217,13 @@ class SpeciesMask(QWidget):
             self.old.formula = self.formula.text()
             self.old.charge = int(self.charge.text())
             self.old.compartment = self.compartment.text()
-            self.old.comments = self.comments.toPlainText()
+            self.old.annotation = {}
+            rows = self.annotation.rowCount()
+            for i in range(0, rows):
+                key = self.annotation.item(i, 0).text()
+                value = self.annotation.item(i, 1).text()
+                print(key, value)
+                self.old.annotation[key] = value
 
             self.changed = False
             self.changedspeciesList.emit()

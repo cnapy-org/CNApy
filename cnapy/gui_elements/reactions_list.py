@@ -2,9 +2,10 @@
 import cobra
 from PySide2.QtCore import Qt, Signal, Slot
 from PySide2.QtGui import QIcon
-from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QSizePolicy,
-                               QTextEdit, QTreeWidget, QTreeWidgetItem,
+from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
+                               QLineEdit, QMessageBox, QPushButton,
+                               QSizePolicy, QSplitter, QTableWidget,
+                               QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
@@ -17,6 +18,7 @@ class ReactionList(QWidget):
         QWidget.__init__(self)
         self.appdata = appdata
         self.last_selected = None
+        self.new = True
 
         self.add_button = QPushButton("Add new reaction")
         self.add_button.setIcon(QIcon.fromTheme("list-add"))
@@ -31,7 +33,7 @@ class ReactionList(QWidget):
         for r in self.appdata.project.cobra_py_model.reactions:
             self.add_reaction(r)
 
-        self.reaction_mask = ReactionMask(self.appdata)
+        self.reaction_mask = ReactionMask(self)
         self.reaction_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -39,9 +41,11 @@ class ReactionList(QWidget):
         l = QHBoxLayout()
         l.setAlignment(Qt.AlignRight)
         l.addWidget(self.add_button)
+        self.splitter = QSplitter()
+        self.splitter.addWidget(self.reaction_list)
+        self.splitter.addWidget(self.reaction_mask)
         self.layout.addItem(l)
-        self.layout.addWidget(self.reaction_list)
-        self.layout.addWidget(self.reaction_mask)
+        self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
@@ -96,7 +100,7 @@ class ReactionList(QWidget):
             item.setForeground(2, Qt.black)
 
     def add_new_reaction(self):
-        # print("ReactionList::add_new_reaction")
+        self.new = True
         self.reaction_mask.show()
         reaction = cobra.Reaction()
 
@@ -108,14 +112,33 @@ class ReactionList(QWidget):
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
         # self.reaction_mask.variance.setText()
-        self.reaction_mask.comments.setText(str(reaction.annotation))
-
+        self.update_annotations({})
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
         self.reaction_mask.update_state()
 
+    def update_annotations(self, annotation):
+
+        self.reaction_mask.annotation.itemChanged.disconnect(
+            self.reaction_mask.reaction_data_changed)
+        c = self.reaction_mask.annotation.rowCount()
+        for i in range(0, c):
+            self.reaction_mask.annotation.removeRow(0)
+        i = 0
+        for key in annotation:
+            self.reaction_mask.annotation.insertRow(i)
+            print(i, key, annotation[key])
+            keyl = QTableWidgetItem(key)
+            iteml = QTableWidgetItem(str(annotation[key]))
+            self.reaction_mask.annotation.setItem(i, 0, keyl)
+            self.reaction_mask.annotation.setItem(i, 1, iteml)
+            i += 1
+
+        self.reaction_mask.annotation.itemChanged.connect(
+            self.reaction_mask.reaction_data_changed)
+
     def reaction_selected(self, item, _column):
-        # print("reaction_selected")
+        self.new = False
         if item is None:
             self.reaction_mask.hide()
         else:
@@ -131,7 +154,7 @@ class ReactionList(QWidget):
             self.reaction_mask.coefficent.setText(
                 str(reaction.objective_coefficient))
             # self.reaction_mask.variance.setText()
-            self.reaction_mask.comments.setText(str(reaction.annotation))
+            self.update_annotations(reaction.annotation)
 
             self.reaction_mask.old = reaction
             self.reaction_mask.changed = False
@@ -242,9 +265,10 @@ class JumpList(QWidget):
 class ReactionMask(QWidget):
     """The input mask for a reaction"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, parent):
         QWidget.__init__(self)
-        self.appdata = appdata
+
+        self.parent = parent
         self.old = None
         self.is_valid = True
         self.changed = False
@@ -310,13 +334,21 @@ class ReactionMask(QWidget):
         # layout.addItem(l)
 
         l = QVBoxLayout()
-        label = QLabel("Notes and Comments:")
-        self.comments = QTextEdit()
-        self.comments.setFixedHeight(200)
+        label = QLabel("Annotations:")
         l.addWidget(label)
-        l.addWidget(self.comments)
+        l2 = QHBoxLayout()
+        self.annotation = QTableWidget(0, 2)
+        self.annotation.setHorizontalHeaderLabels(
+            ["key", "value"])
+        self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        l2.addWidget(self.annotation)
+
+        self.add_anno = QPushButton("+")
+        self.add_anno.clicked.connect(self.add_anno_row)
+        l2.addWidget(self.add_anno)
+        l.addItem(l2)
+
         layout.addItem(l)
-        self.comments.setReadOnly(True)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
@@ -342,17 +374,22 @@ class ReactionMask(QWidget):
         self.rate_max.textEdited.connect(self.reaction_data_changed)
         self.coefficent.textEdited.connect(self.reaction_data_changed)
         # self.variance.textEdited.connect(self.reaction_data_changed)
-        self.comments.textChanged.connect(self.reaction_data_changed)
+        self.annotation.itemChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
 
         self.update_state()
 
+    def add_anno_row(self):
+        i = self.annotation.rowCount()
+        self.annotation.insertRow(i)
+        self.changed = True
+
     def apply(self):
         if self.old is None:
             self.old = cobra.Reaction(
                 id=self.id.text(), name=self.name.text())
-            self.appdata.project.cobra_py_model.add_reaction(self.old)
+            self.parent.appdata.project.cobra_py_model.add_reaction(self.old)
 
         try:
             self.old.id = self.id.text()
@@ -367,13 +404,19 @@ class ReactionMask(QWidget):
             self.old.lower_bound = float(self.rate_min.text())
             self.old.upper_bound = float(self.rate_max.text())
             self.old.objective_coefficient = float(self.coefficent.text())
-            self.old.annotation = self.comments.toPlainText()
+            self.old.annotation = {}
+            rows = self.annotation.rowCount()
+            for i in range(0, rows):
+                key = self.annotation.item(i, 0).text()
+                value = self.annotation.item(i, 1).text()
+                print(key, value)
+                self.old.annotation[key] = value
 
             self.changed = False
             self.changedReactionList.emit()
 
     def delete_reaction(self):
-        self.appdata.project.cobra_py_model.remove_reactions([self.old])
+        self.parent.appdata.project.cobra_py_model.remove_reactions([self.old])
         self.hide()
         self.changedReactionList.emit()
 
@@ -381,7 +424,7 @@ class ReactionMask(QWidget):
         # print("add to map")
         idx = self.map_combo.currentText()
         print("ReactionMask::add_to_map", idx)
-        self.appdata.project.maps[int(idx)-1]["boxes"][self.id.text()] = (
+        self.parent.appdata.project.maps[int(idx)-1]["boxes"][self.id.text()] = (
             100, 100, self.name.text())
         self.emit_jump_to_map(int(idx))
         self.update_state()
@@ -393,7 +436,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.id.setPalette(palette)
 
-        with self.appdata.project.cobra_py_model as model:
+        with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id=self.id.text())
                 model.add_reaction(r)
@@ -410,7 +453,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.name.setPalette(palette)
 
-        with self.appdata.project.cobra_py_model as model:
+        with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id="testid", name=self.name.text())
                 model.add_reaction(r)
@@ -428,7 +471,7 @@ class ReactionMask(QWidget):
         palette.setColor(role, Qt.black)
         self.equation.setPalette(palette)
 
-        with self.appdata.project.cobra_py_model as model:
+        with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction("test_id")
                 model.add_reaction(r)
@@ -502,12 +545,12 @@ class ReactionMask(QWidget):
         # print("reaction_mask::update_state")
         self.jump_list.clear()
         c = 1
-        for m in self.appdata.project.maps:
+        for m in self.parent.appdata.project.maps:
             if self.id.text() in m["boxes"]:
                 self.jump_list.add(c)
             c += 1
 
-        if self.old is None:
+        if self.parent.new:
             self.apply_button.setText("add reaction")
             self.delete_button.hide()
         else:
@@ -518,7 +561,7 @@ class ReactionMask(QWidget):
             self.map_combo.clear()
             count = 1
             idx = 0
-            for m in self.appdata.project.maps:
+            for m in self.parent.appdata.project.maps:
                 if self.id.text() not in m["boxes"]:
                     self.add_map_button.setEnabled(True)
                     self.map_combo.insertItem(idx, str(count))

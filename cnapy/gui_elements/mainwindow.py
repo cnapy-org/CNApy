@@ -17,9 +17,9 @@ from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
-from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
+from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
