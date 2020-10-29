@@ -416,9 +416,14 @@ class MainWindow(QMainWindow):
             self.centralWidget().recreate_maps()
             self.centralWidget().mode_navigator.clear()
             self.clear_scenario()
+            for r in self.appdata.project.cobra_py_model.reactions:
+                if 'cnapy-default' in r.annotation.keys():
+                    self.centralWidget().update_reaction_value(
+                        r.id, r.annotation['cnapy-default'])
             self.appdata.project.name = filename[0]
             print(self.appdata.project.name)
             self.save_project_action.setEnabled(True)
+            self.centralWidget().reaction_list.update()
 
     @Slot()
     def save_project(self, _checked):
