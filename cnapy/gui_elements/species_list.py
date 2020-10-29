@@ -32,6 +32,7 @@ class SpeciesList(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.splitter = QSplitter()
+        self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.species_list)
         self.splitter.addWidget(self.species_mask)
         self.layout.addWidget(self.splitter)
@@ -60,7 +61,6 @@ class SpeciesList(QWidget):
         i = 0
         for key in annotation:
             self.species_mask.annotation.insertRow(i)
-            print(i, key, annotation[key])
             keyl = QTableWidgetItem(key)
             iteml = QTableWidgetItem(str(annotation[key]))
             self.species_mask.annotation.setItem(i, 0, keyl)
