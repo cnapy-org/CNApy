@@ -127,7 +127,6 @@ class ReactionList(QWidget):
         i = 0
         for key in annotation:
             self.reaction_mask.annotation.insertRow(i)
-            print(i, key, annotation[key])
             keyl = QTableWidgetItem(key)
             iteml = QTableWidgetItem(str(annotation[key]))
             self.reaction_mask.annotation.setItem(i, 0, keyl)
