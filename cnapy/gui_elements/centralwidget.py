@@ -27,7 +27,7 @@ class CentralWidget(QWidget):
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
-        self.tabs.addTab(self.metabolite_list, "metabolites")
+        self.tabs.addTab(self.metabolite_list, "Metabolites")
         self.maps: list = []
 
         self.console = Console(self.parent)
