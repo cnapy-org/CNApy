@@ -1,8 +1,8 @@
 from typing import Dict, Tuple
 
 import cobra
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QColor
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor
 
 
 class CnaData:

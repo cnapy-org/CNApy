@@ -1,8 +1,8 @@
 from ast import literal_eval as make_tuple
 
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton,
-                               QTabBar, QTabWidget, QVBoxLayout, QWidget)
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton,
+                            QTabBar, QTabWidget, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData, CnaMap
 from cnapy.gui_elements.console import Console
@@ -10,6 +10,8 @@ from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.modenavigator import ModeNavigator
 from cnapy.gui_elements.reactions_list import ReactionList
 from cnapy.gui_elements.metabolite_list import MetaboliteList
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtconsole.manager import QtKernelManager
 
 
 class CentralWidget(QWidget):
@@ -24,6 +26,7 @@ class CentralWidget(QWidget):
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()
+        self.tabs.setTabsClosable(True)
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
@@ -31,8 +34,16 @@ class CentralWidget(QWidget):
         self.maps: list = []
 
         self.console = Console(self.parent)
+        kernel_manager = QtKernelManager(kernel_name='python3')
+        kernel_manager.start_kernel()
+
+        kernel_client = kernel_manager.client()
+        kernel_client.start_channels()
+
+        self.console = RichJupyterWidget()
+        self.console.kernel_manager = kernel_manager
+        self.console.kernel_client = kernel_client
         self.tabs.addTab(self.console, "Console")
-        self.tabs.setTabsClosable(True)
 
         self.add_map_button = QPushButton("add map")
         self.tabs.setCornerWidget(
@@ -59,6 +70,11 @@ class CentralWidget(QWidget):
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
         self.update()
+
+    def shutdown_kernel(self):
+        print('Shutting down kernel...')
+        self.console.kernel_client.stop_channels()
+        self.console.kernel_manager.shutdown_kernel()
 
     def switch_to_reaction(self, reaction: str):
         self.tabs.setCurrentIndex(0)

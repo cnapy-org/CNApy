@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import cobra
-from PySide2.QtGui import QColor
+from qtpy.QtGui import QColor
 
 
 def work(cna):

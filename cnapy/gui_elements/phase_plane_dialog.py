@@ -1,7 +1,7 @@
 """The cnapy phase plane plot dialog"""
-from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QVBoxLayout)
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
+                            QLineEdit, QPushButton, QVBoxLayout)
 
 
 class CompleterLineEdit(QLineEdit):

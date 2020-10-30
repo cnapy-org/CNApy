@@ -18,12 +18,12 @@ import configparser
 import sys
 
 import cobra
-from PySide2.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
-from PySide2.QtGui import QColor
+from qtpy.QtGui import QColor
 
 
 class CellNetAnalyzer:
@@ -101,6 +101,9 @@ class CellNetAnalyzer:
         self.window.show()
 
         # Execute application
+
+        self.qapp.aboutToQuit.connect(
+            self.window.centralWidget().shutdown_kernel)
         sys.exit(self.qapp.exec_())
 
     def model(self):

@@ -1,7 +1,7 @@
 """The cnapy configuration dialog"""
-from PySide2.QtGui import QIntValidator, QPalette
-from PySide2.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
-                               QLabel, QLineEdit, QPushButton, QVBoxLayout)
+from qtpy.QtGui import QIntValidator, QPalette
+from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
+                            QLabel, QLineEdit, QPushButton, QVBoxLayout)
 
 from cnapy.cnadata import CnaData
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna

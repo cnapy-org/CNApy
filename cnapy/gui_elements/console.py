@@ -2,7 +2,7 @@
 import sys
 import traceback
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 class Console(QtWidgets.QPlainTextEdit):

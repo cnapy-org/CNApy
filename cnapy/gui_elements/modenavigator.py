@@ -1,7 +1,7 @@
-from PySide2.QtCore import Qt, Signal
-from PySide2.QtGui import QIcon
-from PySide2.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
-                               QWidget)
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
+                            QWidget)
 
 
 class ModeNavigator(QWidget):

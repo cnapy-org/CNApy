@@ -17,12 +17,12 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.legacy import get_matlab_engine
-from PySide2.QtCore import Slot
-from PySide2.QtGui import QColor, QIcon
-from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
-                               QGraphicsItem, QMainWindow, QMessageBox,
-                               QToolBar)
+from qtpy.QtCore import Slot
+from qtpy.QtGui import QColor, QIcon
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog,
+                            QGraphicsItem, QMainWindow, QMessageBox,
+                            QToolBar)
 
 
 class MainWindow(QMainWindow):
