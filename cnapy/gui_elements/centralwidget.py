@@ -9,7 +9,7 @@ from cnapy.gui_elements.console import Console
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.modenavigator import ModeNavigator
 from cnapy.gui_elements.reactions_list import ReactionList
-from cnapy.gui_elements.species_list import SpeciesList
+from cnapy.gui_elements.metabolite_list import MetaboliteList
 
 
 class CentralWidget(QWidget):
@@ -25,9 +25,9 @@ class CentralWidget(QWidget):
 
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
-        self.specie_list = SpeciesList(self.appdata)
+        self.metabolite_list = MetaboliteList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
-        self.tabs.addTab(self.specie_list, "Species")
+        self.tabs.addTab(self.metabolite_list, "metabolites")
         self.maps: list = []
 
         self.console = Console(self.parent)
@@ -38,7 +38,7 @@ class CentralWidget(QWidget):
         self.tabs.setCornerWidget(
             self.add_map_button, corner=Qt.TopRightCorner)
 
-        # disable close button on reactions, species and console tab
+        # disable close button on reactions, metabolites and console tab
         self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
@@ -52,7 +52,7 @@ class CentralWidget(QWidget):
 
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.changedModel.connect(self.update)
-        self.specie_list.changedModel.connect(self.update)
+        self.metabolite_list.changedModel.connect(self.update)
         self.add_map_button.clicked.connect(self.add_map)
         self.tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
@@ -98,12 +98,14 @@ class CentralWidget(QWidget):
 
     def update_selected(self):
         # print("centralwidget::update_selected")
+
+        x = self.searchbar.text()
         idx = self.tabs.currentIndex()
         if idx == 0:
-            x = self.searchbar.text()
             self.reaction_list.update_selected(x)
+        if idx == 1:
+            self.metabolite_list.update_selected(x)
         elif idx > 2:
-            x = self.searchbar.text()
             m = self.tabs.widget(idx)
             m.update_selected(x)
 
@@ -166,7 +168,7 @@ class CentralWidget(QWidget):
         if idx == 0:
             self.reaction_list.update()
         elif idx == 1:
-            self.specie_list.update()
+            self.metabolite_list.update()
         elif idx == 2:
             pass
         elif idx > 0:
