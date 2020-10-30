@@ -415,7 +415,8 @@ class ReactionMask(QWidget):
             self.changedReactionList.emit()
 
     def delete_reaction(self):
-        self.parent.appdata.project.cobra_py_model.remove_reactions([self.old])
+        self.parent.appdata.project.cobra_py_model.remove_reactions(
+            [self.old], remove_orphans=True)
         self.hide()
         self.changedReactionList.emit()
 
