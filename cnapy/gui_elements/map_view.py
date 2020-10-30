@@ -215,6 +215,7 @@ class MapView(QGraphicsView):
         self.reaction_boxes[reaction].recolor()
 
     switchToReactionDialog = Signal(str)
+    optimizeReaction = Signal(str)
     reactionValueChanged = Signal(str, str)
 
 
@@ -251,6 +252,9 @@ class ReactionBox(QGraphicsItem):
 
         # create context menu
         self.popMenu = QMenu(parent)
+        optimize_action = QAction('optimze flux for this reaction', parent)
+        self.popMenu.addAction(optimize_action)
+        optimize_action.triggered.connect(self.emit_optimize_action)
         switch_action = QAction('switch to reaction dialog', parent)
         self.popMenu.addAction(switch_action)
         switch_action.triggered.connect(self.switch_to_reaction_dialog)
@@ -395,13 +399,16 @@ class ReactionBox(QGraphicsItem):
         self.popMenu.exec_(self.item.mapToGlobal(point))
 
     def delete(self):
-        # print('ReactionBox:delete')
         self.map.delete_box(self.id)
         self.map.drag = False
 
     def switch_to_reaction_dialog(self):
-        print('ReactionBox:switch')
         self.map.switchToReactionDialog.emit(self.id)
+        self.map.drag = False
+
+    def emit_optimize_action(self):
+        print('ReactionBox:optimize')
+        self.map.optimizeReaction.emit(self.id)
         self.map.drag = False
 
 

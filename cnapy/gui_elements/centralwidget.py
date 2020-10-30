@@ -61,9 +61,11 @@ class CentralWidget(QWidget):
         self.update()
 
     def switch_to_reaction(self, reaction: str):
-        # print("centralwidget::switch_to_reaction")
         self.tabs.setCurrentIndex(0)
         self.reaction_list.setCurrentItem(reaction)
+
+    def optimize_reaction(self, reaction: str):
+        self.parent.fba_optimize_reaction(reaction)
 
     def update_reaction_value(self, reaction: str, value: str):
         print("update_reaction_value", value)
@@ -83,6 +85,8 @@ class CentralWidget(QWidget):
         self.appdata.project.maps.append(m)
         map = MapView(self.appdata, len(self.appdata.project.maps)-1)
         map.switchToReactionDialog.connect(self.switch_to_reaction)
+        map.optimizeReaction.connect(self.optimize_reaction)
+
         map.reactionValueChanged.connect(self.update_reaction_value)
         self.tabs.addTab(map, m["name"])
         self.update_maps()
@@ -154,6 +158,7 @@ class CentralWidget(QWidget):
             map = MapView(self.appdata, count)
             map.show()
             map.switchToReactionDialog.connect(self.switch_to_reaction)
+            map.optimizeReaction.connect(self.optimize_reaction)
             map.reactionValueChanged.connect(self.update_reaction_value)
             self.tabs.addTab(map, m["name"])
             map.update()

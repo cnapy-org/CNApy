@@ -8,13 +8,6 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from PySide2.QtCore import Slot
-from PySide2.QtGui import QColor, QIcon
-from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
-                               QGraphicsItem, QMainWindow, QMessageBox,
-                               QToolBar)
-
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
@@ -24,6 +17,12 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.legacy import get_matlab_engine
+from PySide2.QtCore import Slot
+from PySide2.QtGui import QColor, QIcon
+from PySide2.QtSvg import QGraphicsSvgItem
+from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
+                               QGraphicsItem, QMainWindow, QMessageBox,
+                               QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -566,11 +565,35 @@ class MainWindow(QMainWindow):
                     self.appdata.project.comp_values[i] = (
                         soldict[i], soldict[i])
             elif solution.status == 'infeasible':
-                ret = QMessageBox.information(
+                QMessageBox.information(
                     self, 'No solution!', 'No solution the scenario is infeasible!')
                 self.appdata.project.comp_values.clear()
             else:
-                ret = QMessageBox.information(
+                QMessageBox.information(
+                    self, 'No solution!', solution.status)
+                self.appdata.project.comp_values.clear()
+            self.centralWidget().update()
+
+    def fba_optimize_reaction(self, reaction):
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
+            for r in self.appdata.project.cobra_py_model.reactions:
+                if r.id == reaction:
+                    r.objective_coefficient = 1
+                else:
+                    r.objective_coefficient = 0
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                soldict = solution.fluxes.to_dict()
+                for i in soldict:
+                    self.appdata.project.comp_values[i] = (
+                        soldict[i], soldict[i])
+            elif solution.status == 'infeasible':
+                QMessageBox.information(
+                    self, 'No solution!', 'No solution the scenario is infeasible!')
+                self.appdata.project.comp_values.clear()
+            else:
+                QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
@@ -581,11 +604,11 @@ class MainWindow(QMainWindow):
             try:
                 solution = cobra.flux_analysis.pfba(model)
             except cobra.exceptions.Infeasible:
-                ret = QMessageBox.information(
+                QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
             except Exception as e:
                 traceback.print_exception(*sys.exc_info())
-                ret = QMessageBox.warning(
+                QMessageBox.warning(
                     self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
             else:
                 if solution.status == 'optimal':
@@ -594,7 +617,7 @@ class MainWindow(QMainWindow):
                         self.appdata.project.comp_values[i] = (
                             soldict[i], soldict[i])
                 else:
-                    ret = QMessageBox.information(
+                    QMessageBox.information(
                         self, 'No solution!', solution.status)
                     self.appdata.project.comp_values.clear()
             finally:
@@ -613,12 +636,12 @@ class MainWindow(QMainWindow):
             self.appdata.project.load_scenario_into_model(model)
             try:
                 solution = flux_variability_analysis(model)
-            except cobra.exceptions.Infeasible as e:
-                ret = QMessageBox.information(
+            except cobra.exceptions.Infeasible:
+                QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
-            except Exception as e:
+            except Exception:
                 traceback.print_exception(*sys.exc_info())
-                ret = QMessageBox.warning(
+                QMessageBox.warning(
                     self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
             else:
                 minimum = solution.minimum.to_dict()
