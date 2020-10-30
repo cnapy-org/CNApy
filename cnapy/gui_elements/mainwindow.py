@@ -209,9 +209,14 @@ class MainWindow(QMainWindow):
         update_action = QAction("Default Coloring", self)
         update_action.triggered.connect(central_widget.update)
 
+        set_default_scenario_action = QAction("Default scenario", self)
+        set_default_scenario_action.triggered.connect(
+            self.set_default_scenario)
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(reset_scenario_action)
+        self.tool_bar.addAction(set_default_scenario_action)
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
@@ -380,6 +385,14 @@ class MainWindow(QMainWindow):
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
+
+    def set_default_scenario(self):
+        self.appdata.project.comp_values.clear()
+        for r in self.appdata.project.cobra_py_model.reactions:
+            if 'cnapy-default' in r.annotation.keys():
+                self.centralWidget().update_reaction_value(
+                    r.id, r.annotation['cnapy-default'])
+        self.centralWidget().reaction_list.update()
 
     @Slot()
     def new_project(self, _checked):
