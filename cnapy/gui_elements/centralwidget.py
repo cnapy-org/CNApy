@@ -5,13 +5,12 @@ from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton,
                             QTabBar, QTabWidget, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData, CnaMap
-from cnapy.gui_elements.console import Console
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.modenavigator import ModeNavigator
 from cnapy.gui_elements.reactions_list import ReactionList
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtconsole.manager import QtKernelManager
+from qtconsole.inprocess import QtInProcessKernelManager
 
 
 class CentralWidget(QWidget):
@@ -33,10 +32,16 @@ class CentralWidget(QWidget):
         self.tabs.addTab(self.metabolite_list, "Metabolites")
         self.maps: list = []
 
-        self.console = Console(self.parent)
-        kernel_manager = QtKernelManager(kernel_name='python3')
-        kernel_manager.start_kernel()
+        # Create an in-process kernel
 
+        kernel_manager = QtInProcessKernelManager()
+        kernel_manager.start_kernel(show_banner=False)
+        kernel = kernel_manager.kernel
+        kernel.gui = 'qt'
+
+        myglobals = globals()
+        myglobals["cna"] = self.parent
+        kernel_manager.kernel.shell.push(myglobals)
         kernel_client = kernel_manager.client()
         kernel_client.start_channels()
 
