@@ -113,6 +113,7 @@ class EFMDialog(QDialog):
             reac_id = self.eng.workspace['reac_id']
         elif legacy.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
+            reac_id = reac_id.tolist()[0]
         else:
             print("Error: Neither matlab nor octave found")
         print(reac_id)

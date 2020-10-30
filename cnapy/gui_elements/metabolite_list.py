@@ -1,4 +1,4 @@
-"""The PyNetAnalyzer species list"""
+"""The PyNetAnalyzer metabolite list"""
 import cobra
 from PySide2.QtCore import Qt, Signal
 from PySide2.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
@@ -9,103 +9,116 @@ from PySide2.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
 from cnapy.cnadata import CnaData
 
 
-class SpeciesList(QWidget):
-    """A list of species"""
+class MetaboliteList(QWidget):
+    """A list of metabolites"""
 
     def __init__(self, appdata: CnaData):
         QWidget.__init__(self)
         self.appdata = appdata
         self.last_selected = None
 
-        self.species_list = QTreeWidget()
-        # self.species_list.setHeaderLabels(["Name", "Reversible"])
-        self.species_list.setHeaderLabels(["Id", "Name"])
-        self.species_list.setSortingEnabled(True)
+        self.metabolite_list = QTreeWidget()
+        # self.metabolite_list.setHeaderLabels(["Name", "Reversible"])
+        self.metabolite_list.setHeaderLabels(["Id", "Name"])
+        self.metabolite_list.setSortingEnabled(True)
 
         for r in self.appdata.project.cobra_py_model.metabolites:
-            self.add_species(r)
+            self.add_metabolites(r)
 
-        self.species_mask = SpeciesMask(appdata)
-        self.species_mask.hide()
+        self.metabolites_mask = metabolitesMask(appdata)
+        self.metabolites_mask.hide()
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
-        self.splitter.addWidget(self.species_list)
-        self.splitter.addWidget(self.species_mask)
+        self.splitter.addWidget(self.metabolite_list)
+        self.splitter.addWidget(self.metabolites_mask)
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
-        self.species_list.currentItemChanged.connect(self.species_selected)
-        self.species_mask.changedspeciesList.connect(self.emit_changedModel)
+        self.metabolite_list.currentItemChanged.connect(self.metabolites_selected)
+        self.metabolites_mask.changedMetaboliteList.connect(self.emit_changedModel)
 
     def clear(self):
-        self.species_list.clear()
-        self.species_mask.hide()
+        self.metabolite_list.clear()
+        self.metabolites_mask.hide()
 
-    def add_species(self, species):
-        item = QTreeWidgetItem(self.species_list)
-        item.setText(0, species.id)
-        item.setText(1, species.name)
-        item.setData(2, 0, species)
+    def add_metabolites(self, metabolites):
+        item = QTreeWidgetItem(self.metabolite_list)
+        item.setText(0, metabolites.id)
+        item.setText(1, metabolites.name)
+        item.setData(2, 0, metabolites)
 
     def update_annotations(self, annotation):
 
-        self.species_mask.annotation.itemChanged.disconnect(
-            self.species_mask.species_data_changed)
-        c = self.species_mask.annotation.rowCount()
+        self.metabolites_mask.annotation.itemChanged.disconnect(
+            self.metabolites_mask.metabolites_data_changed)
+        c = self.metabolites_mask.annotation.rowCount()
         for i in range(0, c):
-            self.species_mask.annotation.removeRow(0)
+            self.metabolites_mask.annotation.removeRow(0)
         i = 0
         for key in annotation:
-            self.species_mask.annotation.insertRow(i)
+            self.metabolites_mask.annotation.insertRow(i)
             keyl = QTableWidgetItem(key)
             iteml = QTableWidgetItem(str(annotation[key]))
-            self.species_mask.annotation.setItem(i, 0, keyl)
-            self.species_mask.annotation.setItem(i, 1, iteml)
+            self.metabolites_mask.annotation.setItem(i, 0, keyl)
+            self.metabolites_mask.annotation.setItem(i, 1, iteml)
             i += 1
 
-        self.species_mask.annotation.itemChanged.connect(
-            self.species_mask.species_data_changed)
+        self.metabolites_mask.annotation.itemChanged.connect(
+            self.metabolites_mask.metabolites_data_changed)
 
     def emit_changedModel(self):
-        self.last_selected = self.species_mask.id.text()
+        self.last_selected = self.metabolites_mask.id.text()
         self.changedModel.emit()
 
-    def species_selected(self, item, _column):
-        # print("species_selected")
+    def update_selected(self, string):
+        print("metabolite_list:update_selected", string)
+        root = self.metabolite_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            item.setHidden(True)
+
+        for item in self.metabolite_list.findItems(string, Qt.MatchContains, 0):
+            item.setHidden(False)
+        for item in self.metabolite_list.findItems(string, Qt.MatchContains, 1):
+            item.setHidden(False)
+
+    def metabolites_selected(self, item, _column):
+        # print("metabolites_selected")
         if item is None:
-            self.species_mask.hide()
+            self.metabolites_mask.hide()
         else:
-            self.species_mask.show()
-            species: cobra.Metabolite = item.data(2, 0)
-            self.species_mask.id.setText(species.id)
-            self.species_mask.name.setText(species.name)
-            self.species_mask.formula.setText(species.formula)
-            self.species_mask.charge.setText(str(species.charge))
-            self.species_mask.compartment.setText(species.compartment)
-            self.update_annotations(species.annotation)
-            self.species_mask.old = species
-            self.species_mask.changed = False
-            self.species_mask.update_state()
+            self.metabolites_mask.show()
+            metabolites: cobra.Metabolite = item.data(2, 0)
+            self.metabolites_mask.id.setText(metabolites.id)
+            self.metabolites_mask.name.setText(metabolites.name)
+            self.metabolites_mask.formula.setText(metabolites.formula)
+            self.metabolites_mask.charge.setText(str(metabolites.charge))
+            self.metabolites_mask.compartment.setText(metabolites.compartment)
+            self.update_annotations(metabolites.annotation)
+            self.metabolites_mask.old = metabolites
+            self.metabolites_mask.changed = False
+            self.metabolites_mask.update_state()
 
     def update(self):
-        # print("SpeciesList::update")
-        self.species_list.clear()
+        # print("MetaboliteList::update")
+        self.metabolite_list.clear()
         for m in self.appdata.project.cobra_py_model.metabolites:
-            self.add_species(m)
+            self.add_metabolites(m)
 
         if self.last_selected is None:
             pass
         else:
             # print("something was previosly selected")
-            items = self.species_list.findItems(
+            items = self.metabolite_list.findItems(
                 self.last_selected, Qt.MatchExactly)
 
             for i in items:
-                self.species_list.setCurrentItem(i)
+                self.metabolite_list.setCurrentItem(i)
                 print(i.text(0))
                 break
 
@@ -117,8 +130,8 @@ class SpeciesList(QWidget):
     changedModel = Signal()
 
 
-class SpeciesMask(QWidget):
-    """The input mask for a species"""
+class metabolitesMask(QWidget):
+    """The input mask for a metabolites"""
 
     def __init__(self, appdata):
         QWidget.__init__(self)
@@ -186,12 +199,12 @@ class SpeciesMask(QWidget):
 
         self.setLayout(layout)
 
-        self.id.textEdited.connect(self.species_data_changed)
-        self.name.textEdited.connect(self.species_data_changed)
-        self.formula.textEdited.connect(self.species_data_changed)
-        self.charge.textEdited.connect(self.species_data_changed)
-        self.compartment.textEdited.connect(self.species_data_changed)
-        self.annotation.itemChanged.connect(self.species_data_changed)
+        self.id.textEdited.connect(self.metabolites_data_changed)
+        self.name.textEdited.connect(self.metabolites_data_changed)
+        self.formula.textEdited.connect(self.metabolites_data_changed)
+        self.charge.textEdited.connect(self.metabolites_data_changed)
+        self.compartment.textEdited.connect(self.metabolites_data_changed)
+        self.annotation.itemChanged.connect(self.metabolites_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.update_state()
 
@@ -202,9 +215,9 @@ class SpeciesMask(QWidget):
 
     def apply(self):
         if self.old is None:
-            self.old = cobra.Species(
+            self.old = cobra.metabolites(
                 id=self.id.text())
-            self.appdata.project.cobra_py_model.add_species(self.old)
+            self.appdata.project.cobra_py_model.add_metabolites(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -226,10 +239,10 @@ class SpeciesMask(QWidget):
                 self.old.annotation[key] = value
 
             self.changed = False
-            self.changedspeciesList.emit()
+            self.changedMetaboliteList.emit()
 
     def verify_id(self):
-        # print("SpeciesMask::verify_id")
+        # print("metabolitesMask::verify_id")
         palette = self.id.palette()
         role = self.id.foregroundRole()
         palette.setColor(role, Qt.black)
@@ -247,7 +260,7 @@ class SpeciesMask(QWidget):
                 return True
 
     def verify_name(self):
-        # print("SpeciesMask::verify_name")
+        # print("metabolitesMask::verify_name")
         palette = self.name.palette()
         role = self.name.foregroundRole()
         palette.setColor(role, Qt.black)
@@ -310,13 +323,13 @@ class SpeciesMask(QWidget):
         else:
             self.is_valid = False
 
-    def species_data_changed(self):
+    def metabolites_data_changed(self):
         self.changed = True
         self.verify_mask()
         self.update_state()
 
     def update_state(self):
-        # print("SpeciesMask::update_state")
+        # print("metabolitesMask::update_state")
         if self.old is None:
             pass
         else:
@@ -325,4 +338,4 @@ class SpeciesMask(QWidget):
             else:
                 self.apply_button.setEnabled(False)
 
-    changedspeciesList = Signal()
+    changedMetaboliteList = Signal()
