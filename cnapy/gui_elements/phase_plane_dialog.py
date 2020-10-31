@@ -1,7 +1,10 @@
 """The cnapy phase plane plot dialog"""
-from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QVBoxLayout)
+import matplotlib.pyplot as plt
+import pandas
+from matplotlib.pyplot import scatter
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
+                            QLineEdit, QPushButton, QVBoxLayout)
 
 
 class CompleterLineEdit(QLineEdit):
@@ -91,13 +94,50 @@ class PhasePlaneDialog(QDialog):
             self.appdata.project.load_scenario_into_model(model)
             x_axis = self.x_axis.text()
             y_axis = self.y_axis.text()
+
             result = phenotypic_phase_plane(model,
                                             variables=[
                                                 model.reactions.get_by_id(x_axis)],
                                             objective=model.reactions.get_by_id(
                                                 y_axis),
-                                            points=10)
-            print(result)
-            result.plot()
+                                            points=100)
+
+            fig, ax = plt.subplots()
+
+            variable = result.variable_ids[0]
+            y_axis_label = result._axis_label(
+                result.objective, result.nice_objective_id, 'flux')
+            x_axis_label = result._axis_label(
+                variable, result.nice_variable_ids[0], '[mmol gDW^-1 h^-1]')
+            ax.set_xlabel(x_axis_label)
+            ax.set_ylabel(y_axis_label)
+            dataframe = pandas.DataFrame(
+                columns=["ub", "lb", "value", "strain"])
+
+            for _, row in result.iterrows():
+                _df = pandas.DataFrame([[row['objective_upper_bound'], row['objective_lower_bound'], row[variable], "WT"]],
+                                       columns=dataframe.columns)
+                dataframe = dataframe.append(_df)
+
+            # plotter
+            variables = dataframe["strain"].unique()
+            for variable in variables:
+                _dataframe = dataframe[dataframe["strain"] == variable]
+
+                ub = _dataframe["ub"].values.tolist()
+                lb = _dataframe["lb"].values.tolist()
+                var = _dataframe["value"].values.tolist()
+
+                x = [v for v in var] + [v for v in reversed(var)]
+                y = [v for v in lb] + [v for v in reversed(ub)]
+
+                if lb[0] != ub[0]:
+                    x.extend([var[0], var[0]])
+                    y.extend([lb[0], ub[0]])
+
+                plt.scatter(x, y)
+
+            # display the plot
+            plt.show()
 
         self.accept()
