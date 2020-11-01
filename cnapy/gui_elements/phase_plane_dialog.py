@@ -135,7 +135,7 @@ class PhasePlaneDialog(QDialog):
                     x.extend([var[0], var[0]])
                     y.extend([lb[0], ub[0]])
 
-                plt.scatter(x, y)
+                plt.plot(x, y)
 
             # display the plot
             plt.show()
