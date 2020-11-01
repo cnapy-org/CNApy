@@ -33,7 +33,6 @@ class CentralWidget(QWidget):
         self.maps: list = []
 
         # Create an in-process kernel
-
         kernel_manager = QtInProcessKernelManager()
         kernel_manager.start_kernel(show_banner=False)
         kernel = kernel_manager.kernel
@@ -45,6 +44,9 @@ class CentralWidget(QWidget):
         kernel_client = kernel_manager.client()
         kernel_client.start_channels()
 
+        # Check if client is working
+        kernel_client.execute('import matplotlib.pyplot as plt')
+        kernel_client.execute('%matplotlib inline')
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = kernel_client
