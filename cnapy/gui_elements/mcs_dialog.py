@@ -247,9 +247,6 @@ class MCSDialog(QDialog):
         legacy.createCobraModel(self.appdata)
 
         print(".")
-        self.eng.eval("startcna(1)", nargout=0,
-                      stdout=self.out, stderr=self.err)
-        print(".")
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
         print(".")
