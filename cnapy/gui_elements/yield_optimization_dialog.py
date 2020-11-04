@@ -92,14 +92,32 @@ class YieldOptimizationDialog(QDialog):
         # create CobraModel for matlab
         legacy.createCobraModel(self.appdata)
 
-        print(".")
         a = self.eng.eval("load('cobra_model.mat')",
                           nargout=0)
-        print(".")
         a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
                           nargout=0)
-        print(".")
 
+        # get some data
+        a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
+                          nargout=0)
+        reac_id = []
+        if legacy.is_matlab_ready():
+            reac_id = self.eng.workspace['reac_id']
+        elif legacy.is_octave_ready():
+            reac_id = self.eng.pull('reac_id')
+            reac_id = reac_id.tolist()[0]
+        else:
+            print("Error: Neither matlab nor octave found")
+# rem=answer{1,1};
+# if (isempty(rem))
+#     msgbox('No reaction defined for vector c!');
+#     return;
+# end
+        c_elements = self.c.text().split(",")
+        print(c_elements)
+        for c_element in c_elements:
+            (reacid, factor) = c_element.split(" ")
+            print((reacid, factor))
         code = "c=zeros(1,cnap.numr); \
                 zw=[]; \
                 numopt=0; \
