@@ -10,7 +10,7 @@ dependencies:
   - openjdk=8
   - matplotlib-base
   - pip
-  - python
+  - python=3.7
   - qtpy=1.9
   - pyside2
   - pip:
