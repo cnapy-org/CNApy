@@ -1,10 +1,10 @@
 """The PyNetAnalyzer metabolite list"""
 import cobra
-from PySide2.QtCore import Qt, Signal
-from PySide2.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QSplitter,
-                               QTableWidget, QTableWidgetItem, QTreeWidget,
-                               QTreeWidgetItem, QVBoxLayout, QWidget)
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+                            QMessageBox, QPushButton, QSplitter,
+                            QTableWidget, QTableWidgetItem, QTreeWidget,
+                            QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
 
@@ -38,8 +38,10 @@ class MetaboliteList(QWidget):
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
-        self.metabolite_list.currentItemChanged.connect(self.metabolites_selected)
-        self.metabolites_mask.changedMetaboliteList.connect(self.emit_changedModel)
+        self.metabolite_list.currentItemChanged.connect(
+            self.metabolites_selected)
+        self.metabolites_mask.changedMetaboliteList.connect(
+            self.emit_changedModel)
 
     def clear(self):
         self.metabolite_list.clear()

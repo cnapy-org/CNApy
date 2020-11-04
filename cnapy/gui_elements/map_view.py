@@ -4,13 +4,13 @@ from ast import literal_eval as make_tuple
 from math import isclose
 from typing import Dict, Tuple
 
-from PySide2.QtCore import QMimeData, QRectF, Qt, Signal
-from PySide2.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
-from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QGraphicsItem, QGraphicsScene,
-                               QGraphicsSceneDragDropEvent,
-                               QGraphicsSceneMouseEvent, QGraphicsView,
-                               QLineEdit, QMenu, QWidget)
+from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
+from qtpy.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QGraphicsItem, QGraphicsScene,
+                            QGraphicsSceneDragDropEvent,
+                            QGraphicsSceneMouseEvent, QGraphicsView,
+                            QLineEdit, QMenu, QWidget)
 
 from cnapy.cnadata import CnaData
 

@@ -1,12 +1,12 @@
 """The CellNetAnalyzer reactions list"""
 import cobra
-from PySide2.QtCore import Qt, Signal, Slot
-from PySide2.QtGui import QIcon
-from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
-                               QLineEdit, QMessageBox, QPushButton,
-                               QSizePolicy, QSplitter, QTableWidget,
-                               QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-                               QVBoxLayout, QWidget)
+from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
+                            QLineEdit, QMessageBox, QPushButton,
+                            QSizePolicy, QSplitter, QTableWidget,
+                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
+                            QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
 

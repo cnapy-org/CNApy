@@ -4,11 +4,11 @@ import traceback
 import sys
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
-                               QDialog, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLabel, QLineEdit, QMessageBox, QPushButton,
-                               QRadioButton, QTableWidget, QVBoxLayout)
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
+                            QDialog, QGroupBox, QHBoxLayout, QHeaderView,
+                            QLabel, QLineEdit, QMessageBox, QPushButton,
+                            QRadioButton, QTableWidget, QVBoxLayout)
 
 
 class MCSDialog(QDialog):
@@ -283,6 +283,10 @@ class MCSDialog(QDialog):
         # TODO get solver
         self.eng.eval("solver = 'intlinprog';", nargout=0,
                       stdout=self.out, stderr=self.err)
+        # self.eng.eval("solver = 'java_cplex';", nargout=0,
+        #               stdout=self.out, stderr=self.err)
+        # self.eng.eval("solver = 'matlab_cplex';", nargout=0,
+        #               stdout=self.out, stderr=self.err)
 
         # TODO get search mode
         self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
