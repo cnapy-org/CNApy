@@ -88,11 +88,13 @@ class ClipboardCalculator(QDialog):
 
         for key in self.appdata.comp_values:
             if self.l3.isChecked():
-                lv = int(self.left_value.text())
+                lv = (float(self.left_value.text()),
+                      float(self.left_value.text()))
             else:
                 lv = l[key]
             if self.r3.isChecked():
-                rv = int(self.right_value.text())
+                rv = (float(self.right_value.text()),
+                      float(self.right_value.text()))
             else:
                 rv = r[key]
 
@@ -102,11 +104,13 @@ class ClipboardCalculator(QDialog):
         self.accept()
 
     def combine(self, lv, rv):
+        (llb, lub) = lv
+        (rlb, rub) = rv
         if self.op.currentText() == "+":
-            return lv+rv
+            return (llb+rlb, lub+rub)
         if self.op.currentText() == "-":
-            return lv-rv
+            return (llb-rlb, lub-rub)
         if self.op.currentText() == "*":
-            return lv*rv
+            return (llb*rlb, lub*rub)
         if self.op.currentText() == "\\":
-            return lv/rv
+            return (llb/rlb, lub/rub)
