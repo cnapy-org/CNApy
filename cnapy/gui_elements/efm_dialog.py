@@ -95,13 +95,10 @@ class EFMDialog(QDialog):
         # create CobraModel for matlab
         legacy.createCobraModel(self.appdata)
 
-        print(".")
         a = self.eng.eval("load('cobra_model.mat')",
                           nargout=0)
-        print(".")
         a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
                           nargout=0)
-        print(".")
 
         # get some data
         a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
@@ -114,10 +111,8 @@ class EFMDialog(QDialog):
             reac_id = reac_id.tolist()[0]
         else:
             print("Error: Neither matlab nor octave found")
-        print(reac_id)
 
         # setting parameters
-        print(".")
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
 
