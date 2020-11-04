@@ -8,6 +8,12 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
+from qtpy.QtCore import Slot
+from qtpy.QtGui import QColor, QIcon
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
+
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
@@ -16,13 +22,7 @@ from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
-from cnapy.legacy import get_matlab_engine
-from qtpy.QtCore import Slot
-from qtpy.QtGui import QColor, QIcon
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog,
-                            QGraphicsItem, QMainWindow, QMessageBox,
-                            QToolBar)
+from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 
 
 class MainWindow(QMainWindow):
@@ -174,7 +174,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        self.efm_action = QAction("Compute Elementary Flux Modes", self)
+        self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
 
@@ -194,16 +194,19 @@ class MainWindow(QMainWindow):
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
+        yield_optimization_action = QAction("Yield optimization ...", self)
+        yield_optimization_action.triggered.connect(self.optimize_yield)
+        self.analysis_menu.addAction(yield_optimization_action)
+
         self.help_menu = self.menu.addMenu("Help")
+
+        config_action = QAction("Configure CNApy ...", self)
+        self.help_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_dialog)
 
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
-
-        self.config_menu = self.menu.addMenu("Config")
-        config_action = QAction("Configure CNApy", self)
-        self.config_menu.addAction(config_action)
-        config_action.triggered.connect(self.show_config_dialog)
 
         update_action = QAction("Default Coloring", self)
         update_action.triggered.connect(central_widget.update)
@@ -235,6 +238,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def phase_plane(self, _checked):
         dialog = PhasePlaneDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def optimize_yield(self, _checked):
+        dialog = YieldOptimizationDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
@@ -655,17 +663,13 @@ class MainWindow(QMainWindow):
                 self.centralWidget().update()
 
     def efm(self):
-        import io
-        eng = get_matlab_engine()
         self.efm_dialog = EFMDialog(
-            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+            self.appdata, self.centralWidget())
         self.efm_dialog.open()
 
     def mcs(self):
-        import io
-        eng = get_matlab_engine()
         self.mcs_dialog = MCSDialog(
-            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+            self.appdata, self.centralWidget())
         self.mcs_dialog.open()
 
     def set_onoff(self):

@@ -1,26 +1,30 @@
 """The cnapy dialog for calculating minimal cut sets"""
 
-import traceback
+import io
 import sys
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
+import traceback
+
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
 
+import cnapy.legacy as legacy
+from cnapy.cnadata import CnaData
+from cnapy.legacy import get_matlab_engine
+
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""
 
-    def __init__(self, appdata: CnaData, centralwidget, engine, out, err):
+    def __init__(self, appdata: CnaData, centralwidget):
         QDialog.__init__(self)
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = engine
-        self.out = out
-        self.err = err
+        self.eng = get_matlab_engine()
+        self.out = io.StringIO()
+        self.err = io.StringIO()
 
         self.layout = QVBoxLayout()
         l1 = QLabel("Target Region(s)")
