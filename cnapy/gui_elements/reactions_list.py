@@ -1,5 +1,6 @@
 """The CellNetAnalyzer reactions list"""
 import cobra
+from math import isclose
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
@@ -68,7 +69,7 @@ class ReactionList(QWidget):
     def set_flux_value(self, item, key):
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
-            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
                 item.setData(
@@ -79,7 +80,7 @@ class ReactionList(QWidget):
             (vl, vu) = self.appdata.project.comp_values[key]
 
             # We differentiate special cases like (vl==vu)
-            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if len(self.appdata.project.modes) == 0:
                     item.setBackground(2, self.appdata.Compcolor)
                 else:
@@ -90,7 +91,11 @@ class ReactionList(QWidget):
 
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
-                if vl <= 0 and vu >= 0:
+                if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
+                    item.setBackground(2, self.appdata.SpecialColor1)
+                elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
+                    item.setBackground(2, self.appdata.SpecialColor1)
+                elif vl <= 0 and vu >= 0:
                     item.setBackground(2, self.appdata.SpecialColor1)
                 else:
                     item.setBackground(2, self.appdata.SpecialColor2)

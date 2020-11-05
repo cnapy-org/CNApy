@@ -80,10 +80,7 @@ class ConfigDialog(QDialog):
         h6.addWidget(self.rounding)
         self.layout.addItem(h6)
         # self.Defaultcolor = Qt.gray
-        # self.rel_tol = 1e-9
         # self.abs_tol = 0.0001
-
-        # self.rounding = 3
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
