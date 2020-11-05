@@ -3,48 +3,16 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - ca-certificates=2020.6.20=hecda079_0
-  - certifi=2020.6.20=py37hc8dfbb8_0
-  - icu=64.2=he025d50_1
-  - jpeg=9d=he774522_0
-  - libclang=9.0.1=default_hf44288c_0
-  - libiconv=1.15=hfa6e2cd_1006
-  - libpng=1.6.37=hfe6a214_1
-  - libxml2=2.9.10=h5d81f1c_2
-  - libxslt=1.1.33=h579f668_1
-  - openssl=1.1.1g=he774522_1
-  - pip=20.1.1=py37_1
-  - pyside2=5.13.2=py37hfa7ce6d_2
-  - python=3.7.7=h81c818b_4
-  - python_abi=3.7=1_cp37m
-  - qt=5.12.5=h7ef1ec2_0
-  - setuptools=49.2.0=py37_0
-  - sqlite=3.32.3=h2a8f88b_0
-  - vc=14.1=h0510ff6_4
-  - vs2015_runtime=14.16.27012=hf0eaf9b_3
-  - wheel=0.34.2=py37_0
-  - wincertstore=0.2=py37_0
-  - zlib=1.2.11=h62dcd97_4
-  - plotly
+  - matplotlib-base
   - oct2py=5.2
   - openjdk=8
+  - pip
+  - pyside2
+  - python=3.7
+  - qtpy=1.9
   - pip:
-    - cameo
+    - qtconsole==4.7.7
+    - cameo==0.11.15
     - cobra==0.18.1
-    - depinfo==1.5.4
-    - future==0.18.2
-    - mpmath==1.1.0
-    - numpy==1.19.1
-    - optlang==1.4.4
-    - pandas==1.1.0
-    - pipdeptree==1.0.0
-    - python-dateutil==2.8.1
-    - python-libsbml-experimental==5.18.1
-    - pytz==2020.1
-    - ruamel-yaml==0.16.10
-    - ruamel-yaml-clib==0.2.0
-    - six==1.15.0
-    - swiglpk==4.65.1
-    - sympy==1.6.1
 prefix: /scratch/miniconda3/envs/cnapy
 
