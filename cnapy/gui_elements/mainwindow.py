@@ -8,12 +8,6 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from qtpy.QtCore import Slot
-from qtpy.QtGui import QColor, QIcon
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar)
-
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
@@ -22,7 +16,13 @@ from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
-from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
+from cnapy.gui_elements.yield_optimization_dialog import \
+    YieldOptimizationDialog
+from qtpy.QtCore import Slot
+from qtpy.QtGui import QColor, QIcon
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -105,11 +105,12 @@ class MainWindow(QMainWindow):
             self.set_model_bounds_to_scenario)
 
         heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon.fromTheme("weather-clear"))
+        heaton_action.setIcon(QIcon("cnapy/data/heat.svg"))
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
 
         onoff_action = QAction("Apply On/Off coloring", self)
+        onoff_action.setIcon(QIcon("cnapy/data/onoff.svg"))
         onoff_action.triggered.connect(self.set_onoff)
         self.scenario_menu.addAction(onoff_action)
 
@@ -212,6 +213,7 @@ class MainWindow(QMainWindow):
         update_action.triggered.connect(central_widget.update)
 
         set_default_scenario_action = QAction("Default scenario", self)
+        set_default_scenario_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
