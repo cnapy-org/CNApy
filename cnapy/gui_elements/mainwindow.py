@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
         update_action = QAction("Default Coloring", self)
+        update_action.setIcon(QIcon("cnapy/data/default-color.svg"))
         update_action.triggered.connect(central_widget.update)
 
         set_default_scenario_action = QAction("Default scenario", self)
@@ -401,7 +402,7 @@ class MainWindow(QMainWindow):
             if 'cnapy-default' in r.annotation.keys():
                 self.centralWidget().update_reaction_value(
                     r.id, r.annotation['cnapy-default'])
-        self.centralWidget().reaction_list.update()
+        self.centralWidget().update()
 
     @Slot()
     def new_project(self, _checked):
