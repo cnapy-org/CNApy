@@ -16,7 +16,7 @@ from cnapy.legacy import get_matlab_engine
 
 
 class CompleterLineEdit(QLineEdit):
-    # does new completion after Plussig '+'
+    # does new completion after Plus '+'
 
     def __init__(self, wordlist, *args):
         QLineEdit.__init__(self, *args)
