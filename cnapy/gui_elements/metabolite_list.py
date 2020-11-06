@@ -1,13 +1,12 @@
 """The PyNetAnalyzer metabolite list"""
 import cobra
+from cnapy.cnadata import CnaData
+from cnapy.utils import *
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-                            QMessageBox, QPushButton, QSplitter,
-                            QTableWidget, QTableWidgetItem, QTreeWidget,
-                            QTreeWidgetItem, QVBoxLayout, QWidget)
-
-from cnapy.utils import *
-from cnapy.cnadata import CnaData
+                            QMessageBox, QPushButton, QSplitter, QTableWidget,
+                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
+                            QVBoxLayout, QWidget)
 
 
 class MetaboliteList(QWidget):
@@ -253,11 +252,20 @@ class metabolitesMask(QWidget):
 
     def validate_id(self):
         # print("metabolitesMask::validate_id")
+
+        import sys
+        import traceback
         with self.appdata.project.cobra_py_model as model:
+            text = self.id.text()
+            if ' ' in text:
+                turn_red(self.id)
+                return False
             try:
                 m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
-            except:
+            except Exception:
+
+                traceback.print_exception(*sys.exc_info())
                 turn_red(self.id)
                 return False
             else:
