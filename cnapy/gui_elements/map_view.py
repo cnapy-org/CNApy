@@ -266,7 +266,7 @@ class ReactionBox(QGraphicsItem):
 
     def returnPressed(self):
         print(self.id, "return pressed to", self.item.text())
-        if verify_value(self.item.text()):
+        if validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
 
         # TODO: actually I want to repaint
@@ -278,7 +278,7 @@ class ReactionBox(QGraphicsItem):
         if test == "":
             self.map.value_changed(self.id, test)
             self.set_color(self.map.appdata.Defaultcolor)
-        elif verify_value(self.item.text()):
+        elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
                 self.set_color(self.map.appdata.Scencolor)
@@ -312,7 +312,7 @@ class ReactionBox(QGraphicsItem):
         test = value.replace(" ", "")
         if test == "":
             self.set_color(self.map.appdata.Defaultcolor)
-        elif verify_value(value):
+        elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.id]
 
@@ -416,7 +416,7 @@ class ReactionBox(QGraphicsItem):
         self.map.drag = False
 
 
-def verify_value(value):
+def validate_value(value):
     try:
         x = float(value)
     except:

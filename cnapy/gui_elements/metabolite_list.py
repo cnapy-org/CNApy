@@ -6,6 +6,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
                             QTreeWidgetItem, QVBoxLayout, QWidget)
 
+from cnapy.utils import *
 from cnapy.cnadata import CnaData
 
 
@@ -104,6 +105,13 @@ class MetaboliteList(QWidget):
             self.update_annotations(metabolites.annotation)
             self.metabolites_mask.old = metabolites
             self.metabolites_mask.changed = False
+
+            turn_white(self.metabolites_mask.id)
+            turn_white(self.metabolites_mask.name)
+            turn_white(self.metabolites_mask.formula)
+            turn_white(self.metabolites_mask.charge)
+            turn_white(self.metabolites_mask.compartment)
+            self.metabolites_mask.is_valid = True
             self.metabolites_mask.update_state()
 
     def update(self):
@@ -208,7 +216,7 @@ class metabolitesMask(QWidget):
         self.compartment.textEdited.connect(self.metabolites_data_changed)
         self.annotation.itemChanged.connect(self.metabolites_data_changed)
         self.apply_button.clicked.connect(self.apply)
-        self.update_state()
+        self.validate_mask()
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
@@ -243,92 +251,71 @@ class metabolitesMask(QWidget):
             self.changed = False
             self.changedMetaboliteList.emit()
 
-    def verify_id(self):
-        # print("metabolitesMask::verify_id")
-        palette = self.id.palette()
-        role = self.id.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.id.setPalette(palette)
-
+    def validate_id(self):
+        # print("metabolitesMask::validate_id")
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
             except:
-                self.id.setStyleSheet("background: #ff9999")
+                turn_red(self.id)
                 return False
             else:
-                self.id.setStyleSheet("background: white")
+                turn_white(self.id)
                 return True
 
-    def verify_name(self):
-        # print("metabolitesMask::verify_name")
-        palette = self.name.palette()
-        role = self.name.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.name.setPalette(palette)
-
+    def validate_name(self):
+        # print("metabolitesMask::validate_name")
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
                 model.add_metabolites([m])
             except:
-                self.name.setStyleSheet("background: #ff9999")
+                turn_red(self.name)
                 return False
             else:
-                self.name.setStyleSheet("background: white")
+                turn_white(self.name)
                 return True
 
-    def verify_formula(self):
-
-        self.formula.setStyleSheet("background: white")
-        palette = self.formula.palette()
-        role = self.formula.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.formula.setPalette(palette)
+    def validate_formula(self):
         return True
 
-    def verify_charge(self):
-
-        palette = self.charge.palette()
-        role = self.charge.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.charge.setPalette(palette)
+    def validate_charge(self):
         try:
             x = int(self.charge.text())
         except:
-            self.charge.setStyleSheet("background: #ff9999")
+            turn_red(self.charge)
             return False
         else:
-            self.charge.setStyleSheet("background: white")
+            turn_white(self.charge)
             return True
 
-    def verify_compartment(self):
-
-        palette = self.compartment.palette()
-        role = self.compartment.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.compartment.setPalette(palette)
-
+    def validate_compartment(self):
         try:
             m = cobra.Metabolite(id="test_id", name=self.compartment.text())
         except:
-            self.compartment.setStyleSheet("background: #ff9999")
+            turn_red(self.compartment)
             return False
         else:
-            self.compartment.setStyleSheet("background: white")
+            turn_white(self.compartment)
             return True
 
-    def verify_mask(self):
-        if self.verify_id() & self.verify_name() & self.verify_formula() & self.verify_charge() & self.verify_compartment():
+    def validate_mask(self):
+        valid_id = self.validate_id()
+        valid_name = self.validate_name()
+        valid_formula = self.validate_formula()
+        valid_charge = self.validate_charge()
+        valid_compartment = self.validate_compartment()
+        if valid_id & valid_name & valid_formula & valid_charge & valid_compartment:
             self.is_valid = True
         else:
             self.is_valid = False
 
+        self.update_state()
+
     def metabolites_data_changed(self):
         self.changed = True
-        self.verify_mask()
-        self.update_state()
+        self.validate_mask()
 
     def update_state(self):
         # print("metabolitesMask::update_state")
