@@ -65,6 +65,14 @@ class ReactionList(QWidget):
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
         self.set_flux_value(item, reaction.id)
+
+        text = "Id: " + reaction.id + "\nName: " + reaction.name \
+            + "\nEquation: " + reaction.build_reaction_string()\
+            + "\nLowerbound: " + str(reaction.lower_bound) \
+            + "\nUpper bound: " + str(reaction.upper_bound) \
+            + "\nObjective coefficient: " + str(reaction.objective_coefficient)
+
+        item.setToolTip(1, text)
         item.setData(3, 0, reaction)
 
     def set_flux_value(self, item, key):
@@ -117,7 +125,8 @@ class ReactionList(QWidget):
         self.reaction_mask.upper_bound.setText(str(reaction.upper_bound))
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
-        # self.reaction_mask.variance.setText()
+        self.reaction_mask.gene_reaction_rule.setText(
+            str(reaction.gene_reaction_rule))
         self.update_annotations({})
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
@@ -129,6 +138,7 @@ class ReactionList(QWidget):
         turn_white(self.reaction_mask.lower_bound)
         turn_white(self.reaction_mask.upper_bound)
         turn_white(self.reaction_mask.coefficent)
+        turn_white(self.reaction_mask.gene_reaction_rule)
         self.reaction_mask.is_valid = False
         self.reaction_mask.update_state()
 
@@ -167,7 +177,8 @@ class ReactionList(QWidget):
             self.reaction_mask.upper_bound.setText(str(reaction.upper_bound))
             self.reaction_mask.coefficent.setText(
                 str(reaction.objective_coefficient))
-            # self.reaction_mask.variance.setText()
+            self.reaction_mask.gene_reaction_rule.setText(
+                str(reaction.gene_reaction_rule))
             self.update_annotations(reaction.annotation)
 
             self.reaction_mask.old = reaction
@@ -180,6 +191,7 @@ class ReactionList(QWidget):
             turn_white(self.reaction_mask.lower_bound)
             turn_white(self.reaction_mask.upper_bound)
             turn_white(self.reaction_mask.coefficent)
+            turn_white(self.reaction_mask.gene_reaction_rule)
             self.reaction_mask.is_valid = True
             self.reaction_mask.update_state()
 
@@ -349,12 +361,12 @@ class ReactionMask(QWidget):
         l.addWidget(self.coefficent)
         layout.addItem(l)
 
-        # l = QHBoxLayout()
-        # label = QLabel("Variance of meassures:")
-        # self.variance = QLineEdit()
-        # l.addWidget(label)
-        # l.addWidget(self.variance)
-        # layout.addItem(l)
+        l = QHBoxLayout()
+        label = QLabel("Gene reaction rule:")
+        self.gene_reaction_rule = QLineEdit()
+        l.addWidget(label)
+        l.addWidget(self.gene_reaction_rule)
+        layout.addItem(l)
 
         l = QVBoxLayout()
         label = QLabel("Annotations:")
@@ -396,7 +408,7 @@ class ReactionMask(QWidget):
         self.lower_bound.textEdited.connect(self.reaction_data_changed)
         self.upper_bound.textEdited.connect(self.reaction_data_changed)
         self.coefficent.textEdited.connect(self.reaction_data_changed)
-        # self.variance.textEdited.connect(self.reaction_data_changed)
+        self.gene_reaction_rule.textEdited.connect(self.reaction_data_changed)
         self.annotation.itemChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
@@ -427,6 +439,7 @@ class ReactionMask(QWidget):
             self.old.lower_bound = float(self.lower_bound.text())
             self.old.upper_bound = float(self.upper_bound.text())
             self.old.objective_coefficient = float(self.coefficent.text())
+            self.old.gene_reaction_rule = self.gene_reaction_rule.text()
             self.old.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
@@ -530,6 +543,16 @@ class ReactionMask(QWidget):
             return False
         else:
             turn_white(self.coefficent)
+            return True
+
+    def validate_gene_reaction_rule(self):
+        try:
+            x = float(self.gene_reaction_rule.text())
+        except:
+            turn_red(self.gene_reaction_rule)
+            return False
+        else:
+            turn_white(self.gene_reaction_rule)
             return True
 
     def validate_mask(self):
