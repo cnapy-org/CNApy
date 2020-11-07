@@ -231,8 +231,15 @@ class ReactionBox(QGraphicsItem):
 
         self.item = QLineEdit()
         self.item.setMaximumWidth(80)
-        self.item.setToolTip(
-            self.map.appdata.project.maps[self.map.idx]["boxes"][id][2])
+        r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
+            id)
+        text = "Id: " + r.id + "\nName: " + r.name \
+            + "\nEquation: " + r.build_reaction_string()\
+            + "\nLowerbound: " + str(r.lower_bound) \
+            + "\nUpper bound: " + str(r.upper_bound) \
+            + "\nObjective coefficient: " + str(r.objective_coefficient)
+
+        self.item.setToolTip(text)
         self.proxy = self.map.scene.addWidget(self.item)
         self.proxy.show()
 
