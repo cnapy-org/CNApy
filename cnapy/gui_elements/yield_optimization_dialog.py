@@ -110,12 +110,9 @@ class YieldOptimizationDialog(QDialog):
         valid = True
         for elem in texts:
             match = self.polynom_re.fullmatch(elem)
-            print(match)
             if match == None:
                 valid = False
             else:
-                print('fak:', match.groupdict()['factor'])
-                print('reac_id:', match.groupdict()['reac_id'])
                 if match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
                     valid = False
         return valid
@@ -172,45 +169,54 @@ class YieldOptimizationDialog(QDialog):
             reac_id = reac_id.tolist()[0]
         else:
             print("Error: Neither matlab nor octave found")
-# rem=answer{1,1};
-# if (isempty(rem))
-#     msgbox('No reaction defined for vector c!');
-#     return;
-# end
-        c_elements = self.c.text().split(",")
-        print(c_elements)
-        for c_element in c_elements:
-            (reacid, factor) = c_element.split(" ")
-            print((reacid, factor))
-        code = "c=zeros(1,cnap.numr); \
-                zw=[]; \
-                numopt=0; \
-                while 1 \
-                    [pnr rem2]=strtok(rem); \
-                    if (isempty(pnr)) \
-                        break; \
-                    end \
-                    if(numopt==1) \
-                        zw3=str2num(pnr); \
-                        if(~isempty(zw3)) \
-                            c(zw2)=zw3; \
-                            rem=rem2; \
-                        end \
-                        numopt=0; \
-                    else \
-                        zw2=mfindstr(cnap.reacID,pnr); \
-                        if(zw2==0) \
-                            msgbox(['Could not find reaction identifier ''',pnr,''' .']); \
-                            return; \
-                        else \
-                            c(zw2)=1; \
-                            numopt=1; \
-                        end \
-                        rem=rem2; \
-                    end \
-                end"
 
+        c = []
+        c_elements = self.c.text().split('+')
+        for elem in c_elements:
+            match = self.polynom_re.fullmatch(elem)
+            reaction = match.groupdict()['reac_id']
+            factor = match.groupdict()['factor']
+            c.append((factor, reaction))
+        res = []
+        idx = 0
+        for r1 in reac_id:
+            res.append(0)
+            for (factor, r2) in c:
+                if r1 == r2:
+                    if factor == "":
+                        res[idx] = 1
+                    else:
+                        res[idx] = int(factor)
+                    break
+            idx = idx+1
+        code = "c =" + str(res)+";"
+        print(code)
         a = self.eng.eval(code, nargout=0)
+
+        d = []
+        d_elements = self.d.text().split('+')
+        for elem in d_elements:
+            match = self.polynom_re.fullmatch(elem)
+            reaction = match.groupdict()['reac_id']
+            factor = match.groupdict()['factor']
+            d.append((factor, reaction))
+        res = []
+        idx = 0
+        for r1 in reac_id:
+            res.append(0)
+            for (factor, r2) in d:
+                if r1 == r2:
+                    if factor == "":
+                        res[idx] = 1
+                    else:
+                        res[idx] = int(factor)
+                    break
+            idx = idx+1
+        code = "d =" + str(res)+";"
+        print(code)
+        a = self.eng.eval(code, nargout=0)
+
+        a = self.eng.eval("[constraints, c_macro]=CNAreadMFNValues(cnap);")
         if legacy.is_matlab_ready():
             try:
                 a = self.eng.eval(
