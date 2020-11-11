@@ -214,13 +214,28 @@ class YieldOptimizationDialog(QDialog):
             idx = idx+1
         code = "d =" + str(res)+";"
         print(code)
-        a = self.eng.eval(code, nargout=0)
+        self.eng.eval(code, nargout=0)
 
-        a = self.eng.eval("[constraints, c_macro]=CNAreadMFNValues(cnap);")
+        self.eng.eval("fixedFluxes =[];")
+        self.eng.eval("c_macro =[];")
+        # solver: selects the LP solver
+        # 0: GLPK (glpklp)
+        # 1: Matlab Optimization Toolbox (linprog)
+        # 2: CPLEX (cplexlp)
+        # -1: (default) Either the solver CPLEX or GLPK or MATLAB (linprog) is used
+        # (in this order), depending on availability.
+        self.eng.eval("solver =-1;")
+
+        # verbose: controls the output printed to the command line
+        # -1: suppress all output, even warnings
+        #  0: no solver output, but warnings and information on final result will be shown
+        #  1: as option '0' but with additional solver output
+        #  (default: 0)
+        self.eng.eval("verbose = 0;")
         if legacy.is_matlab_ready():
             try:
                 a = self.eng.eval(
-                    "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, constraints, c_macro, takelp,0);", nargout=0)
+                    "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
                 print(a)
             except Exception:
                 traceback.print_exception(*sys.exc_info())
@@ -235,7 +250,7 @@ class YieldOptimizationDialog(QDialog):
                 self.accept()
         elif legacy.is_octave_ready():
             a = self.eng.eval(
-                "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, constraints, c_macro, takelp,0);", nargout=0)
+                "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
             print(a)
 
             success = self.eng.pull('success')
