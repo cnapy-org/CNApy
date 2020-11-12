@@ -257,6 +257,9 @@ class metabolitesMask(QWidget):
         import traceback
         with self.appdata.project.cobra_py_model as model:
             text = self.id.text()
+            if text == "":
+                turn_red(self.id)
+                return False
             if ' ' in text:
                 turn_red(self.id)
                 return False
