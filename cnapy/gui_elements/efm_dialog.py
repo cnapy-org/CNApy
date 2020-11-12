@@ -95,27 +95,17 @@ class EFMDialog(QDialog):
         # create CobraModel for matlab
         legacy.createCobraModel(self.appdata)
 
-        a = self.eng.eval("load('cobra_model.mat')",
-                          nargout=0)
-        a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0)
+        print(".")
+        self.eng.read_cnapy_model()
+        print(".")
 
         # get some data
-        a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
-                          nargout=0, stdout=self.out, stderr=self.err)
-        reac_id = []
-        if legacy.is_matlab_ready():
-            reac_id = self.eng.workspace['reac_id']
-        elif legacy.is_octave_ready():
-            reac_id = self.eng.pull('reac_id')
-            reac_id = reac_id.tolist()[0]
-        else:
-            print("Error: Neither matlab nor octave found")
+        reac_id = self.eng.get_reacID()
+        print(reac_id)
 
         # setting parameters
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
-
         scenario = {}
         if self.constraints.checkState() == Qt.Checked:
             onoff_str = ""
