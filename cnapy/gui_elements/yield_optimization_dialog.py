@@ -1,18 +1,19 @@
 """The cnapy yield optimization dialog"""
 
+import re
 import sys
 import traceback
 
+import cnapy.legacy as legacy
 import matplotlib.pyplot as plt
 import pandas
+from cnapy.cnadata import CnaData
+from cnapy.gui_elements.centralwidget import CentralWidget
+from cnapy.legacy import get_matlab_engine
 from matplotlib.pyplot import scatter
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
-import re
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
-from cnapy.legacy import get_matlab_engine
 
 
 class CompleterLineEdit(QLineEdit):
@@ -51,10 +52,11 @@ class CompleterLineEdit(QLineEdit):
 class YieldOptimizationDialog(QDialog):
     """A dialog to perform yield optimization"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata: CnaData, centralwidget: CentralWidget):
         QDialog.__init__(self)
         self.setWindowTitle("Yield optimization")
         self.appdata = appdata
+        self.centralwidget = centralwidget
         self.eng = get_matlab_engine()
 
         self.polynom_re = re.compile(
@@ -150,112 +152,157 @@ class YieldOptimizationDialog(QDialog):
 
     def compute(self):
 
-        # create CobraModel for matlab
-        legacy.createCobraModel(self.appdata)
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
+            # create CobraModel for matlab
+            legacy.createCobraModel(self.appdata)
 
-        a = self.eng.eval("load('cobra_model.mat')",
-                          nargout=0)
-        a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0)
+            a = self.eng.eval("load('cobra_model.mat')",
+                              nargout=0)
+            a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                              nargout=0)
 
-        # get some data
-        a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
-                          nargout=0)
-        reac_id = []
-        if legacy.is_matlab_ready():
-            reac_id = self.eng.workspace['reac_id']
-        elif legacy.is_octave_ready():
-            reac_id = self.eng.pull('reac_id')
-            reac_id = reac_id.tolist()[0]
-        else:
-            print("Error: Neither matlab nor octave found")
+            # get some data
+            a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
+                              nargout=0)
+            reac_id = []
+            if legacy.is_matlab_ready():
+                reac_id = self.eng.workspace['reac_id']
+            elif legacy.is_octave_ready():
+                reac_id = self.eng.pull('reac_id')
+                reac_id = reac_id.tolist()[0]
+            else:
+                print("Error: Neither matlab nor octave found")
 
-        c = []
-        c_elements = self.c.text().split('+')
-        for elem in c_elements:
-            match = self.polynom_re.fullmatch(elem)
-            reaction = match.groupdict()['reac_id']
-            factor = match.groupdict()['factor']
-            c.append((factor, reaction))
-        res = []
-        idx = 0
-        for r1 in reac_id:
-            res.append(0)
-            for (factor, r2) in c:
-                if r1 == r2:
-                    if factor == "":
-                        res[idx] = 1
+            c = []
+            c_elements = self.c.text().split('+')
+            for elem in c_elements:
+                match = self.polynom_re.fullmatch(elem)
+                reaction = match.groupdict()['reac_id']
+                factor = match.groupdict()['factor']
+                c.append((factor, reaction))
+            res = []
+            idx = 0
+            for r1 in reac_id:
+                res.append(0)
+                for (factor, r2) in c:
+                    if r1 == r2:
+                        if factor == "":
+                            res[idx] = 1
+                        else:
+                            res[idx] = int(factor)
+                        break
+                idx = idx+1
+            code = "c =" + str(res)+";"
+            print(code)
+            a = self.eng.eval(code, nargout=0)
+
+            d = []
+            d_elements = self.d.text().split('+')
+            for elem in d_elements:
+                match = self.polynom_re.fullmatch(elem)
+                reaction = match.groupdict()['reac_id']
+                factor = match.groupdict()['factor']
+                d.append((factor, reaction))
+            res = []
+            idx = 0
+            for r1 in reac_id:
+                res.append(0)
+                for (factor, r2) in d:
+                    if r1 == r2:
+                        if factor == "":
+                            res[idx] = 1
+                        else:
+                            res[idx] = int(factor)
+                        break
+                idx = idx+1
+            code = "d =" + str(res)+";"
+            print(code)
+            self.eng.eval(code, nargout=0)
+
+            # res = []
+            # idx = 0
+            # for r in reac_id:
+            #     if r in self.appdata.project.scen_values.keys():
+            #         val = str(self.appdata.project.scen_values[r])
+            #     else:
+            #         val = "NaN"
+            #     res.append(val)
+            # code = "fixedFluxes =["
+            # for e in res:
+            #     code = code+e+","
+            # code = code[0:-1]+"];"
+
+            # print(code)
+            self.eng.eval("fixedFluxes =[];")
+            self.eng.eval("c_macro =[];")
+            # solver: selects the LP solver
+            # 0: GLPK (glpklp)
+            # 1: Matlab Optimization Toolbox (linprog)
+            # 2: CPLEX (cplexlp)
+            # -1: (default) Either the solver CPLEX or GLPK or MATLAB (linprog) is used
+            # (in this order), depending on availability.
+            self.eng.eval("solver =1;")
+
+            # verbose: controls the output printed to the command line
+            # -1: suppress all output, even warnings
+            #  0: no solver output, but warnings and information on final result will be shown
+            #  1: as option '0' but with additional solver output
+            #  (default: 0)
+            self.eng.eval("verbose = 0;")
+            if legacy.is_matlab_ready():
+                try:
+                    a = self.eng.eval(
+                        "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
+                    print(a)
+                except Exception:
+                    traceback.print_exception(*sys.exc_info())
+                    QMessageBox.warning(self, 'Unknown exception occured!',
+                                              'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                else:
+                    success = self.eng.workspace['success']
+                    status = self.eng.workspace['status']
+                    maxyield = self.eng.workspace['maxyield']
+                    flux_vec = self.eng.workspace['flux_vec']
+
+                    if success == 0.0:
+                        QMessageBox.warning(self, 'No Solution!',
+                                            'No solution found! Maybe unbound.\nStatus:'+str(status))
                     else:
-                        res[idx] = int(factor)
-                    break
-            idx = idx+1
-        code = "c =" + str(res)+";"
-        print(code)
-        a = self.eng.eval(code, nargout=0)
+                        QMessageBox.warning(self, 'Solution!',
+                                            'Maximum yield: '+str(maxyield))
+                        # write results into comp_values
+                        idx = 0
+                        for r in reac_id:
+                            val = flux_vec[idx][0]
+                            self.appdata.project.comp_values[r] = (
+                                float(val), float(val))
+                            idx = idx+1
+                        self.accept()
 
-        d = []
-        d_elements = self.d.text().split('+')
-        for elem in d_elements:
-            match = self.polynom_re.fullmatch(elem)
-            reaction = match.groupdict()['reac_id']
-            factor = match.groupdict()['factor']
-            d.append((factor, reaction))
-        res = []
-        idx = 0
-        for r1 in reac_id:
-            res.append(0)
-            for (factor, r2) in d:
-                if r1 == r2:
-                    if factor == "":
-                        res[idx] = 1
-                    else:
-                        res[idx] = int(factor)
-                    break
-            idx = idx+1
-        code = "d =" + str(res)+";"
-        print(code)
-        self.eng.eval(code, nargout=0)
-
-        self.eng.eval("fixedFluxes =[];")
-        self.eng.eval("c_macro =[];")
-        # solver: selects the LP solver
-        # 0: GLPK (glpklp)
-        # 1: Matlab Optimization Toolbox (linprog)
-        # 2: CPLEX (cplexlp)
-        # -1: (default) Either the solver CPLEX or GLPK or MATLAB (linprog) is used
-        # (in this order), depending on availability.
-        self.eng.eval("solver =-1;")
-
-        # verbose: controls the output printed to the command line
-        # -1: suppress all output, even warnings
-        #  0: no solver output, but warnings and information on final result will be shown
-        #  1: as option '0' but with additional solver output
-        #  (default: 0)
-        self.eng.eval("verbose = 0;")
-        if legacy.is_matlab_ready():
-            try:
+            elif legacy.is_octave_ready():
                 a = self.eng.eval(
                     "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
                 print(a)
-            except Exception:
-                traceback.print_exception(*sys.exc_info())
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
-            else:
-                success = self.eng.workspace['success']
-                status = self.eng.workspace['status']
-                maxyield = self.eng.workspace['maxyield']
-                flux_vec = self.eng.workspace['flux_vec']
 
-                self.accept()
-        elif legacy.is_octave_ready():
-            a = self.eng.eval(
-                "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
-            print(a)
+                success = self.eng.pull('success')
+                status = self.eng.pull('status')
+                maxyield = self.eng.pull('maxyield')
+                flux_vec = self.eng.pull('flux_vec')
 
-            success = self.eng.pull('success')
-            status = self.eng.pull('status')
-            maxyield = self.eng.pull('maxyield')
-            flux_vec = self.eng.pull('flux_vec')
+                if success == 0.0:
+                    QMessageBox.warning(self, 'No Solution!',
+                                              'No solution found! Maybe unbound.\nStatus:'+str(status))
+                else:
+                    QMessageBox.warning(self, 'Solution!',
+                                        'Maximum yield: '+str(maxyield))
 
-            self.accept()
+                    # write results into comp_values
+                    idx = 0
+                    for r in reac_id:
+                        val = flux_vec[idx][0]
+                        self.appdata.project.comp_values[r] = (
+                            float(val), float(val))
+                        idx = idx+1
+                    self.centralwidget.update()
+                    self.accept()

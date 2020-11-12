@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def optimize_yield(self, _checked):
-        dialog = YieldOptimizationDialog(self.appdata)
+        dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
 
     @Slot()
