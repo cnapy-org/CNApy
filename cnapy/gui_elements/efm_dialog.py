@@ -271,7 +271,7 @@ class EFMDialog(QDialog):
                           idx2, reaction, element)
                     count_ccc += 1
                     if element != 0:
-                        omode[reaction] = element
+                        omode[reaction] = float(element)
                 oems.append(omode)
 
             self.appdata.project.modes = oems
