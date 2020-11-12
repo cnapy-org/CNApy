@@ -1,10 +1,9 @@
 """The cnapy configuration dialog"""
-from qtpy.QtGui import QIntValidator, QPalette
-from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
-                            QLabel, QLineEdit, QPushButton, QVBoxLayout)
-
 from cnapy.cnadata import CnaData
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
+from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
+                            QLabel, QLineEdit, QPushButton, QVBoxLayout)
 
 
 class ConfigDialog(QDialog):
@@ -71,19 +70,37 @@ class ConfigDialog(QDialog):
 
         h6 = QHBoxLayout()
         label = QLabel(
-            "Shown number of digits after the decimal point:")
+            "Color used for empty reaction boxes:")
         h6.addWidget(label)
+        self.default_color_btn = QPushButton()
+        palette = self.default_color_btn.palette()
+        palette.setColor(QPalette.Button, self.appdata.Defaultcolor)
+        self.default_color_btn.setPalette(palette)
+        h6.addWidget(self.default_color_btn)
+        self.layout.addItem(h6)
+
+        h7 = QHBoxLayout()
+        label = QLabel(
+            "Shown number of digits after the decimal point:")
+        h7.addWidget(label)
         self.rounding = QLineEdit()
         self.rounding.setText(str(self.appdata.rounding))
         validator = QIntValidator(0, 20, self)
         self.rounding.setValidator(validator)
-        h6.addWidget(self.rounding)
-        self.layout.addItem(h6)
-        # self.Defaultcolor = Qt.gray
-        # self.rel_tol = 1e-9
-        # self.abs_tol = 0.0001
+        h7.addWidget(self.rounding)
+        self.layout.addItem(h7)
 
-        # self.rounding = 3
+        h8 = QHBoxLayout()
+        label = QLabel(
+            "Absolute tolerance used to compare float values in the UI:")
+        h8.addWidget(label)
+        self.abs_tol = QLineEdit()
+        self.abs_tol.setText(str(self.appdata.abs_tol))
+        validator = QDoubleValidator(self)
+        validator.setTop(1)
+        self.abs_tol.setValidator(validator)
+        h8.addWidget(self.abs_tol)
+        self.layout.addItem(h8)
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
@@ -99,6 +116,7 @@ class ConfigDialog(QDialog):
         self.comp_color_btn.clicked.connect(self.choose_comp_color)
         self.spec1_color_btn.clicked.connect(self.choose_spec1_color)
         self.spec2_color_btn.clicked.connect(self.choose_spec2_color)
+        self.default_color_btn.clicked.connect(self.choose_default_color)
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.apply)
 
@@ -146,6 +164,15 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn.setPalette(palette)
         pass
 
+    def choose_default_color(self):
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor()
+
+        palette = self.default_color_btn.palette()
+        palette.setColor(QPalette.Button, color)
+        self.default_color_btn.setPalette(palette)
+        pass
+
     def apply(self):
 
         self.appdata.cna_path = self.cna_path.text()
@@ -169,7 +196,11 @@ class ConfigDialog(QDialog):
         palette = self.spec2_color_btn.palette()
         self.appdata.SpecialColor2 = palette.color(QPalette.Button)
 
+        palette = self.default_color_btn.palette()
+        self.appdata.Defaultcolor = palette.color(QPalette.Button)
+
         self.appdata.rounding = int(self.rounding.text())
+        self.appdata.abs_tol = float(self.abs_tol.text())
 
         import configparser
         configFilePath = r'cnapy-config.txt'
@@ -184,8 +215,12 @@ class ConfigDialog(QDialog):
                    str(self.appdata.SpecialColor1.rgb()))
         parser.set('cnapy-config', 'spec2_color',
                    str(self.appdata.SpecialColor2.rgb()))
+        parser.set('cnapy-config', 'default_color',
+                   str(self.appdata.Defaultcolor.rgb()))
         parser.set('cnapy-config', 'rounding',
                    str(self.appdata.rounding))
+        parser.set('cnapy-config', 'abs_tol',
+                   str(self.appdata.abs_tol))
 
         fp = open(configFilePath, 'w')
         parser.write(fp)

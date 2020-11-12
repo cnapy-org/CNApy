@@ -48,7 +48,7 @@ class CompleterLineEdit(QLineEdit):
 
 
 class PhasePlaneDialog(QDialog):
-    """A dialog to perform arithmetics with the clipboard"""
+    """A dialog to create phase plane plots"""
 
     def __init__(self, appdata):
         QDialog.__init__(self)

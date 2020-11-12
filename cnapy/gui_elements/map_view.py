@@ -231,8 +231,15 @@ class ReactionBox(QGraphicsItem):
 
         self.item = QLineEdit()
         self.item.setMaximumWidth(80)
-        self.item.setToolTip(
-            self.map.appdata.project.maps[self.map.idx]["boxes"][id][2])
+        r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
+            id)
+        text = "Id: " + r.id + "\nName: " + r.name \
+            + "\nEquation: " + r.build_reaction_string()\
+            + "\nLowerbound: " + str(r.lower_bound) \
+            + "\nUpper bound: " + str(r.upper_bound) \
+            + "\nObjective coefficient: " + str(r.objective_coefficient)
+
+        self.item.setToolTip(text)
         self.proxy = self.map.scene.addWidget(self.item)
         self.proxy.show()
 
@@ -266,7 +273,7 @@ class ReactionBox(QGraphicsItem):
 
     def returnPressed(self):
         print(self.id, "return pressed to", self.item.text())
-        if verify_value(self.item.text()):
+        if validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
 
         # TODO: actually I want to repaint
@@ -278,7 +285,7 @@ class ReactionBox(QGraphicsItem):
         if test == "":
             self.map.value_changed(self.id, test)
             self.set_color(self.map.appdata.Defaultcolor)
-        elif verify_value(self.item.text()):
+        elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
                 self.set_color(self.map.appdata.Scencolor)
@@ -312,7 +319,7 @@ class ReactionBox(QGraphicsItem):
         test = value.replace(" ", "")
         if test == "":
             self.set_color(self.map.appdata.Defaultcolor)
-        elif verify_value(value):
+        elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.id]
 
@@ -337,7 +344,11 @@ class ReactionBox(QGraphicsItem):
                         else:
                             self.set_color(Qt.green)
                 else:
-                    if vl <= 0 and vu >= 0:
+                    if math.isclose(vl, 0.0, abs_tol=self.map.appdata.abs_tol):
+                        self.set_color(self.map.appdata.SpecialColor1)
+                    elif math.isclose(vu, 0.0, abs_tol=self.map.appdata.abs_tol):
+                        self.set_color(self.map.appdata.SpecialColor1)
+                    elif vl <= 0 and vu >= 0:
                         self.set_color(self.map.appdata.SpecialColor1)
                     else:
                         self.set_color(self.map.appdata.SpecialColor2)
@@ -412,7 +423,7 @@ class ReactionBox(QGraphicsItem):
         self.map.drag = False
 
 
-def verify_value(value):
+def validate_value(value):
     try:
         x = float(value)
     except:
