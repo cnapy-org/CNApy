@@ -54,10 +54,10 @@ def get_matlab_engine():
     return eng
 
 def is_matlab_ready():
-    return isinstance(eng, CNAMatlabEngine)
+    return meng is not None and isinstance(eng, CNAMatlabEngine)
 
 def is_octave_ready():
-    return isinstance(eng, CNAoctaveEngine)
+    return oeng is not None and isinstance(eng, CNAoctaveEngine)
 
 def use_matlab():
     global eng
