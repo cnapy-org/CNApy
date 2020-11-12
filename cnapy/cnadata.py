@@ -1,8 +1,8 @@
 from typing import Dict, Tuple
 
 import cobra
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QColor
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor
 
 
 class CnaData:
@@ -14,7 +14,6 @@ class CnaData:
         self.SpecialColor1 = Qt.yellow
         self.SpecialColor2 = QColor(170, 255, 0)  # for bounds excluding 0
         self.Defaultcolor = Qt.gray
-        self.rel_tol = 1e-9
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""

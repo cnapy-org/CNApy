@@ -1,27 +1,28 @@
 """The cnapy elementary flux modes calculator dialog"""
+import io
 import sys
 import traceback
 
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QIntValidator
-from PySide2.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout,
-                               QLabel, QLineEdit, QMessageBox, QPushButton,
-                               QVBoxLayout)
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QIntValidator
+from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
+                            QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
+from cnapy.legacy import get_matlab_engine
 
 
 class EFMDialog(QDialog):
     """A dialog to set up EFM calculation"""
 
-    def __init__(self, appdata: CnaData, centralwidget, engine, out, err):
+    def __init__(self, appdata: CnaData, centralwidget):
         QDialog.__init__(self)
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = engine
-        self.out = out
-        self.err = err
+        self.eng = get_matlab_engine()
+        self.out = io.StringIO()
+        self.err = io.StringIO()
 
         self.layout = QVBoxLayout()
 
@@ -103,8 +104,8 @@ class EFMDialog(QDialog):
         print(reac_id)
 
         # setting parameters
-        print(".")
-
+        a = self.eng.eval("constraints = {};",
+                          nargout=0, stdout=self.out, stderr=self.err)
         scenario = {}
         if self.constraints.checkState() == Qt.Checked:
             onoff_str = ""

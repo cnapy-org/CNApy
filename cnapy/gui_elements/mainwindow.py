@@ -16,13 +16,13 @@ from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
-from cnapy.legacy import get_matlab_engine
-from PySide2.QtCore import Slot
-from PySide2.QtGui import QColor, QIcon
-from PySide2.QtSvg import QGraphicsSvgItem
-from PySide2.QtWidgets import (QAction, QApplication, QFileDialog,
-                               QGraphicsItem, QMainWindow, QMessageBox,
-                               QToolBar)
+from cnapy.gui_elements.yield_optimization_dialog import \
+    YieldOptimizationDialog
+from qtpy.QtCore import Slot
+from qtpy.QtGui import QColor, QIcon
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -105,11 +105,12 @@ class MainWindow(QMainWindow):
             self.set_model_bounds_to_scenario)
 
         heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon.fromTheme("weather-clear"))
+        heaton_action.setIcon(QIcon("cnapy/data/heat.svg"))
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
 
         onoff_action = QAction("Apply On/Off coloring", self)
+        onoff_action.setIcon(QIcon("cnapy/data/onoff.svg"))
         onoff_action.triggered.connect(self.set_onoff)
         self.scenario_menu.addAction(onoff_action)
 
@@ -174,7 +175,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(fva_action)
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        self.efm_action = QAction("Compute Elementary Flux Modes", self)
+        self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
 
@@ -194,21 +195,26 @@ class MainWindow(QMainWindow):
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
+        yield_optimization_action = QAction("Yield optimization ...", self)
+        yield_optimization_action.triggered.connect(self.optimize_yield)
+        self.analysis_menu.addAction(yield_optimization_action)
+
         self.help_menu = self.menu.addMenu("Help")
+
+        config_action = QAction("Configure CNApy ...", self)
+        self.help_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_dialog)
 
         about_action = QAction("About cnapy...", self)
         self.help_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
-        self.config_menu = self.menu.addMenu("Config")
-        config_action = QAction("Configure CNApy", self)
-        self.config_menu.addAction(config_action)
-        config_action.triggered.connect(self.show_config_dialog)
-
         update_action = QAction("Default Coloring", self)
+        update_action.setIcon(QIcon("cnapy/data/default-color.svg"))
         update_action.triggered.connect(central_widget.update)
 
         set_default_scenario_action = QAction("Default scenario", self)
+        set_default_scenario_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
@@ -235,6 +241,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def phase_plane(self, _checked):
         dialog = PhasePlaneDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def optimize_yield(self, _checked):
+        dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
 
     @Slot()
@@ -391,7 +402,7 @@ class MainWindow(QMainWindow):
             if 'cnapy-default' in r.annotation.keys():
                 self.centralWidget().update_reaction_value(
                     r.id, r.annotation['cnapy-default'])
-        self.centralWidget().reaction_list.update()
+        self.centralWidget().update()
 
     @Slot()
     def new_project(self, _checked):
@@ -655,17 +666,13 @@ class MainWindow(QMainWindow):
                 self.centralWidget().update()
 
     def efm(self):
-        import io
-        eng = get_matlab_engine()
         self.efm_dialog = EFMDialog(
-            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+            self.appdata, self.centralWidget())
         self.efm_dialog.open()
 
     def mcs(self):
-        import io
-        eng = get_matlab_engine()
         self.mcs_dialog = MCSDialog(
-            self.appdata, self.centralWidget(), eng, io.StringIO(), io.StringIO())
+            self.appdata, self.centralWidget())
         self.mcs_dialog.open()
 
     def set_onoff(self):

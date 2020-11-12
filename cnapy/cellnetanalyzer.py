@@ -18,12 +18,12 @@ import configparser
 import sys
 
 import cobra
-from PySide2.QtWidgets import QApplication
+from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
-from PySide2.QtGui import QColor
 
 
 class CellNetAnalyzer:
@@ -89,18 +89,36 @@ class CellNetAnalyzer:
             self.appdata.SpecialColor2 = QColor.fromRgb(
                 4289396480)  # for bounds excluding 0
         try:
+            color = configParser.get(
+                'cnapy-config', 'default_color')
+            self.appdata.Defaultcolor = QColor.fromRgb(int(color))
+        except:
+            print("Could not read default_color in cnapy-config.txt")
+            self.appdata.Defaultcolor = QColor.fromRgb(
+                4289396480)
+        try:
             rounding = configParser.get(
                 'cnapy-config', 'rounding')
             self.appdata.rounding = int(rounding)
         except:
             print("Could not read rounding in cnapy-config.txt")
             self.appdata.rounding = 3
+        try:
+            abs_tol = configParser.get(
+                'cnapy-config', 'abs_tol')
+            self.appdata.abs_tol = float(abs_tol)
+        except:
+            print("Could not read abs_tol in cnapy-config.txt")
+            self.appdata.abs_tol = 0.000000001
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)
         self.window.show()
 
         # Execute application
+
+        self.qapp.aboutToQuit.connect(
+            self.window.centralWidget().shutdown_kernel)
         sys.exit(self.qapp.exec_())
 
     def model(self):

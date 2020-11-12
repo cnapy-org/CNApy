@@ -1,12 +1,14 @@
 """The CellNetAnalyzer reactions list"""
 import cobra
-from PySide2.QtCore import Qt, Signal, Slot
-from PySide2.QtGui import QIcon
-from PySide2.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
-                               QLineEdit, QMessageBox, QPushButton,
-                               QSizePolicy, QSplitter, QTableWidget,
-                               QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-                               QVBoxLayout, QWidget)
+from cnapy.utils import *
+from math import isclose
+from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
+                            QLineEdit, QMessageBox, QPushButton,
+                            QSizePolicy, QSplitter, QTableWidget,
+                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
+                            QVBoxLayout, QWidget)
 
 from cnapy.cnadata import CnaData
 
@@ -63,12 +65,20 @@ class ReactionList(QWidget):
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
         self.set_flux_value(item, reaction.id)
+
+        text = "Id: " + reaction.id + "\nName: " + reaction.name \
+            + "\nEquation: " + reaction.build_reaction_string()\
+            + "\nLowerbound: " + str(reaction.lower_bound) \
+            + "\nUpper bound: " + str(reaction.upper_bound) \
+            + "\nObjective coefficient: " + str(reaction.objective_coefficient)
+
+        item.setToolTip(1, text)
         item.setData(3, 0, reaction)
 
     def set_flux_value(self, item, key):
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
-            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
                 item.setData(
@@ -79,7 +89,7 @@ class ReactionList(QWidget):
             (vl, vu) = self.appdata.project.comp_values[key]
 
             # We differentiate special cases like (vl==vu)
-            if round(vl, self.appdata.rounding) == round(vu, self.appdata.rounding):
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if len(self.appdata.project.modes) == 0:
                     item.setBackground(2, self.appdata.Compcolor)
                 else:
@@ -90,7 +100,11 @@ class ReactionList(QWidget):
 
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
-                if vl <= 0 and vu >= 0:
+                if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
+                    item.setBackground(2, self.appdata.SpecialColor1)
+                elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
+                    item.setBackground(2, self.appdata.SpecialColor1)
+                elif vl <= 0 and vu >= 0:
                     item.setBackground(2, self.appdata.SpecialColor1)
                 else:
                     item.setBackground(2, self.appdata.SpecialColor2)
@@ -107,14 +121,25 @@ class ReactionList(QWidget):
         self.reaction_mask.id.setText(reaction.id)
         self.reaction_mask.name.setText(reaction.name)
         self.reaction_mask.equation.setText(reaction.build_reaction_string())
-        self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
-        self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
+        self.reaction_mask.lower_bound.setText(str(reaction.lower_bound))
+        self.reaction_mask.upper_bound.setText(str(reaction.upper_bound))
         self.reaction_mask.coefficent.setText(
             str(reaction.objective_coefficient))
-        # self.reaction_mask.variance.setText()
+        self.reaction_mask.gene_reaction_rule.setText(
+            str(reaction.gene_reaction_rule))
         self.update_annotations({})
         self.reaction_mask.old = None
         self.reaction_mask.changed = False
+
+        turn_red(self.reaction_mask.id)
+        turn_white(self.reaction_mask.name)
+        turn_white(self.reaction_mask.name)
+        turn_white(self.reaction_mask.equation)
+        turn_white(self.reaction_mask.lower_bound)
+        turn_white(self.reaction_mask.upper_bound)
+        turn_white(self.reaction_mask.coefficent)
+        turn_white(self.reaction_mask.gene_reaction_rule)
+        self.reaction_mask.is_valid = False
         self.reaction_mask.update_state()
 
     def update_annotations(self, annotation):
@@ -148,15 +173,26 @@ class ReactionList(QWidget):
             self.reaction_mask.name.setText(reaction.name)
             self.reaction_mask.equation.setText(
                 reaction.build_reaction_string())
-            self.reaction_mask.rate_min.setText(str(reaction.lower_bound))
-            self.reaction_mask.rate_max.setText(str(reaction.upper_bound))
+            self.reaction_mask.lower_bound.setText(str(reaction.lower_bound))
+            self.reaction_mask.upper_bound.setText(str(reaction.upper_bound))
             self.reaction_mask.coefficent.setText(
                 str(reaction.objective_coefficient))
-            # self.reaction_mask.variance.setText()
+            self.reaction_mask.gene_reaction_rule.setText(
+                str(reaction.gene_reaction_rule))
             self.update_annotations(reaction.annotation)
 
             self.reaction_mask.old = reaction
             self.reaction_mask.changed = False
+
+            turn_white(self.reaction_mask.id)
+            turn_white(self.reaction_mask.name)
+            turn_white(self.reaction_mask.name)
+            turn_white(self.reaction_mask.equation)
+            turn_white(self.reaction_mask.lower_bound)
+            turn_white(self.reaction_mask.upper_bound)
+            turn_white(self.reaction_mask.coefficent)
+            turn_white(self.reaction_mask.gene_reaction_rule)
+            self.reaction_mask.is_valid = True
             self.reaction_mask.update_state()
 
     def emit_changedModel(self):
@@ -306,16 +342,16 @@ class ReactionMask(QWidget):
 
         l = QHBoxLayout()
         label = QLabel("Rate min:")
-        self.rate_min = QLineEdit()
+        self.lower_bound = QLineEdit()
         l.addWidget(label)
-        l.addWidget(self.rate_min)
+        l.addWidget(self.lower_bound)
         layout.addItem(l)
 
         l = QHBoxLayout()
         label = QLabel("Rate max:")
-        self.rate_max = QLineEdit()
+        self.upper_bound = QLineEdit()
         l.addWidget(label)
-        l.addWidget(self.rate_max)
+        l.addWidget(self.upper_bound)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -325,12 +361,12 @@ class ReactionMask(QWidget):
         l.addWidget(self.coefficent)
         layout.addItem(l)
 
-        # l = QHBoxLayout()
-        # label = QLabel("Variance of meassures:")
-        # self.variance = QLineEdit()
-        # l.addWidget(label)
-        # l.addWidget(self.variance)
-        # layout.addItem(l)
+        l = QHBoxLayout()
+        label = QLabel("Gene reaction rule:")
+        self.gene_reaction_rule = QLineEdit()
+        l.addWidget(label)
+        l.addWidget(self.gene_reaction_rule)
+        layout.addItem(l)
 
         l = QVBoxLayout()
         label = QLabel("Annotations:")
@@ -369,15 +405,15 @@ class ReactionMask(QWidget):
         self.id.textEdited.connect(self.reaction_data_changed)
         self.name.textEdited.connect(self.reaction_data_changed)
         self.equation.textEdited.connect(self.reaction_data_changed)
-        self.rate_min.textEdited.connect(self.reaction_data_changed)
-        self.rate_max.textEdited.connect(self.reaction_data_changed)
+        self.lower_bound.textEdited.connect(self.reaction_data_changed)
+        self.upper_bound.textEdited.connect(self.reaction_data_changed)
         self.coefficent.textEdited.connect(self.reaction_data_changed)
-        # self.variance.textEdited.connect(self.reaction_data_changed)
+        self.gene_reaction_rule.textEdited.connect(self.reaction_data_changed)
         self.annotation.itemChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
         self.add_map_button.clicked.connect(self.add_to_map)
 
-        self.update_state()
+        self.validate_mask()
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
@@ -400,9 +436,10 @@ class ReactionMask(QWidget):
         else:
             self.old.name = self.name.text()
             self.old.build_reaction_from_string(self.equation.text())
-            self.old.lower_bound = float(self.rate_min.text())
-            self.old.upper_bound = float(self.rate_max.text())
+            self.old.lower_bound = float(self.lower_bound.text())
+            self.old.upper_bound = float(self.upper_bound.text())
             self.old.objective_coefficient = float(self.coefficent.text())
+            self.old.gene_reaction_rule = self.gene_reaction_rule.text()
             self.old.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
@@ -429,47 +466,42 @@ class ReactionMask(QWidget):
         self.emit_jump_to_map(int(idx))
         self.update_state()
 
-    def verify_id(self):
-
-        palette = self.id.palette()
-        role = self.id.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.id.setPalette(palette)
+    def validate_id(self):
+        if self.old != None and self.old.id == self.id.text():
+            turn_white(self.id)
+            return True
 
         with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id=self.id.text())
                 model.add_reaction(r)
             except:
-                self.id.setStyleSheet("background: #ff9999")
+                turn_red(self.id)
                 return False
             else:
-                self.id.setStyleSheet("background: white")
+                turn_white(self.id)
                 return True
 
-    def verify_name(self):
-        palette = self.name.palette()
-        role = self.name.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.name.setPalette(palette)
+    def validate_name(self):
+        if self.old != None and self.old.name == self.name.text():
+            turn_white(self.name)
+            return True
 
         with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id="testid", name=self.name.text())
                 model.add_reaction(r)
             except:
-                self.name.setStyleSheet("background: #ff9999")
+                turn_red(self.name)
                 return False
             else:
-                self.name.setStyleSheet("background: white")
+                turn_white(self.name)
                 return True
 
-    def verify_equation(self):
-
-        palette = self.equation.palette()
-        role = self.equation.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.equation.setPalette(palette)
+    def validate_equation(self):
+        # if self.old.equation == self.equation.text():
+        #     turn_white(self.equation)
+        #     return True
 
         with self.parent.appdata.project.cobra_py_model as model:
             try:
@@ -477,69 +509,70 @@ class ReactionMask(QWidget):
                 model.add_reaction(r)
                 r.build_reaction_from_string(self.equation.text())
             except:
-                self.equation.setStyleSheet("background: #ff9999")
+                turn_red(self.equation)
                 return False
             else:
-                self.equation.setStyleSheet("background: white")
+                turn_white(self.equation)
                 return True
 
-    def verify_lowerbound(self):
-
-        palette = self.rate_min.palette()
-        role = self.rate_min.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.rate_min.setPalette(palette)
+    def validate_lowerbound(self):
         try:
-            x = float(self.rate_min.text())
+            x = float(self.lower_bound.text())
         except:
-            self.rate_min.setStyleSheet("background: #ff9999")
+            turn_red(self.lower_bound)
             return False
         else:
-            self.rate_min.setStyleSheet("background: white")
+            turn_white(self.lower_bound)
             return True
 
-    def verify_upperbound(self):
-
-        palette = self.rate_max.palette()
-        role = self.rate_max.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.rate_max.setPalette(palette)
-
+    def validate_upperbound(self):
         try:
-            x = float(self.rate_max.text())
+            x = float(self.upper_bound.text())
         except:
-            self.rate_max.setStyleSheet("background: #ff9999")
+            turn_red(self.upper_bound)
             return False
         else:
-            self.rate_max.setStyleSheet("background: white")
+            turn_white(self.upper_bound)
             return True
 
-    def verify_coefficient(self):
-
-        palette = self.coefficent.palette()
-        role = self.coefficent.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.coefficent.setPalette(palette)
-
+    def validate_coefficient(self):
         try:
             x = float(self.coefficent.text())
         except:
-            self.coefficent.setStyleSheet("background: #ff9999")
+            turn_red(self.coefficent)
             return False
         else:
-            self.coefficent.setStyleSheet("background: white")
+            turn_white(self.coefficent)
             return True
 
-    def verify_mask(self):
-        if self.verify_id() & self.verify_name() & self.verify_equation() & self.verify_lowerbound() & self.verify_upperbound() & self.verify_coefficient():
+    def validate_gene_reaction_rule(self):
+        try:
+            x = float(self.gene_reaction_rule.text())
+        except:
+            turn_red(self.gene_reaction_rule)
+            return False
+        else:
+            turn_white(self.gene_reaction_rule)
+            return True
+
+    def validate_mask(self):
+
+        valid_id = self.validate_id()
+        valid_name = self.validate_name()
+        valid_equation = self.validate_equation()
+        valid_lb = self.validate_lowerbound()
+        valid_ub = self.validate_upperbound()
+        valid_coefficient = self.validate_coefficient()
+        if valid_id & valid_name & valid_equation & valid_lb & valid_ub & valid_coefficient:
             self.is_valid = True
         else:
             self.is_valid = False
 
+        self.update_state()
+
     def reaction_data_changed(self):
         self.changed = True
-        self.verify_mask()
-        self.update_state()
+        self.validate_mask()
 
     def update_state(self):
         # print("reaction_mask::update_state")

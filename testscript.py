@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import cobra
-from PySide2.QtGui import QColor
+from qtpy.QtGui import QColor
 
 
 def work(cna):
@@ -29,7 +29,7 @@ def work(cna):
 
 def disco(cna):
     print("hello DISCO")
-    open_project(cna, 'examples/cna-projects/Disco.cna')
+    open_project(cna, 'projects/Disco/Disco.cna')
 
     view = cna.centralWidget().tabs.widget(3)
     for i in range(1, 100):
