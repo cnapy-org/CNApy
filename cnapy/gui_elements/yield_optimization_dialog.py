@@ -234,22 +234,22 @@ class YieldOptimizationDialog(QDialog):
             # code = code[0:-1]+"];"
 
             # print(code)
-            self.eng.eval("fixedFluxes =[];")
-            self.eng.eval("c_macro =[];")
+            self.eng.eval("fixedFluxes =[];", nargout=0)
+            self.eng.eval("c_macro =[];", nargout=0)
             # solver: selects the LP solver
             # 0: GLPK (glpklp)
             # 1: Matlab Optimization Toolbox (linprog)
             # 2: CPLEX (cplexlp)
             # -1: (default) Either the solver CPLEX or GLPK or MATLAB (linprog) is used
             # (in this order), depending on availability.
-            self.eng.eval("solver =1;")
+            self.eng.eval("solver =1;", nargout=0)
 
             # verbose: controls the output printed to the command line
             # -1: suppress all output, even warnings
             #  0: no solver output, but warnings and information on final result will be shown
             #  1: as option '0' but with additional solver output
             #  (default: 0)
-            self.eng.eval("verbose = 0;")
+            self.eng.eval("verbose = 0;", nargout=0)
             if legacy.is_matlab_ready():
                 try:
                     a = self.eng.eval(
@@ -278,6 +278,8 @@ class YieldOptimizationDialog(QDialog):
                             self.appdata.project.comp_values[r] = (
                                 float(val), float(val))
                             idx = idx+1
+
+                        self.centralwidget.update()
                         self.accept()
 
             elif legacy.is_octave_ready():
