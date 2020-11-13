@@ -41,16 +41,17 @@ class CentralWidget(QWidget):
         myglobals = globals()
         myglobals["cna"] = self.parent
         kernel_manager.kernel.shell.push(myglobals)
-        kernel_client = kernel_manager.client()
-        kernel_client.start_channels()
+        self.kernel_client = kernel_manager.client()
+        self.kernel_client.start_channels()
 
         # Check if client is working
-        kernel_client.execute('import matplotlib.pyplot as plt')
-        kernel_client.execute('%matplotlib inline')
-        kernel_client.execute("%config InlineBackend.figure_format = 'svg'")
+        self.kernel_client.execute('import matplotlib.pyplot as plt')
+        self.kernel_client.execute('%matplotlib inline')
+        self.kernel_client.execute(
+            "%config InlineBackend.figure_format = 'svg'")
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
-        self.console.kernel_client = kernel_client
+        self.console.kernel_client = self.kernel_client
         self.tabs.addTab(self.console, "Console")
 
         self.add_map_button = QPushButton("add map")

@@ -157,6 +157,10 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
+        show_model_stats_action = QAction("Show model stats", self)
+        self.analysis_menu.addAction(show_model_stats_action)
+        show_model_stats_action.triggered.connect(self.print_model_stats)
+
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
@@ -633,6 +637,11 @@ class MainWindow(QMainWindow):
                     self.appdata.project.comp_values.clear()
             finally:
                 self.centralWidget().update()
+
+    def print_model_stats(self):
+        self.centralWidget().kernel_client.execute("import cobra")
+        self.centralWidget().kernel_client.execute(
+            "cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
