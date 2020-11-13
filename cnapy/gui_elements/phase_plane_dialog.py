@@ -78,8 +78,8 @@ class PhasePlaneDialog(QDialog):
         self.layout.addItem(l1)
         self.layout.addItem(l2)
         l3 = QHBoxLayout()
-        self.button = QPushButton("Compute")
-        self.cancel = QPushButton("Cancel")
+        self.button = QPushButton("Plot")
+        self.cancel = QPushButton("Close")
         l3.addWidget(self.button)
         l3.addWidget(self.cancel)
         self.layout.addItem(l3)
@@ -142,4 +142,3 @@ class PhasePlaneDialog(QDialog):
             plt.show()
         self.appdata.window.centralWidget(
         ).splitter.setSizes([0, 1000, 0, 1000])
-        self.accept()

@@ -182,7 +182,7 @@ class MCSDialog(QDialog):
         # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
         buttons.addWidget(self.compute_mcs)
-        self.cancel = QPushButton("Cancel")
+        self.cancel = QPushButton("Close")
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
 
@@ -284,7 +284,11 @@ class MCSDialog(QDialog):
         # TODO get solver
         self.eng.eval("solver = 'intlinprog';", nargout=0,
                       stdout=self.out, stderr=self.err)
+        # self.eng.eval("solver = 'java_cplex_new';", nargout=0,
+        #               stdout=self.out, stderr=self.err)
         # self.eng.eval("solver = 'java_cplex';", nargout=0,
+        #               stdout=self.out, stderr=self.err)
+        # self.eng.eval("solver = 'glpk';", nargout=0,
         #               stdout=self.out, stderr=self.err)
         # self.eng.eval("solver = 'matlab_cplex';", nargout=0,
         #               stdout=self.out, stderr=self.err)
@@ -395,4 +399,3 @@ class MCSDialog(QDialog):
 
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
-        self.accept()
