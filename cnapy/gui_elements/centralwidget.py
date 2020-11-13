@@ -1,16 +1,17 @@
 from ast import literal_eval as make_tuple
 
-from qtpy.QtCore import Qt
-from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton,
-                            QTabBar, QTabWidget, QVBoxLayout, QWidget)
-
 from cnapy.cnadata import CnaData, CnaMap
 from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.modenavigator import ModeNavigator
 from cnapy.gui_elements.reactions_list import ReactionList
-from cnapy.gui_elements.metabolite_list import MetaboliteList
-from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
+                            QTabBar, QTabWidget, QVBoxLayout, QWidget)
+
+FIXED_TABS = 2
 
 
 class CentralWidget(QWidget):
@@ -52,7 +53,7 @@ class CentralWidget(QWidget):
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
-        self.tabs.addTab(self.console, "Console")
+        # self.tabs.addTab(self.console, "Console")
 
         self.add_map_button = QPushButton("add map")
         self.tabs.setCornerWidget(
@@ -61,13 +62,21 @@ class CentralWidget(QWidget):
         # disable close button on reactions, metabolites and console tab
         self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
-        self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
+        # self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
 
         self.mode_navigator = ModeNavigator(self.appdata)
+        self.splitter = QSplitter()
+        self.splitter.setOrientation(Qt.Vertical)
+        self.splitter.addWidget(self.searchbar)
+        self.splitter.addWidget(self.tabs)
+        self.splitter.addWidget(self.mode_navigator)
+        self.splitter.addWidget(self.console)
+        self.splitter.setCollapsible(0, False)
+        self.splitter.setCollapsible(1, False)
+        self.console.show()
+
         layout = QVBoxLayout()
-        layout.addWidget(self.searchbar)
-        layout.addWidget(self.tabs)
-        layout.addWidget(self.mode_navigator)
+        layout.addWidget(self.splitter)
         self.setLayout(layout)
 
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
@@ -118,8 +127,8 @@ class CentralWidget(QWidget):
         self.tabs.setCurrentIndex(2 + len(self.appdata.project.maps))
 
     def remove_map_tabs(self):
-        for _ in range(3, self.tabs.count()):
-            self.tabs.removeTab(3)
+        for _ in range(FIXED_TABS, self.tabs.count()):
+            self.tabs.removeTab(FIXED_TABS)
 
     def delete_map(self, idx: int):
         diag = ConfirmMapDeleteDialog(self, idx)
@@ -134,7 +143,7 @@ class CentralWidget(QWidget):
             self.reaction_list.update_selected(x)
         if idx == 1:
             self.metabolite_list.update_selected(x)
-        elif idx > 2:
+        elif idx >= FIXED_TABS:
             m = self.tabs.widget(idx)
             m.update_selected(x)
 
@@ -199,20 +208,19 @@ class CentralWidget(QWidget):
             self.reaction_list.update()
         elif idx == 1:
             self.metabolite_list.update()
-        elif idx == 2:
-            pass
-        elif idx > 0:
-            self.update_map(idx-2)
+        elif idx >= FIXED_TABS:
+            m = self.tabs.widget(idx)
+            m.update()
 
-    def update_map(self, idx: int):
-        print("centralwidget::update_map", str(idx))
-        m = self.tabs.widget(2+idx)
-        m.update()
+    # def update_map(self, idx: int):
+    #     print("centralwidget::update_map", str(idx))
+    #     m = self.tabs.widget(2+idx)
+    #     m.update()
 
     def jump_to_map(self, idx: int, reaction):
         print("centralwidget::jump_to_map", str(idx))
-        m = self.tabs.widget(2+idx)
-        self.tabs.setCurrentIndex(2+idx)
+        m = self.tabs.widget(FIXED_TABS-1+idx)
+        self.tabs.setCurrentIndex(FIXED_TABS-1+idx)
 
         m.update()
         # self.searchbar.setText(reaction)
@@ -242,6 +250,6 @@ class ConfirmMapDeleteDialog(QDialog):
         self.button_no.clicked.connect(self.reject)
 
     def delete(self):
-        del self.parent.appdata.project.maps[self.idx-3]
+        del self.parent.appdata.project.maps[self.idx-FIXED_TABS]
         self.parent.recreate_maps()
         self.accept()
