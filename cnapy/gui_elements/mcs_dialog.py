@@ -282,14 +282,17 @@ class MCSDialog(QDialog):
             self.eng.eval("advanced_on = 0;", nargout=0,
                           stdout=self.out, stderr=self.err)
         # TODO get solver
-        self.eng.eval("solver = 'intlinprog';", nargout=0,
-                      stdout=self.out, stderr=self.err)
+
+        # self.eng.eval("solver = 'intlinprog';", nargout=0,
+        #               stdout=self.out, stderr=self.err)
         # self.eng.eval("solver = 'java_cplex_new';", nargout=0,
         #               stdout=self.out, stderr=self.err)
         # self.eng.eval("solver = 'java_cplex';", nargout=0,
         #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'glpk';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
+
+        self.eng.eval("solver = 'glpk';", nargout=0,
+                      stdout=self.out, stderr=self.err)
+
         # self.eng.eval("solver = 'matlab_cplex';", nargout=0,
         #               stdout=self.out, stderr=self.err)
 
@@ -330,8 +333,7 @@ class MCSDialog(QDialog):
             cmd = "dg_D = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
             print(cmd)
-            self.eng.eval(cmd, nargout=0,
-                          stdout=self.out, stderr=self.err)
+            self.eng.eval(cmd, nargout=0)
 
         # get some data
         self.eng.eval("reac_id = cellstr(cnap.reacID).';",
@@ -379,7 +381,9 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            for i in range(0, len(values)):
+            reac_id = reac_id[0]
+            print(reac_id)
+            for i in range(0, len(reac_id)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
                 c_mcs = int(mcs[i][0])
