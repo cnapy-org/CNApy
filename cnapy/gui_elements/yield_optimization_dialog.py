@@ -80,7 +80,7 @@ class YieldOptimizationDialog(QDialog):
 
         l3 = QHBoxLayout()
         self.button = QPushButton("Compute")
-        self.cancel = QPushButton("Cancel")
+        self.cancel = QPushButton("Close")
         l3.addWidget(self.button)
         l3.addWidget(self.cancel)
         self.layout.addItem(l3)
@@ -275,7 +275,6 @@ class YieldOptimizationDialog(QDialog):
                             idx = idx+1
 
                         self.centralwidget.update()
-                        self.accept()
 
             elif legacy.is_octave_ready():
                 a = self.eng.eval(
@@ -302,4 +301,3 @@ class YieldOptimizationDialog(QDialog):
                             float(val), float(val))
                         idx = idx+1
                     self.centralwidget.update()
-                    self.accept()

@@ -79,7 +79,7 @@ class EFMDialog(QDialog):
 
         lx = QHBoxLayout()
         self.button = QPushButton("Compute")
-        self.cancel = QPushButton("Cancel")
+        self.cancel = QPushButton("Close")
         lx.addWidget(self.button)
         lx.addWidget(self.cancel)
         self.layout.addItem(lx)
@@ -252,7 +252,6 @@ class EFMDialog(QDialog):
             idx = self.eng.pull('ems_idx')
 
             self.result2ui(ems, idx, reac_id, scenario)
-            self.accept()
 
     def result2ui(self, ems, idx, reac_id, scenario):
         oems = []

@@ -643,6 +643,8 @@ class MainWindow(QMainWindow):
         self.centralWidget().kernel_client.execute(
             "cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
 
+        self.centralWidget().splitter.setSizes([0, 1000, 0, 1000])
+
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
             self.appdata.project.comp_values[reaction.id] = (
