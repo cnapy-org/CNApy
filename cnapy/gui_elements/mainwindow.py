@@ -617,7 +617,7 @@ class MainWindow(QMainWindow):
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
-            except Exception as e:
+            except Exception:
                 traceback.print_exception(*sys.exc_info())
                 QMessageBox.warning(
                     self, 'Unknown exception occured!', 'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')

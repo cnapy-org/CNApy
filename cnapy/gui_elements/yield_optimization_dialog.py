@@ -5,12 +5,8 @@ import sys
 import traceback
 
 import cnapy.legacy as legacy
-import matplotlib.pyplot as plt
-import pandas
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.centralwidget import CentralWidget
-from cnapy.legacy import get_matlab_engine
-from matplotlib.pyplot import scatter
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
@@ -57,7 +53,7 @@ class YieldOptimizationDialog(QDialog):
         self.setWindowTitle("Yield optimization")
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = get_matlab_engine()
+        self.eng = legacy.get_matlab_engine()
 
         self.polynom_re = re.compile(
             '([ ]*(?P<factor>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*)')
@@ -114,9 +110,8 @@ class YieldOptimizationDialog(QDialog):
             match = self.polynom_re.fullmatch(elem)
             if match == None:
                 valid = False
-            else:
-                if match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
-                    valid = False
+            elif match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
+                valid = False
         return valid
 
     def validate_c(self):
