@@ -47,6 +47,7 @@ class CentralWidget(QWidget):
         # Check if client is working
         kernel_client.execute('import matplotlib.pyplot as plt')
         kernel_client.execute('%matplotlib inline')
+        kernel_client.execute("%config InlineBackend.figure_format = 'svg'")
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = kernel_client
