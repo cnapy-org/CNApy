@@ -1,6 +1,6 @@
+import io
 import json
 import os
-import sys
 import traceback
 from shutil import copyfile
 from tempfile import TemporaryDirectory
@@ -643,9 +643,19 @@ class MainWindow(QMainWindow):
                 self.centralWidget().update()
 
     def print_model_stats(self):
-        self.centralWidget().kernel_client.execute("import cobra")
-        self.centralWidget().kernel_client.execute(
-            "cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
+        if len(self.appdata.project.cobra_py_model.reactions) > 0:
+            self.centralWidget().kernel_client.execute("import cobra")
+            self.centralWidget().kernel_client.execute(
+                "m = cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
+            self.centralWidget().kernel_client.execute(
+                "print('Stoichiometric matrix:\\n',m)")
+            self.centralWidget().kernel_client.execute("import numpy")
+            self.centralWidget().kernel_client.execute(
+                "rank = numpy.linalg.matrix_rank(m)")
+            self.centralWidget().kernel_client.execute(
+                "print('\\nRank of stoichiometric matrix: '+ str(rank))")
+        else:
+            self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
         self.centralWidget().splitter.setSizes([0, 1000, 0, 1000])
 
