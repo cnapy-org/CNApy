@@ -53,7 +53,6 @@ class CentralWidget(QWidget):
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
-        # self.tabs.addTab(self.console, "Console")
 
         self.add_map_button = QPushButton("add map")
         self.tabs.setCornerWidget(
@@ -62,7 +61,6 @@ class CentralWidget(QWidget):
         # disable close button on reactions, metabolites and console tab
         self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
         self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
-        # self.tabs.tabBar().setTabButton(2, QTabBar.RightSide, None)
 
         self.mode_navigator = ModeNavigator(self.appdata)
         self.splitter = QSplitter()
