@@ -254,8 +254,20 @@ class MCSDialog(QDialog):
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
         print(".")
-        self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                      nargout=0)
+        try:
+            self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                          nargout=0,
+                          stdout=self.out, stderr=self.err)
+        except Exception:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            print(exstr)
+            QMessageBox.warning(self, 'Unknown exception occured!',
+                                exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+            return
+
         print(".")
 
         self.eng.eval("genes = [];", nargout=0,
@@ -349,9 +361,14 @@ class MCSDialog(QDialog):
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
             except Exception:
-                traceback.print_exception(*sys.exc_info())
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)
@@ -364,9 +381,14 @@ class MCSDialog(QDialog):
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
             except Exception:
-                traceback.print_exception(*sys.exc_info())
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)

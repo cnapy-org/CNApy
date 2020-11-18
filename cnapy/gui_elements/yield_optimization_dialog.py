@@ -251,9 +251,14 @@ class YieldOptimizationDialog(QDialog):
                         "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
                     print(a)
                 except Exception:
-                    traceback.print_exception(*sys.exc_info())
+                    output = io.StringIO()
+                    traceback.print_exc(file=output)
+                    exstr = output.getvalue()
+                    print(exstr)
                     QMessageBox.warning(self, 'Unknown exception occured!',
-                                              'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                        exstr+'\nPlease report the problem to:\n\
+                                        \nhttps://github.com/ARB-Lab/CNApy/issues')
+                    return
                 else:
                     success = self.eng.workspace['success']
                     status = self.eng.workspace['status']
