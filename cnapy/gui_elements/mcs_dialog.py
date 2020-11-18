@@ -1,18 +1,16 @@
 """The cnapy dialog for calculating minimal cut sets"""
 
 import io
-import sys
 import traceback
 
+import cnapy.legacy as legacy
+from cnapy.cnadata import CnaData
+from cnapy.legacy import get_matlab_engine
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
-
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
-from cnapy.legacy import get_matlab_engine
 
 
 class MCSDialog(QDialog):
@@ -130,37 +128,41 @@ class MCSDialog(QDialog):
         sg1.addItem(s32)
         sgx.addWidget(self.gen_kos)
         sgx.addItem(sg1)
+        s3.addItem(sgx)
 
-        g3 = QGroupBox("Solver")
-        s33 = QVBoxLayout()
-        self.bg1 = QButtonGroup()
-        self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
-        s33.addWidget(self.solver_cplex_matlab)
-        self.bg1.addButton(self.solver_cplex_matlab)
-        self.solver_cplex_java = QRadioButton("CPLEX (Java)")
-        s33.addWidget(self.solver_cplex_java)
-        self.bg1.addButton(self.solver_cplex_java)
-        self.solver_intlinprog = QRadioButton("intlinprog")
-        s33.addWidget(self.solver_intlinprog)
-        self.bg1.addButton(self.solver_intlinprog)
-        g3.setLayout(s33)
+        # g3 = QGroupBox("Solver")
+        # s33 = QVBoxLayout()
+        # self.bg1 = QButtonGroup()
+        # self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
+        # s33.addWidget(self.solver_cplex_matlab)
+        # self.bg1.addButton(self.solver_cplex_matlab)
+        # self.solver_cplex_java = QRadioButton("CPLEX (Java)")
+        # s33.addWidget(self.solver_cplex_java)
+        # self.bg1.addButton(self.solver_cplex_java)
+        # self.solver_intlinprog = QRadioButton("intlinprog")
+        # s33.addWidget(self.solver_intlinprog)
+        # self.bg1.addButton(self.solver_intlinprog)
+        # g3.setLayout(s33)
+        # s3.addWidget(g3)
 
         g4 = QGroupBox("MCS search")
         s34 = QVBoxLayout()
         self.bg2 = QButtonGroup()
         self.any_mcs = QRadioButton("any MCS (fast)")
+        self.any_mcs.setChecked(True)
         s34.addWidget(self.any_mcs)
         self.bg2.addButton(self.any_mcs)
-        self.mcs_by_cardinality = QRadioButton("by cardinality")
-        s34.addWidget(self.mcs_by_cardinality)
-        self.bg2.addButton(self.mcs_by_cardinality)
+
+        # Search type: by cardinality only with CPLEX possible
+        # self.mcs_by_cardinality = QRadioButton("by cardinality")
+        # s34.addWidget(self.mcs_by_cardinality)
+        # self.bg2.addButton(self.mcs_by_cardinality)
+
         self.smalles_mcs_first = QRadioButton("smallest MCS first")
         s34.addWidget(self.smalles_mcs_first)
         self.bg2.addButton(self.smalles_mcs_first)
         g4.setLayout(s34)
 
-        s3.addItem(sgx)
-        s3.addWidget(g3)
         s3.addWidget(g4)
 
         self.layout.addItem(s3)
@@ -293,24 +295,27 @@ class MCSDialog(QDialog):
         else:
             self.eng.eval("advanced_on = 0;", nargout=0,
                           stdout=self.out, stderr=self.err)
-        # TODO get solver
 
-        # self.eng.eval("solver = 'intlinprog';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'java_cplex_new';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'java_cplex';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
+        if legacy.is_matlab_ready():
+            self.eng.eval("solver = 'intlinprog';", nargout0,
+                          stdout=self.out, stderr=self.err)
+        elif legacy.is_octave_ready():
+            self.eng.eval("solver = 'glpk';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+            # Other solver options
+            #  - 'java_cplex_new'
+            #  - 'java_cplex'
+            #  - 'matlab_cplex'
 
-        self.eng.eval("solver = 'glpk';", nargout=0,
-                      stdout=self.out, stderr=self.err)
+        if self.any_mcs.isChecked():
+            self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        elif self.smalles_mcs_first.isChecked():
+            self.eng.eval("mcs_search_mode = 'search_3';", nargout=0,
+                          stdout=self.out, stderr=self.err)
 
-        # self.eng.eval("solver = 'matlab_cplex';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
+        # Search mode 'search_2' by cardinality only with CPLEX
 
-        # TODO get search mode
-        self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
-                      stdout=self.out, stderr=self.err)
         if self.consider_scenario.isChecked():
             self.eng.eval("reac_box_vals = 1;", nargout=0,
                           stdout=self.out, stderr=self.err)

@@ -114,7 +114,6 @@ class MetaboliteList(QWidget):
             self.metabolites_mask.update_state()
 
     def update(self):
-        # print("MetaboliteList::update")
         self.metabolite_list.clear()
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolites(m)
@@ -329,7 +328,6 @@ class metabolitesMask(QWidget):
         self.validate_mask()
 
     def update_state(self):
-        # print("metabolitesMask::update_state")
         if self.old is None:
             pass
         else:

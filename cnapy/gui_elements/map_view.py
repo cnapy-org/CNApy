@@ -165,7 +165,6 @@ class MapView(QGraphicsView):
         treffer.set_color(Qt.magenta)
 
     def update(self):
-        print("MapView::update", self.idx)
         self.scene.clear()
         background = QGraphicsSvgItem(
             self.appdata.project.maps[self.idx]["background"])

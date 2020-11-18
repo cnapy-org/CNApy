@@ -133,8 +133,6 @@ class CentralWidget(QWidget):
         diag.exec()
 
     def update_selected(self):
-        # print("centralwidget::update_selected")
-
         x = self.searchbar.text()
         idx = self.tabs.currentIndex()
         if idx == 0:
@@ -146,7 +144,6 @@ class CentralWidget(QWidget):
             m.update_selected(x)
 
     def update_mode(self):
-        # print("centralwidget::update")
         if len(self.appdata.project.modes) > self.mode_navigator.current:
             values = self.appdata.project.modes[self.mode_navigator.current].copy(
             )
@@ -160,7 +157,6 @@ class CentralWidget(QWidget):
         self.update()
 
     def update(self):
-        # print("centralwidget::update")
         if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
             self.mode_navigator.current = 0
@@ -201,7 +197,6 @@ class CentralWidget(QWidget):
             self.tabs.setCurrentIndex(last)
 
     def update_tab(self, idx: int):
-        print("centralwidget::update_tab", str(idx))
         if idx == 0:
             self.reaction_list.update()
         elif idx == 1:
@@ -209,11 +204,6 @@ class CentralWidget(QWidget):
         elif idx >= FIXED_TABS:
             m = self.tabs.widget(idx)
             m.update()
-
-    # def update_map(self, idx: int):
-    #     print("centralwidget::update_map", str(idx))
-    #     m = self.tabs.widget(2+idx)
-    #     m.update()
 
     def jump_to_map(self, idx: int, reaction):
         print("centralwidget::jump_to_map", str(idx))

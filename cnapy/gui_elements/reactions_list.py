@@ -575,7 +575,6 @@ class ReactionMask(QWidget):
         self.validate_mask()
 
     def update_state(self):
-        # print("reaction_mask::update_state")
         self.jump_list.clear()
         c = 1
         for m in self.parent.appdata.project.maps:
