@@ -21,7 +21,7 @@ DECREASE_FACTOR = 0.9
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, appdata: CnaData, idx):
+    def __init__(self, appdata: CnaData, name: str):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
@@ -29,7 +29,7 @@ class MapView(QGraphicsView):
         self.setPalette(palette)
 
         self.appdata = appdata
-        self.idx = idx
+        self.name = name
         self.setAcceptDrops(True)
         self.drag = False
         self.reaction_boxes: Dict[str, ReactionBox] = {}
@@ -37,7 +37,7 @@ class MapView(QGraphicsView):
         self.drag = False
 
         # initial scale
-        self._zoom = self.appdata.project.maps[self.idx]["zoom"]
+        self._zoom = self.appdata.project.maps[self.name]["zoom"]
         if self._zoom > 0:
             for _ in range(1, self._zoom):
                 self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
@@ -50,11 +50,11 @@ class MapView(QGraphicsView):
         self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
 
     def on_hbar_change(self, x):
-        self.appdata.project.maps[self.idx]["pos"] = (
+        self.appdata.project.maps[self.name]["pos"] = (
             x, self.verticalScrollBar().value())
 
     def on_vbar_change(self, y):
-        self.appdata.project.maps[self.idx]["pos"] = (
+        self.appdata.project.maps[self.name]["pos"] = (
             self.horizontalScrollBar().value(), y)
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
@@ -67,8 +67,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         id = event.mimeData().text()
-        (_, _, name) = self.appdata.project.maps[self.idx]["boxes"][id]
-        self.appdata.project.maps[self.idx]["boxes"][id] = (
+        (_, _, name) = self.appdata.project.maps[self.name]["boxes"][id]
+        self.appdata.project.maps[self.name]["boxes"][id] = (
             point_item.x(), point_item.y(), name)
         self.update()
 
@@ -80,8 +80,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         id = event.mimeData().text()
-        (_, _, name) = self.appdata.project.maps[self.idx]["boxes"][id]
-        self.appdata.project.maps[self.idx]["boxes"][id] = (
+        (_, _, name) = self.appdata.project.maps[self.name]["boxes"][id]
+        self.appdata.project.maps[self.name]["boxes"][id] = (
             point_item.x(), point_item.y(), name)
         self.update()
 
@@ -93,7 +93,7 @@ class MapView(QGraphicsView):
             factor = DECREASE_FACTOR
             self._zoom -= 1
 
-        self.appdata.project.maps[self.idx]["zoom"] = self._zoom
+        self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(factor, factor)
 
     # def toggleDragMode(self):
@@ -148,8 +148,8 @@ class MapView(QGraphicsView):
 
     def focus_reaction(self, reaction: str):
         print("mapview:focus_reaction", reaction)
-        x = self.appdata.project.maps[self.idx]["boxes"][reaction][0]
-        y = self.appdata.project.maps[self.idx]["boxes"][reaction][1]
+        x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
+        y = self.appdata.project.maps[self.name]["boxes"][reaction][1]
         self.centerOn(x, y)
 
     def highlight_reaction(self, string):
@@ -167,17 +167,17 @@ class MapView(QGraphicsView):
     def update(self):
         self.scene.clear()
         background = QGraphicsSvgItem(
-            self.appdata.project.maps[self.idx]["background"])
+            self.appdata.project.maps[self.name]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
-        background.setScale(self.appdata.project.maps[self.idx]["bg-size"])
+        background.setScale(self.appdata.project.maps[self.name]["bg-size"])
         self.scene.addItem(background)
 
-        for id in self.appdata.project.maps[self.idx]["boxes"]:
+        for id in self.appdata.project.maps[self.name]["boxes"]:
             name = self.appdata.project.cobra_py_model.reactions.get_by_id(
                 id).name
             box = ReactionBox(self, id, name)
-            box.setPos(self.appdata.project.maps[self.idx]["boxes"][id]
-                       [0], self.appdata.project.maps[self.idx]["boxes"][id][1])
+            box.setPos(self.appdata.project.maps[self.name]["boxes"][id]
+                       [0], self.appdata.project.maps[self.name]["boxes"][id][1])
             self.scene.addItem(box)
             self.reaction_boxes[id] = box
 
@@ -186,12 +186,12 @@ class MapView(QGraphicsView):
         # set scrollbars
 
         self.horizontalScrollBar().setValue(
-            self.appdata.project.maps[self.idx]["pos"][0])
+            self.appdata.project.maps[self.name]["pos"][0])
         self.verticalScrollBar().setValue(
-            self.appdata.project.maps[self.idx]["pos"][1])
+            self.appdata.project.maps[self.name]["pos"][1])
 
     def set_values(self):
-        for id in self.appdata.project.maps[self.idx]["boxes"]:
+        for id in self.appdata.project.maps[self.name]["boxes"]:
             if id in self.appdata.project.scen_values.keys():
                 self.reaction_boxes[id].set_val_and_color(
                     self.appdata.project.scen_values[id])
@@ -200,8 +200,7 @@ class MapView(QGraphicsView):
                     self.appdata.project.comp_values[id])
 
     def delete_box(self, id):
-        # print("MapView::delete_box", id)
-        del self.appdata.project.maps[self.idx]["boxes"][id]
+        del self.appdata.project.maps[self.name]["boxes"][id]
         self.update()
 
     # def emit_doubleClickedReaction(self, reaction: str):

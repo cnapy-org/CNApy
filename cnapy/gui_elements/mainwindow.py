@@ -222,6 +222,11 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
+        add_map_action = QAction("Add new map", self)
+        # set_default_scenario_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
+        add_map_action.triggered.connect(
+            central_widget.add_map)
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(reset_scenario_action)
@@ -229,6 +234,7 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
+        self.tool_bar.addAction(add_map_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -326,36 +332,39 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.svg")
 
-        idx = self.centralWidget().tabs.currentIndex()
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
         if filename[0] != '':
             # try:
-            self.appdata.project.maps[idx]["background"] = filename[0]
-            print(self.appdata.project.maps[idx]["background"])
+            self.appdata.project.maps[name]["background"] = filename[0]
+            print(self.appdata.project.maps[name]["background"])
 
             background = QGraphicsSvgItem(
-                self.appdata.project.maps[idx]["background"])
+                self.appdata.project.maps[name]["background"])
             background.setFlags(QGraphicsItem.ItemClipsToShape)
             self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
             # except:
             # print("could not update background")
 
             self.centralWidget().update()
-            self.centralWidget().tabs.setCurrentIndex(idx)
+            self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
     def inc_bg_size(self, _checked):
 
-        idx = self.centralWidget().tabs.currentIndex()
-        self.appdata.project.maps[idx - 3]["bg-size"] += 0.2
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        self.appdata.project.maps[name]["bg-size"] += 0.2
 
         self.centralWidget().update()
-        self.centralWidget().tabs.setCurrentIndex(idx)
+        self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
     def dec_bg_size(self, _checked):
 
-        idx = self.centralWidget().tabs.currentIndex()
-        self.appdata.project.maps[idx - 3]["bg-size"] -= 0.2
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        self.appdata.project.maps[name]["bg-size"] -= 0.2
 
         self.centralWidget().update()
         self.centralWidget().tabs.setCurrentIndex(idx)
@@ -411,7 +420,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def new_project(self, _checked):
         self.appdata.project.cobra_py_model = cobra.Model()
-        self.appdata.project.maps = []
+        self.appdata.project.maps = {}
         self.centralWidget().remove_map_tabs()
 
         self.centralWidget().mode_navigator.clear()
@@ -434,7 +443,7 @@ class MainWindow(QMainWindow):
             with open(folder.name+"/maps.json", 'r') as fp:
                 self.appdata.project.maps = json.load(fp)
 
-                for m in self.appdata.project.maps:
+                for name, m in self.appdata.project.maps.items():
                     copyfile(folder.name+"/"+m["background"], m["background"])
 
             self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
@@ -463,14 +472,14 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model, folder + "model.sbml")
 
         files = {}
-        for m in self.appdata.project.maps:
+        for name, m in self.appdata.project.maps.items():
             files[m["background"]] = ""
         count = 1
         for f in files.keys():
             files[f] = ".bg" + str(count) + ".svg"
             count += 1
 
-        for m in self.appdata.project.maps:
+        for name, m in self.appdata.project.maps.items():
             m["background"] = files[m["background"]]
 
         with open(folder + "maps.json", 'w') as fp:
@@ -495,14 +504,14 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model, folder + "model.sbml")
 
         files = {}
-        for m in self.appdata.project.maps:
+        for name, m in self.appdata.project.maps.items():
             files[m["background"]] = ""
         count = 1
         for f in files.keys():
             files[f] = ".bg" + str(count) + ".svg"
             count += 1
 
-        for m in self.appdata.project.maps:
+        for name, m in self.appdata.project.maps.items():
             m["background"] = files[m["background"]]
 
         with open(folder + "maps.json", 'w') as fp:
@@ -529,17 +538,15 @@ class MainWindow(QMainWindow):
         return view
 
     def on_tab_change(self, idx):
-        print("currentTab changed", str(idx))
         if idx >= 0:
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
+            self.centralWidget().update_map(idx)
         else:
             self.change_background_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)
-
-        self.centralWidget().update_tab(idx)
 
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
@@ -723,17 +730,18 @@ class MainWindow(QMainWindow):
                     color = self.compute_color_onoff(value)
                     item.setBackground(2, color)
 
-        elif idx > 2:
-            view = self.centralWidget().tabs.widget(idx)
-            for key in self.appdata.project.maps[idx-3]["boxes"]:
-                if key in self.appdata.project.scen_values:
-                    value = self.appdata.project.scen_values[key]
-                    color = self.compute_color_onoff(value)
-                    view.reaction_boxes[key].set_color(color)
-                elif key in self.appdata.project.comp_values:
-                    value = self.appdata.project.comp_values[key]
-                    color = self.compute_color_onoff(value)
-                    view.reaction_boxes[key].set_color(color)
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        view = self.centralWidget().map_tabs.widget(idx)
+        for key in self.appdata.project.maps[name]["boxes"]:
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.compute_color_onoff(value)
+                view.reaction_boxes[key].set_color(color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.compute_color_onoff(value)
+                view.reaction_boxes[key].set_color(color)
 
     def compute_color_onoff(self, value: Tuple[float, float]):
         (vl, vh) = value
@@ -763,17 +771,19 @@ class MainWindow(QMainWindow):
                     value = self.appdata.project.comp_values[key]
                     color = self.compute_color_heat(value)
                     item.setBackground(2, color)
-        elif idx > 2:
-            view = self.centralWidget().tabs.widget(idx)
-            for key in self.appdata.project.maps[idx-3]["boxes"]:
-                if key in self.appdata.project.scen_values:
-                    value = self.appdata.project.scen_values[key]
-                    color = self.compute_color_heat(value)
-                    view.reaction_boxes[key].set_color(color)
-                elif key in self.appdata.project.comp_values:
-                    value = self.appdata.project.comp_values[key]
-                    color = self.compute_color_heat(value)
-                    view.reaction_boxes[key].set_color(color)
+
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        view = self.centralWidget().map_tabs.widget(idx)
+        for key in self.appdata.project.maps[name]["boxes"]:
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.compute_color_heat(value)
+                view.reaction_boxes[key].set_color(color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.compute_color_heat(value)
+                view.reaction_boxes[key].set_color(color)
 
     def compute_color_heat(self, value: Tuple[float, float]):
         (low, high) = self.high_and_low()

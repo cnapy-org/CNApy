@@ -577,11 +577,9 @@ class ReactionMask(QWidget):
 
     def update_state(self):
         self.jump_list.clear()
-        c = 1
-        for m in self.parent.appdata.project.maps:
+        for name, m in self.parent.appdata.project.maps.items():
             if self.id.text() in m["boxes"]:
-                self.jump_list.add(c)
-            c += 1
+                self.jump_list.add(name)
 
         if self.parent.new:
             self.apply_button.setText("add reaction")
@@ -592,14 +590,12 @@ class ReactionMask(QWidget):
 
             self.add_map_button.setEnabled(False)
             self.map_combo.clear()
-            count = 1
             idx = 0
-            for m in self.parent.appdata.project.maps:
+            for name, m in self.parent.appdata.project.maps.items():
                 if self.id.text() not in m["boxes"]:
                     self.add_map_button.setEnabled(True)
-                    self.map_combo.insertItem(idx, str(count))
+                    self.map_combo.insertItem(idx, name)
                     idx += 1
-                count += 1
 
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
