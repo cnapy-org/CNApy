@@ -108,6 +108,7 @@ class CentralWidget(QWidget):
             except:
                 (vl, vh) = make_tuple(value)
                 self.appdata.project.scen_values[reaction] = (vl, vh)
+        self.reaction_list.update()
 
     def tabs_changed(self, idx):
         if idx == 0:
