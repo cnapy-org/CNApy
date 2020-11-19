@@ -386,7 +386,6 @@ class ReactionMask(QWidget):
         self.apply_button = QPushButton("apply changes")
         self.add_map_button = QPushButton("add reaction to map")
         self.map_combo = QComboBox()
-        self.map_combo.setMaximumWidth(40)
 
         l.addWidget(self.apply_button)
         l.addWidget(self.add_map_button)
