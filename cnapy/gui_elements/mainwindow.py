@@ -665,7 +665,7 @@ class MainWindow(QMainWindow):
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
             # self.centralWidget().kernel_client.execute_interactive("print('\\nEmpty matrix!')")
 
-        self.centralWidget().splitter.setSizes([0, 1000, 0, 1000])
+        self.centralWidget().splitter2.setSizes([10, 0, 100])
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:

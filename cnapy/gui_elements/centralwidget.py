@@ -62,10 +62,13 @@ class CentralWidget(QWidget):
         self.splitter.addWidget(self.searchbar)
         splitter1 = QSplitter()
         splitter1.addWidget(self.tabs)
-        splitter1.addWidget(self.map_tabs)
+        self.splitter2 = QSplitter()
+        self.splitter2.addWidget(self.map_tabs)
+        self.splitter2.addWidget(self.mode_navigator)
+        self.splitter2.addWidget(self.console)
+        self.splitter2.setOrientation(Qt.Vertical)
+        splitter1.addWidget(self.splitter2)
         self.splitter.addWidget(splitter1)
-        self.splitter.addWidget(self.mode_navigator)
-        self.splitter.addWidget(self.console)
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, False)
         self.console.show()
@@ -203,7 +206,6 @@ class CentralWidget(QWidget):
             m.update()
 
     def recreate_maps(self):
-        print("recreate_maps", str(self.map_tabs.count()))
         self.remove_map_tabs()
 
         for name, map in self.appdata.project.maps.items():
