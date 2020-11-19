@@ -25,7 +25,7 @@ class ProjectData:
     def __init__(self):
         self.name = "Unnamed project"
         self.cobra_py_model = cobra.Model()
-        self.maps = []
+        self.maps = {}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.scenario_backup: Dict[str, Tuple[float, float]] = {}

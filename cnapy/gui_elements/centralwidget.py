@@ -9,7 +9,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabBar, QTabWidget, QVBoxLayout, QWidget)
+                            QTabWidget, QVBoxLayout, QWidget)
 
 FIXED_TABS = 2
 
@@ -21,17 +21,18 @@ class CentralWidget(QWidget):
         QWidget.__init__(self)
         self.parent = parent
         self.appdata: CnaData = parent.appdata
-
+        self.map_counter = 0
         self.searchbar = QLineEdit()
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()
-        self.tabs.setTabsClosable(True)
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
-        self.maps: list = []
+
+        self.map_tabs = QTabWidget()
+        self.map_tabs.setTabsClosable(True)
 
         # Create an in-process kernel
         kernel_manager = QtInProcessKernelManager()
@@ -55,21 +56,19 @@ class CentralWidget(QWidget):
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
 
-        self.add_map_button = QPushButton("add map")
-        self.tabs.setCornerWidget(
-            self.add_map_button, corner=Qt.TopRightCorner)
-
-        # disable close button on reactions, metabolites and console tab
-        self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
-        self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
-
         self.mode_navigator = ModeNavigator(self.appdata)
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.searchbar)
-        self.splitter.addWidget(self.tabs)
-        self.splitter.addWidget(self.mode_navigator)
-        self.splitter.addWidget(self.console)
+        splitter1 = QSplitter()
+        splitter1.addWidget(self.tabs)
+        self.splitter2 = QSplitter()
+        self.splitter2.addWidget(self.map_tabs)
+        self.splitter2.addWidget(self.mode_navigator)
+        self.splitter2.addWidget(self.console)
+        self.splitter2.setOrientation(Qt.Vertical)
+        splitter1.addWidget(self.splitter2)
+        self.splitter.addWidget(splitter1)
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, False)
         self.console.show()
@@ -78,11 +77,11 @@ class CentralWidget(QWidget):
         layout.addWidget(self.splitter)
         self.setLayout(layout)
 
+        self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
-        self.add_map_button.clicked.connect(self.add_map)
-        self.tabs.tabCloseRequested.connect(self.delete_map)
+        self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
@@ -101,7 +100,6 @@ class CentralWidget(QWidget):
         self.parent.fba_optimize_reaction(reaction)
 
     def update_reaction_value(self, reaction: str, value: str):
-        print("update_reaction_value", value)
         if value == "":
             self.appdata.project.scen_values.pop(reaction, None)
             self.appdata.project.comp_values.pop(reaction, None)
@@ -112,25 +110,45 @@ class CentralWidget(QWidget):
             except:
                 (vl, vh) = make_tuple(value)
                 self.appdata.project.scen_values[reaction] = (vl, vh)
+        self.reaction_list.update()
+
+    def update_reaction_maps(self, reaction: str):
+        self.reaction_list.reaction_mask.update_state()
+
+    def tabs_changed(self, idx):
+        if idx == 0:
+            self.reaction_list.update()
+        elif idx == 1:
+            self.metabolite_list.update()
 
     def add_map(self):
-        m = CnaMap("Map")
-        self.appdata.project.maps.append(m)
-        map = MapView(self.appdata, len(self.appdata.project.maps)-1)
+        while True:
+            name = "Map "+str(self.map_counter)
+            self.map_counter += 1
+            if name not in self.appdata.project.maps.keys():
+                break
+        m = CnaMap(name)
+
+        self.appdata.project.maps[name] = m
+        map = MapView(self.appdata, name)
         map.switchToReactionDialog.connect(self.switch_to_reaction)
         map.optimizeReaction.connect(self.optimize_reaction)
 
         map.reactionValueChanged.connect(self.update_reaction_value)
-        self.tabs.addTab(map, m["name"])
+        map.reactionRemoved.connect(self.update_reaction_maps)
+        self.map_tabs.addTab(map, m["name"])
         self.update_maps()
-        self.tabs.setCurrentIndex(2 + len(self.appdata.project.maps))
+        self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
+        self.reaction_list.reaction_mask.update_state()
 
     def remove_map_tabs(self):
-        for _ in range(FIXED_TABS, self.tabs.count()):
-            self.tabs.removeTab(FIXED_TABS)
+        for _ in range(0, self.map_tabs.count()):
+            self.map_tabs.removeTab(0)
 
     def delete_map(self, idx: int):
-        diag = ConfirmMapDeleteDialog(self, idx)
+        print("delete map: "+str(idx))
+        name = self.map_tabs.tabText(idx)
+        diag = ConfirmMapDeleteDialog(self, idx, name)
         diag.exec()
 
     def update_selected(self):
@@ -140,9 +158,10 @@ class CentralWidget(QWidget):
             self.reaction_list.update_selected(x)
         if idx == 1:
             self.metabolite_list.update_selected(x)
-        elif idx >= FIXED_TABS:
-            m = self.tabs.widget(idx)
-            m.update_selected(x)
+
+        idx = self.map_tabs.currentIndex()
+        m = self.map_tabs.widget(idx)
+        m.update_selected(x)
 
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
@@ -165,65 +184,63 @@ class CentralWidget(QWidget):
             self.mode_navigator.show()
             self.mode_navigator.update()
 
-        self.update_active_tab()
-
-    def update_active_tab(self):
         idx = self.tabs.currentIndex()
-        self.update_tab(idx)
-
-    def update_maps(self):
-        print("update_maps", str(self.tabs.count()))
-        for idx in range(3, self.tabs.count()):
-            self.update_tab(idx)
-
-    def recreate_maps(self):
-        print("recreate_maps", str(self.tabs.count()))
-        last = self.tabs.currentIndex()
-        self.tabs.setCurrentIndex(0)
-        self.remove_map_tabs()
-
-        count = 0
-        for m in self.appdata.project.maps:
-            map = MapView(self.appdata, count)
-            map.show()
-            map.switchToReactionDialog.connect(self.switch_to_reaction)
-            map.optimizeReaction.connect(self.optimize_reaction)
-            map.reactionValueChanged.connect(self.update_reaction_value)
-            self.tabs.addTab(map, m["name"])
-            map.update()
-            count += 1
-        if last >= self.tabs.count():
-            self.tabs.setCurrentIndex(self.tabs.count() - 1)
-        else:
-            self.tabs.setCurrentIndex(last)
-
-    def update_tab(self, idx: int):
         if idx == 0:
             self.reaction_list.update()
         elif idx == 1:
             self.metabolite_list.update()
-        elif idx >= FIXED_TABS:
-            m = self.tabs.widget(idx)
+        idx = self.map_tabs.currentIndex()
+        m = self.map_tabs.widget(idx)
+        if m != None:
             m.update()
 
-    def jump_to_map(self, idx: int, reaction):
-        print("centralwidget::jump_to_map", str(idx))
-        m = self.tabs.widget(FIXED_TABS-1+idx)
-        self.tabs.setCurrentIndex(FIXED_TABS-1+idx)
+    def update_map(self, idx):
+        m = self.map_tabs.widget(idx)
+        if m != None:
+            m.update()
 
-        m.update()
-        # self.searchbar.setText(reaction)
-        m.focus_reaction(reaction)
-        m.highlight_reaction(reaction)
+    def update_maps(self):
+        print("update_maps", str(self.tabs.count()))
+        for idx in range(0, self.map_tabs.count()):
+            m = self.map_tabs.widget(idx)
+            m.update()
+
+    def recreate_maps(self):
+        self.remove_map_tabs()
+
+        for name, map in self.appdata.project.maps.items():
+            map = MapView(self.appdata, name)
+            map.show()
+            map.switchToReactionDialog.connect(self.switch_to_reaction)
+            map.optimizeReaction.connect(self.optimize_reaction)
+            map.reactionValueChanged.connect(self.update_reaction_value)
+            map.reactionRemoved.connect(self.update_reaction_maps)
+            self.map_tabs.addTab(map, name)
+            map.update()
+
+    def jump_to_map(self, id: str, reaction: str):
+        print("centralwidget::jump_to_map", id, reaction)
+        for idx in range(0, self.map_tabs.count()):
+            name = self.map_tabs.tabText(idx)
+            if name == id:
+                m = self.map_tabs.widget(idx)
+                self.map_tabs.setCurrentIndex(idx)
+
+                m.update()
+                # self.searchbar.setText(reaction)
+                m.focus_reaction(reaction)
+                m.highlight_reaction(reaction)
+                break
 
 
 class ConfirmMapDeleteDialog(QDialog):
 
-    def __init__(self, parent, idx):
+    def __init__(self, parent, idx: int, name: str):
         super(ConfirmMapDeleteDialog, self).__init__(parent)
         # Create widgets
         self.parent = parent
         self.idx = idx
+        self.name = name
         self.lable = QLabel("Do you realy want to delete this map?")
         self.button_yes = QPushButton("Yes delete")
         self.button_no = QPushButton("No!")
@@ -239,6 +256,8 @@ class ConfirmMapDeleteDialog(QDialog):
         self.button_no.clicked.connect(self.reject)
 
     def delete(self):
-        del self.parent.appdata.project.maps[self.idx-FIXED_TABS]
-        self.parent.recreate_maps()
+        print("Delete Map:"+self.name)
+        del self.parent.appdata.project.maps[self.name]
+        self.parent.map_tabs.removeTab(self.idx)
+        self.parent.reaction_list.reaction_mask.update_state()
         self.accept()

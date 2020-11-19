@@ -141,4 +141,4 @@ class PhasePlaneDialog(QDialog):
             # display the plot
             plt.show()
         self.appdata.window.centralWidget(
-        ).splitter.setSizes([0, 1000, 0, 1000])
+        ).splitter2.setSizes([10, 0, 100])
