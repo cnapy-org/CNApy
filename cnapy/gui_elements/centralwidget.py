@@ -26,11 +26,13 @@ class CentralWidget(QWidget):
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()
-        self.tabs.setTabsClosable(True)
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
+
+        self.map_tabs = QTabWidget()
+        self.map_tabs.setTabsClosable(True)
         self.maps: list = []
 
         # Create an in-process kernel
@@ -56,18 +58,17 @@ class CentralWidget(QWidget):
         self.console.kernel_client = self.kernel_client
 
         self.add_map_button = QPushButton("add map")
-        self.tabs.setCornerWidget(
+        self.map_tabs.setCornerWidget(
             self.add_map_button, corner=Qt.TopRightCorner)
-
-        # disable close button on reactions, metabolites and console tab
-        self.tabs.tabBar().setTabButton(0, QTabBar.RightSide, None)
-        self.tabs.tabBar().setTabButton(1, QTabBar.RightSide, None)
 
         self.mode_navigator = ModeNavigator(self.appdata)
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.searchbar)
-        self.splitter.addWidget(self.tabs)
+        splitter1 = QSplitter()
+        splitter1.addWidget(self.tabs)
+        splitter1.addWidget(self.map_tabs)
+        self.splitter.addWidget(splitter1)
         self.splitter.addWidget(self.mode_navigator)
         self.splitter.addWidget(self.console)
         self.splitter.setCollapsible(0, False)
@@ -82,7 +83,7 @@ class CentralWidget(QWidget):
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
         self.add_map_button.clicked.connect(self.add_map)
-        self.tabs.tabCloseRequested.connect(self.delete_map)
+        self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
@@ -121,13 +122,13 @@ class CentralWidget(QWidget):
         map.optimizeReaction.connect(self.optimize_reaction)
 
         map.reactionValueChanged.connect(self.update_reaction_value)
-        self.tabs.addTab(map, m["name"])
+        self.map_tabs.addTab(map, m["name"])
         self.update_maps()
-        self.tabs.setCurrentIndex(2 + len(self.appdata.project.maps))
+        self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
 
     def remove_map_tabs(self):
-        for _ in range(FIXED_TABS, self.tabs.count()):
-            self.tabs.removeTab(FIXED_TABS)
+        for _ in range(0, self.map_tabs.count()):
+            self.map_tabs.removeTab(0)
 
     def delete_map(self, idx: int):
         diag = ConfirmMapDeleteDialog(self, idx)
@@ -140,9 +141,10 @@ class CentralWidget(QWidget):
             self.reaction_list.update_selected(x)
         if idx == 1:
             self.metabolite_list.update_selected(x)
-        elif idx >= FIXED_TABS:
-            m = self.tabs.widget(idx)
-            m.update_selected(x)
+
+        idx = self.map_tabs.currentIndex()
+        m = self.map_tabs.widget(idx)
+        m.update_selected(x)
 
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
@@ -165,21 +167,26 @@ class CentralWidget(QWidget):
             self.mode_navigator.show()
             self.mode_navigator.update()
 
-        self.update_active_tab()
-
-    def update_active_tab(self):
         idx = self.tabs.currentIndex()
-        self.update_tab(idx)
+        if idx == 0:
+            self.reaction_list.update()
+        elif idx == 1:
+            self.metabolite_list.update()
+        idx = self.map_tabs.currentIndex()
+        m = self.map_tabs.widget(idx)
+        if m != None:
+            m.update()
 
     def update_maps(self):
         print("update_maps", str(self.tabs.count()))
-        for idx in range(3, self.tabs.count()):
-            self.update_tab(idx)
+        for idx in range(1, self.map_tabs.count()):
+            m = self.map_tabs.widget(idx)
+            m.update()
 
     def recreate_maps(self):
         print("recreate_maps", str(self.tabs.count()))
-        last = self.tabs.currentIndex()
-        self.tabs.setCurrentIndex(0)
+        last = self.map_tabs.currentIndex()
+        self.map_tabs.setCurrentIndex(0)
         self.remove_map_tabs()
 
         count = 0
@@ -189,27 +196,18 @@ class CentralWidget(QWidget):
             map.switchToReactionDialog.connect(self.switch_to_reaction)
             map.optimizeReaction.connect(self.optimize_reaction)
             map.reactionValueChanged.connect(self.update_reaction_value)
-            self.tabs.addTab(map, m["name"])
+            self.map_tabs.addTab(map, m["name"])
             map.update()
             count += 1
-        if last >= self.tabs.count():
-            self.tabs.setCurrentIndex(self.tabs.count() - 1)
+        if last >= self.map_tabs.count():
+            self.map_tabs.setCurrentIndex(self.map_tabs.count() - 1)
         else:
-            self.tabs.setCurrentIndex(last)
-
-    def update_tab(self, idx: int):
-        if idx == 0:
-            self.reaction_list.update()
-        elif idx == 1:
-            self.metabolite_list.update()
-        elif idx >= FIXED_TABS:
-            m = self.tabs.widget(idx)
-            m.update()
+            self.map_tabs.setCurrentIndex(last)
 
     def jump_to_map(self, idx: int, reaction):
         print("centralwidget::jump_to_map", str(idx))
-        m = self.tabs.widget(FIXED_TABS-1+idx)
-        self.tabs.setCurrentIndex(FIXED_TABS-1+idx)
+        m = self.map_tabs.widget(idx-1)
+        self.map_tabs.setCurrentIndex(idx-1)
 
         m.update()
         # self.searchbar.setText(reaction)
@@ -239,6 +237,6 @@ class ConfirmMapDeleteDialog(QDialog):
         self.button_no.clicked.connect(self.reject)
 
     def delete(self):
-        del self.parent.appdata.project.maps[self.idx-FIXED_TABS]
+        del self.parent.appdata.project.maps[self.idx]
         self.parent.recreate_maps()
         self.accept()

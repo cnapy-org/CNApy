@@ -44,6 +44,7 @@ class ReactionList(QWidget):
         l.setAlignment(Qt.AlignRight)
         l.addWidget(self.add_button)
         self.splitter = QSplitter()
+        self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.reaction_list)
         self.splitter.addWidget(self.reaction_mask)
         self.layout.addItem(l)

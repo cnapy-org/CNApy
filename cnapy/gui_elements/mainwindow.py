@@ -231,7 +231,7 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(update_action)
         self.addToolBar(self.tool_bar)
 
-        self.centralWidget().tabs.currentChanged.connect(self.on_tab_change)
+        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
     @Slot()
     def exit_app(self, _checked):
@@ -329,13 +329,13 @@ class MainWindow(QMainWindow):
         idx = self.centralWidget().tabs.currentIndex()
         if filename[0] != '':
             # try:
-            self.appdata.project.maps[idx - 3]["background"] = filename[0]
-            print(self.appdata.project.maps[idx - 3]["background"])
+            self.appdata.project.maps[idx]["background"] = filename[0]
+            print(self.appdata.project.maps[idx]["background"])
 
             background = QGraphicsSvgItem(
-                self.appdata.project.maps[idx - 3]["background"])
+                self.appdata.project.maps[idx]["background"])
             background.setFlags(QGraphicsItem.ItemClipsToShape)
-            self.centralWidget().tabs.widget(idx).scene.addItem(background)
+            self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
             # except:
             # print("could not update background")
 
@@ -530,7 +530,7 @@ class MainWindow(QMainWindow):
 
     def on_tab_change(self, idx):
         print("currentTab changed", str(idx))
-        if idx >= 3:
+        if idx >= 0:
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
