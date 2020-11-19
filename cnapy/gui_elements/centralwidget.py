@@ -41,7 +41,8 @@ class CentralWidget(QWidget):
 
         myglobals = globals()
         myglobals["cna"] = self.parent
-        kernel_manager.kernel.shell.push(myglobals)
+        self.kernel_shell = kernel_manager.kernel.shell
+        self.kernel_shell.push(myglobals)
         self.kernel_client = kernel_manager.client()
         self.kernel_client.start_channels()
 

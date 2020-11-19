@@ -656,6 +656,7 @@ class MainWindow(QMainWindow):
                 "print('\\nRank of stoichiometric matrix: '+ str(rank))")
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
+            # self.centralWidget().kernel_client.execute_interactive("print('\\nEmpty matrix!')")
 
         self.centralWidget().splitter.setSizes([0, 1000, 0, 1000])
 
