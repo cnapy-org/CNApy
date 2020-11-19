@@ -74,6 +74,7 @@ class CentralWidget(QWidget):
         layout.addWidget(self.splitter)
         self.setLayout(layout)
 
+        self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
@@ -107,6 +108,12 @@ class CentralWidget(QWidget):
             except:
                 (vl, vh) = make_tuple(value)
                 self.appdata.project.scen_values[reaction] = (vl, vh)
+
+    def tabs_changed(self, idx):
+        if idx == 0:
+            self.reaction_list.update()
+        elif idx == 1:
+            self.metabolite_list.update()
 
     def add_map(self):
         while True:
