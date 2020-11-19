@@ -199,9 +199,10 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[id].set_val_and_color(
                     self.appdata.project.comp_values[id])
 
-    def delete_box(self, id):
-        del self.appdata.project.maps[self.name]["boxes"][id]
+    def remove_box(self, reaction: str):
+        del self.appdata.project.maps[self.name]["boxes"][reaction]
         self.update()
+        self.reactionRemoved.emit(reaction)
 
     # def emit_doubleClickedReaction(self, reaction: str):
     #     print("emit_doubleClickedReaction")
@@ -214,6 +215,7 @@ class MapView(QGraphicsView):
 
     switchToReactionDialog = Signal(str)
     optimizeReaction = Signal(str)
+    reactionRemoved = Signal(str)
     reactionValueChanged = Signal(str, str)
 
 
@@ -263,9 +265,9 @@ class ReactionBox(QGraphicsItem):
         switch_action = QAction('switch to reaction dialog', parent)
         self.popMenu.addAction(switch_action)
         switch_action.triggered.connect(self.switch_to_reaction_dialog)
-        delete_action = QAction('remove from map', parent)
-        self.popMenu.addAction(delete_action)
-        delete_action.triggered.connect(self.delete)
+        remove_action = QAction('remove from map', parent)
+        self.popMenu.addAction(remove_action)
+        remove_action.triggered.connect(self.remove)
 
         self.popMenu.addSeparator()
 
@@ -407,8 +409,8 @@ class ReactionBox(QGraphicsItem):
         # show context menu
         self.popMenu.exec_(self.item.mapToGlobal(point))
 
-    def delete(self):
-        self.map.delete_box(self.id)
+    def remove(self):
+        self.map.remove_box(self.id)
         self.map.drag = False
 
     def switch_to_reaction_dialog(self):
