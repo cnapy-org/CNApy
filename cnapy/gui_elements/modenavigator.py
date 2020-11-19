@@ -48,7 +48,6 @@ class ModeNavigator(QWidget):
         self.update()
 
     def update(self):
-        print("ModeNavigator update")
         self.label.setText(str(self.current + 1) + "/" +
                            str(len(self.appdata.project.modes)))
 

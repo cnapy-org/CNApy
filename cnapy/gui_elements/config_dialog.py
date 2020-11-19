@@ -2,8 +2,9 @@
 from cnapy.cnadata import CnaData
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
-from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog, QHBoxLayout,
-                            QLabel, QLineEdit, QPushButton, QVBoxLayout)
+from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
+                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
+                            QVBoxLayout)
 
 
 class ConfigDialog(QDialog):
@@ -101,6 +102,20 @@ class ConfigDialog(QDialog):
         self.abs_tol.setValidator(validator)
         h8.addWidget(self.abs_tol)
         self.layout.addItem(h8)
+
+        h9 = QHBoxLayout()
+        label = QLabel(
+            "MatLab engine:")
+        h9.addWidget(label)
+        self.default_engine = QComboBox()
+        self.default_engine.insertItem(1, "MatLab")
+        self.default_engine.insertItem(2, "Octave")
+        if self.appdata.default_engine == "octave":
+            self.default_engine.setCurrentIndex(1)
+        else:
+            self.default_engine.setCurrentIndex(0)
+        h9.addWidget(self.default_engine)
+        self.layout.addItem(h9)
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
@@ -202,6 +217,13 @@ class ConfigDialog(QDialog):
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
 
+        if self.default_engine.currentIndex() == 0:
+            print("set matlab")
+            self.appdata.default_engine = "matlab"
+        elif self.default_engine.currentIndex() == 1:
+            print("set octave")
+            self.appdata.default_engine = "octave"
+
         import configparser
         configFilePath = r'cnapy-config.txt'
         parser = configparser.ConfigParser()
@@ -221,6 +243,8 @@ class ConfigDialog(QDialog):
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',
                    str(self.appdata.abs_tol))
+        parser.set('cnapy-config', 'default_engine',
+                   str(self.appdata.default_engine))
 
         fp = open(configFilePath, 'w')
         parser.write(fp)

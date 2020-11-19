@@ -1,18 +1,16 @@
 """The cnapy dialog for calculating minimal cut sets"""
 
 import io
-import sys
 import traceback
 
+import cnapy.legacy as legacy
+from cnapy.cnadata import CnaData
+from cnapy.legacy import get_matlab_engine
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
-
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
-from cnapy.legacy import get_matlab_engine
 
 
 class MCSDialog(QDialog):
@@ -130,37 +128,41 @@ class MCSDialog(QDialog):
         sg1.addItem(s32)
         sgx.addWidget(self.gen_kos)
         sgx.addItem(sg1)
+        s3.addItem(sgx)
 
-        g3 = QGroupBox("Solver")
-        s33 = QVBoxLayout()
-        self.bg1 = QButtonGroup()
-        self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
-        s33.addWidget(self.solver_cplex_matlab)
-        self.bg1.addButton(self.solver_cplex_matlab)
-        self.solver_cplex_java = QRadioButton("CPLEX (Java)")
-        s33.addWidget(self.solver_cplex_java)
-        self.bg1.addButton(self.solver_cplex_java)
-        self.solver_intlinprog = QRadioButton("intlinprog")
-        s33.addWidget(self.solver_intlinprog)
-        self.bg1.addButton(self.solver_intlinprog)
-        g3.setLayout(s33)
+        # g3 = QGroupBox("Solver")
+        # s33 = QVBoxLayout()
+        # self.bg1 = QButtonGroup()
+        # self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
+        # s33.addWidget(self.solver_cplex_matlab)
+        # self.bg1.addButton(self.solver_cplex_matlab)
+        # self.solver_cplex_java = QRadioButton("CPLEX (Java)")
+        # s33.addWidget(self.solver_cplex_java)
+        # self.bg1.addButton(self.solver_cplex_java)
+        # self.solver_intlinprog = QRadioButton("intlinprog")
+        # s33.addWidget(self.solver_intlinprog)
+        # self.bg1.addButton(self.solver_intlinprog)
+        # g3.setLayout(s33)
+        # s3.addWidget(g3)
 
         g4 = QGroupBox("MCS search")
         s34 = QVBoxLayout()
         self.bg2 = QButtonGroup()
         self.any_mcs = QRadioButton("any MCS (fast)")
+        self.any_mcs.setChecked(True)
         s34.addWidget(self.any_mcs)
         self.bg2.addButton(self.any_mcs)
-        self.mcs_by_cardinality = QRadioButton("by cardinality")
-        s34.addWidget(self.mcs_by_cardinality)
-        self.bg2.addButton(self.mcs_by_cardinality)
+
+        # Search type: by cardinality only with CPLEX possible
+        # self.mcs_by_cardinality = QRadioButton("by cardinality")
+        # s34.addWidget(self.mcs_by_cardinality)
+        # self.bg2.addButton(self.mcs_by_cardinality)
+
         self.smalles_mcs_first = QRadioButton("smallest MCS first")
         s34.addWidget(self.smalles_mcs_first)
         self.bg2.addButton(self.smalles_mcs_first)
         g4.setLayout(s34)
 
-        s3.addItem(sgx)
-        s3.addWidget(g3)
         s3.addWidget(g4)
 
         self.layout.addItem(s3)
@@ -254,8 +256,20 @@ class MCSDialog(QDialog):
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
         print(".")
-        self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                      nargout=0)
+        try:
+            self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                          nargout=0,
+                          stdout=self.out, stderr=self.err)
+        except Exception:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            print(exstr)
+            QMessageBox.warning(self, 'Unknown exception occured!',
+                                exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+            return
+
         print(".")
 
         self.eng.eval("genes = [];", nargout=0,
@@ -281,21 +295,27 @@ class MCSDialog(QDialog):
         else:
             self.eng.eval("advanced_on = 0;", nargout=0,
                           stdout=self.out, stderr=self.err)
-        # TODO get solver
-        self.eng.eval("solver = 'intlinprog';", nargout=0,
-                      stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'java_cplex_new';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'java_cplex';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'glpk';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # self.eng.eval("solver = 'matlab_cplex';", nargout=0,
-        #               stdout=self.out, stderr=self.err)
 
-        # TODO get search mode
-        self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
-                      stdout=self.out, stderr=self.err)
+        if legacy.is_matlab_ready():
+            self.eng.eval("solver = 'intlinprog';", nargout0,
+                          stdout=self.out, stderr=self.err)
+        elif legacy.is_octave_ready():
+            self.eng.eval("solver = 'glpk';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+            # Other solver options
+            #  - 'java_cplex_new'
+            #  - 'java_cplex'
+            #  - 'matlab_cplex'
+
+        if self.any_mcs.isChecked():
+            self.eng.eval("mcs_search_mode = 'search_1';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+        elif self.smalles_mcs_first.isChecked():
+            self.eng.eval("mcs_search_mode = 'search_3';", nargout=0,
+                          stdout=self.out, stderr=self.err)
+
+        # Search mode 'search_2' by cardinality only with CPLEX
+
         if self.consider_scenario.isChecked():
             self.eng.eval("reac_box_vals = 1;", nargout=0,
                           stdout=self.out, stderr=self.err)
@@ -330,8 +350,7 @@ class MCSDialog(QDialog):
             cmd = "dg_D = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
             print(cmd)
-            self.eng.eval(cmd, nargout=0,
-                          stdout=self.out, stderr=self.err)
+            self.eng.eval(cmd, nargout=0)
 
         # get some data
         self.eng.eval("reac_id = cellstr(cnap.reacID).';",
@@ -347,9 +366,14 @@ class MCSDialog(QDialog):
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
             except Exception:
-                traceback.print_exception(*sys.exc_info())
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)
@@ -362,9 +386,14 @@ class MCSDialog(QDialog):
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
             except Exception:
-                traceback.print_exception(*sys.exc_info())
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
                               stdout=self.out, stderr=self.err)
@@ -379,7 +408,9 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            for i in range(0, len(values)):
+            reac_id = reac_id[0]
+            print(reac_id)
+            for i in range(0, len(reac_id)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
                 c_mcs = int(mcs[i][0])

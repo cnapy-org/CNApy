@@ -23,7 +23,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna, use_matlab, use_octave
 
 
 class CellNetAnalyzer:
@@ -38,8 +38,7 @@ class CellNetAnalyzer:
         self.window.mcs_action.setEnabled(False)
 
         configParser = configparser.RawConfigParser()
-        configFilePath = r'cnapy-config.txt'
-        configParser.read(configFilePath)
+        configParser.read(r'cnapy-config.txt')
 
         try:
             self.appdata.cna_path = configParser.get(
@@ -110,6 +109,18 @@ class CellNetAnalyzer:
         except:
             print("Could not read abs_tol in cnapy-config.txt")
             self.appdata.abs_tol = 0.000000001
+        try:
+            default_engine = configParser.get(
+                'cnapy-config', 'default_engine')
+            self.appdata.default_engine = default_engine
+        except:
+            print("Could not read default_engine in cnapy-config.txt")
+            self.appdata.default_engine = "matlab"
+
+        if self.appdata.default_engine == "octave" and is_octave_ready():
+            use_octave()
+        elif is_matlab_ready():
+            use_matlab()
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)

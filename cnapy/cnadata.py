@@ -17,6 +17,7 @@ class CnaData:
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
+        self.default_engine = "matlab"
         self.work_directory = ""
 
 

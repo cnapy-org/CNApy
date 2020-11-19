@@ -233,9 +233,14 @@ class EFMDialog(QDialog):
                     "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
                 print(a)
             except Exception:
-                traceback.print_exception(*sys.exc_info())
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
-                                          'Please report the problem to:\n\nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                return
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
