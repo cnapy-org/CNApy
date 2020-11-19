@@ -237,29 +237,27 @@ class ReactionList(QWidget):
         self.last_selected = key
         self.update()
 
-    def emit_jump_to_map(self, idx: int, reaction):
-        # print("ReactionList::emit jump to map", idx, reaction)
+    def emit_jump_to_map(self, idx: str, reaction: str):
         self.jumpToMap.emit(idx, reaction)
 
     itemActivated = Signal(str)
     changedModel = Signal()
-    jumpToMap = Signal(int, str)
+    jumpToMap = Signal(str, str)
 
 
 class JumpButton(QPushButton):
     """button to jump to reactions on map"""
 
-    def __init__(self, parent, id: int):
+    def __init__(self, parent, id: str):
         QPushButton.__init__(self, str(id))
         self.parent = parent
-        self.id: int = id
+        self.id: str = id
         self.clicked.connect(self.emit_jump_to_map)
 
     def emit_jump_to_map(self):
-        # print("JumpButton::emit jump to map", self.id)
         self.jumpToMap.emit(self.id)
 
-    jumpToMap = Signal(int)
+    jumpToMap = Signal(str)
 
 
 class JumpList(QWidget):
@@ -275,13 +273,12 @@ class JumpList(QWidget):
         for i in reversed(range(self.layout.count())):
             self.layout.itemAt(i).widget().setParent(None)
 
-    def add(self, map_id: int):
-        # print("JumpList::add")
+    def add(self, name: str):
         if self.layout.count() == 0:
             label = QLabel("Jump to reaction on map:")
             self.layout.addWidget(label)
 
-        jb = JumpButton(self, map_id)
+        jb = JumpButton(self, name)
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         jb.setSizePolicy(policy)
@@ -290,12 +287,11 @@ class JumpList(QWidget):
 
         jb.jumpToMap.connect(self.emit_jump_to_map)
 
-    @ Slot(int)
-    def emit_jump_to_map(self: JumpButton, id: int):
-        print("JumpList::emit_jump_to_map", id)
-        self.parent.emit_jump_to_map(id)
+    @ Slot(str)
+    def emit_jump_to_map(self: JumpButton, name: str):
+        self.parent.emit_jump_to_map(name)
 
-    jumpToMap = Signal(int)
+    jumpToMap = Signal(str)
 
 
 class ReactionMask(QWidget):
@@ -460,11 +456,10 @@ class ReactionMask(QWidget):
 
     def add_to_map(self):
         # print("add to map")
-        idx = self.map_combo.currentText()
-        print("ReactionMask::add_to_map", idx)
-        self.parent.appdata.project.maps[int(idx)-1]["boxes"][self.id.text()] = (
+        name = self.map_combo.currentText()
+        self.parent.appdata.project.maps[name]["boxes"][self.id.text()] = (
             100, 100, self.name.text())
-        self.emit_jump_to_map(int(idx))
+        self.emit_jump_to_map(name)
         self.update_state()
 
     def validate_id(self):
@@ -602,9 +597,9 @@ class ReactionMask(QWidget):
         else:
             self.apply_button.setEnabled(False)
 
-    def emit_jump_to_map(self, idx):
-        # print("ReactionMask::emit_jump_to_map", idx, self.id.text())
-        self.jumpToMap.emit(idx, self.id.text())
+    def emit_jump_to_map(self, name):
+        print("ReactionMask::emit_jump_to_map", name)
+        self.jumpToMap.emit(name, self.id.text())
 
-    jumpToMap = Signal(int, str)
+    jumpToMap = Signal(str, str)
     changedReactionList = Signal()

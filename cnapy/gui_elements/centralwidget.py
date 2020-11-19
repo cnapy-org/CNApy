@@ -9,7 +9,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabBar, QTabWidget, QVBoxLayout, QWidget)
+                            QTabWidget, QVBoxLayout, QWidget)
 
 FIXED_TABS = 2
 
@@ -109,8 +109,11 @@ class CentralWidget(QWidget):
                 self.appdata.project.scen_values[reaction] = (vl, vh)
 
     def add_map(self):
-        name = "Map "+str(self.map_counter)
-        self.map_counter += 1
+        while True:
+            name = "Map "+str(self.map_counter)
+            self.map_counter += 1
+            if name not in self.appdata.project.maps.keys():
+                break
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
@@ -122,6 +125,7 @@ class CentralWidget(QWidget):
         self.map_tabs.addTab(map, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
+        self.reaction_list.reaction_mask.update_state()
 
     def remove_map_tabs(self):
         for _ in range(0, self.map_tabs.count()):
@@ -200,15 +204,19 @@ class CentralWidget(QWidget):
             self.map_tabs.addTab(map, name)
             map.update()
 
-    def jump_to_map(self, idx: int, reaction):
-        print("centralwidget::jump_to_map", str(idx))
-        m = self.map_tabs.widget(idx-1)
-        self.map_tabs.setCurrentIndex(idx-1)
+    def jump_to_map(self, id: str, reaction: str):
+        print("centralwidget::jump_to_map", id, reaction)
+        for idx in range(0, self.map_tabs.count()):
+            name = self.map_tabs.tabText(idx)
+            if name == id:
+                m = self.map_tabs.widget(idx)
+                self.map_tabs.setCurrentIndex(idx)
 
-        m.update()
-        # self.searchbar.setText(reaction)
-        m.focus_reaction(reaction)
-        m.highlight_reaction(reaction)
+                m.update()
+                # self.searchbar.setText(reaction)
+                m.focus_reaction(reaction)
+                m.highlight_reaction(reaction)
+                break
 
 
 class ConfirmMapDeleteDialog(QDialog):
@@ -237,4 +245,5 @@ class ConfirmMapDeleteDialog(QDialog):
         print("Delete Map:"+self.name)
         del self.parent.appdata.project.maps[self.name]
         self.parent.map_tabs.removeTab(self.idx)
+        self.parent.reaction_list.reaction_mask.update_state()
         self.accept()
