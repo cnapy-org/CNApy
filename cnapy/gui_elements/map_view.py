@@ -67,9 +67,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         id = event.mimeData().text()
-        (_, _, name) = self.appdata.project.maps[self.name]["boxes"][id]
         self.appdata.project.maps[self.name]["boxes"][id] = (
-            point_item.x(), point_item.y(), name)
+            point_item.x(), point_item.y())
         self.update()
 
     def dragLeaveEvent(self, _event):
@@ -80,9 +79,8 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         id = event.mimeData().text()
-        (_, _, name) = self.appdata.project.maps[self.name]["boxes"][id]
         self.appdata.project.maps[self.name]["boxes"][id] = (
-            point_item.x(), point_item.y(), name)
+            point_item.x(), point_item.y())
         self.update()
 
     def wheelEvent(self, event):

@@ -1,16 +1,30 @@
 """The CellNetAnalyzer reactions list"""
-import cobra
-from cnapy.utils import *
 from math import isclose
-from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
-                            QLineEdit, QMessageBox, QPushButton,
-                            QSizePolicy, QSplitter, QTableWidget,
-                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-                            QVBoxLayout, QWidget)
 
+import cobra
 from cnapy.cnadata import CnaData
+from cnapy.utils import *
+from qtpy.QtCore import QMimeData, Qt, Signal, Slot
+from qtpy.QtGui import QIcon, QDrag
+from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
+                            QLineEdit, QMessageBox, QPushButton, QSizePolicy,
+                            QSplitter, QTableWidget, QTableWidgetItem,
+                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+
+
+class DragableTreeWidget(QTreeWidget):
+    def __init__(self,):
+        super(DragableTreeWidget, self).__init__()
+
+    def mouseMoveEvent(self, event):
+        item = self.currentItem()
+        reaction: cobra.Reaction = item.data(3, 0)
+        mimeData = QMimeData()
+        mimeData.setText(reaction.id)
+        drag = QDrag(self)
+        drag.setMimeData(mimeData)
+        drag.exec_(Qt.CopyAction |
+                   Qt.MoveAction, Qt.CopyAction)
 
 
 class ReactionList(QWidget):
@@ -28,7 +42,8 @@ class ReactionList(QWidget):
         policy.ShrinkFlag = True
         self.add_button.setSizePolicy(policy)
 
-        self.reaction_list = QTreeWidget()
+        self.reaction_list = DragableTreeWidget()
+        self.reaction_list.setDragEnabled(True)
         self.reaction_list.setHeaderLabels(["Id", "Name", "Flux"])
         self.reaction_list.setSortingEnabled(True)
 
@@ -56,6 +71,16 @@ class ReactionList(QWidget):
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
 
         self.add_button.clicked.connect(self.add_new_reaction)
+
+    def mouseMoveEvent(self, event):
+        print("ReactionList::mouseMoveEvent")
+        drag = QDrag(event.widget())
+        mime = QMimeData()
+        mime.setText(str("what"))
+        drag.setMimeData(mime)
+        # self.setCursor(Qt.ClosedHandCursor)
+        drag.exec_()
+        # self.setCursor(Qt.OpenHandCursor)
 
     def clear(self):
         self.reaction_list.clear()
@@ -458,7 +483,7 @@ class ReactionMask(QWidget):
         # print("add to map")
         name = self.map_combo.currentText()
         self.parent.appdata.project.maps[name]["boxes"][self.id.text()] = (
-            100, 100, self.name.text())
+            100, 100)
         self.emit_jump_to_map(name)
         self.update_state()
 
