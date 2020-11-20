@@ -141,6 +141,7 @@ class ReactionList(QWidget):
         turn_white(self.reaction_mask.coefficent)
         turn_white(self.reaction_mask.gene_reaction_rule)
         self.reaction_mask.is_valid = False
+        self.splitter.setSizes([100, 100])
         self.reaction_mask.update_state()
 
     def update_annotations(self, annotation):
