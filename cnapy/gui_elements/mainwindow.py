@@ -223,7 +223,7 @@ class MainWindow(QMainWindow):
             self.set_default_scenario)
 
         add_map_action = QAction("Add new map", self)
-        # set_default_scenario_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
+        # add_map_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
         add_map_action.triggered.connect(
             central_widget.add_map)
 
@@ -411,6 +411,7 @@ class MainWindow(QMainWindow):
 
     def set_default_scenario(self):
         self.appdata.project.comp_values.clear()
+        self.appdata.project.scen_values.clear()
         for r in self.appdata.project.cobra_py_model.reactions:
             if 'cnapy-default' in r.annotation.keys():
                 self.centralWidget().update_reaction_value(
