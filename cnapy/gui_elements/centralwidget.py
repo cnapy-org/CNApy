@@ -56,24 +56,19 @@ class CentralWidget(QWidget):
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
 
-        self.mode_navigator = ModeNavigator(self.appdata)
         self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Vertical)
-        self.splitter.addWidget(self.searchbar)
-        splitter1 = QSplitter()
         self.splitter2 = QSplitter()
         self.splitter2.addWidget(self.map_tabs)
+        self.mode_navigator = ModeNavigator(self.appdata)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
         self.splitter2.setOrientation(Qt.Vertical)
-        splitter1.addWidget(self.splitter2)
-        splitter1.addWidget(self.tabs)
-        self.splitter.addWidget(splitter1)
-        self.splitter.setCollapsible(0, False)
-        self.splitter.setCollapsible(1, False)
+        self.splitter.addWidget(self.splitter2)
+        self.splitter.addWidget(self.tabs)
         self.console.show()
 
         layout = QVBoxLayout()
+        layout.addWidget(self.searchbar)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
 
