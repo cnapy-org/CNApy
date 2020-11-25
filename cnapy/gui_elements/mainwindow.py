@@ -18,7 +18,7 @@ from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
-from qtpy.QtCore import Slot
+from qtpy.QtCore import Slot, QFileInfo
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
@@ -227,6 +227,8 @@ class MainWindow(QMainWindow):
         add_map_action.triggered.connect(
             central_widget.add_map)
 
+        self.setCurrentFile("Untitled project")
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(reset_scenario_action)
@@ -242,6 +244,17 @@ class MainWindow(QMainWindow):
     @Slot()
     def exit_app(self, _checked):
         QApplication.quit()
+
+    def setCurrentFile(self, fileName):
+        self.appdata.project.name = fileName
+
+        if len(self.appdata.project.name) == 0:
+            shownName = "Untitled project"
+        else:
+            shownName = QFileInfo(self.appdata.project.name).fileName()
+
+        self.setWindowTitle(
+            "CNApy - " + shownName)
 
     @Slot()
     def show_about(self, _checked):
@@ -427,7 +440,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
 
-        self.appdata.project.name = "Unnamed project"
+        self.setCurrentFile("Untitled project")
         self.save_project_action.setEnabled(False)
 
     @Slot()
@@ -457,10 +470,10 @@ class MainWindow(QMainWindow):
                 if 'cnapy-default' in r.annotation.keys():
                     self.centralWidget().update_reaction_value(
                         r.id, r.annotation['cnapy-default'])
-            self.appdata.project.name = filename[0]
-            print(self.appdata.project.name)
             self.save_project_action.setEnabled(True)
             self.centralWidget().reaction_list.update()
+
+        self.setCurrentFile(filename[0])
 
     @Slot()
     def save_project(self, _checked):
@@ -523,7 +536,8 @@ class MainWindow(QMainWindow):
             zipObj.write(folder + "maps.json", arcname="maps.json")
             for key in files.keys():
                 zipObj.write(key, arcname=files[key])
-            self.appdata.project.name = filename[0]
+
+            self.setCurrentFile(filename[0])
             self.save_project_action.setEnabled(True)
 
     def get_current_view(self):
