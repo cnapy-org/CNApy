@@ -410,12 +410,12 @@ class ReactionMask(QWidget):
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
-        self.add_map_button = QPushButton("add reaction to map")
-        self.map_combo = QComboBox()
+        # self.add_map_button = QPushButton("add reaction to map")
+        # self.map_combo = QComboBox()
 
         l.addWidget(self.apply_button)
-        l.addWidget(self.add_map_button)
-        l.addWidget(self.map_combo)
+        # l.addWidget(self.add_map_button)
+        # l.addWidget(self.map_combo)
         layout.addItem(l)
 
         self.jump_list = JumpList(self)
@@ -433,7 +433,7 @@ class ReactionMask(QWidget):
         self.gene_reaction_rule.textEdited.connect(self.reaction_data_changed)
         self.annotation.itemChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
-        self.add_map_button.clicked.connect(self.add_to_map)
+        # self.add_map_button.clicked.connect(self.add_to_map)
 
         self.validate_mask()
 
@@ -479,13 +479,13 @@ class ReactionMask(QWidget):
         self.hide()
         self.changedReactionList.emit()
 
-    def add_to_map(self):
-        # print("add to map")
-        name = self.map_combo.currentText()
-        self.parent.appdata.project.maps[name]["boxes"][self.id.text()] = (
-            100, 100)
-        self.emit_jump_to_map(name)
-        self.update_state()
+    # def add_to_map(self):
+    #     # print("add to map")
+    #     name = self.map_combo.currentText()
+    #     self.parent.appdata.project.maps[name]["boxes"][self.id.text()] = (
+    #         100, 100)
+    #     self.emit_jump_to_map(name)
+    #     self.update_state()
 
     def validate_id(self):
         if self.old != None and self.old.id == self.id.text():
@@ -608,14 +608,14 @@ class ReactionMask(QWidget):
             self.apply_button.setText("apply changes")
             self.delete_button.show()
 
-            self.add_map_button.setEnabled(False)
-            self.map_combo.clear()
-            idx = 0
-            for name, m in self.parent.appdata.project.maps.items():
-                if self.id.text() not in m["boxes"]:
-                    self.add_map_button.setEnabled(True)
-                    self.map_combo.insertItem(idx, name)
-                    idx += 1
+            # self.add_map_button.setEnabled(False)
+            # self.map_combo.clear()
+            # idx = 0
+            # for name, m in self.parent.appdata.project.maps.items():
+            # if self.id.text() not in m["boxes"]:
+            # self.add_map_button.setEnabled(True)
+            # self.map_combo.insertItem(idx, name)
+            # idx += 1
 
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
