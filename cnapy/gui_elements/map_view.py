@@ -171,13 +171,16 @@ class MapView(QGraphicsView):
         self.scene.addItem(background)
 
         for id in self.appdata.project.maps[self.name]["boxes"]:
-            name = self.appdata.project.cobra_py_model.reactions.get_by_id(
-                id).name
-            box = ReactionBox(self, id, name)
-            box.setPos(self.appdata.project.maps[self.name]["boxes"][id]
-                       [0], self.appdata.project.maps[self.name]["boxes"][id][1])
-            self.scene.addItem(box)
-            self.reaction_boxes[id] = box
+            try:
+                name = self.appdata.project.cobra_py_model.reactions.get_by_id(
+                    id).name
+                box = ReactionBox(self, id, name)
+                box.setPos(self.appdata.project.maps[self.name]["boxes"][id]
+                           [0], self.appdata.project.maps[self.name]["boxes"][id][1])
+                self.scene.addItem(box)
+                self.reaction_boxes[id] = box
+            except:
+                pass
 
         self.set_values()
 
