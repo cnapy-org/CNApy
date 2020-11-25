@@ -611,12 +611,15 @@ class MainWindow(QMainWindow):
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
-    def fba_optimize_reaction(self, reaction):
+    def fba_optimize_reaction(self, reaction: str, min: bool):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 if r.id == reaction:
-                    r.objective_coefficient = 1
+                    if min:
+                        r.objective_coefficient = -1
+                    else:
+                        r.objective_coefficient = 1
                 else:
                     r.objective_coefficient = 0
             solution = model.optimize()
