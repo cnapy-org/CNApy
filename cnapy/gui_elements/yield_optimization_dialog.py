@@ -1,15 +1,16 @@
 """The cnapy yield optimization dialog"""
 
+import io
 import re
-import sys
 import traceback
+
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
+                            QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.centralwidget import CentralWidget
-from qtpy.QtCore import Qt, Signal
-from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
-                            QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 
 class CompleterLineEdit(QLineEdit):

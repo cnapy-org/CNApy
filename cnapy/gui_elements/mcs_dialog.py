@@ -297,7 +297,7 @@ class MCSDialog(QDialog):
                           stdout=self.out, stderr=self.err)
 
         if legacy.is_matlab_ready():
-            self.eng.eval("solver = 'intlinprog';", nargout0,
+            self.eng.eval("solver = 'intlinprog';", nargout=0,
                           stdout=self.out, stderr=self.err)
         elif legacy.is_octave_ready():
             self.eng.eval("solver = 'glpk';", nargout=0,
