@@ -105,7 +105,7 @@ class ConfigDialog(QDialog):
 
         h9 = QHBoxLayout()
         label = QLabel(
-            "MatLab engine:")
+            "MatLab/Octave engine:")
         h9.addWidget(label)
         self.default_engine = QComboBox()
         self.default_engine.insertItem(1, "MatLab")
