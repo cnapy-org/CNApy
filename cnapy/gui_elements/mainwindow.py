@@ -686,12 +686,24 @@ class MainWindow(QMainWindow):
             self.centralWidget().kernel_client.execute(
                 "m = cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
             self.centralWidget().kernel_client.execute(
+                "metabolites = m.shape[0]")
+            self.centralWidget().kernel_client.execute(
+                "reactions = m.shape[1]")
+            self.centralWidget().kernel_client.execute(
                 "print('Stoichiometric matrix:\\n',m)")
+            self.centralWidget().kernel_client.execute(
+                "print('Number of metabolites:\\n',metabolites)")
+            self.centralWidget().kernel_client.execute(
+                "print('Number of reactions:\\n',reactions)")
             self.centralWidget().kernel_client.execute("import numpy")
             self.centralWidget().kernel_client.execute(
                 "rank = numpy.linalg.matrix_rank(m)")
             self.centralWidget().kernel_client.execute(
                 "print('\\nRank of stoichiometric matrix: '+ str(rank))")
+            self.centralWidget().kernel_client.execute(
+                "print('\\nDegrees of freedom: '+ str(reactions-rank))")
+            self.centralWidget().kernel_client.execute(
+                "print('\\nConservation relations: '+ str(metabolites-rank))")
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
             # self.centralWidget().kernel_client.execute_interactive("print('\\nEmpty matrix!')")
