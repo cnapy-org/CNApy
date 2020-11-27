@@ -71,3 +71,18 @@ cna_path = /my_folder/CellNetAnalyzer/
 import testscript
 testscript.work(cna)
 ----
+
+
+== Create a conda package
+
+----
+conda-build -c conda-forge -c bioconda
+anaconda login
+anaconda upload -u arb-lab -l test FILENAME
+----
+
+== create an installer with constructor
+
+----
+constructor .
+----
