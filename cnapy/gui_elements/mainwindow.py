@@ -2,7 +2,6 @@ import io
 import json
 import os
 import traceback
-from shutil import copyfile
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -14,11 +13,12 @@ from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
+from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
-from qtpy.QtCore import Slot, QFileInfo
+from qtpy.QtCore import QFileInfo, Slot
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
@@ -304,7 +304,7 @@ class MainWindow(QMainWindow):
         with open(filename[0], 'r') as fp:
             self.appdata.project.maps = json.load(fp)
 
-        self.centralWidget().recreate_maps()
+        self.recreate_maps()
         self.centralWidget().update()
 
     @Slot()
@@ -435,7 +435,9 @@ class MainWindow(QMainWindow):
     def new_project(self, _checked):
         self.appdata.project.cobra_py_model = cobra.Model()
         self.appdata.project.maps = {}
-        self.centralWidget().remove_map_tabs()
+        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
+        self.centralWidget().map_tabs.clear()
+        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
@@ -449,21 +451,24 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.cna")
 
-        folder = TemporaryDirectory()
+        self.appdata.temp_dir = TemporaryDirectory()
 
         with ZipFile(filename[0], 'r') as zip_ref:
-            zip_ref.extractall(folder.name)
+            zip_ref.extractall(self.appdata.temp_dir.name)
 
-            with open(folder.name+"/maps.json", 'r') as fp:
+            with open(self.appdata.temp_dir.name+"/maps.json", 'r') as fp:
                 self.appdata.project.maps = json.load(fp)
 
+                count = 1
                 for name, m in self.appdata.project.maps.items():
-                    copyfile(folder.name+"/"+m["background"], m["background"])
+                    m["background"] = self.appdata.temp_dir.name + \
+                        "/.bg" + str(count) + ".svg"
+                    count += 1
 
             self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
-                folder.name + "/model.sbml")
+                self.appdata.temp_dir.name + "/model.sbml")
 
-            self.centralWidget().recreate_maps()
+            self.recreate_maps()
             self.centralWidget().mode_navigator.clear()
             self.clear_scenario()
             for r in self.appdata.project.cobra_py_model.reactions:
@@ -478,32 +483,39 @@ class MainWindow(QMainWindow):
     @Slot()
     def save_project(self, _checked):
 
+        tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
-        print(self.appdata.project.name)
-        folder = TemporaryDirectory().name
 
+        # save SBML model
         cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, folder + "model.sbml")
+            self.appdata.project.cobra_py_model, tmp_dir + "model.sbml")
 
-        files = {}
-        for name, m in self.appdata.project.maps.items():
-            files[m["background"]] = ""
+        svg_files = {}
         count = 1
-        for f in files.keys():
-            files[f] = ".bg" + str(count) + ".svg"
+        for name, m in self.appdata.project.maps.items():
+            arc_name = ".bg" + str(count) + ".svg"
+            svg_files[m["background"]] = arc_name
+            m["background"] = arc_name
             count += 1
 
-        for name, m in self.appdata.project.maps.items():
-            m["background"] = files[m["background"]]
-
-        with open(folder + "maps.json", 'w') as fp:
+        # Save maps information
+        with open(tmp_dir + "maps.json", 'w') as fp:
             json.dump(self.appdata.project.maps, fp)
 
         with ZipFile(filename, 'w') as zipObj:
-            zipObj.write(folder + "model.sbml", arcname="model.sbml")
-            zipObj.write(folder + "maps.json", arcname="maps.json")
-            for key in files.keys():
-                zipObj.write(key, arcname=files[key])
+            zipObj.write(tmp_dir + "model.sbml", arcname="model.sbml")
+            zipObj.write(tmp_dir + "maps.json", arcname="maps.json")
+            for name, m in svg_files.items():
+                zipObj.write(name, arcname=m)
+
+        # put svgs into temporary directory and update references
+        with ZipFile(filename, 'r') as zip_ref:
+            zip_ref.extractall(self.appdata.temp_dir.name)
+            count = 1
+            for name, m in self.appdata.project.maps.items():
+                m["background"] = self.appdata.temp_dir.name + \
+                    "/.bg" + str(count) + ".svg"
+                count += 1
 
     @Slot()
     def save_project_as(self, _checked):
@@ -512,33 +524,12 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getSaveFileName(
             dir=os.getcwd(), filter="*.cna")
 
-        folder = TemporaryDirectory().name
-
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, folder + "model.sbml")
-
-        files = {}
-        for name, m in self.appdata.project.maps.items():
-            files[m["background"]] = ""
-        count = 1
-        for f in files.keys():
-            files[f] = ".bg" + str(count) + ".svg"
-            count += 1
-
-        for name, m in self.appdata.project.maps.items():
-            m["background"] = files[m["background"]]
-
-        with open(folder + "maps.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp)
-
-        with ZipFile(filename[0], 'w') as zipObj:
-            zipObj.write(folder + "model.sbml", arcname="model.sbml")
-            zipObj.write(folder + "maps.json", arcname="maps.json")
-            for key in files.keys():
-                zipObj.write(key, arcname=files[key])
-
+        if len(filename[0]) != 0:
             self.setCurrentFile(filename[0])
             self.save_project_action.setEnabled(True)
+            self.save_project(_checked=True)
+        else:
+            return False
 
     def get_current_view(self):
         idx = self.centralWidget().tabs.currentIndex()
@@ -551,6 +542,28 @@ class MainWindow(QMainWindow):
             view = None
 
         return view
+
+    def recreate_maps(self):
+        print("recreate maps")
+        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
+        self.centralWidget().map_tabs.clear()
+        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+
+        for name, map in self.appdata.project.maps.items():
+            map = MapView(self.appdata, name)
+            map.show()
+            map.switchToReactionDialog.connect(
+                self.centralWidget().switch_to_reaction)
+            map.minimizeReaction.connect(
+                self.centralWidget().minimize_reaction)
+            map.maximizeReaction.connect(
+                self.centralWidget().maximize_reaction)
+            map.reactionValueChanged.connect(
+                self.centralWidget().update_reaction_value)
+            map.reactionRemoved.connect(
+                self.centralWidget().update_reaction_maps)
+            self.centralWidget().map_tabs.addTab(map, name)
+            map.update()
 
     def on_tab_change(self, idx):
         if idx >= 0:

@@ -1,3 +1,4 @@
+from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
 import cobra
@@ -19,6 +20,7 @@ class CnaData:
         self.cna_path = ""
         self.default_engine = "matlab"
         self.work_directory = ""
+        self.temp_dir = TemporaryDirectory()
 
 
 class ProjectData:

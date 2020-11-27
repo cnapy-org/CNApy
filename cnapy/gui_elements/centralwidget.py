@@ -140,10 +140,6 @@ class CentralWidget(QWidget):
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
         self.reaction_list.reaction_mask.update_state()
 
-    def remove_map_tabs(self):
-        for _ in range(0, self.map_tabs.count()):
-            self.map_tabs.removeTab(0)
-
     def delete_map(self, idx: int):
         print("delete map: "+str(idx))
         name = self.map_tabs.tabText(idx)
@@ -203,20 +199,6 @@ class CentralWidget(QWidget):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
             m.update()
-
-    def recreate_maps(self):
-        self.remove_map_tabs()
-
-        for name, map in self.appdata.project.maps.items():
-            map = MapView(self.appdata, name)
-            map.show()
-            map.switchToReactionDialog.connect(self.switch_to_reaction)
-            map.minimizeReaction.connect(self.minimize_reaction)
-            map.maximizeReaction.connect(self.maximize_reaction)
-            map.reactionValueChanged.connect(self.update_reaction_value)
-            map.reactionRemoved.connect(self.update_reaction_maps)
-            self.map_tabs.addTab(map, name)
-            map.update()
 
     def jump_to_map(self, id: str, reaction: str):
         print("centralwidget::jump_to_map", id, reaction)
