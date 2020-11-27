@@ -104,8 +104,7 @@ class ConfigDialog(QDialog):
         self.layout.addItem(h8)
 
         h9 = QHBoxLayout()
-        label = QLabel(
-            "MatLab/Octave engine:")
+        label = QLabel("MatLab/Octave engine:")
         h9.addWidget(label)
         self.default_engine = QComboBox()
         self.default_engine.insertItem(1, "MatLab")
@@ -225,7 +224,6 @@ class ConfigDialog(QDialog):
             self.appdata.default_engine = "octave"
 
         import configparser
-        configFilePath = r'cnapy-config.txt'
         parser = configparser.ConfigParser()
         parser.add_section('cnapy-config')
         parser.set('cnapy-config', 'cna_path', self.appdata.cna_path)
@@ -246,7 +244,16 @@ class ConfigDialog(QDialog):
         parser.set('cnapy-config', 'default_engine',
                    str(self.appdata.default_engine))
 
-        fp = open(configFilePath, 'w')
+        try:
+            fp = open(self.appdata.conf_path, "w")
+        except:
+            import os
+
+            import appdirs
+            os.makedirs(appdirs.user_config_dir(
+                "cnapy", roaming=True, appauthor=False))
+            fp = open(self.appdata.conf_path, "w")
+
         parser.write(fp)
         fp.close()
 

@@ -23,7 +23,8 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna, use_matlab, use_octave
+from cnapy.legacy import (is_matlab_ready, is_octave_ready, restart_cna,
+                          use_matlab, use_octave)
 
 
 class CellNetAnalyzer:
@@ -36,15 +37,14 @@ class CellNetAnalyzer:
 
         self.window.efm_action.setEnabled(False)
         self.window.mcs_action.setEnabled(False)
-
         configParser = configparser.RawConfigParser()
-        configParser.read(r'cnapy-config.txt')
+        configParser.read(self.appdata.conf_path)
 
         try:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
         except:
-            print("CNA not found please check the cna_path in cnapy-config.txt")
+            print("CNA not found please check the cna_path in your cnapy-config.txt")
         else:
             if is_matlab_ready():
                 self.window.efm_action.setEnabled(True)

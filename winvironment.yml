@@ -10,6 +10,7 @@ dependencies:
   - pyside2
   - python=3.7
   - qtpy=1.9
+  - appdirs
   - pip:
     - qtconsole==4.7.7
     - cameo==0.11.15
