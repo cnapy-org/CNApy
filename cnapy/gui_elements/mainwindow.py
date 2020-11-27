@@ -159,7 +159,8 @@ class MainWindow(QMainWindow):
 
         show_model_stats_action = QAction("Show model stats", self)
         self.analysis_menu.addAction(show_model_stats_action)
-        show_model_stats_action.triggered.connect(self.print_model_stats)
+        show_model_stats_action.triggered.connect(
+            self.execute_print_model_stats)
 
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
@@ -544,7 +545,6 @@ class MainWindow(QMainWindow):
         return view
 
     def recreate_maps(self):
-        print("recreate maps")
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -680,35 +680,52 @@ class MainWindow(QMainWindow):
             finally:
                 self.centralWidget().update()
 
-    def print_model_stats(self):
+    def execute_print_model_stats(self):
         if len(self.appdata.project.cobra_py_model.reactions) > 0:
-            self.centralWidget().kernel_client.execute("import cobra")
-            self.centralWidget().kernel_client.execute(
-                "m = cobra.util.array.create_stoichiometric_matrix(cna.appdata.project.cobra_py_model,array_type='DataFrame')")
-            self.centralWidget().kernel_client.execute(
-                "metabolites = m.shape[0]")
-            self.centralWidget().kernel_client.execute(
-                "reactions = m.shape[1]")
-            self.centralWidget().kernel_client.execute(
-                "print('Stoichiometric matrix:\\n',m)")
-            self.centralWidget().kernel_client.execute(
-                "print('Number of metabolites:\\n',metabolites)")
-            self.centralWidget().kernel_client.execute(
-                "print('Number of reactions:\\n',reactions)")
-            self.centralWidget().kernel_client.execute("import numpy")
-            self.centralWidget().kernel_client.execute(
-                "rank = numpy.linalg.matrix_rank(m)")
-            self.centralWidget().kernel_client.execute(
-                "print('\\nRank of stoichiometric matrix: '+ str(rank))")
-            self.centralWidget().kernel_client.execute(
-                "print('\\nDegrees of freedom: '+ str(reactions-rank))")
-            self.centralWidget().kernel_client.execute(
-                "print('\\nConservation relations: '+ str(metabolites-rank))")
+            self.centralWidget().kernel_client.execute("cna.print_model_stats()")
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
-            # self.centralWidget().kernel_client.execute_interactive("print('\\nEmpty matrix!')")
 
         self.centralWidget().splitter2.setSizes([10, 0, 100])
+
+    def print_model_stats(self):
+        import cobra
+        m = cobra.util.array.create_stoichiometric_matrix(
+            self.appdata.project.cobra_py_model, array_type='DataFrame')
+        metabolites = m.shape[0]
+        reactions = m.shape[1]
+        print('Stoichiometric matrix:\n', m)
+        print('\nNumber of metabolites: ', metabolites)
+        print('Number of reactions: ', reactions)
+        import numpy
+        rank = numpy.linalg.matrix_rank(m)
+        print('\nRank of stoichiometric matrix: ' + str(rank))
+        print('Degrees of freedom: ' + str(reactions-rank))
+        print('Conservation relations: ' + str(metabolites-rank))
+        import numpy as np
+        has_non_zero = False
+        min = None
+        abs_m = np.absolute(m.to_numpy())
+        for r in abs_m:
+            for e in r:
+                if not has_non_zero:
+                    if e > 0.0:
+                        has_non_zero = True
+                        min = e
+                else:
+                    if e > 0.0 and e < min:
+                        min = e
+        if has_non_zero:
+            print('\nSmallest (absolute) non-zero-value:', min)
+        else:
+            print('\nIt\'s the zero matrix')
+
+        c = []
+        abs_m = np.absolute(m.to_numpy())
+        for r in abs_m:
+            x = max(r)
+            c.append(x)
+        print('Largest (absolute) value:', max(c))
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
