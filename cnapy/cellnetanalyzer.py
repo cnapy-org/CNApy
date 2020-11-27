@@ -94,7 +94,7 @@ class CellNetAnalyzer:
         except:
             print("Could not read default_color in cnapy-config.txt")
             self.appdata.Defaultcolor = QColor.fromRgb(
-                4289396480)
+                4288716964)
         try:
             rounding = configParser.get(
                 'cnapy-config', 'rounding')
