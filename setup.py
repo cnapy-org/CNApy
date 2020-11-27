@@ -30,5 +30,6 @@ setup(
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': ['data/*.svg']},
     entry_points={'console_scripts': ['cnapy = cnapy.__main__:main_cnapy']},
-    # install_requires=['cobra']
+    # packages not in conda on windows
+    # install_requires=['cobra==0.18.1','cameo==0.11.15','qtconsole==4.7.7',]
 )

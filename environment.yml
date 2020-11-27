@@ -13,6 +13,7 @@ dependencies:
   - python=3.7
   - qtpy=1.9
   - pyside2
+  - appdirs
   - pip:
       - qtconsole==4.7.7
 prefix: /home/user/miniconda3/envs/cnapy

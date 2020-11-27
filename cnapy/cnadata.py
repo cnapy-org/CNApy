@@ -1,6 +1,8 @@
+import os
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
+import appdirs
 import cobra
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
@@ -21,6 +23,8 @@ class CnaData:
         self.default_engine = "matlab"
         self.work_directory = ""
         self.temp_dir = TemporaryDirectory()
+        self.conf_path = os.path.join(appdirs.user_config_dir(
+            "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
 
 
 class ProjectData:

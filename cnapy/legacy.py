@@ -2,13 +2,16 @@ import configparser
 import io
 import os
 
+import appdirs
 import cobra
 
 from cnapy.cnadata import CnaData
 
+conf_path = os.path.join(appdirs.user_config_dir(
+    "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+
 configParser = configparser.RawConfigParser()
-configFilePath = r'cnapy-config.txt'
-configParser.read(configFilePath)
+configParser.read(conf_path)
 try:
     cna_path = configParser.get('cnapy-config', 'cna_path')
 except:
@@ -69,18 +72,18 @@ def is_octave_ready():
 
 
 def use_matlab():
+    """
+    switch to Matlab
+    """
     global eng
     if meng is not None:
         eng = meng
 
 
 def use_octave():
+    """
+    switch to Octave
+    """
     global eng
     if oeng is not None:
         eng = oeng
-
-
-"""
-for use in console to switch between octave/Matlab
-from cnapy.legacy import use_matlab, use_octave, get_matlab_engine
-"""
