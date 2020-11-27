@@ -9,7 +9,10 @@ from cnapy.cnadata import CnaData
 configParser = configparser.RawConfigParser()
 configFilePath = r'cnapy-config.txt'
 configParser.read(configFilePath)
-cna_path = configParser.get('cnapy-config', 'cna_path')
+try:
+    cna_path = configParser.get('cnapy-config', 'cna_path')
+except:
+    pass
 
 out = io.StringIO()
 err = io.StringIO()
