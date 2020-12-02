@@ -12,11 +12,11 @@ If you have conda installed you can:
 
 .. on linux
 
-  conda env create -f environment.yml
+  conda env create -n cnapy -f environment.yml
 
 .. on windows
 
-  conda env create -f winvironment.yml
+  conda env create  -n cnapy -f winvironment.yml
 
 . Activate the cnapy conda environment
 
@@ -44,15 +44,24 @@ IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the
 
 == Install Python API for MATLAB engine in MATLAB 2019b
 
-First activate the cnapy conda environment
+First activate the cnapy conda environment:
 
   conda activate cnapy
 
-then
-
+Findout your `matlabroot`:
 ----
-cd /usr/local/net/MATLAB/R2019b/extern/engines/python
-python setup.py build --build-base="/scratch/mebuild" install
+matlab -batch matlabroot
+----
+
+then on Mac and Linux:
+----
+cd matlabroot/extern/engines/python
+python setup.py build --build-base=$(mktemp -d) install
+----
+Windows Powershell:
+----
+cd matlabroot/extern/engines/python
+python setup.py build --build-base=$env:temp install
 ----
 
 == Set CNA path
