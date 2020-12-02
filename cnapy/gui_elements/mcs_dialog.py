@@ -408,7 +408,7 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            reac_id = reac_id[0]
+            # reac_id = reac_id[0]
             print(reac_id)
             for i in range(0, len(reac_id)):
                 reacid = int(reactions[i][0])
@@ -427,6 +427,8 @@ class MCSDialog(QDialog):
             omcs.append(current_mcs)
             self.appdata.project.modes = omcs
             self.centralwidget.mode_navigator.current = 0
+            QMessageBox.information(self, 'Cut sets found',
+                                          str(len(omcs))+' Cut sets have been calculated.')
 
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
