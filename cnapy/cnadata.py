@@ -52,8 +52,11 @@ class ProjectData:
 
 
 def CnaMap(name):
+    import pkg_resources
+    background_svg = pkg_resources.resource_filename(
+        'cnapy', 'data/cnapylogo.svg')
     return {"name": name,
-            "background": "cnapy/data/cnapylogo.svg",
+            "background": background_svg,
             "bg-size": 1,
             "zoom": 0,
             "pos": (0, 0),

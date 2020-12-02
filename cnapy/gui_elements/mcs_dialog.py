@@ -130,6 +130,8 @@ class MCSDialog(QDialog):
         sgx.addItem(sg1)
         s3.addItem(sgx)
 
+        print(self.eng.is_cplex_matlab_ready())
+        print(self.eng.is_cplex_java_ready())
         # g3 = QGroupBox("Solver")
         # s33 = QVBoxLayout()
         # self.bg1 = QButtonGroup()
