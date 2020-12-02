@@ -1,6 +1,5 @@
 """The cnapy elementary flux modes calculator dialog"""
 import io
-import sys
 import traceback
 
 from qtpy.QtCore import Qt
@@ -227,7 +226,7 @@ class EFMDialog(QDialog):
 
         print(".")
 
-        if legacy.is_matlab_ready():
+        if legacy.is_matlab_set():
             try:
                 a = self.eng.eval(
                     "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)

@@ -296,7 +296,7 @@ class MCSDialog(QDialog):
             self.eng.eval("advanced_on = 0;", nargout=0,
                           stdout=self.out, stderr=self.err)
 
-        if legacy.is_matlab_ready():
+        if legacy.is_matlab_set():
             self.eng.eval("solver = 'intlinprog';", nargout=0,
                           stdout=self.out, stderr=self.err)
         elif legacy.is_octave_ready():
@@ -360,7 +360,7 @@ class MCSDialog(QDialog):
         values = []
         reactions = []
         reac_id = []
-        if legacy.is_matlab_ready():
+        if legacy.is_matlab_set():
             reac_id = self.eng.workspace['reac_id']
             try:
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",

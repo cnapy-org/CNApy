@@ -162,7 +162,7 @@ class YieldOptimizationDialog(QDialog):
             a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
                               nargout=0)
             reac_id = []
-            if legacy.is_matlab_ready():
+            if legacy.is_matlab_set():
                 reac_id = self.eng.workspace['reac_id']
             elif legacy.is_octave_ready():
                 reac_id = self.eng.pull('reac_id')
@@ -246,7 +246,7 @@ class YieldOptimizationDialog(QDialog):
             #  1: as option '0' but with additional solver output
             #  (default: 0)
             self.eng.eval("verbose = 0;", nargout=0)
-            if legacy.is_matlab_ready():
+            if legacy.is_matlab_set():
                 try:
                     a = self.eng.eval(
                         "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)

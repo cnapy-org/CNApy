@@ -1,6 +1,7 @@
 import configparser
 import io
 import os
+import traceback
 
 import appdirs
 import cobra
@@ -49,6 +50,10 @@ def restart_cna(cna_path):
         print(a)
         return True
     except:
+        output = io.StringIO()
+        traceback.print_exc(file=output)
+        exstr = output.getvalue()
+        print(exstr)
         print("CNA not found. Check your CNA path!")
         return False
 
@@ -64,11 +69,18 @@ def get_matlab_engine():
 
 
 def is_matlab_ready():
-    return meng is not None and isinstance(eng, CNAMatlabEngine)
+    return meng is not None
 
 
 def is_octave_ready():
-    return oeng is not None and isinstance(eng, CNAoctaveEngine)
+    return oeng is not None
+
+def is_matlab_set():
+    return isinstance(eng, CNAMatlabEngine)
+
+
+def is_octave_set():
+    return isinstance(eng, CNAoctaveEngine)
 
 
 def use_matlab():
@@ -78,7 +90,7 @@ def use_matlab():
     global eng
     if meng is not None:
         eng = meng
-
+        print("use matlab engine")
 
 def use_octave():
     """
@@ -87,3 +99,4 @@ def use_octave():
     global eng
     if oeng is not None:
         eng = oeng
+        print("use octave engine")

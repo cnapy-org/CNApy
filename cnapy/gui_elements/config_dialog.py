@@ -1,10 +1,12 @@
 """The cnapy configuration dialog"""
-from cnapy.cnadata import CnaData
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
+
+import cnapy.legacy as legacy
+from cnapy.cnadata import CnaData
+from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 
 
 class ConfigDialog(QDialog):
@@ -217,11 +219,11 @@ class ConfigDialog(QDialog):
         self.appdata.abs_tol = float(self.abs_tol.text())
 
         if self.default_engine.currentIndex() == 0:
-            print("set matlab")
             self.appdata.default_engine = "matlab"
+            legacy.use_matlab()
         elif self.default_engine.currentIndex() == 1:
-            print("set octave")
             self.appdata.default_engine = "octave"
+            legacy.use_octave()
 
         import configparser
         parser = configparser.ConfigParser()
