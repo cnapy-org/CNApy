@@ -382,6 +382,7 @@ class MCSDialog(QDialog):
                 values = self.eng.workspace['value']
         elif legacy.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
+            reac_id = reac_id[0]
             try:
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
                               nargout=0)
@@ -408,7 +409,6 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            # reac_id = reac_id[0]
             print(reac_id)
             for i in range(0, len(reac_id)):
                 reacid = int(reactions[i][0])
