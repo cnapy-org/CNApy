@@ -37,6 +37,10 @@ try:
     print("CNA octave engine available")
     eng = oeng
 except:
+    output = io.StringIO()
+    traceback.print_exc(file=output)
+    exstr = output.getvalue()
+    print(exstr)
     oeng = None
     print("CNA octave engine not working")
 
@@ -75,12 +79,13 @@ def is_matlab_ready():
 def is_octave_ready():
     return oeng is not None
 
+
 def is_matlab_set():
-    return str(type(eng))=="<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
+    return str(type(eng)) == "<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
 
 
 def is_octave_set():
-    return str(type(eng))=="<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
+    return str(type(eng)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
 
 
 def use_matlab():
@@ -91,6 +96,7 @@ def use_matlab():
     if meng is not None:
         eng = meng
         print("use matlab engine")
+
 
 def use_octave():
     """
