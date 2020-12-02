@@ -76,11 +76,11 @@ def is_octave_ready():
     return oeng is not None
 
 def is_matlab_set():
-    return isinstance(eng, CNAMatlabEngine)
+    return str(type(eng))=="<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
 
 
 def is_octave_set():
-    return isinstance(eng, CNAoctaveEngine)
+    return str(type(eng))=="<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
 
 
 def use_matlab():
