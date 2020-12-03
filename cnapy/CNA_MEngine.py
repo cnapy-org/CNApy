@@ -70,7 +70,6 @@ except:
     print('Matlab engine not available.')
 
 try:
-    import oct2py
     from oct2py import Oct2Py
 
     class CNAoctaveEngine(CNA_Methods, Oct2Py):
@@ -81,7 +80,7 @@ try:
             self.startcna(1)
             # self.check_cplex_interfaces()
             self.cplex_matlab_ready = self.eval('cnan.cplex_interface.matlab;')
-            self.cplex_java_working = self.eval('cnan.cplex_interface.java;')
+            self.cplex_java_ready = self.eval('cnan.cplex_interface.java;')
 
         def get_reacID(self):
             self.eval("reac_id = cellstr(cnap.reacID);")
