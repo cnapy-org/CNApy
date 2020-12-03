@@ -1,5 +1,5 @@
 name: CNApy
-version: 0.0.1
+version: 0.0.2
 
 ignore_duplicate_files: True
 
@@ -16,3 +16,5 @@ license_file: LICENSE
 
 # Welcome image for Windows installer
 welcome_image: cnapylogo.png             [win]
+
+post_install: post_install.sh            [win]

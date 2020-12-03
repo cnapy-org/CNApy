@@ -85,7 +85,7 @@ testscript.work(cna)
 == Create a conda package
 
 ----
-conda-build -c conda-forge -c bioconda
+conda-build . -c conda-forge -c bioconda
 anaconda login
 anaconda upload -u arb-lab -l test FILENAME
 ----
