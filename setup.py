@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='0.0.1',
+    version='0.0.2',
     url='https://github.com/arblab/cnapy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
