@@ -11,6 +11,7 @@ channels:
 
 specs:
   - cnapy
+  - menuinst
 
 license_file: LICENSE
 
