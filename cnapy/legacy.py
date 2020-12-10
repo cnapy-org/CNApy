@@ -47,11 +47,8 @@ except:
 
 def restart_cna(cna_path):
     try:
-        print(cna_path)
-        a = eng.cd(cna_path)
-        print(a)
-        a = eng.eval("startcna(1)", nargout=0)
-        print(a)
+        eng.cd(cna_path)
+        eng.eval("startcna(1)", nargout=0)
         return True
     except:
         output = io.StringIO()
