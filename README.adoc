@@ -3,12 +3,22 @@
 image::cnapy/data/cnapylogo.svg[cnapy logo]
 
 
+== Install CNApy with conda
+
+. Create a conda environment with all dependencies
+
+   conda create -n cnapy-0.1.0 -c conda-forge -c bioconda -c arb-lab/label/test cnapy
+
+image::assets/install-cnapy.svg[install CNApy]
+
+. On windows install remaining dependencies vi pip:
+
+   pip install cameo==0.11.15 cobra==0.18.1 qtconsole==4.7.7
+
 == Setup the CNApy development environment with conda
 
 We use conda as package manager to install all dependencies. You can use https://docs.conda.io/en/latest/miniconda.html[miniconda].
 If you have conda installed you can:
-
-. Create a conda environment with all dependencies for cnapy from the environment.yml
 
 .. on linux
 
@@ -67,12 +77,7 @@ python setup.py build --build-base=$env:temp install
 == Set CNA path
 
 To use the CNA MATLAB functions you need to tell CNApy where CNA is installed.
-Therefore, open or create a file `cnapy-config.txt` with the following content (change the path to your CNA path).
-
-----
-[cnapy-config]
-cna_path = /my_folder/CellNetAnalyzer/
-----
+Therefore, use the configuration dialog under help to change the path to your CNA path.
 
 == How to run a script in the cnapy terminal
 
