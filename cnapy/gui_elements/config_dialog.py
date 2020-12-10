@@ -1,8 +1,8 @@
 """The cnapy configuration dialog"""
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                            QVBoxLayout)
+                            QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                            QPushButton, QVBoxLayout)
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
@@ -219,11 +219,19 @@ class ConfigDialog(QDialog):
         self.appdata.abs_tol = float(self.abs_tol.text())
 
         if self.default_engine.currentIndex() == 0:
-            self.appdata.default_engine = "matlab"
-            legacy.use_matlab()
+            if is_matlab_ready():
+                self.appdata.default_engine = "matlab"
+                legacy.use_matlab()
+            else:
+                QMessageBox.information(
+                    self, 'MATLAB engine not found!', 'See instructions for installing the matlab python engine!')
         elif self.default_engine.currentIndex() == 1:
-            self.appdata.default_engine = "octave"
-            legacy.use_octave()
+            if is_octave_ready():
+                self.appdata.default_engine = "octave"
+                legacy.use_octave()
+            else:
+                QMessageBox.information(
+                    self, 'Octave engine not found!', 'Install Octave version 5.0 or higher!')
 
         import configparser
         parser = configparser.ConfigParser()
