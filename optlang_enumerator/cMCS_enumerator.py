@@ -13,10 +13,14 @@ from swiglpk import glp_write_lp
 class ConstrainedMinimalCutSetsEnumerator:
     def __init__(self, optlang_interface, st, reversible, targets, kn=None, cuts=None,
         desired= [], knock_in=[], bigM=0, threshold=1, split_reversible_v=True,
-        reduce_constraints=True, combined_z=True, irrev_geq=False):
+        reduce_constraints=True, combined_z=True, irrev_geq=False, ref_set= None):
         # targets is a list of (T,t) pairs that represent T <= t
         # combined_z will probably be fixed to True which implies reduce_constraints=True
+        self.ref_set = ref_set # optional set of reference MCS for debugging
         self.model = optlang_interface.Model()
+        self.model.configuration.presolve = True # presolve on
+        # without presolve CPLEX sometimes gives false results when using indicators ?!?
+        self.model.configuration.lp_method = 'auto'
         self.optlang_constraint_class = optlang_interface.Constraint
         if bigM <= 0 and self.optlang_constraint_class._INDICATOR_CONSTRAINT_SUPPORT is False:
             raise IndicatorConstraintsNotSupported("This solver does not support indicators. Please choose a differen solver or use a big M formulation.")
@@ -50,21 +54,37 @@ class ConstrainedMinimalCutSetsEnumerator:
         self.z_vars = [self.optlang_variable_class("Z"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
         self.model.add(self.z_vars)
         self.minimize_sum_over_z= optlang_interface.Objective(add(self.z_vars), direction='min', name='minimize_sum_over_z')
+        z_local = [None] * num_targets
         if num_targets == 1:
             #obj.z_var_names= cell(obj.num_reac + length(obj.rev_pos_idx), 1);
             #obj.z_var_names(1:obj.num_reac)= strcat(z_string, nums_idx(1:obj.num_reac));
             #obj.z_var_names(obj.rev_neg_idx)= strcat('ZN', nums_idx(obj.rev_pos_idx));
-            z_local = [self.z_vars] # global and local Z are the same if there is only one target
+            #z_local = [self.z_vars] # global and local Z are the same if there is only one target
+            z_local[0] = self.z_vars # global and local Z are the same if there is only one target
             #iv_cost= [iv_cost, iv_cost(obj.rev_pos_idx)];
         else:
-            pass
+            for k in range(num_targets):
+                z_local[k] = [self.optlang_variable_class("Z"+str(k)+"_"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
+                self.model.add(z_local[k])
             # z_local= cell(obj.num_reac + length(obj.rev_pos_idx), num_targets);
             # obj.z_var_names= strcat('Z', numsn); % global Z
             # obj.split_z= false;
             # for k= 1:num_targets
             # z_local(1:obj.num_reac, k)= strcat(sprintf('%s%d_', z_string, k), nums_idx(1:obj.num_reac));
             # z_local(obj.rev_neg_idx, k)= strcat(sprintf('ZN%d_', k), nums_idx(obj.rev_pos_idx));
-            # end
+            for i in range(self.num_reac):
+                if cuts[i]: # && ~knock_in(i) % knock-ins only use global Z, do not need local ones
+                    #if irr[i]: #|| combined_z
+                    self.model.add(self.optlang_constraint_class(
+                        (1/num_targets - 1e-9)*add([z_local[k][i] for k in range(num_targets)]) - self.z_vars[i], ub=0,
+                        name= "ZL"+str(i)))
+
+                    #lpfw.write_expression([], [repmat(1/num_targets - 1e-9, 1, num_targets), -1],...
+                    #    [z_local(i, :), sprintf('%s', obj.z_var_names{i})], '<= 0');
+                    #else:
+                    #    lpfw.write_expression([], [repmat(1/(2*num_targets) - 1e-9, 1, 2*num_targets), -1],...
+                    #    [z_local(i, :), z_local(obj.rev_neg_idx_map(i), :), sprintf('%s', obj.z_var_names{i})], '<= 0');
+
 
         dual_vars = [None] * num_targets
         num_dual_cols = [0] * num_targets # noch nötig?
@@ -204,25 +224,37 @@ class ConstrainedMinimalCutSetsEnumerator:
     #     end % if bigM > 0
     #   end % for k= 1:num_targets
     
-        print(dual_vars)
+        self.evs_sz = self.optlang_constraint_class(add(self.z_vars), lb=0, name='evs_sz')
+        self.model.add(self.evs_sz)
+        self.model.update() # transfer the model to the solver
 
     def single_solve(self):
-        self.model.optimize()
-        #try: # some solvers throw exception when trying to query a non-existing result
-        if self.model.status is "optimal" or self.model.status is "feasible": # hopefully safe
+        status = self.model._optimize() # raw solve without any retries
+        self.model._status = status # needs to be set when using _optimize
+        #self.model.problem.parameters.reset() # CPLEX raw
+        #self.model.problem.solve() # CPLEX raw
+        #cplex_status = self.model.problem.solution.get_status() # CPLEX raw
+        #self.model._status = optlang.cplex_interface._CPLEX_STATUS_TO_STATUS[cplex_status] # CPLEX raw
+        #status = self.model.status
+        #if self.model.problem.solution.get_status_string() == 'integer optimal solution': # CPLEX raw
+        if status is optlang.interface.OPTIMAL or status is optlang.interface.FEASIBLE:
             print(self.model.objective.value)
-            coeff= tuple(round(zv.primal) for zv in self.z_vars)
+            coeff= tuple(round(zv.primal) for zv in self.z_vars) # tuple can be used as set element
+            if self.ref_set is not None and coeff not in self.ref_set:
+                print("Incorrect result")
+                print([zv.primal for zv in self.z_vars])
+                print([(n,v) for n,v in zip(self.model.problem.variables.get_names(), self.model.problem.solution.get_values()) if v != 0])
+                self.write_lp_file('failed')
+            #    raise
             #coeff= [round(zv.primal) for zv in self.z_vars]
-            #coeff = numpy.zeros(len(self.z_vars), dtype=float64) # klappt noch nicht
+            #coeff = numpy.zeros(len(self.z_vars), dtype=float64) # klappt noch nicht, ndarry geht aber auch nicht als Element einer Menge
             #for i in range(len(self.z_vars)):
             #    coeff[i] = round(self.z_vars[i])
             return coeff
-        #except:
         else:
             return None
 
     def add_exclusion_constraint(self, mcs):
-        #expression = sum([cf * var for cf, var in zip(mcs, self.z_vars) if cf != 0])
         expression = add([cf * var for cf, var in zip(mcs, self.z_vars) if cf != 0]) # mul instead of * does not work directly
         ub = sum(mcs)-1;
         self.model.add(self.optlang_constraint_class(expression, ub=ub, sloppy=True))
@@ -232,15 +264,29 @@ class ConstrainedMinimalCutSetsEnumerator:
         while True:
             mcs = self.single_solve()
             if self.model.status == 'optimal':
+                #ov = round(self.model.objective.value)
+                #if ov > e.evs_sz.lb: # increase lower bound of evs_sz constraint, but is this really always helpful?
+                #    e.evs_sz.lb = ov
+                #    print(ov)
                 self.add_exclusion_constraint(mcs)
+                self.model.update() # needs to be done explicitly when using _optimize
                 all_mcs.append(mcs)
-                if len(all_mcs) == 84:
-                    print("HERE")
+                #if len(all_mcs) == 84:
+                #    print("HERE")
                 # can also increase lower bound of evs_sz constraint
             else:
                 break
         print(self.model.status)
         return all_mcs
+
+    def write_lp_file(self, fname):
+        fname = fname + r".lp"
+        if isinstance(e.model, optlang.cplex_interface.Model):
+            self.model.problem.write(fname)
+        elif isinstance(e.model, optlang.glpk_interface.Model):
+            glp_write_lp(e.model.problem, None, fname)
+        else:
+            raise # add a proper exception here
 
 def equations_to_matrix(model, equations):
     # add option to use names instead of ids
@@ -278,24 +324,38 @@ mcs1 = e.enumerate_mcs()
 
 #import os
 #print(os.getcwd())
-ex = cobra.io.read_sbml_model(r"/scratch/vonkamp/gwdg_owncloud/CNApy/metatool_example_no_ext.xml")
+import time
+
+ex = cobra.io.read_sbml_model(r"metatool_example_no_ext.xml")
 stdf = cobra.util.array.create_stoichiometric_matrix(ex, array_type='DataFrame')
 rev = [r.reversibility for r in ex.reactions]
 #target = [(-equations_to_matrix(ex, ["Pyk", "Pck"]), [-1, -1])]
 target = [(equations_to_matrix(ex, ["-1 Pyk", "-1 Pck"]), [-1, -1])] # -Pyk does not work
-e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, target,
-                                        split_reversible_v=True, irrev_geq=True)
-e.model.objective = e.minimize_sum_over_z
-e.model.optimize() 
-e.model.problem.write('testI.lp')
-mcs = e.enumerate_mcs()
+target.append(target[0]) # duplicate target
+
+# bei multiplem target falsche Ergebnisse mit enthalten?!?
 
 e = ConstrainedMinimalCutSetsEnumerator(optlang.glpk_interface, stdf.values, rev, target, 
                                         bigM= 100, threshold=0.1, split_reversible_v=True, irrev_geq=True)
 e.model.objective = e.minimize_sum_over_z
-e.model.optimize() 
-glp_write_lp(e.model.problem, None, 'testM.lp')
+e.write_lp_file('testM')
+t = time.time()
+mcs = e.enumerate_mcs()
+print(time.time() - t)
+
+e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, target,
+                                        threshold=0.1, split_reversible_v=True, irrev_geq=True, ref_set=mcs)
+e.model.objective = e.minimize_sum_over_z
+e.write_lp_file('testI')
+#e.model.configuration.verbosity = 3
+#e.model.configuration.presolve = 'auto' # presolve remains off on the CPLEX side
+#e.model.configuration.presolve = True # presolve on, this is CPLEX default
+#e.model.configuration.lp_method = 'auto' # sets lpmethod back to automatic on the CPLEX side
+#e.model.problem.parameters.reset() # works (CPLEX specific)
+# without reset() optlang switches presolve off and fixes lpmethod
+t = time.time()
 mcs2 = e.enumerate_mcs()
+print(time.time() - t)
 
 print(len(set(mcs).intersection(set(mcs2))))
 print(set(mcs) == set(mcs2))
