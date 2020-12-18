@@ -41,7 +41,8 @@ class MetaboliteList(QWidget):
             self.metabolites_selected)
         self.metabolites_mask.changedMetaboliteList.connect(
             self.emit_changedModel)
-        self.metabolites_mask.jumpToReaction.connect(self.emit_jump_to_reaction)
+        self.metabolites_mask.jumpToReaction.connect(
+            self.emit_jump_to_reaction)
 
     def clear(self):
         self.metabolite_list.clear()
@@ -351,19 +352,18 @@ class MetabolitesMask(QWidget):
 
         self.reactions.clear()
         if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
-            metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(self.id.text())
-            for r in metabolite.reactions:                        
+            metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
+                self.id.text())
+            for r in metabolite.reactions:
                 item = QTreeWidgetItem(self.reactions)
                 item.setText(0, r.id)
                 item.setText(1, r.name)
-                item.setData(2, 0, r)                
+                item.setData(2, 0, r)
                 text = "Id: " + r.id + "\nName: " + r.name
                 item.setToolTip(1, text)
 
-
-    def emit_jump_to_reaction(self, reaction ):
-        print("MetaboliteMask::emit_jump_to_reaction", reaction.data(2,0))
-        self.jumpToReaction.emit(reaction.data(2,0).id)
+    def emit_jump_to_reaction(self, reaction):
+        self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
     changedMetaboliteList = Signal()

@@ -69,7 +69,8 @@ class ReactionList(QWidget):
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
         self.reaction_mask.changedReactionList.connect(self.emit_changedModel)
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
-        self.reaction_mask.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
+        self.reaction_mask.jumpToMetabolite.connect(
+            self.emit_jump_to_metabolite)
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
@@ -268,7 +269,6 @@ class ReactionList(QWidget):
         self.jumpToMap.emit(idx, reaction)
 
     def emit_jump_to_metabolite(self, metabolite):
-        print("ReactionList::emit_jump_to_metabolite",metabolite)
         self.jumpToMetabolite.emit(metabolite)
 
     itemActivated = Signal(str)
@@ -422,7 +422,8 @@ class ReactionMask(QWidget):
         self.metabolites.setSortingEnabled(True)
         l2.addWidget(self.metabolites)
         l.addItem(l2)
-        self.metabolites.itemDoubleClicked.connect(self.emit_jump_to_metabolite)
+        self.metabolites.itemDoubleClicked.connect(
+            self.emit_jump_to_metabolite)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -606,7 +607,8 @@ class ReactionMask(QWidget):
 
         self.metabolites.clear()
         if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
-            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(self.id.text())
+            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
+                self.id.text())
             for m in reaction.metabolites:
                 item = QTreeWidgetItem(self.metabolites)
                 item.setText(0, m.id)
@@ -631,9 +633,8 @@ class ReactionMask(QWidget):
         print("ReactionMask::emit_jump_to_map", name)
         self.jumpToMap.emit(name, self.id.text())
 
-    def emit_jump_to_metabolite(self, metabolite ):
-        print("ReactionMask::emit_jump_to_metabolite", metabolite.data(2,0))
-        self.jumpToMetabolite.emit(str(metabolite.data(2,0)))
+    def emit_jump_to_metabolite(self, metabolite):
+        self.jumpToMetabolite.emit(str(metabolite.data(2, 0)))
 
     jumpToMap = Signal(str, str)
     jumpToMetabolite = Signal(str)

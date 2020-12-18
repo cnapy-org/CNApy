@@ -226,6 +226,7 @@ class CentralWidget(QWidget):
         m = self.tabs.widget(0)
         m.setCurrentItem(reaction)
 
+
 class ConfirmMapDeleteDialog(QDialog):
 
     def __init__(self, parent, idx: int, name: str):
