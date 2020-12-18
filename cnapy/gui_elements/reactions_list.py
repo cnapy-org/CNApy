@@ -195,7 +195,6 @@ class ReactionList(QWidget):
         if item is None:
             self.reaction_mask.hide()
         else:
-            # print("last selected", self.last_selected)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
             self.reaction_mask.id.setText(reaction.id)
@@ -226,7 +225,6 @@ class ReactionList(QWidget):
 
     def emit_changedModel(self):
         self.last_selected = self.reaction_mask.id.text()
-        # print("last selected", self.last_selected)
         self.changedModel.emit()
 
     def update_selected(self, string):
@@ -265,7 +263,6 @@ class ReactionList(QWidget):
         self.update()
 
     def emit_jump_to_map(self, idx: str, reaction: str):
-        print("ReactionList::emit_jump_to_map")
         self.jumpToMap.emit(idx, reaction)
 
     def emit_jump_to_metabolite(self, metabolite):
@@ -630,7 +627,6 @@ class ReactionMask(QWidget):
             self.apply_button.setEnabled(False)
 
     def emit_jump_to_map(self, name):
-        print("ReactionMask::emit_jump_to_map", name)
         self.jumpToMap.emit(name, self.id.text())
 
     def emit_jump_to_metabolite(self, metabolite):
