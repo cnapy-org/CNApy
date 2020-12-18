@@ -249,7 +249,6 @@ class ReactionList(QWidget):
         if self.last_selected is None:
             pass
         else:
-            # print("something was previosly selected")
             items = self.reaction_list.findItems(
                 self.last_selected, Qt.MatchExactly)
 
@@ -609,13 +608,10 @@ class ReactionMask(QWidget):
         if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
             reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(self.id.text())
             for m in reaction.metabolites:
-                print("reaction:",reaction,"metabolite:",m)
-                        
                 item = QTreeWidgetItem(self.metabolites)
                 item.setText(0, m.id)
                 item.setText(1, m.name)
                 item.setData(2, 0, m)
-                
                 text = "Id: " + m.id + "\nName: " + m.name
                 item.setToolTip(1, text)
 
