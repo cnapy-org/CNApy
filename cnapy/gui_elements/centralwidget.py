@@ -74,6 +74,7 @@ class CentralWidget(QWidget):
 
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
+        self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
@@ -214,6 +215,12 @@ class CentralWidget(QWidget):
                 m.highlight_reaction(reaction)
                 break
 
+    def jump_to_metabolite(self, metabolite: str):
+        print("centralwidget::jump_to_metabolite", id, metabolite)
+        self.tabs.setCurrentIndex(1)
+        m = self.tabs.widget(1)
+        m.update()
+        m.focus_metabolite(metabolite)
 
 class ConfirmMapDeleteDialog(QDialog):
 

@@ -18,12 +18,11 @@ class MetaboliteList(QWidget):
         self.last_selected = None
 
         self.metabolite_list = QTreeWidget()
-        # self.metabolite_list.setHeaderLabels(["Name", "Reversible"])
         self.metabolite_list.setHeaderLabels(["Id", "Name"])
         self.metabolite_list.setSortingEnabled(True)
 
-        for r in self.appdata.project.cobra_py_model.metabolites:
-            self.add_metabolites(r)
+        for m in self.appdata.project.cobra_py_model.metabolites:
+            self.add_metabolite(m)
 
         self.metabolites_mask = metabolitesMask(appdata)
         self.metabolites_mask.hide()
@@ -47,11 +46,11 @@ class MetaboliteList(QWidget):
         self.metabolite_list.clear()
         self.metabolites_mask.hide()
 
-    def add_metabolites(self, metabolites):
+    def add_metabolite(self, metabolite):
         item = QTreeWidgetItem(self.metabolite_list)
-        item.setText(0, metabolites.id)
-        item.setText(1, metabolites.name)
-        item.setData(2, 0, metabolites)
+        item.setText(0, metabolite.id)
+        item.setText(1, metabolite.name)
+        item.setData(2, 0, metabolite)
 
     def update_annotations(self, annotation):
 
@@ -116,7 +115,7 @@ class MetaboliteList(QWidget):
     def update(self):
         self.metabolite_list.clear()
         for m in self.appdata.project.cobra_py_model.metabolites:
-            self.add_metabolites(m)
+            self.add_metabolite(m)
 
         if self.last_selected is None:
             pass
@@ -132,6 +131,10 @@ class MetaboliteList(QWidget):
 
     def setCurrentItem(self, key):
         self.last_selected = key
+        self.update()
+
+    def focus_metabolite(self, metabolite: str):
+        self.last_selected = metabolite
         self.update()
 
     itemActivated = Signal(str)
@@ -225,7 +228,7 @@ class metabolitesMask(QWidget):
         if self.old is None:
             self.old = cobra.metabolites(
                 id=self.id.text())
-            self.appdata.project.cobra_py_model.add_metabolites(self.old)
+            self.appdata.project.cobra_py_model.add_metabolite(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -264,7 +267,7 @@ class metabolitesMask(QWidget):
                 return False
             try:
                 m = cobra.Metabolite(id=self.id.text())
-                model.add_metabolites([m])
+                model.add_metabolite([m])
             except Exception:
 
                 traceback.print_exception(*sys.exc_info())
@@ -279,7 +282,7 @@ class metabolitesMask(QWidget):
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
-                model.add_metabolites([m])
+                model.add_metabolite([m])
             except:
                 turn_red(self.name)
                 return False
