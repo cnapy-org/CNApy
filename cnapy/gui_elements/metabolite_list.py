@@ -18,14 +18,13 @@ class MetaboliteList(QWidget):
         self.last_selected = None
 
         self.metabolite_list = QTreeWidget()
-        # self.metabolite_list.setHeaderLabels(["Name", "Reversible"])
         self.metabolite_list.setHeaderLabels(["Id", "Name"])
         self.metabolite_list.setSortingEnabled(True)
 
-        for r in self.appdata.project.cobra_py_model.metabolites:
-            self.add_metabolites(r)
+        for m in self.appdata.project.cobra_py_model.metabolites:
+            self.add_metabolite(m)
 
-        self.metabolites_mask = metabolitesMask(appdata)
+        self.metabolites_mask = MetabolitesMask(appdata)
         self.metabolites_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -42,16 +41,18 @@ class MetaboliteList(QWidget):
             self.metabolites_selected)
         self.metabolites_mask.changedMetaboliteList.connect(
             self.emit_changedModel)
+        self.metabolites_mask.jumpToReaction.connect(
+            self.emit_jump_to_reaction)
 
     def clear(self):
         self.metabolite_list.clear()
         self.metabolites_mask.hide()
 
-    def add_metabolites(self, metabolites):
+    def add_metabolite(self, metabolite):
         item = QTreeWidgetItem(self.metabolite_list)
-        item.setText(0, metabolites.id)
-        item.setText(1, metabolites.name)
-        item.setData(2, 0, metabolites)
+        item.setText(0, metabolite.id)
+        item.setText(1, metabolite.name)
+        item.setData(2, 0, metabolite)
 
     def update_annotations(self, annotation):
 
@@ -116,7 +117,7 @@ class MetaboliteList(QWidget):
     def update(self):
         self.metabolite_list.clear()
         for m in self.appdata.project.cobra_py_model.metabolites:
-            self.add_metabolites(m)
+            self.add_metabolite(m)
 
         if self.last_selected is None:
             pass
@@ -134,11 +135,15 @@ class MetaboliteList(QWidget):
         self.last_selected = key
         self.update()
 
+    def emit_jump_to_reaction(self, reaction):
+        self.jumpToReaction.emit(reaction)
+
     itemActivated = Signal(str)
     changedModel = Signal()
+    jumpToReaction = Signal(str)
 
 
-class metabolitesMask(QWidget):
+class MetabolitesMask(QWidget):
     """The input mask for a metabolites"""
 
     def __init__(self, appdata):
@@ -199,6 +204,18 @@ class metabolitesMask(QWidget):
         l.addItem(l2)
         layout.addItem(l)
 
+        l = QVBoxLayout()
+        label = QLabel("Reactions:")
+        l.addWidget(label)
+        l2 = QHBoxLayout()
+        self.reactions = QTreeWidget()
+        self.reactions.setHeaderLabels(["Id"])
+        self.reactions.setSortingEnabled(True)
+        l2.addWidget(self.reactions)
+        l.addItem(l2)
+        self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
+        layout.addItem(l)
+
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
 
@@ -225,7 +242,7 @@ class metabolitesMask(QWidget):
         if self.old is None:
             self.old = cobra.metabolites(
                 id=self.id.text())
-            self.appdata.project.cobra_py_model.add_metabolites(self.old)
+            self.appdata.project.cobra_py_model.add_metabolite(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -250,8 +267,6 @@ class metabolitesMask(QWidget):
             self.changedMetaboliteList.emit()
 
     def validate_id(self):
-        # print("metabolitesMask::validate_id")
-
         import sys
         import traceback
         with self.appdata.project.cobra_py_model as model:
@@ -264,7 +279,7 @@ class metabolitesMask(QWidget):
                 return False
             try:
                 m = cobra.Metabolite(id=self.id.text())
-                model.add_metabolites([m])
+                model.add_metabolite([m])
             except Exception:
 
                 traceback.print_exception(*sys.exc_info())
@@ -275,11 +290,10 @@ class metabolitesMask(QWidget):
                 return True
 
     def validate_name(self):
-        # print("metabolitesMask::validate_name")
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
-                model.add_metabolites([m])
+                model.add_metabolite([m])
             except:
                 turn_red(self.name)
                 return False
@@ -336,4 +350,20 @@ class metabolitesMask(QWidget):
             else:
                 self.apply_button.setEnabled(False)
 
+        self.reactions.clear()
+        if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
+            metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
+                self.id.text())
+            for r in metabolite.reactions:
+                item = QTreeWidgetItem(self.reactions)
+                item.setText(0, r.id)
+                item.setText(1, r.name)
+                item.setData(2, 0, r)
+                text = "Id: " + r.id + "\nName: " + r.name
+                item.setToolTip(1, text)
+
+    def emit_jump_to_reaction(self, reaction):
+        self.jumpToReaction.emit(reaction.data(2, 0).id)
+
+    jumpToReaction = Signal(str)
     changedMetaboliteList = Signal()

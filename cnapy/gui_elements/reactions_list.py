@@ -6,7 +6,7 @@ from cnapy.cnadata import CnaData
 from cnapy.utils import *
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot
 from qtpy.QtGui import QIcon, QDrag
-from qtpy.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLabel,
+from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
@@ -69,6 +69,8 @@ class ReactionList(QWidget):
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
         self.reaction_mask.changedReactionList.connect(self.emit_changedModel)
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
+        self.reaction_mask.jumpToMetabolite.connect(
+            self.emit_jump_to_metabolite)
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
@@ -193,7 +195,6 @@ class ReactionList(QWidget):
         if item is None:
             self.reaction_mask.hide()
         else:
-            # print("last selected", self.last_selected)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
             self.reaction_mask.id.setText(reaction.id)
@@ -224,7 +225,6 @@ class ReactionList(QWidget):
 
     def emit_changedModel(self):
         self.last_selected = self.reaction_mask.id.text()
-        # print("last selected", self.last_selected)
         self.changedModel.emit()
 
     def update_selected(self, string):
@@ -248,7 +248,6 @@ class ReactionList(QWidget):
         if self.last_selected is None:
             pass
         else:
-            # print("something was previosly selected")
             items = self.reaction_list.findItems(
                 self.last_selected, Qt.MatchExactly)
 
@@ -266,9 +265,13 @@ class ReactionList(QWidget):
     def emit_jump_to_map(self, idx: str, reaction: str):
         self.jumpToMap.emit(idx, reaction)
 
+    def emit_jump_to_metabolite(self, metabolite):
+        self.jumpToMetabolite.emit(metabolite)
+
     itemActivated = Signal(str)
     changedModel = Signal()
     jumpToMap = Signal(str, str)
+    jumpToMetabolite = Signal(str)
 
 
 class JumpButton(QPushButton):
@@ -311,7 +314,7 @@ class JumpList(QWidget):
         self.layout.addWidget(jb)
         self.setLayout(self.layout)
 
-        jb.jumpToMap.connect(self.emit_jump_to_map)
+        jb.jumpToMap.connect(self.parent.emit_jump_to_map)
 
     @ Slot(str)
     def emit_jump_to_map(self: JumpButton, name: str):
@@ -323,7 +326,7 @@ class JumpList(QWidget):
 class ReactionMask(QWidget):
     """The input mask for a reaction"""
 
-    def __init__(self, parent):
+    def __init__(self, parent: ReactionList):
         QWidget.__init__(self)
 
         self.parent = parent
@@ -405,17 +408,24 @@ class ReactionMask(QWidget):
         self.add_anno.clicked.connect(self.add_anno_row)
         l2.addWidget(self.add_anno)
         l.addItem(l2)
+        layout.addItem(l)
 
+        l = QVBoxLayout()
+        label = QLabel("Metabolites:")
+        l.addWidget(label)
+        l2 = QHBoxLayout()
+        self.metabolites = QTreeWidget()
+        self.metabolites.setHeaderLabels(["Id"])
+        self.metabolites.setSortingEnabled(True)
+        l2.addWidget(self.metabolites)
+        l.addItem(l2)
+        self.metabolites.itemDoubleClicked.connect(
+            self.emit_jump_to_metabolite)
         layout.addItem(l)
 
         l = QHBoxLayout()
         self.apply_button = QPushButton("apply changes")
-        # self.add_map_button = QPushButton("add reaction to map")
-        # self.map_combo = QComboBox()
-
         l.addWidget(self.apply_button)
-        # l.addWidget(self.add_map_button)
-        # l.addWidget(self.map_combo)
         layout.addItem(l)
 
         self.jump_list = JumpList(self)
@@ -433,7 +443,6 @@ class ReactionMask(QWidget):
         self.gene_reaction_rule.textEdited.connect(self.reaction_data_changed)
         self.annotation.itemChanged.connect(self.reaction_data_changed)
         self.apply_button.clicked.connect(self.apply)
-        # self.add_map_button.clicked.connect(self.add_to_map)
 
         self.validate_mask()
 
@@ -478,14 +487,6 @@ class ReactionMask(QWidget):
             [self.old], remove_orphans=True)
         self.hide()
         self.changedReactionList.emit()
-
-    # def add_to_map(self):
-    #     # print("add to map")
-    #     name = self.map_combo.currentText()
-    #     self.parent.appdata.project.maps[name]["boxes"][self.id.text()] = (
-    #         100, 100)
-    #     self.emit_jump_to_map(name)
-    #     self.update_state()
 
     def validate_id(self):
         if self.old != None and self.old.id == self.id.text():
@@ -601,6 +602,18 @@ class ReactionMask(QWidget):
             if self.id.text() in m["boxes"]:
                 self.jump_list.add(name)
 
+        self.metabolites.clear()
+        if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
+            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
+                self.id.text())
+            for m in reaction.metabolites:
+                item = QTreeWidgetItem(self.metabolites)
+                item.setText(0, m.id)
+                item.setText(1, m.name)
+                item.setData(2, 0, m)
+                text = "Id: " + m.id + "\nName: " + m.name
+                item.setToolTip(1, text)
+
         if self.parent.new:
             self.apply_button.setText("add reaction")
             self.delete_button.hide()
@@ -608,23 +621,17 @@ class ReactionMask(QWidget):
             self.apply_button.setText("apply changes")
             self.delete_button.show()
 
-            # self.add_map_button.setEnabled(False)
-            # self.map_combo.clear()
-            # idx = 0
-            # for name, m in self.parent.appdata.project.maps.items():
-            # if self.id.text() not in m["boxes"]:
-            # self.add_map_button.setEnabled(True)
-            # self.map_combo.insertItem(idx, name)
-            # idx += 1
-
         if self.is_valid & self.changed:
             self.apply_button.setEnabled(True)
         else:
             self.apply_button.setEnabled(False)
 
     def emit_jump_to_map(self, name):
-        print("ReactionMask::emit_jump_to_map", name)
         self.jumpToMap.emit(name, self.id.text())
 
+    def emit_jump_to_metabolite(self, metabolite):
+        self.jumpToMetabolite.emit(str(metabolite.data(2, 0)))
+
     jumpToMap = Signal(str, str)
+    jumpToMetabolite = Signal(str)
     changedReactionList = Signal()
