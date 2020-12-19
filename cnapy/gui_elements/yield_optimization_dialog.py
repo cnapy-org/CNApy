@@ -57,21 +57,24 @@ class YieldOptimizationDialog(QDialog):
         self.eng = legacy.get_matlab_engine()
 
         self.polynom_re = re.compile(
-            '([ ]*(?P<factor>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*)')
+            '([ ]*(?P<factor1>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>\d*)[ ]*)')
         completer = QCompleter(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
 
         self.layout = QVBoxLayout()
+        l = QLabel(
+            "Define the yield function Y=c*r/d*r by providing c and d as polynoms of form:\n   id_1 * w_1 + ... id_n *w_n\nWhere id_x are reaction ids and w_x optional weighting factor\n")
+        self.layout.addWidget(l)
         t1 = QLabel(
-            "Define c of the yield function Y=c*r/d*r by providing relevant reaction identifiers (each optionally followed by a weighting factor)")
+            "Define c")
         self.layout.addWidget(t1)
         self.c = CompleterLineEdit(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
         self.c.setPlaceholderText("")
         self.layout.addWidget(self.c)
         t2 = QLabel(
-            "Define d of the yield function Y=c*r/d*r by providing relevant reaction identifiers (each optionally followed by a weighting factor)")
+            "Define d")
         self.layout.addWidget(t2)
         self.d = CompleterLineEdit(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
@@ -111,8 +114,9 @@ class YieldOptimizationDialog(QDialog):
             match = self.polynom_re.fullmatch(elem)
             if match == None:
                 valid = False
-            elif match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
-                valid = False
+            else:
+                if match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
+                    valid = False
         return valid
 
     def validate_c(self):
@@ -175,7 +179,17 @@ class YieldOptimizationDialog(QDialog):
             for elem in c_elements:
                 match = self.polynom_re.fullmatch(elem)
                 reaction = match.groupdict()['reac_id']
-                factor = match.groupdict()['factor']
+                factor1 = match.groupdict()['factor1']
+                factor2 = match.groupdict()['factor2']
+                if factor1 != '':
+                    factor1 = int(factor1)
+                else:
+                    factor1 = 1
+                if factor2 != '':
+                    factor2 = int(factor2)
+                else:
+                    factor2 = 1
+                factor = factor1*factor2
                 c.append((factor, reaction))
             res = []
             idx = 0
@@ -198,7 +212,17 @@ class YieldOptimizationDialog(QDialog):
             for elem in d_elements:
                 match = self.polynom_re.fullmatch(elem)
                 reaction = match.groupdict()['reac_id']
-                factor = match.groupdict()['factor']
+                factor1 = match.groupdict()['factor1']
+                factor2 = match.groupdict()['factor2']
+                if factor1 != '':
+                    factor1 = int(factor1)
+                else:
+                    factor1 = 1
+                if factor2 != '':
+                    factor2 = int(factor2)
+                else:
+                    factor2 = 1
+                factor = factor1*factor2
                 d.append((factor, reaction))
             res = []
             idx = 0
@@ -216,20 +240,6 @@ class YieldOptimizationDialog(QDialog):
             print(code)
             self.eng.eval(code, nargout=0)
 
-            # res = []
-            # idx = 0
-            # for r in reac_id:
-            #     if r in self.appdata.project.scen_values.keys():
-            #         val = str(self.appdata.project.scen_values[r])
-            #     else:
-            #         val = "NaN"
-            #     res.append(val)
-            # code = "fixedFluxes =["
-            # for e in res:
-            #     code = code+e+","
-            # code = code[0:-1]+"];"
-
-            # print(code)
             self.eng.eval("fixedFluxes =[];", nargout=0)
             self.eng.eval("c_macro =[];", nargout=0)
             # solver: selects the LP solver
