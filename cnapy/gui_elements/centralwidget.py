@@ -74,8 +74,10 @@ class CentralWidget(QWidget):
 
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
+        self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
+        self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
@@ -213,6 +215,16 @@ class CentralWidget(QWidget):
                 m.focus_reaction(reaction)
                 m.highlight_reaction(reaction)
                 break
+
+    def jump_to_metabolite(self, metabolite: str):
+        self.tabs.setCurrentIndex(1)
+        m = self.tabs.widget(1)
+        m.setCurrentItem(metabolite)
+
+    def jump_to_reaction(self, reaction: str):
+        self.tabs.setCurrentIndex(0)
+        m = self.tabs.widget(0)
+        m.setCurrentItem(reaction)
 
 
 class ConfirmMapDeleteDialog(QDialog):
