@@ -171,6 +171,11 @@ class MainWindow(QMainWindow):
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
 
+        net_conversion_action = QAction("Compute net conversion of external metabolites", self)
+        self.analysis_menu.addAction(net_conversion_action)
+        net_conversion_action.triggered.connect(
+            self.net_conversion)
+
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
@@ -696,6 +701,21 @@ class MainWindow(QMainWindow):
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
         self.centralWidget().splitter2.setSizes([10, 0, 100])
+
+    def net_conversion(self):
+        print("Compute net conversion of external metabolites")
+        reaction_with_known_rates= 0
+        for r, (lb,ub) in self.appdata.project.scen_values.items():
+            print(r,lb,ub)
+            reaction_with_known_rates+=1
+
+        reactions_with_unknown_rates=len(self.appdata.project.cobra_py_model.reactions)-reaction_with_known_rates
+        print("#known rates", reaction_with_known_rates)
+        print("#unknown rates", reactions_with_unknown_rates)
+        if reaction_with_known_rates == 0:
+            QMessageBox.information(
+                self, 'Unknown reaction rates', 'Not a single rate is known. Net conversion cannot be determined.')
+            return
 
     def print_model_stats(self):
         import cobra
