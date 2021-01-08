@@ -890,6 +890,36 @@ class MainWindow(QMainWindow):
                 high = mean
         return (low, high)
 
+    def in_out_fluxes(self, metabolite_id):
+        import matplotlib.pyplot as plt
+
+        with self.appdata.project.cobra_py_model as model:
+            met = model.metabolites.get_by_id(metabolite_id)
+            fig, ax = plt.subplots()
+            ax.set_xticks([1, 2])
+            ax.set_xticklabels(['In', 'Out'])
+            cons = []
+            prod = []
+            sum_cons = 0
+            sum_prod = 0
+            for rxn in met.reactions:
+                flux = rxn.get_coefficient(metabolite_id) * self.appdata.project.comp_values[rxn.id][0]
+                if flux < 0:
+                    cons.append((rxn.id, -flux))
+                elif flux > 0:
+                    prod.append((rxn.id, flux))
+            cons = sorted(cons, key=lambda x: x[1], reverse=True)
+            prod = sorted(prod, key=lambda x: x[1], reverse=True)
+            for rxn_id, flux in prod:
+                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn_id)
+                sum_prod += flux
+            for rxn_id, flux in cons:
+                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn_id)
+                sum_cons += flux
+            ax.set_ylabel('Flux')
+            ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
+            ax.legend(bbox_to_anchor=(1,1), loc="upper left")
+            plt.show()
 
 def my_mean(value):
     if isinstance(value, float):
@@ -897,3 +927,4 @@ def my_mean(value):
     else:
         (vl, vh) = value
         return (vl+vh)/2
+
