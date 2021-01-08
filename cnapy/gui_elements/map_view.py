@@ -7,7 +7,7 @@ from typing import Dict, Tuple
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
 from qtpy.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
 from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QGraphicsItem, QGraphicsScene,
+from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent,
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget)
@@ -84,13 +84,21 @@ class MapView(QGraphicsView):
         self.update()
 
     def wheelEvent(self, event):
+        modifiers = QApplication.queryKeyboardModifiers()
+        if modifiers == Qt.ControlModifier:
+            if event.angleDelta().y() > 0:
+                self.appdata.project.maps[self.name]["bg-size"] -= 0.2
+            else:
+                self.appdata.project.maps[self.name]["bg-size"] += 0.2
+        
+            self.update()
+
         if event.angleDelta().y() > 0:
             factor = INCREASE_FACTOR
             self._zoom += 1
         else:
             factor = DECREASE_FACTOR
             self._zoom -= 1
-
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(factor, factor)
 
@@ -116,14 +124,26 @@ class MapView(QGraphicsView):
     def mousePressEvent(self, event: QMouseEvent):
         print("MapView::mousePressEvent")
         self.drag = True
+        self.drag_start =  event.pos()
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         # print("mouse-move")
-        if self.drag:
-            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-            self.translate(1, 1)
-        super(MapView, self).mouseMoveEvent(event)
+        modifiers = QApplication.queryKeyboardModifiers()
+        if modifiers == Qt.ControlModifier:
+            if self.drag:
+                point = event.pos()
+                move_x = self.drag_start.x() - point.x()
+                move_y = self.drag_start.y() - point.y()
+                self.drag_start = point
+                for key,val in self.appdata.project.maps[self.name]["boxes"].items():
+                    self.appdata.project.maps[self.name]["boxes"][key] = (val[0]-move_x,val[1]-move_y)
+                self.update()
+        else:
+            if self.drag:
+                self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+                self.translate(1, 1)
+            super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         print("Mapview::mouseReleaseEvent")
