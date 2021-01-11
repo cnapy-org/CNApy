@@ -26,7 +26,7 @@ class ConstrainedMinimalCutSetsEnumerator:
             raise IndicatorConstraintsNotSupported("This solver does not support indicators. Please choose a differen solver or use a big M formulation.")
         self.optlang_variable_class = optlang_interface.Variable
         irr = [not r for r in reversible]
-        self.num_reac = len(rev)
+        self.num_reac = len(reversible)
         if cuts is None:
             cuts = [True] * self.num_reac #[True for i in range(self.num_reac)]
             irrepressible = []
@@ -259,7 +259,7 @@ class ConstrainedMinimalCutSetsEnumerator:
         ub = sum(mcs)-1;
         self.model.add(self.optlang_constraint_class(expression, ub=ub, sloppy=True))
 
-    def enumerate_mcs(self):
+    def enumerate_mcs(self, max_mcs_size=numpy.inf):
         all_mcs= [];
         while True:
             mcs = self.single_solve()
@@ -268,6 +268,9 @@ class ConstrainedMinimalCutSetsEnumerator:
                 #if ov > e.evs_sz.lb: # increase lower bound of evs_sz constraint, but is this really always helpful?
                 #    e.evs_sz.lb = ov
                 #    print(ov)
+                if round(self.model.objective.value) > max_mcs_size:
+                    print('MCS size limit exceeded, stopping enumeration.')
+                    break
                 self.add_exclusion_constraint(mcs)
                 self.model.update() # needs to be done explicitly when using _optimize
                 all_mcs.append(mcs)
@@ -281,10 +284,10 @@ class ConstrainedMinimalCutSetsEnumerator:
 
     def write_lp_file(self, fname):
         fname = fname + r".lp"
-        if isinstance(e.model, optlang.cplex_interface.Model):
+        if isinstance(self.model, optlang.cplex_interface.Model):
             self.model.problem.write(fname)
-        elif isinstance(e.model, optlang.glpk_interface.Model):
-            glp_write_lp(e.model.problem, None, fname)
+        elif isinstance(self.model, optlang.glpk_interface.Model):
+            glp_write_lp(self.model.problem, None, fname)
         else:
             raise # add a proper exception here
 
@@ -320,7 +323,7 @@ e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, re
 #e.model.problem.write('test.lp')
 e.model.objective= e.minimize_sum_over_z
 mcs1 = e.enumerate_mcs()
-"""
+
 
 #import os
 #print(os.getcwd())
@@ -360,6 +363,7 @@ print(time.time() - t)
 print(len(set(mcs).intersection(set(mcs2))))
 print(set(mcs) == set(mcs2))
 
+"""
 #import sympy
 
 #def kernel(A):
