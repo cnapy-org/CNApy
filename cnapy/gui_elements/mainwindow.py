@@ -171,6 +171,11 @@ class MainWindow(QMainWindow):
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
 
+        in_out_fluxes_action = QAction("In/Out fluxes", self)
+        self.analysis_menu.addAction(in_out_fluxes_action)
+        in_out_fluxes_action.triggered.connect(
+            self.execute_print_in_out_fluxes)
+
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
@@ -735,6 +740,17 @@ class MainWindow(QMainWindow):
             x = max(r)
             c.append(x)
         print('Largest (absolute) value:', max(c))
+
+
+    def execute_print_in_out_fluxes(self):
+        self.centralWidget().kernel_client.execute("cna.print_in_out_fluxes()")
+        self.centralWidget().splitter2.setSizes([10, 0, 100])
+
+    def print_in_out_fluxes(self):
+        self.fba()
+        for m in self.appdata.project.cobra_py_model.metabolites:
+            # print(m.id)
+            res = self.in_out_fluxes(m.id)
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
