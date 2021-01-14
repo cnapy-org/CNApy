@@ -174,7 +174,7 @@ class MainWindow(QMainWindow):
         net_conversion_action = QAction("Compute net conversion of external metabolites", self)
         self.analysis_menu.addAction(net_conversion_action)
         net_conversion_action.triggered.connect(
-            self.net_conversion)
+            self.execute_net_conversion)
 
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
@@ -700,22 +700,54 @@ class MainWindow(QMainWindow):
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
-        self.centralWidget().splitter2.setSizes([10, 0, 100])
+        self.centralWidget().splitter2.setSizes([0, 0, 100])
+
+    def execute_net_conversion(self):
+        self.centralWidget().kernel_client.execute("cna.net_conversion()")
+        self.centralWidget().splitter2.setSizes([0, 0, 100])
 
     def net_conversion(self):
-        print("Compute net conversion of external metabolites")
-        reaction_with_known_rates= 0
-        for r, (lb,ub) in self.appdata.project.scen_values.items():
-            print(r,lb,ub)
-            reaction_with_known_rates+=1
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                errors = False
+                imports = []
+                exports = []
+                soldict = solution.fluxes.to_dict()
+                for i in soldict:
+                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(i)
+                    if r.reactants == []:
+                        if len(r.products) != 1: 
+                            print('Error: Expected only import reactions with one metabolite but',i, 'imports',r.products)
+                            errors = True
+                        else:
+                            if soldict[i] > 0.0 :
+                                imports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.products[0].id)
+                            elif soldict[i] < 0.0:
+                                exports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.products[0].id)
 
-        reactions_with_unknown_rates=len(self.appdata.project.cobra_py_model.reactions)-reaction_with_known_rates
-        print("#known rates", reaction_with_known_rates)
-        print("#unknown rates", reactions_with_unknown_rates)
-        if reaction_with_known_rates == 0:
-            QMessageBox.information(
-                self, 'Unknown reaction rates', 'Not a single rate is known. Net conversion cannot be determined.')
-            return
+                    elif r.products == []:
+                        if len(r.reactants) != 1: 
+                            print('Error: Expected only export reactions with one metabolite but',i, 'exports',r.reactants)
+                            errors = True
+                        else:
+                            if soldict[i] > 0.0 :
+                                exports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.reactants[0].id)
+                            elif soldict[i] < 0.0:
+                                imports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.reactants[0].id)
+
+                if errors: return
+                else:
+                    print('\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    print (' + '.join(imports))
+                    print('-->')
+                    print (' + '.join(exports))
+                    
+            elif solution.status == 'infeasible':
+                print('No solution the scenario is infeasible!')
+            else:
+                print('No solution!', solution.status)
 
     def print_model_stats(self):
         import cobra
