@@ -78,6 +78,7 @@ class CentralWidget(QWidget):
         self.reaction_list.changedModel.connect(self.update)
         self.metabolite_list.changedModel.connect(self.update)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
+        self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
@@ -225,6 +226,10 @@ class CentralWidget(QWidget):
         self.tabs.setCurrentIndex(0)
         m = self.tabs.widget(0)
         m.setCurrentItem(reaction)
+
+    def in_out_fluxes(self, metabolite):
+        self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
+        self.splitter2.setSizes([0, 0, 100])
 
 
 class ConfirmMapDeleteDialog(QDialog):
