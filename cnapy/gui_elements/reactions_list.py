@@ -411,7 +411,7 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
-        label = QLabel("Metabolites:")
+        label = QLabel("Metabolites involved in this reaction:")
         l.addWidget(label)
         l2 = QHBoxLayout()
         self.metabolites = QTreeWidget()
