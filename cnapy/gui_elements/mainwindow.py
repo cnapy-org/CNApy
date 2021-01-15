@@ -17,6 +17,7 @@ from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
+from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
@@ -141,15 +142,20 @@ class MainWindow(QMainWindow):
 
         self.map_menu = self.menu.addMenu("Map")
 
-        load_maps_action = QAction("Load map positions...", self)
+        load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_maps)
 
-        save_maps_action = QAction("Save map positions...", self)
+        save_maps_action = QAction("Save reaction box positions...", self)
         self.map_menu.addAction(save_maps_action)
         save_maps_action.triggered.connect(self.save_maps)
 
-        self.change_background_action = QAction("Change background", self)
+        self.change_map_name_action = QAction("Change map name", self)
+        self.map_menu.addAction(self.change_map_name_action)
+        self.change_map_name_action.triggered.connect(self.change_map_name)
+        self.change_map_name_action.setEnabled(False)
+
+        self.change_background_action = QAction("Change map background", self)
         self.map_menu.addAction(self.change_background_action)
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
@@ -378,6 +384,12 @@ class MainWindow(QMainWindow):
             self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
+    def change_map_name(self, _checked):
+        dialog = RenameMapDialog(
+            self.appdata, self.centralWidget())
+        dialog.exec_()
+
+    @Slot()
     def inc_bg_size(self, _checked):
 
         idx = self.centralWidget().map_tabs.currentIndex()
@@ -581,11 +593,13 @@ class MainWindow(QMainWindow):
 
     def on_tab_change(self, idx):
         if idx >= 0:
+            self.change_map_name_action.setEnabled(True)
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
             self.centralWidget().update_map(idx)
         else:
+            self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)

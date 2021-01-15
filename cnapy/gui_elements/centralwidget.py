@@ -11,8 +11,6 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget)
 
-FIXED_TABS = 2
-
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
@@ -33,6 +31,7 @@ class CentralWidget(QWidget):
 
         self.map_tabs = QTabWidget()
         self.map_tabs.setTabsClosable(True)
+        self.map_tabs.setMovable(True)
 
         # Create an in-process kernel
         kernel_manager = QtInProcessKernelManager()
