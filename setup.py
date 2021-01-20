@@ -22,7 +22,7 @@ setup(
     url='https://github.com/arblab/cnapy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
-    long_description=open('README.adoc').read(),
+    long_description=open('README.adoc', encoding="utf8").read(),
     long_description_content_type="text/asciidoc",
     author='Sven Thiele',
     author_email='sthiele78@gmail.com',
