@@ -13,7 +13,7 @@ dependencies:
   - appdirs
   - pip:
     - qtconsole==4.7.7
-    - cameo==0.11.15
+    - cameo==0.13
     - cobra==0.18.1
 prefix: /scratch/miniconda3/envs/cnapy
 
