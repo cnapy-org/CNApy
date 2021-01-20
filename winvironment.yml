@@ -5,6 +5,7 @@ channels:
 dependencies:
   - matplotlib-base
   - oct2py=5.2
+  - sympy=1.5.2
   - openjdk=8
   - pip
   - pyside2
