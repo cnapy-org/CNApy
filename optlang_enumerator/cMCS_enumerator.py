@@ -28,12 +28,12 @@ class ConstrainedMinimalCutSetsEnumerator:
         irr = [not r for r in reversible]
         self.num_reac = len(reversible)
         if cuts is None:
-            cuts = [True] * self.num_reac #[True for i in range(self.num_reac)]
+            #cuts = [True] * self.num_reac
+            cuts = numpy.full(self.num_reac, True, dtype=bool)
             irrepressible = []
         else:
-            pass
-            #cuts= logical(cuts(:)'); %A make row vector
-            #irrepressible= find(~cuts);
+            irrepressible = numpy.where(cuts == False)[0]
+            #print("irrepressible", irrepressible)
             #iv_cost(irrepressible)= 0;
         num_targets = len(targets)
         use_kn_in_dual = kn is not None
@@ -53,6 +53,9 @@ class ConstrainedMinimalCutSetsEnumerator:
         self.model.objective= self.zero_objective;
         self.z_vars = [self.optlang_variable_class("Z"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
         self.model.add(self.z_vars)
+        self.model.update() # cannot change bound below without this
+        for i in irrepressible:
+            self.z_vars[i].ub = 0 # nur wenn es keine KI sind
         self.minimize_sum_over_z= optlang_interface.Objective(add(self.z_vars), direction='min', name='minimize_sum_over_z')
         z_local = [None] * num_targets
         if num_targets == 1:
@@ -103,7 +106,8 @@ class ConstrainedMinimalCutSetsEnumerator:
             else:
                 if irrev_geq:
                     for i in range(self.num_reac):
-                        dual_lb[i] = 0
+                        if irr[i]:
+                            dual_lb[i] = 0
                 for i in irrepressible:
                     if reversible[i]:
                         dual_lb[i] = 0
@@ -113,10 +117,10 @@ class ConstrainedMinimalCutSetsEnumerator:
                 dual_vars[k] = [self.optlang_variable_class("DP"+str(k)+"_"+str(i), lb=dual_lb[i], ub=dual_ub[i]) for i in range(self.num_reac)] + \
                     [self.optlang_variable_class("DN"+str(k)+"_"+str(i), ub=0) for i in split_v_idx]
                 for i in irrepressible:
-                    if reversible[i]:
-                         dual_vars[k][i].lb = 0
+                    if reversible[i]: # fixes DN of irrepressible reversible reactions to 0
+                         dual_vars[k][dual_rev_neg_idx_map[i]].lb = 0
             else:
-                dual_vars[k] = [self.optlang_variable_class("DR"+str(k)+"_"+str(i)) for i in range(self.num_reac)]
+                dual_vars[k] = [self.optlang_variable_class("DR"+str(k)+"_"+str(i), lb=dual_lb[i], ub=dual_ub[i]) for i in range(self.num_reac)]
             first_w= len(dual_vars[k]) # + 1;
             if use_kn_in_dual is False:
                 dual = numpy.eye(self.num_reac)
