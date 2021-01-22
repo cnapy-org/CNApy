@@ -10,8 +10,10 @@ channels:
   - bioconda
 
 specs:
-  - cnapy
-  - menuinst
+  - conda
+  - pip
+  - python=3.7
+  - menuinst                             [win]
 
 license_file: LICENSE
 
