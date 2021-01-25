@@ -7,6 +7,8 @@ import optlang.glpk_interface
 from optlang.symbolics import add, mul
 from optlang.exceptions import IndicatorConstraintsNotSupported
 from swiglpk import glp_write_lp
+#import cplex
+from cplex.exceptions import CplexSolverError
 
 # exec(open('cMCS_enumerator.py').read())
 
@@ -228,7 +230,8 @@ class ConstrainedMinimalCutSetsEnumerator:
     #     end % if bigM > 0
     #   end % for k= 1:num_targets
     
-        self.evs_sz = self.optlang_constraint_class(add(self.z_vars), lb=0, name='evs_sz')
+        self.evs_sz_lb = 0
+        self.evs_sz = self.optlang_constraint_class(add(self.z_vars), lb=self.evs_sz_lb, name='evs_sz')
         self.model.add(self.evs_sz)
         self.model.update() # transfer the model to the solver
 
@@ -263,26 +266,61 @@ class ConstrainedMinimalCutSetsEnumerator:
         ub = sum(mcs)-1;
         self.model.add(self.optlang_constraint_class(expression, ub=ub, sloppy=True))
 
-    def enumerate_mcs(self, max_mcs_size=numpy.inf):
+    def enumerate_mcs(self, max_mcs_size=numpy.inf, enum_method=1):
         all_mcs= [];
-        while True:
-            mcs = self.single_solve()
-            if self.model.status == 'optimal':
-                #ov = round(self.model.objective.value)
-                #if ov > e.evs_sz.lb: # increase lower bound of evs_sz constraint, but is this really always helpful?
-                #    e.evs_sz.lb = ov
-                #    print(ov)
-                if round(self.model.objective.value) > max_mcs_size:
-                    print('MCS size limit exceeded, stopping enumeration.')
+        continue_loop = True;
+        while continue_loop and self.evs_sz_lb <= max_mcs_size:
+            if enum_method == 1:
+                mcs = self.single_solve()
+                if self.model.status == 'optimal':
+                    #ov = round(self.model.objective.value)
+                    #if ov > e.evs_sz.lb: # increase lower bound of evs_sz constraint, but is this really always helpful?
+                    #    e.evs_sz.lb = ov
+                    #    print(ov)
+                    if round(self.model.objective.value) > max_mcs_size:
+                        print('MCS size limit exceeded, stopping enumeration.')
+                        break
+                    self.add_exclusion_constraint(mcs)
+                    self.model.update() # needs to be done explicitly when using _optimize
+                    all_mcs.append(mcs)
+                else:
                     break
-                self.add_exclusion_constraint(mcs)
-                self.model.update() # needs to be done explicitly when using _optimize
-                all_mcs.append(mcs)
-                #if len(all_mcs) == 84:
-                #    print("HERE")
-                # can also increase lower bound of evs_sz constraint
+            elif enum_method == 2: # populate with CPLEX
+                # throw error if this is not a CPLEX model
+                print("Populate")
+                self.model.problem.parameters.mip.pool.intensity.set(4)
+                self.model.problem.parameters.mip.pool.absgap.set(0)
+                self.model.problem.parameters.mip.strategy.search.set(1) # traditional branch-and-cut search
+                # also set model.problem.parameters.parallel to deterministic?
+                # for now unlimited pool size
+                self.model.problem.parameters.mip.limits.populate.set(self.model.problem.parameters.mip.pool.capacity.get())
+                while self.evs_sz_lb <= max_mcs_size:
+                    self.evs_sz.ub = self.evs_sz_lb
+                    self.evs_sz.lb = self.evs_sz_lb
+                    try:
+                        self.model.problem.populate_solution_pool()
+                    except CplexSolverError:
+                        print("Exception raised during populate")
+                        break
+                    print(self.model.problem.solution.pool.get_num())
+                    print(self.model.problem.solution.get_status_string())
+                    if self.model.problem.solution.get_status() == 101:
+                        self.evs_sz_lb += 1
+                        print(self.evs_sz_lb)
+                        z_idx = self.model.problem.variables.get_indices([z.name for z in self.z_vars])
+                        for i in range(self.model.problem.solution.pool.get_num()):
+                            mcs = tuple(map(round,
+                                        self.model.problem.solution.pool.get_values(i, z_idx)))
+                            self.add_exclusion_constraint(mcs)
+                            all_mcs.append(mcs)
+                        self.model.update() # needs to be done explicitly when using _optimize
+                    else:
+                        continue_loop = False
+                        break # provisional break
             else:
+                print("Unknown enumeration method.")
                 break
+
         print(self.model.status)
         return all_mcs
 
