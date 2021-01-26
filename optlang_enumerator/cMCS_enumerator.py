@@ -301,6 +301,7 @@ class ConstrainedMinimalCutSetsEnumerator:
                         self.model.problem.populate_solution_pool()
                     except CplexSolverError:
                         print("Exception raised during populate")
+                        continue_loop = False
                         break
                     print(self.model.problem.solution.pool.get_num())
                     print(self.model.problem.solution.get_status_string())
@@ -317,6 +318,7 @@ class ConstrainedMinimalCutSetsEnumerator:
                     else:
                         continue_loop = False
                         break # provisional break
+                # reset parameters here?
             else:
                 print("Unknown enumeration method.")
                 break
