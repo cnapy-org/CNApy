@@ -1,4 +1,5 @@
 import io
+import traceback
 #from abc import ABC, abstractmethod
 
 import os
@@ -94,7 +95,11 @@ try:
         def is_cplex_java_ready(self):
             return self.cplex_java_ready
 
-except:
+except Exception:
+    output = io.StringIO()
+    traceback.print_exc(file=output)
+    exstr = output.getvalue()
+    print(exstr)
     print('Octave is not available.')
 
 
