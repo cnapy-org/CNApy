@@ -114,6 +114,8 @@ class MainWindow(QMainWindow):
         set_model_bounds_to_scenario_action.triggered.connect(
             self.set_model_bounds_to_scenario)
 
+        self.scenario_menu.addSeparator()
+
         heaton_action = QAction("Apply heatmap coloring", self)
         heaton_action.setIcon(QIcon(heat_svg))
         heaton_action.triggered.connect(self.set_heaton)
@@ -186,6 +188,8 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(show_model_bounds_action)
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
 
+        self.analysis_menu.addSeparator()
+
         fba_action = QAction("Flux Balance Analysis (FBA)", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
@@ -198,6 +202,8 @@ class MainWindow(QMainWindow):
         fva_action = QAction("Flux Variability Analysis (FVA)", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
         self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
@@ -215,6 +221,8 @@ class MainWindow(QMainWindow):
         self.mcs_action = QAction("Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.analysis_menu.addAction(self.mcs_action)
+
+        self.analysis_menu.addSeparator()
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
