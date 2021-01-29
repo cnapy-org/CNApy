@@ -95,7 +95,7 @@ try:
             return self.cplex_java_ready
 
 except:
-    print('Octave is not available.')
+    print('CNApy running without Octave enabled.')
 
 
 def run_tests():
