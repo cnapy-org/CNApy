@@ -22,7 +22,7 @@ class CentralWidget(QWidget):
         self.map_counter = 0
         self.searchbar = QLineEdit()
         self.searchbar.textChanged.connect(self.update_selected)
-
+        self.searchbar.setPlaceholderText("Enter search term")
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
