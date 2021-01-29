@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(save_as_project_action)
         save_as_project_action.triggered.connect(self.save_project_as)
 
-        import_sbml_action = QAction("Import SBML...", self)
+        import_sbml_action = QAction("New project from SBML...", self)
         self.file_menu.addAction(import_sbml_action)
         import_sbml_action.triggered.connect(self.import_sbml)
 
@@ -141,6 +141,11 @@ class MainWindow(QMainWindow):
             self.clipboard_arithmetics)
 
         self.map_menu = self.menu.addMenu("Map")
+
+        add_map_action = QAction("Add new map", self)
+        self.map_menu.addAction(add_map_action)
+        # add_map_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
+        add_map_action.triggered.connect(central_widget.add_map)
 
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
@@ -224,7 +229,7 @@ class MainWindow(QMainWindow):
         yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(yield_optimization_action)
 
-        self.help_menu = self.menu.addMenu("Help")
+        self.help_menu = self.menu.addMenu("Preferences")
 
         config_action = QAction("Configure CNApy ...", self)
         self.help_menu.addAction(config_action)
@@ -243,10 +248,6 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
-        add_map_action = QAction("Add new map", self)
-        # add_map_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
-        add_map_action.triggered.connect(
-            central_widget.add_map)
 
         self.setCurrentFile("Untitled project")
 
@@ -257,7 +258,6 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
-        self.tool_bar.addAction(add_map_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
