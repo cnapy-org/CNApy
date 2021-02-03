@@ -31,9 +31,3 @@ cna_path = /my_folder/CellNetAnalyzer/
 import testscript
 testscript.work(cna)
 ```
-
-## Contribution
-
-[How to make a contribution to `cnapy`?](https://github.com/klamt-lab/cnapy/blob/master/CONTRIBUTING.md)
-
-Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.
