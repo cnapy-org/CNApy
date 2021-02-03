@@ -1,0 +1,46 @@
+{% set version = '0.0.3' %}
+
+package:
+  name: cnapy
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/ARB-Lab/CNApy.git
+  git_rev: v{{ version }}
+
+requirements:
+  build:
+    - setuptools
+    - pip
+    - python=3.7
+  run:
+    - cobra=0.18.1
+    - cameo=0.13
+    - oct2py=5.2
+    - openjdk=8
+    - matplotlib-base
+    - python=3.7
+    - qtpy=1.9
+    - pyside2
+    - appdirs
+    - qtconsole=4.7.7
+
+build:
+  number: 0  # NOTE: increment for new build/set to zero for new version
+  script:
+    - python setup.py install --single-version-externally-managed --record record.txt
+  entry_points:
+    - cnapy = cnapy.__main__:main_cnapy
+
+test:
+  imports:
+    - cnapy
+
+about:
+  home:  https://github.com/ARB-Lab/CNApy
+  license: Apache 2
+  license_family: MIT
+  license_file: LICENSE
+  summary: A CellNetAnalyzer GUI in Python
+  doc_url: https://github.com/ARB-Lab/CNApy
+  dev_url: https://github.com/ARB-Lab/CNApy
