@@ -90,13 +90,21 @@ Therefore, use the configuration dialog under help to change the path to your CN
 == Create a conda package
 
 ----
+❯ cd recipes/linux
 ❯ conda-build . -c conda-forge -c bioconda
 ❯ anaconda login
 ❯ anaconda upload -u arb-lab -l test FILENAME
 ----
 
-== create an installer with constructor
+== Create an installer with constructor
 
 ----
+❯ cd constructor
 ❯ constructor .
 ----
+
+== Contribution
+
+https://github.com/klamt-lab/cnapy/blob/master/CONTRIBUTING.md[How to make a contribution to `cnapy`?]
+
+Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.

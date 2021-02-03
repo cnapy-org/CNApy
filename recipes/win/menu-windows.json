@@ -1,0 +1,13 @@
+{
+    "menu_name": "CNApy",
+    "menu_items": [
+        {
+            "script": "${PREFIX}/Scripts/cnapy.exe",
+            "name": "CNApy-pywscript",
+            "workdir": "${PERSONALDIR}",
+            "icon": "${MENU_DIR}/app.ico",
+            "desktop": true,
+            "quicklaunch": true
+        }
+    ]
+}
