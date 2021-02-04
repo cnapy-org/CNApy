@@ -24,11 +24,13 @@ class MetaboliteList(QWidget):
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
         self.metabolite_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.metabolite_list.customContextMenuRequested.connect(self.on_context_menu)
+        self.metabolite_list.customContextMenuRequested.connect(
+            self.on_context_menu)
 
         # create context menu
         self.popMenu = QMenu(self.metabolite_list)
-        in_out_fluxes_action = QAction('compute in/out fluxes for this metabolite', self.metabolite_list)
+        in_out_fluxes_action = QAction(
+            'compute in/out fluxes for this metabolite', self.metabolite_list)
         self.popMenu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
@@ -63,7 +65,7 @@ class MetaboliteList(QWidget):
         item.setData(2, 0, metabolite)
 
     def on_context_menu(self, point):
-        if len(self.appdata.project.cobra_py_model.metabolites)>0:
+        if len(self.appdata.project.cobra_py_model.metabolites) > 0:
             self.popMenu.exec_(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
@@ -149,8 +151,8 @@ class MetaboliteList(QWidget):
 
     def emit_jump_to_reaction(self, reaction):
         self.jumpToReaction.emit(reaction)
-        
-    def emit_in_out_fluxes_action (self):
+
+    def emit_in_out_fluxes_action(self):
         self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
 
     itemActivated = Signal(str)
@@ -277,7 +279,7 @@ class MetabolitesMask(QWidget):
                 key = self.annotation.item(i, 0).text()
                 if self.annotation.item(i, 1) is None:
                     value = ""
-                else: 
+                else:
                     value = self.annotation.item(i, 1).text()
                 print(key, value)
                 self.old.annotation[key] = value

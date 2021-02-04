@@ -528,7 +528,8 @@ class ReactionMask(QWidget):
         #     turn_white(self.equation)
         #     return True
         ok = False
-        test_reaction = cobra.Reaction("xxxx_cnapy_test_reaction",name="cnapy test reaction")
+        test_reaction = cobra.Reaction(
+            "xxxx_cnapy_test_reaction", name="cnapy test reaction")
         with self.parent.appdata.project.cobra_py_model as model:
             model.add_reaction(test_reaction)
 
@@ -545,14 +546,15 @@ class ReactionMask(QWidget):
                 # print(exstr)
                 turn_red(self.equation)
 
-        try:    
-            test_reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id("xxxx_cnapy_test_reaction")        
-            self.parent.appdata.project.cobra_py_model.remove_reactions([test_reaction])
+        try:
+            test_reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
+                "xxxx_cnapy_test_reaction")
+            self.parent.appdata.project.cobra_py_model.remove_reactions([
+                                                                        test_reaction])
         except:
             pass
 
         return ok
-            
 
     def validate_lowerbound(self):
         try:
