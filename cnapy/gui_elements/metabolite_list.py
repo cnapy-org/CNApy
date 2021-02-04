@@ -258,7 +258,7 @@ class MetabolitesMask(QWidget):
         if self.old is None:
             self.old = cobra.metabolites(
                 id=self.id.text())
-            self.appdata.project.cobra_py_model.add_metabolite(self.old)
+            self.appdata.project.cobra_py_model.add_metabolites(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -275,7 +275,10 @@ class MetabolitesMask(QWidget):
             rows = self.annotation.rowCount()
             for i in range(0, rows):
                 key = self.annotation.item(i, 0).text()
-                value = self.annotation.item(i, 1).text()
+                if self.annotation.item(i, 1) is None:
+                    value = ""
+                else: 
+                    value = self.annotation.item(i, 1).text()
                 print(key, value)
                 self.old.annotation[key] = value
 
@@ -295,7 +298,7 @@ class MetabolitesMask(QWidget):
                 return False
             try:
                 m = cobra.Metabolite(id=self.id.text())
-                model.add_metabolite([m])
+                model.add_metabolites([m])
             except Exception:
 
                 traceback.print_exception(*sys.exc_info())
@@ -309,7 +312,7 @@ class MetabolitesMask(QWidget):
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
-                model.add_metabolite([m])
+                model.add_metabolites([m])
             except:
                 turn_red(self.name)
                 return False
