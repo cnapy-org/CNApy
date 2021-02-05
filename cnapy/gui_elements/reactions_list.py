@@ -411,7 +411,7 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
-        label = QLabel("Metabolites:")
+        label = QLabel("Metabolites involved in this reaction:")
         l.addWidget(label)
         l2 = QHBoxLayout()
         self.metabolites = QTreeWidget()
@@ -475,7 +475,10 @@ class ReactionMask(QWidget):
             rows = self.annotation.rowCount()
             for i in range(0, rows):
                 key = self.annotation.item(i, 0).text()
-                value = self.annotation.item(i, 1).text()
+                if self.annotation.item(i, 1) is None:
+                    value = ""
+                else:
+                    value = self.annotation.item(i, 1).text()
                 print(key, value)
                 self.old.annotation[key] = value
 
@@ -524,18 +527,34 @@ class ReactionMask(QWidget):
         # if self.old.equation == self.equation.text():
         #     turn_white(self.equation)
         #     return True
-
+        ok = False
+        test_reaction = cobra.Reaction(
+            "xxxx_cnapy_test_reaction", name="cnapy test reaction")
         with self.parent.appdata.project.cobra_py_model as model:
+            model.add_reaction(test_reaction)
+
             try:
-                r = cobra.Reaction("test_id")
-                model.add_reaction(r)
-                r.build_reaction_from_string(self.equation.text())
-            except:
-                turn_red(self.equation)
-                return False
-            else:
+                test_reaction.build_reaction_from_string(self.equation.text())
                 turn_white(self.equation)
-                return True
+                ok = True
+            except:
+                # import io
+                # import traceback
+                # output = io.StringIO()
+                # traceback.print_exc(file=output)
+                # exstr = output.getvalue()
+                # print(exstr)
+                turn_red(self.equation)
+
+        try:
+            test_reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
+                "xxxx_cnapy_test_reaction")
+            self.parent.appdata.project.cobra_py_model.remove_reactions([
+                                                                        test_reaction])
+        except:
+            pass
+
+        return ok
 
     def validate_lowerbound(self):
         try:

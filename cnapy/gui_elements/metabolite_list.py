@@ -3,10 +3,10 @@ import cobra
 from cnapy.cnadata import CnaData
 from cnapy.utils import *
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-                            QMessageBox, QPushButton, QSplitter, QTableWidget,
-                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-                            QVBoxLayout, QWidget)
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
+                            QLineEdit, QMenu, QMessageBox, QPushButton,
+                            QSplitter, QTableWidget, QTableWidgetItem,
+                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 
 class MetaboliteList(QWidget):
@@ -23,6 +23,16 @@ class MetaboliteList(QWidget):
 
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
+        self.metabolite_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metabolite_list.customContextMenuRequested.connect(
+            self.on_context_menu)
+
+        # create context menu
+        self.popMenu = QMenu(self.metabolite_list)
+        in_out_fluxes_action = QAction(
+            'compute in/out fluxes for this metabolite', self.metabolite_list)
+        self.popMenu.addAction(in_out_fluxes_action)
+        in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
         self.metabolites_mask = MetabolitesMask(appdata)
         self.metabolites_mask.hide()
@@ -53,6 +63,10 @@ class MetaboliteList(QWidget):
         item.setText(0, metabolite.id)
         item.setText(1, metabolite.name)
         item.setData(2, 0, metabolite)
+
+    def on_context_menu(self, point):
+        if len(self.appdata.project.cobra_py_model.metabolites) > 0:
+            self.popMenu.exec_(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
 
@@ -138,9 +152,13 @@ class MetaboliteList(QWidget):
     def emit_jump_to_reaction(self, reaction):
         self.jumpToReaction.emit(reaction)
 
+    def emit_in_out_fluxes_action(self):
+        self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
+
     itemActivated = Signal(str)
     changedModel = Signal()
     jumpToReaction = Signal(str)
+    computeInOutFlux = Signal(str)
 
 
 class MetabolitesMask(QWidget):
@@ -205,7 +223,7 @@ class MetabolitesMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
-        label = QLabel("Reactions:")
+        label = QLabel("Reactions using this metabolite:")
         l.addWidget(label)
         l2 = QHBoxLayout()
         self.reactions = QTreeWidget()
@@ -242,7 +260,7 @@ class MetabolitesMask(QWidget):
         if self.old is None:
             self.old = cobra.metabolites(
                 id=self.id.text())
-            self.appdata.project.cobra_py_model.add_metabolite(self.old)
+            self.appdata.project.cobra_py_model.add_metabolites(self.old)
         try:
             self.old.id = self.id.text()
         except:
@@ -259,7 +277,10 @@ class MetabolitesMask(QWidget):
             rows = self.annotation.rowCount()
             for i in range(0, rows):
                 key = self.annotation.item(i, 0).text()
-                value = self.annotation.item(i, 1).text()
+                if self.annotation.item(i, 1) is None:
+                    value = ""
+                else:
+                    value = self.annotation.item(i, 1).text()
                 print(key, value)
                 self.old.annotation[key] = value
 
@@ -279,7 +300,7 @@ class MetabolitesMask(QWidget):
                 return False
             try:
                 m = cobra.Metabolite(id=self.id.text())
-                model.add_metabolite([m])
+                model.add_metabolites([m])
             except Exception:
 
                 traceback.print_exception(*sys.exc_info())
@@ -293,7 +314,7 @@ class MetabolitesMask(QWidget):
         with self.appdata.project.cobra_py_model as model:
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
-                model.add_metabolite([m])
+                model.add_metabolites([m])
             except:
                 turn_red(self.name)
                 return False

@@ -17,6 +17,7 @@ from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
+from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
@@ -141,15 +142,20 @@ class MainWindow(QMainWindow):
 
         self.map_menu = self.menu.addMenu("Map")
 
-        load_maps_action = QAction("Load map positions...", self)
+        load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_maps)
 
-        save_maps_action = QAction("Save map positions...", self)
+        save_maps_action = QAction("Save reaction box positions...", self)
         self.map_menu.addAction(save_maps_action)
         save_maps_action.triggered.connect(self.save_maps)
 
-        self.change_background_action = QAction("Change background", self)
+        self.change_map_name_action = QAction("Change map name", self)
+        self.map_menu.addAction(self.change_map_name_action)
+        self.change_map_name_action.triggered.connect(self.change_map_name)
+        self.change_map_name_action.setEnabled(False)
+
+        self.change_background_action = QAction("Change map background", self)
         self.map_menu.addAction(self.change_background_action)
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
@@ -170,6 +176,11 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(show_model_stats_action)
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
+
+        net_conversion_action = QAction("Compute net conversion of external metabolites", self)
+        self.analysis_menu.addAction(net_conversion_action)
+        net_conversion_action.triggered.connect(
+            self.execute_net_conversion)
 
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
@@ -371,6 +382,12 @@ class MainWindow(QMainWindow):
 
             self.centralWidget().update()
             self.centralWidget().map_tabs.setCurrentIndex(idx)
+
+    @Slot()
+    def change_map_name(self, _checked):
+        dialog = RenameMapDialog(
+            self.appdata, self.centralWidget())
+        dialog.exec_()
 
     @Slot()
     def inc_bg_size(self, _checked):
@@ -576,11 +593,13 @@ class MainWindow(QMainWindow):
 
     def on_tab_change(self, idx):
         if idx >= 0:
+            self.change_map_name_action.setEnabled(True)
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
             self.centralWidget().update_map(idx)
         else:
+            self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)
@@ -695,7 +714,54 @@ class MainWindow(QMainWindow):
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
-        self.centralWidget().splitter2.setSizes([10, 0, 100])
+        self.centralWidget().splitter2.setSizes([0, 0, 100])
+
+    def execute_net_conversion(self):
+        self.centralWidget().kernel_client.execute("cna.net_conversion()")
+        self.centralWidget().splitter2.setSizes([0, 0, 100])
+
+    def net_conversion(self):
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                errors = False
+                imports = []
+                exports = []
+                soldict = solution.fluxes.to_dict()
+                for i in soldict:
+                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(i)
+                    if r.reactants == []:
+                        if len(r.products) != 1: 
+                            print('Error: Expected only import reactions with one metabolite but',i, 'imports',r.products)
+                            errors = True
+                        else:
+                            if soldict[i] > 0.0 :
+                                imports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.products[0].id)
+                            elif soldict[i] < 0.0:
+                                exports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.products[0].id)
+
+                    elif r.products == []:
+                        if len(r.reactants) != 1: 
+                            print('Error: Expected only export reactions with one metabolite but',i, 'exports',r.reactants)
+                            errors = True
+                        else:
+                            if soldict[i] > 0.0 :
+                                exports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.reactants[0].id)
+                            elif soldict[i] < 0.0:
+                                imports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.reactants[0].id)
+
+                if errors: return
+                else:
+                    print('\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    print (' + '.join(imports))
+                    print('-->')
+                    print (' + '.join(exports))
+                    
+            elif solution.status == 'infeasible':
+                print('No solution the scenario is infeasible!')
+            else:
+                print('No solution!', solution.status)
 
     def print_model_stats(self):
         import cobra
@@ -735,6 +801,19 @@ class MainWindow(QMainWindow):
             x = max(r)
             c.append(x)
         print('Largest (absolute) value:', max(c))
+
+
+    def print_in_out_fluxes(self, metabolite):
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
+            solution = model.optimize()
+            if solution.status == 'optimal':
+                soldict = solution.fluxes.to_dict()
+                self.in_out_fluxes(metabolite, soldict)
+            elif solution.status == 'infeasible':
+                print('No solution the scenario is infeasible!')
+            else:
+                print('No solution!', solution.status)
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
@@ -890,7 +969,7 @@ class MainWindow(QMainWindow):
                 high = mean
         return (low, high)
 
-    def in_out_fluxes(self, metabolite_id):
+    def in_out_fluxes(self, metabolite_id, soldict):
         import matplotlib.pyplot as plt
 
         with self.appdata.project.cobra_py_model as model:
@@ -903,7 +982,7 @@ class MainWindow(QMainWindow):
             sum_cons = 0
             sum_prod = 0
             for rxn in met.reactions:
-                flux = rxn.get_coefficient(metabolite_id) * self.appdata.project.comp_values[rxn.id][0]
+                flux = rxn.get_coefficient(metabolite_id) * soldict[rxn.id]
                 if flux < 0:
                     cons.append((rxn.id, -flux))
                 elif flux > 0:

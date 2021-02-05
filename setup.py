@@ -22,7 +22,7 @@ setup(
     url='https://github.com/arblab/cnapy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
-    long_description=open('README.adoc').read(),
+    long_description=open('README.adoc', encoding="utf8").read(),
     long_description_content_type="text/asciidoc",
     author='Sven Thiele',
     author_email='sthiele78@gmail.com',
@@ -31,5 +31,5 @@ setup(
     package_data={'cnapy': ['data/*.svg']},
     entry_points={'console_scripts': ['cnapy = cnapy.__main__:main_cnapy']},
     # packages not in conda on windows
-    # install_requires=['cobra==0.18.1','cameo==0.11.15','qtconsole==4.7.7',]
+    # install_requires=[,'cameo==0.13','qtconsole==4.7.7',]
 )

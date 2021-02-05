@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   - cobra=0.18.1
-  - cameo=0.11.15
+  - cameo=0.13
   - oct2py=5.2
   - openjdk=8
   - matplotlib-base

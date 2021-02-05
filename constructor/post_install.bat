@@ -1,2 +1,3 @@
-%~dp0..\Scripts\activate.bat
-pip install cameo==0.11.15 cobra==0.18.1 qtconsole==4.7.7
+call %~dp0..\Scripts\activate.bat
+call %~dp0..\Scripts\conda install cnapy -c arb-lab/label/test -c conda-forge -c bioconda --yes
+pip install --user cameo qtconsole --upgrade-strategy only-if-needed
