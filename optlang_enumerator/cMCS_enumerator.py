@@ -9,6 +9,7 @@ from optlang.exceptions import IndicatorConstraintsNotSupported
 from swiglpk import glp_write_lp
 #import cplex
 from cplex.exceptions import CplexSolverError
+import itertools
 
 # exec(open('cMCS_enumerator.py').read())
 
@@ -68,6 +69,7 @@ class ConstrainedMinimalCutSetsEnumerator:
             z_local[0] = self.z_vars # global and local Z are the same if there is only one target
             #iv_cost= [iv_cost, iv_cost(obj.rev_pos_idx)];
         else:
+            # da reduced_constraints tandard ist können auch hier lokale und globale Z gleich sein
             for k in range(num_targets):
                 z_local[k] = [self.optlang_variable_class("Z"+str(k)+"_"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
                 self.model.add(z_local[k])
@@ -246,7 +248,8 @@ class ConstrainedMinimalCutSetsEnumerator:
         #if self.model.problem.solution.get_status_string() == 'integer optimal solution': # CPLEX raw
         if status is optlang.interface.OPTIMAL or status is optlang.interface.FEASIBLE:
             print(self.model.objective.value)
-            coeff= tuple(round(zv.primal) for zv in self.z_vars) # tuple can be used as set element
+            # coeff= tuple(round(zv.primal) for zv in self.z_vars) # tuple can be used as set element
+            z_idx= tuple(i for zv, i in zip(self.z_vars, range(len(self.z_vars))) if round(zv.primal))
             if self.ref_set is not None and coeff not in self.ref_set:
                 print("Incorrect result")
                 print([zv.primal for zv in self.z_vars])
@@ -257,13 +260,19 @@ class ConstrainedMinimalCutSetsEnumerator:
             #coeff = numpy.zeros(len(self.z_vars), dtype=float64) # klappt noch nicht, ndarry geht aber auch nicht als Element einer Menge
             #for i in range(len(self.z_vars)):
             #    coeff[i] = round(self.z_vars[i])
-            return coeff
+
+            #return coeff
+            return z_idx
         else:
             return None
 
     def add_exclusion_constraint(self, mcs):
-        expression = add([cf * var for cf, var in zip(mcs, self.z_vars) if cf != 0]) # mul instead of * does not work directly
-        ub = sum(mcs)-1;
+        # for coeff:
+        #expression = add([cf * var for cf, var in zip(mcs, self.z_vars) if cf != 0]) # mul instead of * does not work directly
+        #ub = sum(mcs)-1;
+        # for z_idx
+        expression = add([self.z_vars[i] for i in mcs])
+        ub = len(mcs) - 1
         self.model.add(self.optlang_constraint_class(expression, ub=ub, sloppy=True))
 
     def enumerate_mcs(self, max_mcs_size=numpy.inf, enum_method=1):
@@ -310,8 +319,8 @@ class ConstrainedMinimalCutSetsEnumerator:
                         print(self.evs_sz_lb)
                         z_idx = self.model.problem.variables.get_indices([z.name for z in self.z_vars])
                         for i in range(self.model.problem.solution.pool.get_num()):
-                            mcs = tuple(map(round,
-                                        self.model.problem.solution.pool.get_values(i, z_idx)))
+                            mcs = tuple(numpy.where(numpy.round(
+                                        self.model.problem.solution.pool.get_values(i, z_idx)))[0])
                             self.add_exclusion_constraint(mcs)
                             all_mcs.append(mcs)
                         self.model.update() # needs to be done explicitly when using _optimize
@@ -351,72 +360,18 @@ def equations_to_matrix(model, equations):
     else:
         raise RuntimeError("Index order was not preserved.")
 
-"""
-m = cobra.io.read_sbml_model(r"../projects/SmallExample2/SmallExample2.xml")
-#[rxn.id for rxn in m.reactions]
-#st = cobra.util.array.create_stoichiometric_matrix(m)
-stdf = cobra.util.array.create_stoichiometric_matrix(m, array_type='DataFrame')
-rev = [r.reversibility for r in m.reactions]
-# target = [(numpy.zeros((1,10)), [-1])]
-# target[0][0][0, stdf.columns.get_loc('R4')] = -1 # R4 >= 1
-target = [(-equations_to_matrix(m, ["R4"]), [-1])]
-#print(stdf.columns[3])
-#e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, st, rev, target, split_reversible_v=True)
-e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, target, split_reversible_v=True)
-#e.model.optimize() 
-#e.model.problem.write('test.lp')
-e.model.objective= e.minimize_sum_over_z
-mcs1 = e.enumerate_mcs()
-
-
-#import os
-#print(os.getcwd())
-import time
-
-ex = cobra.io.read_sbml_model(r"metatool_example_no_ext.xml")
-stdf = cobra.util.array.create_stoichiometric_matrix(ex, array_type='DataFrame')
-rev = [r.reversibility for r in ex.reactions]
-#target = [(-equations_to_matrix(ex, ["Pyk", "Pck"]), [-1, -1])]
-target = [(equations_to_matrix(ex, ["-1 Pyk", "-1 Pck"]), [-1, -1])] # -Pyk does not work
-target.append(target[0]) # duplicate target
-
-# bei multiplem target falsche Ergebnisse mit enthalten?!?
-
-e = ConstrainedMinimalCutSetsEnumerator(optlang.glpk_interface, stdf.values, rev, target, 
-                                        bigM= 100, threshold=0.1, split_reversible_v=True, irrev_geq=True)
-e.model.objective = e.minimize_sum_over_z
-e.write_lp_file('testM')
-t = time.time()
-mcs = e.enumerate_mcs()
-print(time.time() - t)
-
-e = ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, target,
-                                        threshold=0.1, split_reversible_v=True, irrev_geq=True, ref_set=mcs)
-e.model.objective = e.minimize_sum_over_z
-e.write_lp_file('testI')
-#e.model.configuration.verbosity = 3
-#e.model.configuration.presolve = 'auto' # presolve remains off on the CPLEX side
-#e.model.configuration.presolve = True # presolve on, this is CPLEX default
-#e.model.configuration.lp_method = 'auto' # sets lpmethod back to automatic on the CPLEX side
-#e.model.problem.parameters.reset() # works (CPLEX specific)
-# without reset() optlang switches presolve off and fixes lpmethod
-t = time.time()
-mcs2 = e.enumerate_mcs()
-print(time.time() - t)
-
-print(len(set(mcs).intersection(set(mcs2))))
-print(set(mcs) == set(mcs2))
-
-"""
-#import sympy
-
-#def kernel(A):
-#    rA = sympy.Matrix.zeros(A.shape[0], A.shape[1])
-#    idx= A.nonzero()
-#    for i in range(len(idx[0])):
-#        rA[idx[0][i], idx[1][i]] = sympy.Rational(A[idx[0][i], idx[1][i]])
-#    rA = rA.rref()
-#    return rA
-
-#a=kernel(st*numpy.pi)
-#t = time.time(); a=kernel(numpy.random.random((10,30))); elapsed = time.time() - t
+def expand_mcs(mcs, subT):
+    #mcs = [[numpy.where(m)[0]] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
+    mcs = [[list(m)] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
+    rxn_in_sub = [numpy.where(subT[:, i])[0] for i in range(subT.shape[1])]
+    for i in range(len(mcs)):
+        num_iv = len(mcs[i][0]) # number of interventions in this MCS
+        for s_idx in range(num_iv): # subset index
+            for j in range(len(mcs[i])):
+                rxns = rxn_in_sub[mcs[i][j][s_idx]]
+                mcs[i][j][s_idx] = rxns[0]
+                for k in range(1, len(rxns)):
+                    mcs[i].append(mcs[i][j].copy())
+                    mcs[i][-1][s_idx] = rxns[k]
+    mcs = list(itertools.chain(*mcs))
+    return set(map(tuple, map(numpy.sort, mcs)))
