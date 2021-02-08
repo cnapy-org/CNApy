@@ -1,7 +1,5 @@
 import numpy
 import cobra
-import cobra.util.array
-import cobra.io
 import optlang.cplex_interface
 import optlang.glpk_interface
 from optlang.symbolics import add, mul
@@ -9,6 +7,7 @@ from optlang.exceptions import IndicatorConstraintsNotSupported
 from swiglpk import glp_write_lp
 #import cplex
 from cplex.exceptions import CplexSolverError
+from cplex._internal._subinterfaces import SolutionStatus # can be also accessed by a CPLEX object under .solution.status
 import itertools
 
 # exec(open('cMCS_enumerator.py').read())
@@ -250,7 +249,7 @@ class ConstrainedMinimalCutSetsEnumerator:
             print(self.model.objective.value)
             # coeff= tuple(round(zv.primal) for zv in self.z_vars) # tuple can be used as set element
             z_idx= tuple(i for zv, i in zip(self.z_vars, range(len(self.z_vars))) if round(zv.primal))
-            if self.ref_set is not None and coeff not in self.ref_set:
+            if self.ref_set is not None and z_idx not in self.ref_set:
                 print("Incorrect result")
                 print([zv.primal for zv in self.z_vars])
                 print([(n,v) for n,v in zip(self.model.problem.variables.get_names(), self.model.problem.solution.get_values()) if v != 0])
@@ -296,7 +295,9 @@ class ConstrainedMinimalCutSetsEnumerator:
                     break
             elif enum_method == 2: # populate with CPLEX
                 # throw error if this is not a CPLEX model
-                print("Populate")
+                if numpy.isinf(max_mcs_size):
+                    max_mcs_size = len(self.z_vars)
+                print("Populate up tp MCS size ", max_mcs_size)
                 self.model.problem.parameters.mip.pool.intensity.set(4)
                 self.model.problem.parameters.mip.pool.absgap.set(0)
                 self.model.problem.parameters.mip.strategy.search.set(1) # traditional branch-and-cut search
@@ -314,7 +315,8 @@ class ConstrainedMinimalCutSetsEnumerator:
                         break
                     print(self.model.problem.solution.pool.get_num())
                     print(self.model.problem.solution.get_status_string())
-                    if self.model.problem.solution.get_status() == 101:
+                    cplex_status = self.model.problem.solution.get_status()
+                    if cplex_status is SolutionStatus.MIP_optimal:
                         self.evs_sz_lb += 1
                         print(self.evs_sz_lb)
                         z_idx = self.model.problem.variables.get_indices([z.name for z in self.z_vars])
@@ -324,7 +326,11 @@ class ConstrainedMinimalCutSetsEnumerator:
                             self.add_exclusion_constraint(mcs)
                             all_mcs.append(mcs)
                         self.model.update() # needs to be done explicitly when using _optimize
+                    elif cplex_status is SolutionStatus.MIP_infeasible:
+                        print('No MCS of size ', self.evs_sz_lb)
+                        self.evs_sz_lb += 1
                     else:
+                        print('Unexpected CPLEX status ', self.model.problem.solution.get_status_string())
                         continue_loop = False
                         break # provisional break
                 # reset parameters here?
