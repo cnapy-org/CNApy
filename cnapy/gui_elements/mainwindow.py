@@ -7,8 +7,9 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
+from qtpy.QtCore import Qt
 from qtpy.QtCore import QFileInfo, Slot
-from qtpy.QtGui import QColor, QIcon
+from qtpy.QtGui import QColor, QIcon, QPalette
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
                             QMainWindow, QMessageBox, QToolBar)
@@ -34,6 +35,10 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
+
+        # safe original color
+        palette = self.palette()
+        self.original_color = palette.color(QPalette.Window)
 
         import pkg_resources
         heat_svg = pkg_resources.resource_filename('cnapy', 'data/heat.svg')
@@ -177,7 +182,8 @@ class MainWindow(QMainWindow):
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
 
-        net_conversion_action = QAction("Compute net conversion of external metabolites", self)
+        net_conversion_action = QAction(
+            "Compute net conversion of external metabolites", self)
         self.analysis_menu.addAction(net_conversion_action)
         net_conversion_action.triggered.connect(
             self.execute_net_conversion)
@@ -261,6 +267,12 @@ class MainWindow(QMainWindow):
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+
+    def unsaved_changes(self):
+        self.appdata.unsaved = True
+        palette = self.palette()
+        palette.setColor(QPalette.Window, Qt.yellow)
+        self.setPalette(palette)
 
     @Slot()
     def exit_app(self, _checked):
@@ -544,6 +556,10 @@ class MainWindow(QMainWindow):
                     "/.bg" + str(count) + ".svg"
                 count += 1
 
+        palette = self.palette()
+        palette.setColor(QPalette.Window, self.original_color)
+        self.setPalette(palette)
+
     @Slot()
     def save_project_as(self, _checked):
 
@@ -730,34 +746,43 @@ class MainWindow(QMainWindow):
                 exports = []
                 soldict = solution.fluxes.to_dict()
                 for i in soldict:
-                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(i)
+                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(
+                        i)
                     if r.reactants == []:
-                        if len(r.products) != 1: 
-                            print('Error: Expected only import reactions with one metabolite but',i, 'imports',r.products)
+                        if len(r.products) != 1:
+                            print(
+                                'Error: Expected only import reactions with one metabolite but', i, 'imports', r.products)
                             errors = True
                         else:
-                            if soldict[i] > 0.0 :
-                                imports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.products[0].id)
+                            if soldict[i] > 0.0:
+                                imports.append(
+                                    str(round(soldict[i], self.appdata.rounding)) + ' ' + r.products[0].id)
                             elif soldict[i] < 0.0:
-                                exports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.products[0].id)
+                                exports.append(
+                                    str(abs(round(soldict[i], self.appdata.rounding))) + ' ' + r.products[0].id)
 
                     elif r.products == []:
-                        if len(r.reactants) != 1: 
-                            print('Error: Expected only export reactions with one metabolite but',i, 'exports',r.reactants)
+                        if len(r.reactants) != 1:
+                            print(
+                                'Error: Expected only export reactions with one metabolite but', i, 'exports', r.reactants)
                             errors = True
                         else:
-                            if soldict[i] > 0.0 :
-                                exports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.reactants[0].id)
+                            if soldict[i] > 0.0:
+                                exports.append(
+                                    str(round(soldict[i], self.appdata.rounding)) + ' ' + r.reactants[0].id)
                             elif soldict[i] < 0.0:
-                                imports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.reactants[0].id)
+                                imports.append(
+                                    str(abs(round(soldict[i], self.appdata.rounding))) + ' ' + r.reactants[0].id)
 
-                if errors: return
+                if errors:
+                    return
                 else:
-                    print('\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
-                    print (' + '.join(imports))
+                    print(
+                        '\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    print(' + '.join(imports))
                     print('-->')
-                    print (' + '.join(exports))
-                    
+                    print(' + '.join(exports))
+
             elif solution.status == 'infeasible':
                 print('No solution the scenario is infeasible!')
             else:
@@ -801,7 +826,6 @@ class MainWindow(QMainWindow):
             x = max(r)
             c.append(x)
         print('Largest (absolute) value:', max(c))
-
 
     def print_in_out_fluxes(self, metabolite):
         with self.appdata.project.cobra_py_model as model:
@@ -997,8 +1021,9 @@ class MainWindow(QMainWindow):
                 sum_cons += flux
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
-            ax.legend(bbox_to_anchor=(1,1), loc="upper left")
+            ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
             plt.show()
+
 
 def my_mean(value):
     if isinstance(value, float):
@@ -1006,4 +1031,3 @@ def my_mean(value):
     else:
         (vl, vh) = value
         return (vl+vh)/2
-
