@@ -697,7 +697,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
-            self.centralWidget().update()
+        self.centralWidget().update()
 
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
@@ -851,9 +851,10 @@ class MainWindow(QMainWindow):
 
     def fva(self):
         from cobra.flux_analysis import flux_variability_analysis
-
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            for r in self.appdata.project.cobra_py_model.reactions:
+                r.objective_coefficient = 0
             try:
                 solution = flux_variability_analysis(model)
             except cobra.exceptions.Infeasible:
@@ -875,8 +876,8 @@ class MainWindow(QMainWindow):
                         minimum[i], maximum[i])
 
                 self.appdata.project.compute_color_type = 3
-            finally:
-                self.centralWidget().update()
+
+        self.centralWidget().update()
 
     def efm(self):
         self.efm_dialog = EFMDialog(
