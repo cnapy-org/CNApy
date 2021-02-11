@@ -76,11 +76,11 @@ class CentralWidget(QWidget):
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
-        self.reaction_list.changedReaction.connect(
+        self.reaction_list.reactionChanged.connect(
             self.handle_changedReaction)
-        self.reaction_list.deletedReaction.connect(
+        self.reaction_list.reactionDeleted.connect(
             self.handle_deletedReaction)
-        self.metabolite_list.changedMetabolite.connect(
+        self.metabolite_list.metaboliteChanged.connect(
             self.handle_changedMetabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
@@ -151,7 +151,11 @@ class CentralWidget(QWidget):
         self.reaction_list.update()
 
     def update_reaction_maps(self, reaction: str):
+        self.parent.unsaved_changes()
         self.reaction_list.reaction_mask.update_state()
+
+    def handle_mapChanged(self, reaction: str):
+        self.parent.unsaved_changes()
 
     def tabs_changed(self, idx):
         if idx == 0:
@@ -175,6 +179,8 @@ class CentralWidget(QWidget):
 
         map.reactionValueChanged.connect(self.update_reaction_value)
         map.reactionRemoved.connect(self.update_reaction_maps)
+        map.reactionAdded.connect(self.update_reaction_maps)
+        map.mapChanged.connect(self.handle_mapChanged)
         self.map_tabs.addTab(map, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
