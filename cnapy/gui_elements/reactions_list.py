@@ -68,8 +68,8 @@ class ReactionList(QWidget):
         self.setLayout(self.layout)
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
-        self.reaction_mask.changedReaction.connect(self.handle_changedReaction)
-        self.reaction_mask.deletedReaction.connect(self.handle_deletedReaction)
+        self.reaction_mask.reactionChanged.connect(self.handle_changedReaction)
+        self.reaction_mask.reactionDeleted.connect(self.handle_deletedReaction)
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
         self.reaction_mask.jumpToMetabolite.connect(
             self.emit_jump_to_metabolite)
@@ -228,7 +228,7 @@ class ReactionList(QWidget):
 
         self.last_selected = self.reaction_mask.id.text()
         print("ReactionList emit changedReaction", reaction)
-        self.changedReaction.emit(old_id, reaction)
+        self.reactionChanged.emit(old_id, reaction)
 
     def handle_deletedReaction(self, reaction: cobra.Reaction):
 
@@ -246,7 +246,7 @@ class ReactionList(QWidget):
 
         self.last_selected = self.reaction_mask.id.text()
         print("ReactionList emit deletedReaction", reaction)
-        self.deletedReaction.emit(reaction)
+        self.reactionDeleted.emit(reaction)
 
     def update_selected(self, string):
         print("reaction_list:update_selected", string)
@@ -290,8 +290,8 @@ class ReactionList(QWidget):
         self.jumpToMetabolite.emit(metabolite)
 
     itemActivated = Signal(str)
-    changedReaction = Signal(str, cobra.Reaction)
-    deletedReaction = Signal(cobra.Reaction)
+    reactionChanged = Signal(str, cobra.Reaction)
+    reactionDeleted = Signal(cobra.Reaction)
     jumpToMap = Signal(str, str)
     jumpToMetabolite = Signal(str)
 
@@ -495,11 +495,11 @@ class ReactionMask(QWidget):
 
             self.changed = False
             print("ReactionMask::emit changedReaction", self.reaction)
-            self.changedReaction.emit(self.reaction)
+            self.reactionChanged.emit(self.reaction)
 
     def delete_reaction(self):
         self.hide()
-        self.deletedReaction.emit(self.reaction)
+        self.reactionDeleted.emit(self.reaction)
 
     def validate_id(self):
 
@@ -609,7 +609,6 @@ class ReactionMask(QWidget):
         else:
             self.is_valid = False
 
-
     def reaction_data_changed(self):
         self.changed = True
         self.validate_mask()
@@ -644,5 +643,5 @@ class ReactionMask(QWidget):
 
     jumpToMap = Signal(str, str)
     jumpToMetabolite = Signal(str)
-    changedReaction = Signal(cobra.Reaction)
-    deletedReaction = Signal(cobra.Reaction)
+    reactionChanged = Signal(cobra.Reaction)
+    reactionDeleted = Signal(cobra.Reaction)

@@ -49,7 +49,7 @@ class MetaboliteList(QWidget):
 
         self.metabolite_list.currentItemChanged.connect(
             self.metabolite_selected)
-        self.metabolite_mask.changedMetabolite.connect(
+        self.metabolite_mask.metaboliteChanged.connect(
             self.handle_changedMetabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
@@ -103,7 +103,7 @@ class MetaboliteList(QWidget):
 
         self.last_selected = self.metabolite_mask.id.text()
         print("MetaboliteList emit changedMetabolite", metabolite)
-        self.changedMetabolite.emit(old_id, metabolite)
+        self.metaboliteChanged.emit(old_id, metabolite)
 
     def update_selected(self, string):
         print("metabolite_list:update_selected", string)
@@ -175,7 +175,7 @@ class MetaboliteList(QWidget):
         self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
 
     itemActivated = Signal(str)
-    changedMetabolite = Signal(str, cobra.Metabolite)
+    metaboliteChanged = Signal(str, cobra.Metabolite)
     jumpToReaction = Signal(str)
     computeInOutFlux = Signal(str)
 
@@ -296,7 +296,7 @@ class MetabolitesMask(QWidget):
                 self.metabolite.annotation[key] = value
 
             self.changed = False
-            self.changedMetabolite.emit(self.metabolite)
+            self.metaboliteChanged.emit(self.metabolite)
 
     def validate_id(self):
         import sys
@@ -392,4 +392,4 @@ class MetabolitesMask(QWidget):
         self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
-    changedMetabolite = Signal(cobra.Metabolite)
+    metaboliteChanged = Signal(cobra.Metabolite)

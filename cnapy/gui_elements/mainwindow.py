@@ -604,6 +604,10 @@ class MainWindow(QMainWindow):
                 self.centralWidget().update_reaction_value)
             map.reactionRemoved.connect(
                 self.centralWidget().update_reaction_maps)
+            map.reactionAdded.connect(
+                self.centralWidget().update_reaction_maps)
+            map.mapChanged.connect(
+                self.centralWidget().handle_mapChanged)
             self.centralWidget().map_tabs.addTab(map, name)
             map.update()
 

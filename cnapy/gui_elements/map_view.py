@@ -67,8 +67,16 @@ class MapView(QGraphicsView):
         point = event.pos()
         point_item = self.mapToScene(point)
         id = event.mimeData().text()
+        new = False
+        if not id in self.appdata.project.maps[self.name]["boxes"].keys():
+            new = True
         self.appdata.project.maps[self.name]["boxes"][id] = (
             point_item.x(), point_item.y())
+        print("box changed")
+        if new:
+            self.reactionAdded.emit(id)
+        else:
+            self.mapChanged.emit(id)
         self.update()
 
     def dragLeaveEvent(self, _event):
@@ -81,6 +89,8 @@ class MapView(QGraphicsView):
         id = event.mimeData().text()
         self.appdata.project.maps[self.name]["boxes"][id] = (
             point_item.x(), point_item.y())
+        print("box drpped")
+        self.mapChanged.emit(id)
         self.update()
 
     def wheelEvent(self, event):
@@ -90,7 +100,7 @@ class MapView(QGraphicsView):
                 self.appdata.project.maps[self.name]["bg-size"] -= 0.2
             else:
                 self.appdata.project.maps[self.name]["bg-size"] += 0.2
-        
+
             self.update()
 
         if event.angleDelta().y() > 0:
@@ -124,7 +134,7 @@ class MapView(QGraphicsView):
     def mousePressEvent(self, event: QMouseEvent):
         print("MapView::mousePressEvent")
         self.drag = True
-        self.drag_start =  event.pos()
+        self.drag_start = event.pos()
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
@@ -136,8 +146,9 @@ class MapView(QGraphicsView):
                 move_x = self.drag_start.x() - point.x()
                 move_y = self.drag_start.y() - point.y()
                 self.drag_start = point
-                for key,val in self.appdata.project.maps[self.name]["boxes"].items():
-                    self.appdata.project.maps[self.name]["boxes"][key] = (val[0]-move_x,val[1]-move_y)
+                for key, val in self.appdata.project.maps[self.name]["boxes"].items():
+                    self.appdata.project.maps[self.name]["boxes"][key] = (
+                        val[0]-move_x, val[1]-move_y)
                 self.update()
         else:
             if self.drag:
@@ -239,6 +250,8 @@ class MapView(QGraphicsView):
     minimizeReaction = Signal(str)
     reactionRemoved = Signal(str)
     reactionValueChanged = Signal(str, str)
+    reactionAdded = Signal(str)
+    mapChanged = Signal(str)
 
 
 class ReactionBox(QGraphicsItem):
