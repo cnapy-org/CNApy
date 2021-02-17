@@ -149,11 +149,12 @@ class MainWindow(QMainWindow):
 
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
-        load_maps_action.triggered.connect(self.load_maps)
+        load_maps_action.triggered.connect(self.load_box_positions)
 
-        save_maps_action = QAction("Save reaction box positions...", self)
-        self.map_menu.addAction(save_maps_action)
-        save_maps_action.triggered.connect(self.save_maps)
+        save_box_positions_action = QAction(
+            "Save reaction box positions...", self)
+        self.map_menu.addAction(save_box_positions_action)
+        save_box_positions_action.triggered.connect(self.save_box_positions)
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -329,15 +330,31 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model, filename[0])
 
     @Slot()
-    def load_maps(self, _checked):
+    def load_box_positions(self, _checked):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.maps")
 
+        idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            self.centralWidget().add_map()
+            idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+
         with open(filename[0], 'r') as fp:
-            self.appdata.project.maps = json.load(fp)
+            print(fp)
+            self.appdata.project.maps[name]["boxes"] = json.load(fp)
+
+        to_remove = []
+        for r in self.appdata.project.maps[name]["boxes"].keys():
+            if not self.appdata.project.cobra_py_model.reactions.has_id(r):
+                to_remove.append(r)
+
+        for r in to_remove:
+            self.appdata.project.maps[name]["boxes"].pop(r)
 
         self.recreate_maps()
+        self.unsaved_changes()
         self.centralWidget().update()
 
     @Slot()
@@ -403,32 +420,31 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def inc_bg_size(self, _checked):
-
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] += 0.2
-
+        self.unsaved_changes()
         self.centralWidget().update()
-        self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
     def dec_bg_size(self, _checked):
-
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] -= 0.2
-
+        self.unsaved_changes()
         self.centralWidget().update()
-        self.centralWidget().tabs.setCurrentIndex(idx)
 
     @Slot()
-    def save_maps(self, _checked):
+    def save_box_positions(self, _checked):
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.appdata.project.maps, fp)
+            json.dump(self.appdata.project.maps[name]["boxes"], fp)
 
     @Slot()
     def save_scenario(self, _checked):
@@ -573,18 +589,6 @@ class MainWindow(QMainWindow):
             self.save_project(_checked=True)
         else:
             return False
-
-    def get_current_view(self):
-        idx = self.centralWidget().tabs.currentIndex()
-        print(idx)
-        if idx == 0:
-            view = self.centralWidget().reaction_list
-        elif idx > 2:
-            view = self.centralWidget().tabs.widget(idx)
-        else:
-            view = None
-
-        return view
 
     def recreate_maps(self):
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
