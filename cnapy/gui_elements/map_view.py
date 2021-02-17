@@ -101,6 +101,7 @@ class MapView(QGraphicsView):
             else:
                 self.appdata.project.maps[self.name]["bg-size"] += 0.2
 
+            self.mapChanged.emit("dummy")
             self.update()
 
         if event.angleDelta().y() > 0:
@@ -149,6 +150,7 @@ class MapView(QGraphicsView):
                 for key, val in self.appdata.project.maps[self.name]["boxes"].items():
                     self.appdata.project.maps[self.name]["boxes"][key] = (
                         val[0]-move_x, val[1]-move_y)
+                self.mapChanged.emit("dummy")
                 self.update()
         else:
             if self.drag:
