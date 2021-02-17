@@ -756,18 +756,19 @@ class MainWindow(QMainWindow):
                 for i in soldict:
                     r = self.appdata.project.cobra_py_model.reactions.get_by_id(
                         i)
+                    val = round(soldict[i], self.appdata.rounding)
                     if r.reactants == []:
                         if len(r.products) != 1:
                             print(
                                 'Error: Expected only import reactions with one metabolite but', i, 'imports', r.products)
                             errors = True
                         else:
-                            if soldict[i] > 0.0:
+                            if val > 0.0:
                                 imports.append(
-                                    str(round(soldict[i], self.appdata.rounding)) + ' ' + r.products[0].id)
-                            elif soldict[i] < 0.0:
+                                    str(val) + ' ' + r.products[0].id)
+                            elif val < 0.0:
                                 exports.append(
-                                    str(abs(round(soldict[i], self.appdata.rounding))) + ' ' + r.products[0].id)
+                                    str(abs(val)) + ' ' + r.products[0].id)
 
                     elif r.products == []:
                         if len(r.reactants) != 1:
@@ -775,12 +776,12 @@ class MainWindow(QMainWindow):
                                 'Error: Expected only export reactions with one metabolite but', i, 'exports', r.reactants)
                             errors = True
                         else:
-                            if soldict[i] > 0.0:
+                            if val > 0.0:
                                 exports.append(
-                                    str(round(soldict[i], self.appdata.rounding)) + ' ' + r.reactants[0].id)
-                            elif soldict[i] < 0.0:
+                                    str(val) + ' ' + r.reactants[0].id)
+                            elif val < 0.0:
                                 imports.append(
-                                    str(abs(round(soldict[i], self.appdata.rounding))) + ' ' + r.reactants[0].id)
+                                    str(abs(val)) + ' ' + r.reactants[0].id)
 
                 if errors:
                     return
