@@ -9,12 +9,13 @@ from swiglpk import glp_write_lp
 from cplex.exceptions import CplexSolverError
 from cplex._internal._subinterfaces import SolutionStatus # can be also accessed by a CPLEX object under .solution.status
 import itertools
+from typing import List, Tuple
 
 # exec(open('cMCS_enumerator.py').read())
 
 class ConstrainedMinimalCutSetsEnumerator:
     def __init__(self, optlang_interface, st, reversible, targets, kn=None, cuts=None,
-        desired= [], knock_in=[], bigM=0, threshold=1, split_reversible_v=True,
+        desired=[], knock_in=[], bigM=0, threshold=1, split_reversible_v=True,
         reduce_constraints=True, combined_z=True, irrev_geq=False, ref_set= None):
         # targets is a list of (T,t) pairs that represent T <= t
         # combined_z will probably be fixed to True which implies reduce_constraints=True
@@ -230,7 +231,51 @@ class ConstrainedMinimalCutSetsEnumerator:
     #       end
     #     end % if bigM > 0
     #   end % for k= 1:num_targets
-    
+
+        self.flux_vars= [None]*len(desired)
+        for l in range(len(desired)):
+            # desired[l][0]: D, desired[l][1]: d 
+            flux_lb = desired[l][2]
+            flux_ub = desired[l][3]
+            self.flux_vars[l]= [self.optlang_variable_class("R"+str(l)+"_"+str(i),
+                                lb=flux_lb[i], ub=flux_ub[i],
+                                problem=self.model.problem) for i in range(self.num_reac)]
+            self.model.add(self.flux_vars[l])
+            constr= [None]*st.shape[0]
+            for i in range(st.shape[0]):
+                expr = add([cf * var for cf, var in zip(st[i, :], self.flux_vars[l]) if cf != 0])
+                print(expr)
+                constr[i] = self.optlang_constraint_class(expr, lb=0, ub=0, name="M"+str(l)+"_"+str(i), sloppy=True)
+            self.model.add(constr)
+            constr= [None]*desired[l][0].shape[0]
+            for i in range(desired[l][0].shape[0]):
+                expr = add([cf * var for cf, var in zip(desired[l][0][i, :], self.flux_vars[l]) if cf != 0])
+                print(expr)
+                constr[i] = self.optlang_constraint_class(expr, ub=desired[l][1][i], name="DES"+str(l)+"_"+str(i), sloppy=True)
+            self.model.add(constr)
+
+            for i in numpy.where(cuts)[0]:
+                if flux_ub[i] != 0: # a repressible (non_essential) reacion must have flux_ub >= 0
+                    # self.flux_vars[l][i] <= (1 - self.z_vars[i]) * flux_ub[i]
+                    self.model.add(self.optlang_constraint_class(
+                      self.flux_vars[l][i] + flux_ub[i]*self.z_vars[i], ub=flux_ub[i],
+                      name= self.flux_vars[l][i].name+self.z_vars[i].name+"UB"))
+                if flux_lb[i] != 0: # a repressible (non_essential) reacion must have flux_ub >= 0
+                    # self.flux_vars[l][i] >= (1 - self.z_vars[i]) * flux_lb[i]
+                    self.model.add(self.optlang_constraint_class(
+                      self.flux_vars[l][i] + flux_lb[i]*self.z_vars[i], lb=flux_lb[i],
+                      name= self.flux_vars[l][i].name+self.z_vars[i].name+"LB"))
+
+    #         for i= knock_in_idx
+    #           if flux_ub{l}(i) ~= 0
+    #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_ub{l}(i), '<=');
+    #           end
+    #           if flux_lb{l}(i) ~= 0
+    #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_lb{l}(i), '>=');
+    #           end
+    #         end
+    #       end % for l= 1:length(D)
+        
         self.evs_sz_lb = 0
         self.evs_sz = self.optlang_constraint_class(add(self.z_vars), lb=self.evs_sz_lb, name='evs_sz')
         self.model.add(self.evs_sz)
@@ -366,7 +411,7 @@ def equations_to_matrix(model, equations):
     else:
         raise RuntimeError("Index order was not preserved.")
 
-def expand_mcs(mcs, subT):
+def expand_mcs(mcs: List[Tuple], subT):
     #mcs = [[numpy.where(m)[0]] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
     mcs = [[list(m)] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
     rxn_in_sub = [numpy.where(subT[:, i])[0] for i in range(subT.shape[1])]
