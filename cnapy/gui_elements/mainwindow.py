@@ -187,7 +187,13 @@ class MainWindow(QMainWindow):
             "Compute net conversion of external metabolites", self)
         self.analysis_menu.addAction(net_conversion_action)
         net_conversion_action.triggered.connect(
-            self.execute_net_conversion)
+            self.show_net_conversion)
+
+        show_optimization_function_action = QAction(
+            "Show optimization function", self)
+        self.analysis_menu.addAction(show_optimization_function_action)
+        show_optimization_function_action.triggered.connect(
+            self.show_optimization_function)
 
         show_model_bounds_action = QAction("Show model bounds", self)
         self.analysis_menu.addAction(show_model_bounds_action)
@@ -738,11 +744,11 @@ class MainWindow(QMainWindow):
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
-        self.centralWidget().splitter2.setSizes([0, 0, 100])
+        self.centralWidget().scroll_down()
 
-    def execute_net_conversion(self):
+    def show_net_conversion(self):
         self.centralWidget().kernel_client.execute("cna.net_conversion()")
-        self.centralWidget().splitter2.setSizes([0, 0, 100])
+        self.centralWidget().scroll_down()
 
     def net_conversion(self):
         with self.appdata.project.cobra_py_model as model:
@@ -796,6 +802,29 @@ class MainWindow(QMainWindow):
                 print('No solution the scenario is infeasible!')
             else:
                 print('No solution!', solution.status)
+
+    def show_optimization_function(self):
+        self.centralWidget().kernel_client.execute("cna.optimization_function()")
+        self.centralWidget().scroll_down()
+
+    def optimization_function(self):
+        print('\x1b[1;04;34m'+"Optimization function:\x1b[0m\n")
+        first = True
+        res = ""
+        for r in self.appdata.project.cobra_py_model.reactions:
+            if r.objective_coefficient != 0:
+                if first:
+                    res += str(r.objective_coefficient) + " " + str(r.id)
+                    first = False
+                else:
+                    if r.objective_coefficient > 0:
+                        res += " +" + \
+                            str(r.objective_coefficient) + " " + str(r.id)
+                    else:
+                        res += " "+str(r.objective_coefficient) + \
+                            " " + str(r.id)
+
+        print("maximize:", res)
 
     def print_model_stats(self):
         import cobra

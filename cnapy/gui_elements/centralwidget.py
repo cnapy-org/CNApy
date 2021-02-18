@@ -90,6 +90,12 @@ class CentralWidget(QWidget):
 
         self.update()
 
+    def scroll_down(self):
+        vSB = self.console.children()[2].verticalScrollBar()
+        max = vSB.maximum()
+        print(max)
+        vSB.setValue(max-100)
+
     def handle_changedReaction(self, old_id: str, reaction: cobra.Reaction):
         print("CentralWidget handle_changedReaction", old_id, reaction)
 
@@ -272,7 +278,7 @@ class CentralWidget(QWidget):
 
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
-        self.splitter2.setSizes([0, 0, 100])
+        self.scroll_down()
 
 
 class ConfirmMapDeleteDialog(QDialog):
