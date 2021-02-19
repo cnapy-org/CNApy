@@ -103,9 +103,12 @@ class EFMtoolDialog(QDialog):
         self.result2ui(ems, idx, scenario)
 
     def result2ui(self, ems, idx, scenario):
-        if ems is None or ems.shape[1] == 0:
+        if ems is None:
             QMessageBox.information(self, 'No modes',
-                                    'Modes have not been calculated or do not exist.')
+                                    'An error occured and modes have not been calculated.')
+        elif ems.shape[1] == 0:
+            QMessageBox.information(self, 'No modes',
+                                    'No elementary modes exist.')
         else:
             oems = [None] * ems.shape[1]
             for j in range(ems.shape[1]):
