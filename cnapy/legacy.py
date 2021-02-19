@@ -24,17 +24,16 @@ eng = None
 
 try:
     from cnapy.CNA_MEngine import CNAMatlabEngine
-    meng = CNAMatlabEngine(cna_path)
-    print("CNA Matlab engine available")
+    meng = CNAMatlabEngine()
+    print("Matlab engine available")
     eng = meng
 except:
     meng = None
-    print("CNA Matlab engine not working")
 
 try:
     from cnapy.CNA_MEngine import CNAoctaveEngine
-    oeng = CNAoctaveEngine(cna_path)
-    print("CNA octave engine available")
+    oeng = CNAoctaveEngine()
+    print("Octave engine available")
     eng = oeng
 except:
     output = io.StringIO()
@@ -42,13 +41,25 @@ except:
     exstr = output.getvalue()
     print(exstr)
     oeng = None
-    print("CNA octave engine not working")
+    print("Octave engine not available")
+
+
+def reset_engine():
+    global eng
+    if is_octave_set():
+        oeng = CNAoctaveEngine()
+        eng = oeng
+    elif is_matlab_set:
+        meng = CNAMatlabEngine()
+        eng = meng
 
 
 def restart_cna(cna_path):
+    reset_engine()
     try:
         eng.cd(cna_path)
         eng.eval("startcna(1)", nargout=0)
+        print("CNA path found. CNA seems working.")
         return True
     except:
         output = io.StringIO()
@@ -74,6 +85,12 @@ def is_matlab_ready():
 
 
 def is_octave_ready():
+    try:
+        from cnapy.CNA_MEngine import CNAoctaveEngine
+        oeng = CNAoctaveEngine()
+    except:
+        oeng = None
+
     return oeng is not None
 
 
@@ -92,7 +109,7 @@ def use_matlab():
     global eng
     if meng is not None:
         eng = meng
-        print("use matlab engine")
+        print("Using Matlab engine")
 
 
 def use_octave():
@@ -102,4 +119,4 @@ def use_octave():
     global eng
     if oeng is not None:
         eng = oeng
-        print("use octave engine")
+        print("Using Octave engine")

@@ -1,28 +1,33 @@
 """The cnapy configuration dialog"""
-from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette, QIcon
+import os
+
+import cnapy.legacy as legacy
+import pkg_resources
+from cnapy.cnadata import CnaData
+from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+from qtpy.QtCore import QSize
+from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                             QPushButton, QVBoxLayout)
-from qtpy.QtCore import QSize
 
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
-
-import pkg_resources
 cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
+cross_icon = QIcon(cross_svg)
+
+check_svg = pkg_resources.resource_filename('cnapy', 'data/check.svg')
+check_icon = QIcon(check_svg)
 
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
     def __init__(self, appdata: CnaData):
+        cross = cross_icon.pixmap(QSize(32, 32))
+        check = check_icon.pixmap(QSize(32, 32))
+
         QDialog.__init__(self)
         self.appdata = appdata
         self.layout = QVBoxLayout()
-
-        cross_icon = QIcon(cross_svg)
-        cross = cross_icon.pixmap(QSize(32, 32))
 
         ml = QHBoxLayout()
         label = QLabel("Matlab")
@@ -39,11 +44,10 @@ class ConfigDialog(QDialog):
         label2 = QLabel("")
         label2.setFixedWidth(30)
         ml.addWidget(label2)
-        self.ml_path = QLabel()
-        # self.ml_path.setReadOnly(True)
-        self.ml_path.setMinimumWidth(200)
-        self.ml_path.setText(self.appdata.matlab_path)
-        ml.addWidget(self.ml_path)
+        self.matlab_path = QLabel()
+        self.matlab_path.setMinimumWidth(200)
+        self.matlab_path.setText(self.appdata.matlab_path)
+        ml.addWidget(self.matlab_path)
 
         self.layout.addItem(ml)
 
@@ -210,11 +214,13 @@ class ConfigDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.apply)
 
+        self.check_all()
+
     def choose_ml_path(self):
-        dialog = QFileDialog(self, directory=self.ml_path.text())
+        dialog = QFileDialog(self, directory=self.matlab_path.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
-        self.ml_path.setText(directory)
+        self.matlab_path.setText(directory)
         pass
 
     def choose_oc_exe(self):
@@ -222,14 +228,47 @@ class ConfigDialog(QDialog):
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.oc_exe.setText(directory)
-        pass
+
+        if os.path.isfile(directory):
+            os.environ['OCTAVE_EXECUTABLE'] = directory
+
+        self.check_octave()
+
+    def check_all(self):
+        self.check_octave()
+        self.check_cna()
+
+    def check_octave(self):
+        cross = cross_icon.pixmap(QSize(32, 32))
+        check = check_icon.pixmap(QSize(32, 32))
+        if is_octave_ready():
+            self.oc_label.setPixmap(check)
+        else:
+            self.oc_label.setPixmap(cross)
+
+    def check_matlab(self):
+        cross = cross_icon.pixmap(QSize(32, 32))
+        check = check_icon.pixmap(QSize(32, 32))
+        if is_matlab_ready():
+            self.ml_label.setPixmap(check)
+        else:
+            self.ml_label.setPixmap(cross)
 
     def choose_cna_path(self):
         dialog = QFileDialog(self, directory=self.cna_path.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.cna_path.setText(directory)
+        self.check_cna()
         pass
+
+    def check_cna(self):
+        cross = cross_icon.pixmap(QSize(32, 32))
+        check = check_icon.pixmap(QSize(32, 32))
+        if restart_cna(self.cna_path.text()):
+            self.cna_label.setPixmap(check)
+        else:
+            self.cna_label.setPixmap(cross)
 
     def choose_scen_color(self):
         dialog = QColorDialog(self)
@@ -277,7 +316,8 @@ class ConfigDialog(QDialog):
         pass
 
     def apply(self):
-
+        self.appdata.matlab_path = self.matlab_path.text()
+        self.appdata.octave_executable = self.oc_exe.text()
         self.appdata.cna_path = self.cna_path.text()
         if is_matlab_ready() or is_octave_ready():
             if restart_cna(self.appdata.cna_path):
@@ -320,9 +360,14 @@ class ConfigDialog(QDialog):
                 QMessageBox.information(
                     self, 'Octave engine not found!', 'Install Octave version 5.0 or higher!')
 
+        self.appdata.first_run = False
         import configparser
         parser = configparser.ConfigParser()
         parser.add_section('cnapy-config')
+        parser.set('cnapy-config', 'first_run', '0')
+        parser.set('cnapy-config', 'matlab_path', self.appdata.matlab_path)
+        parser.set('cnapy-config', 'OCTAVE_EXECUTABLE',
+                   self.appdata.octave_executable)
         parser.set('cnapy-config', 'cna_path', self.appdata.cna_path)
         parser.set('cnapy-config', 'scen_color',
                    str(self.appdata.Scencolor.rgb()))

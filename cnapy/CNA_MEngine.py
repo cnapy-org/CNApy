@@ -1,50 +1,23 @@
 import io
-#from abc import ABC, abstractmethod
-
 import os
-#os.environ['OCTAVE_EXECUTABLE']= 'E:\octave\Octave-5.2.0\mingw64\\bin\octave-cli.exe'
 
 
-class CNA_Methods:  # (ABC):
-    """
-    convenience methods for cnapy
-    """
-    # def __init__(self):
-    #     self.cplex_matlab_working= None;
-    #     self.cplex_java_working= None;
-
-    def read_cnapy_model(self):
-        self.eval("load cobra_model.mat", nargout=0)
-        self.eval("cnap= CNAcobra2cna(cbmodel);", nargout=0)
-
-    # def cplex_matlab_working(self):
-    #     return self.which('Cplex') != ''
-
-    # def check_cplex_interfaces(self):
-    #     self.cplex_matlab_working= self.eval('cnan.cplex_interface.matlab;');
-    #     self.cplex_java_working= self.eval('cnan.cplex_interface.java;');
+def read_cnapy_model(engine):
+    engine.eval("load cobra_model.mat", nargout=0)
+    engine.eval("cnap= CNAcobra2cna(cbmodel);", nargout=0)
 
 
 try:
     import matlab.engine
     from matlab.engine import MatlabEngine, pythonengine
 
-    # class MyMatlabEngine(MatlabEngine):
-    #     def __init__(self, matlab):
-    #         super.__init__(self, matlab)
+    class CNAMatlabEngine(MatlabEngine):
+        def __init__(self):
+            future = matlab.engine.matlabfuture.MatlabFuture(
+                option="-nodesktop")
+            super().__init__(matlab.engine.pythonengine.getMATLAB(future._future))
 
-    #     def __setattr__(self, kw, value):
-    #         print('my __setattr__')
-    #         print(kw)
-    #         if kw not in ['cplex_matlab_working', 'cplex_java_working']:
-    #             print("raise AttributeError(pythonengine.getMessage('AttrCannotBeAddedToM'))")
-    #         else:
-    #             self.__dict__[kw] = value
-
-    class CNAMatlabEngine(CNA_Methods, MatlabEngine):
-        def __init__(self, cna_path):
-            # CNA_Methods.__init__(self)
-            # have go to via MatlabFuture because the MatlabEngine constructor requires a Matlab handle
+        def start_cna(self, cna_path):
             cwd = os.getcwd()
             os.chdir(cna_path)
             future = matlab.engine.matlabfuture.MatlabFuture(
@@ -53,7 +26,6 @@ try:
             os.chdir(cwd)
             self.cd(cna_path)
             self.startcna(1, nargout=0)
-            # self.check_cplex_interfaces()
 
         def get_reacID(self):
             self.eval("reac_id = cellstr(cnap.reacID);", nargout=0)
@@ -72,15 +44,13 @@ except:
 try:
     from oct2py import Oct2Py
 
-    class CNAoctaveEngine(CNA_Methods, Oct2Py):
-        def __init__(self, cna_path):
-            # CNA_Methods.__init__(self)
+    class CNAoctaveEngine(Oct2Py):
+        def __init__(self):
             Oct2Py.__init__(self)
+
+        def start_cna(self, cna_path):
             self.cd(cna_path)
             self.startcna(1)
-            # self.check_cplex_interfaces()
-            self.cplex_matlab_ready = self.eval('cnan.cplex_interface.matlab;')
-            self.cplex_java_ready = self.eval('cnan.cplex_interface.java;')
 
         def get_reacID(self):
             self.eval("reac_id = cellstr(cnap.reacID);")
@@ -89,22 +59,23 @@ try:
             return reac_id
 
         def is_cplex_matlab_ready(self):
-            return self.cplex_matlab_ready
+            return self.eval('cnan.cplex_interface.matlab;')
 
         def is_cplex_java_ready(self):
-            return self.cplex_java_ready
-
+            return self.eval('cnan.cplex_interface.java;')
 except:
     print('Octave is not available.')
 
 
 def run_tests():
     cna_path = 'E:\gwdg_owncloud\CNAgit\CellNetAnalyzer'
-    m = CNAMatlabEngine(cna_path)
-    m.read_cnapy_model()
+    m = CNAMatlabEngine()
+    m.start_cna(cna_path)
+    read_cnapy_model(m)
     a = m.get_reacID()
-    o = CNAoctaveEngine(cna_path)
-    o.read_cnapy_model()
+    o = CNAoctaveEngine()
+    o.start_cna(cna_path)
+    read_cnapy_model(o)
     b = o.get_reacID()
     # advanced stuff
     ptr = o.get_pointer('cnap')
