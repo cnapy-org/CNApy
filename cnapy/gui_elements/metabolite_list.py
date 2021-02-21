@@ -1,4 +1,4 @@
-"""The PyNetAnalyzer metabolite list"""
+"""The metabolite list"""
 import cobra
 from cnapy.cnadata import CnaData
 from cnapy.utils import *
@@ -34,8 +34,8 @@ class MetaboliteList(QWidget):
         self.popMenu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
-        self.metabolites_mask = MetabolitesMask(appdata)
-        self.metabolites_mask.hide()
+        self.metabolite_mask = MetabolitesMask(appdata)
+        self.metabolite_mask.hide()
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -43,20 +43,20 @@ class MetaboliteList(QWidget):
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.metabolite_list)
-        self.splitter.addWidget(self.metabolites_mask)
+        self.splitter.addWidget(self.metabolite_mask)
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
         self.metabolite_list.currentItemChanged.connect(
-            self.metabolites_selected)
-        self.metabolites_mask.changedMetaboliteList.connect(
-            self.emit_changedModel)
-        self.metabolites_mask.jumpToReaction.connect(
+            self.metabolite_selected)
+        self.metabolite_mask.metaboliteChanged.connect(
+            self.handle_changedMetabolite)
+        self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
 
     def clear(self):
         self.metabolite_list.clear()
-        self.metabolites_mask.hide()
+        self.metabolite_mask.hide()
 
     def add_metabolite(self, metabolite):
         item = QTreeWidgetItem(self.metabolite_list)
@@ -70,26 +70,40 @@ class MetaboliteList(QWidget):
 
     def update_annotations(self, annotation):
 
-        self.metabolites_mask.annotation.itemChanged.disconnect(
-            self.metabolites_mask.metabolites_data_changed)
-        c = self.metabolites_mask.annotation.rowCount()
+        self.metabolite_mask.annotation.itemChanged.disconnect(
+            self.metabolite_mask.metabolites_data_changed)
+        c = self.metabolite_mask.annotation.rowCount()
         for i in range(0, c):
-            self.metabolites_mask.annotation.removeRow(0)
+            self.metabolite_mask.annotation.removeRow(0)
         i = 0
         for key in annotation:
-            self.metabolites_mask.annotation.insertRow(i)
+            self.metabolite_mask.annotation.insertRow(i)
             keyl = QTableWidgetItem(key)
             iteml = QTableWidgetItem(str(annotation[key]))
-            self.metabolites_mask.annotation.setItem(i, 0, keyl)
-            self.metabolites_mask.annotation.setItem(i, 1, iteml)
+            self.metabolite_mask.annotation.setItem(i, 0, keyl)
+            self.metabolite_mask.annotation.setItem(i, 1, iteml)
             i += 1
 
-        self.metabolites_mask.annotation.itemChanged.connect(
-            self.metabolites_mask.metabolites_data_changed)
+        self.metabolite_mask.annotation.itemChanged.connect(
+            self.metabolite_mask.metabolites_data_changed)
 
-    def emit_changedModel(self):
-        self.last_selected = self.metabolites_mask.id.text()
-        self.changedModel.emit()
+    def handle_changedMetabolite(self, metabolite: cobra.Metabolite):
+        print("MetaboliteList handle changedMetabolie", metabolite)
+
+        # Update metabolite item in list
+        root = self.metabolite_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            if item.data(2, 0) == metabolite:
+                old_id = item.text(0)
+                item.setText(0, metabolite.id)
+                item.setText(1, metabolite.name)
+                break
+
+        self.last_selected = self.metabolite_mask.id.text()
+        print("MetaboliteList emit changedMetabolite", metabolite)
+        self.metaboliteChanged.emit(old_id, metabolite)
 
     def update_selected(self, string):
         print("metabolite_list:update_selected", string)
@@ -104,29 +118,34 @@ class MetaboliteList(QWidget):
         for item in self.metabolite_list.findItems(string, Qt.MatchContains, 1):
             item.setHidden(False)
 
-    def metabolites_selected(self, item, _column):
+    def metabolite_selected(self, item, _column):
         # print("metabolites_selected")
         if item is None:
-            self.metabolites_mask.hide()
+            self.metabolite_mask.hide()
         else:
-            self.metabolites_mask.show()
-            metabolites: cobra.Metabolite = item.data(2, 0)
-            self.metabolites_mask.id.setText(metabolites.id)
-            self.metabolites_mask.name.setText(metabolites.name)
-            self.metabolites_mask.formula.setText(metabolites.formula)
-            self.metabolites_mask.charge.setText(str(metabolites.charge))
-            self.metabolites_mask.compartment.setText(metabolites.compartment)
-            self.update_annotations(metabolites.annotation)
-            self.metabolites_mask.old = metabolites
-            self.metabolites_mask.changed = False
+            self.metabolite_mask.show()
+            metabolite: cobra.Metabolite = item.data(2, 0)
 
-            turn_white(self.metabolites_mask.id)
-            turn_white(self.metabolites_mask.name)
-            turn_white(self.metabolites_mask.formula)
-            turn_white(self.metabolites_mask.charge)
-            turn_white(self.metabolites_mask.compartment)
-            self.metabolites_mask.is_valid = True
-            self.metabolites_mask.update_state()
+            self.metabolite_mask.metabolite = metabolite
+
+            self.metabolite_mask.id.setText(metabolite.id)
+            self.metabolite_mask.name.setText(metabolite.name)
+            self.metabolite_mask.formula.setText(metabolite.formula)
+            if metabolite.charge is None:
+                pass
+            else:
+                self.metabolite_mask.charge.setText(str(metabolite.charge))
+            self.metabolite_mask.compartment.setText(metabolite.compartment)
+            self.update_annotations(metabolite.annotation)
+            self.metabolite_mask.changed = False
+
+            turn_white(self.metabolite_mask.id)
+            turn_white(self.metabolite_mask.name)
+            turn_white(self.metabolite_mask.formula)
+            turn_white(self.metabolite_mask.charge)
+            turn_white(self.metabolite_mask.compartment)
+            self.metabolite_mask.is_valid = True
+            self.metabolite_mask.update_state()
 
     def update(self):
         self.metabolite_list.clear()
@@ -156,7 +175,7 @@ class MetaboliteList(QWidget):
         self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
 
     itemActivated = Signal(str)
-    changedModel = Signal()
+    metaboliteChanged = Signal(str, cobra.Metabolite)
     jumpToReaction = Signal(str)
     computeInOutFlux = Signal(str)
 
@@ -167,7 +186,6 @@ class MetabolitesMask(QWidget):
     def __init__(self, appdata):
         QWidget.__init__(self)
         self.appdata = appdata
-        self.old = None
         self.is_valid = True
         self.changed = False
         layout = QVBoxLayout()
@@ -234,12 +252,6 @@ class MetabolitesMask(QWidget):
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
         layout.addItem(l)
 
-        l = QHBoxLayout()
-        self.apply_button = QPushButton("apply changes")
-
-        l.addWidget(self.apply_button)
-        layout.addItem(l)
-
         self.setLayout(layout)
 
         self.id.textEdited.connect(self.metabolites_data_changed)
@@ -248,7 +260,6 @@ class MetabolitesMask(QWidget):
         self.charge.textEdited.connect(self.metabolites_data_changed)
         self.compartment.textEdited.connect(self.metabolites_data_changed)
         self.annotation.itemChanged.connect(self.metabolites_data_changed)
-        self.apply_button.clicked.connect(self.apply)
         self.validate_mask()
 
     def add_anno_row(self):
@@ -257,23 +268,23 @@ class MetabolitesMask(QWidget):
         self.changed = True
 
     def apply(self):
-        if self.old is None:
-            self.old = cobra.metabolites(
-                id=self.id.text())
-            self.appdata.project.cobra_py_model.add_metabolites(self.old)
+        print("apply changes to metabolite")
         try:
-            self.old.id = self.id.text()
+            self.metabolite.id = self.id.text()
         except:
             msgBox = QMessageBox()
             msgBox.setText("Could not apply changes identifier already used.")
             msgBox.exec()
             pass
         else:
-            self.old.name = self.name.text()
-            self.old.formula = self.formula.text()
-            self.old.charge = int(self.charge.text())
-            self.old.compartment = self.compartment.text()
-            self.old.annotation = {}
+            self.metabolite.name = self.name.text()
+            self.metabolite.formula = self.formula.text()
+            if self.charge.text() == "":
+                self.metabolite.charge = None
+            else:
+                self.metabolite.charge = int(self.charge.text())
+            self.metabolite.compartment = self.compartment.text()
+            self.metabolite.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
                 key = self.annotation.item(i, 0).text()
@@ -282,10 +293,10 @@ class MetabolitesMask(QWidget):
                 else:
                     value = self.annotation.item(i, 1).text()
                 print(key, value)
-                self.old.annotation[key] = value
+                self.metabolite.annotation[key] = value
 
             self.changed = False
-            self.changedMetaboliteList.emit()
+            self.metaboliteChanged.emit(self.metabolite)
 
     def validate_id(self):
         import sys
@@ -327,7 +338,8 @@ class MetabolitesMask(QWidget):
 
     def validate_charge(self):
         try:
-            x = int(self.charge.text())
+            if self.charge.text() != "":
+                x = int(self.charge.text())
         except:
             turn_red(self.charge)
             return False
@@ -356,21 +368,14 @@ class MetabolitesMask(QWidget):
         else:
             self.is_valid = False
 
-        self.update_state()
-
     def metabolites_data_changed(self):
         self.changed = True
         self.validate_mask()
+        if self.is_valid:
+            self.apply()
+            self.update_state()
 
     def update_state(self):
-        if self.old is None:
-            pass
-        else:
-            if self.is_valid & self.changed:
-                self.apply_button.setEnabled(True)
-            else:
-                self.apply_button.setEnabled(False)
-
         self.reactions.clear()
         if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
             metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
@@ -387,4 +392,4 @@ class MetabolitesMask(QWidget):
         self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
-    changedMetaboliteList = Signal()
+    metaboliteChanged = Signal(cobra.Metabolite)

@@ -7,8 +7,9 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
+from qtpy.QtCore import Qt
 from qtpy.QtCore import QFileInfo, Slot
-from qtpy.QtGui import QColor, QIcon
+from qtpy.QtGui import QColor, QIcon, QPalette
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
                             QMainWindow, QMessageBox, QToolBar)
@@ -34,6 +35,10 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
+
+        # safe original color
+        palette = self.palette()
+        self.original_color = palette.color(QPalette.Window)
 
         import pkg_resources
         heat_svg = pkg_resources.resource_filename('cnapy', 'data/heat.svg')
@@ -144,11 +149,12 @@ class MainWindow(QMainWindow):
 
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
-        load_maps_action.triggered.connect(self.load_maps)
+        load_maps_action.triggered.connect(self.load_box_positions)
 
-        save_maps_action = QAction("Save reaction box positions...", self)
-        self.map_menu.addAction(save_maps_action)
-        save_maps_action.triggered.connect(self.save_maps)
+        save_box_positions_action = QAction(
+            "Save reaction box positions...", self)
+        self.map_menu.addAction(save_box_positions_action)
+        save_box_positions_action.triggered.connect(self.save_box_positions)
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -177,7 +183,8 @@ class MainWindow(QMainWindow):
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
 
-        net_conversion_action = QAction("Compute net conversion of external metabolites", self)
+        net_conversion_action = QAction(
+            "Compute net conversion of external metabolites", self)
         self.analysis_menu.addAction(net_conversion_action)
         net_conversion_action.triggered.connect(
             self.execute_net_conversion)
@@ -262,6 +269,12 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
+    def unsaved_changes(self):
+        self.appdata.unsaved = True
+        palette = self.palette()
+        palette.setColor(QPalette.Window, Qt.yellow)
+        self.setPalette(palette)
+
     @Slot()
     def exit_app(self, _checked):
         QApplication.quit()
@@ -317,15 +330,31 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model, filename[0])
 
     @Slot()
-    def load_maps(self, _checked):
+    def load_box_positions(self, _checked):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             dir=os.getcwd(), filter="*.maps")
 
+        idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            self.centralWidget().add_map()
+            idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+
         with open(filename[0], 'r') as fp:
-            self.appdata.project.maps = json.load(fp)
+            print(fp)
+            self.appdata.project.maps[name]["boxes"] = json.load(fp)
+
+        to_remove = []
+        for r in self.appdata.project.maps[name]["boxes"].keys():
+            if not self.appdata.project.cobra_py_model.reactions.has_id(r):
+                to_remove.append(r)
+
+        for r in to_remove:
+            self.appdata.project.maps[name]["boxes"].pop(r)
 
         self.recreate_maps()
+        self.unsaved_changes()
         self.centralWidget().update()
 
     @Slot()
@@ -391,32 +420,31 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def inc_bg_size(self, _checked):
-
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] += 0.2
-
+        self.unsaved_changes()
         self.centralWidget().update()
-        self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
     def dec_bg_size(self, _checked):
-
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] -= 0.2
-
+        self.unsaved_changes()
         self.centralWidget().update()
-        self.centralWidget().tabs.setCurrentIndex(idx)
 
     @Slot()
-    def save_maps(self, _checked):
+    def save_box_positions(self, _checked):
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             dir=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'w') as fp:
-            json.dump(self.appdata.project.maps, fp)
+            json.dump(self.appdata.project.maps[name]["boxes"], fp)
 
     @Slot()
     def save_scenario(self, _checked):
@@ -544,6 +572,10 @@ class MainWindow(QMainWindow):
                     "/.bg" + str(count) + ".svg"
                 count += 1
 
+        palette = self.palette()
+        palette.setColor(QPalette.Window, self.original_color)
+        self.setPalette(palette)
+
     @Slot()
     def save_project_as(self, _checked):
 
@@ -557,18 +589,6 @@ class MainWindow(QMainWindow):
             self.save_project(_checked=True)
         else:
             return False
-
-    def get_current_view(self):
-        idx = self.centralWidget().tabs.currentIndex()
-        print(idx)
-        if idx == 0:
-            view = self.centralWidget().reaction_list
-        elif idx > 2:
-            view = self.centralWidget().tabs.widget(idx)
-        else:
-            view = None
-
-        return view
 
     def recreate_maps(self):
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
@@ -588,6 +608,10 @@ class MainWindow(QMainWindow):
                 self.centralWidget().update_reaction_value)
             map.reactionRemoved.connect(
                 self.centralWidget().update_reaction_maps)
+            map.reactionAdded.connect(
+                self.centralWidget().update_reaction_maps)
+            map.mapChanged.connect(
+                self.centralWidget().handle_mapChanged)
             self.centralWidget().map_tabs.addTab(map, name)
             map.update()
 
@@ -677,7 +701,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
-            self.centralWidget().update()
+        self.centralWidget().update()
 
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
@@ -730,34 +754,44 @@ class MainWindow(QMainWindow):
                 exports = []
                 soldict = solution.fluxes.to_dict()
                 for i in soldict:
-                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(i)
+                    r = self.appdata.project.cobra_py_model.reactions.get_by_id(
+                        i)
+                    val = round(soldict[i], self.appdata.rounding)
                     if r.reactants == []:
-                        if len(r.products) != 1: 
-                            print('Error: Expected only import reactions with one metabolite but',i, 'imports',r.products)
+                        if len(r.products) != 1:
+                            print(
+                                'Error: Expected only import reactions with one metabolite but', i, 'imports', r.products)
                             errors = True
                         else:
-                            if soldict[i] > 0.0 :
-                                imports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.products[0].id)
-                            elif soldict[i] < 0.0:
-                                exports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.products[0].id)
+                            if val > 0.0:
+                                imports.append(
+                                    str(val) + ' ' + r.products[0].id)
+                            elif val < 0.0:
+                                exports.append(
+                                    str(abs(val)) + ' ' + r.products[0].id)
 
                     elif r.products == []:
-                        if len(r.reactants) != 1: 
-                            print('Error: Expected only export reactions with one metabolite but',i, 'exports',r.reactants)
+                        if len(r.reactants) != 1:
+                            print(
+                                'Error: Expected only export reactions with one metabolite but', i, 'exports', r.reactants)
                             errors = True
                         else:
-                            if soldict[i] > 0.0 :
-                                exports.append(str(round(soldict[i],self.appdata.rounding))+ ' ' + r.reactants[0].id)
-                            elif soldict[i] < 0.0:
-                                imports.append(str(abs(round(soldict[i],self.appdata.rounding)))+ ' ' + r.reactants[0].id)
+                            if val > 0.0:
+                                exports.append(
+                                    str(val) + ' ' + r.reactants[0].id)
+                            elif val < 0.0:
+                                imports.append(
+                                    str(abs(val)) + ' ' + r.reactants[0].id)
 
-                if errors: return
+                if errors:
+                    return
                 else:
-                    print('\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
-                    print (' + '.join(imports))
+                    print(
+                        '\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    print(' + '.join(imports))
                     print('-->')
-                    print (' + '.join(exports))
-                    
+                    print(' + '.join(exports))
+
             elif solution.status == 'infeasible':
                 print('No solution the scenario is infeasible!')
             else:
@@ -802,7 +836,6 @@ class MainWindow(QMainWindow):
             c.append(x)
         print('Largest (absolute) value:', max(c))
 
-
     def print_in_out_fluxes(self, metabolite):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
@@ -823,9 +856,10 @@ class MainWindow(QMainWindow):
 
     def fva(self):
         from cobra.flux_analysis import flux_variability_analysis
-
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            for r in self.appdata.project.cobra_py_model.reactions:
+                r.objective_coefficient = 0
             try:
                 solution = flux_variability_analysis(model)
             except cobra.exceptions.Infeasible:
@@ -847,8 +881,8 @@ class MainWindow(QMainWindow):
                         minimum[i], maximum[i])
 
                 self.appdata.project.compute_color_type = 3
-            finally:
-                self.centralWidget().update()
+
+        self.centralWidget().update()
 
     def efm(self):
         self.efm_dialog = EFMDialog(
@@ -997,8 +1031,9 @@ class MainWindow(QMainWindow):
                 sum_cons += flux
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
-            ax.legend(bbox_to_anchor=(1,1), loc="upper left")
+            ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
             plt.show()
+
 
 def my_mean(value):
     if isinstance(value, float):
@@ -1006,4 +1041,3 @@ def my_mean(value):
     else:
         (vl, vh) = value
         return (vl+vh)/2
-

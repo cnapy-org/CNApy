@@ -1,5 +1,7 @@
+"""The central widget"""
 from ast import literal_eval as make_tuple
 
+import cobra
 from cnapy.cnadata import CnaData, CnaMap
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
@@ -74,8 +76,12 @@ class CentralWidget(QWidget):
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
-        self.reaction_list.changedModel.connect(self.update)
-        self.metabolite_list.changedModel.connect(self.update)
+        self.reaction_list.reactionChanged.connect(
+            self.handle_changedReaction)
+        self.reaction_list.reactionDeleted.connect(
+            self.handle_deletedReaction)
+        self.metabolite_list.metaboliteChanged.connect(
+            self.handle_changedMetabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
@@ -83,6 +89,38 @@ class CentralWidget(QWidget):
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
         self.update()
+
+    def handle_changedReaction(self, old_id: str, reaction: cobra.Reaction):
+        print("CentralWidget handle_changedReaction", old_id, reaction)
+
+        self.parent.unsaved_changes()
+        for map in self.appdata.project.maps:
+            if old_id in self.appdata.project.maps[map]["boxes"].keys():
+                self.appdata.project.maps[map]["boxes"][reaction.id] = self.appdata.project.maps[map]["boxes"].pop(
+                    old_id)
+
+        # TODO update only relevant reaction boxes on maps
+        self.update_maps()
+
+    def handle_deletedReaction(self, reaction: cobra.Reaction):
+
+        print("CentralWidget handle_deletedReaction", reaction)
+        self.appdata.project.cobra_py_model.remove_reactions(
+            [reaction], remove_orphans=True)
+
+        self.parent.unsaved_changes()
+        for map in self.appdata.project.maps:
+            if reaction.id in self.appdata.project.maps[map]["boxes"].keys():
+                self.appdata.project.maps[map]["boxes"].pop(reaction.id)
+
+        # TODO update only relevant reaction boxes on maps
+        self.update_maps()
+
+    def handle_changedMetabolite(self, old_id: str, metabolite: cobra.Metabolite):
+        print("CentralWidget handle_changedMetabolite", old_id, metabolite)
+        self.parent.unsaved_changes()
+        # TODO update only relevant reaction boxes on maps
+        self.update_maps()
 
     def shutdown_kernel(self):
         print('Shutting down kernel...')
@@ -113,7 +151,11 @@ class CentralWidget(QWidget):
         self.reaction_list.update()
 
     def update_reaction_maps(self, reaction: str):
+        self.parent.unsaved_changes()
         self.reaction_list.reaction_mask.update_state()
+
+    def handle_mapChanged(self, reaction: str):
+        self.parent.unsaved_changes()
 
     def tabs_changed(self, idx):
         if idx == 0:
@@ -137,6 +179,8 @@ class CentralWidget(QWidget):
 
         map.reactionValueChanged.connect(self.update_reaction_value)
         map.reactionRemoved.connect(self.update_reaction_maps)
+        map.reactionAdded.connect(self.update_reaction_maps)
+        map.mapChanged.connect(self.handle_mapChanged)
         self.map_tabs.addTab(map, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))

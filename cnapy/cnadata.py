@@ -11,6 +11,7 @@ from qtpy.QtGui import QColor
 class CnaData:
 
     def __init__(self):
+        self.unsaved = False
         self.project = ProjectData()
         self.Scencolor = Qt.green
         self.Compcolor = QColor(170, 170, 255)
