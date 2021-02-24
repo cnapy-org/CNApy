@@ -42,22 +42,36 @@ class CellNetAnalyzer:
         configParser.read(self.appdata.conf_path)
 
         try:
+            first_run = configParser.get('cnapy-config', 'first_run')
+            self.appdata.first_run = int(first_run)
+        except:
+            print("Could not read first_run in cnapy-config.txt")
+            self.appdata.first_run = 1
+        try:
+            self.appdata.matlab_path = configParser.get(
+                'cnapy-config', 'matlab_path')
+        except:
+            self.appdata.matlab_path = "/"
+        try:
+            self.appdata.octave_executable = configParser.get(
+                'cnapy-config', 'OCTAVE_EXECUTABLE')
+        except:
+            self.appdata.octave_executable = "/usr/bin"
+        try:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
         except:
-            print("CNA not found please check the cna_path in your cnapy-config.txt")
+            self.appdata.cna_path = "/"
         else:
             if is_matlab_ready():
-                self.window.efm_action.setEnabled(True)
-                self.window.mcs_action.setEnabled(True)
+                if restart_cna(self.appdata.cna_path):
+                    self.window.efm_action.setEnabled(True)
+                    self.window.mcs_action.setEnabled(True)
 
             if is_octave_ready():
-                self.window.efm_action.setEnabled(True)
-                self.window.mcs_action.setEnabled(True)
-
-            if not restart_cna(self.appdata.cna_path):
-                self.window.efm_action.setEnabled(False)
-                self.window.mcs_action.setEnabled(False)
+                if restart_cna(self.appdata.cna_path):
+                    self.window.efm_action.setEnabled(True)
+                    self.window.mcs_action.setEnabled(True)
 
         try:
             color = configParser.get(
@@ -122,6 +136,8 @@ class CellNetAnalyzer:
             use_octave()
         elif is_matlab_ready():
             use_matlab()
+        if self.appdata.first_run > 0:
+            self.window.show_config_dialog()
 
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)

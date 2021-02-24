@@ -11,6 +11,7 @@ from qtpy.QtGui import QColor
 class CnaData:
 
     def __init__(self):
+        self.first_run = 1
         self.unsaved = False
         self.project = ProjectData()
         self.octave_executable = "/usr/bin"
