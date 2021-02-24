@@ -1,10 +1,12 @@
 """The cnapy configuration dialog"""
 import os
-
+import io
+import traceback
+from tempfile import TemporaryDirectory
 import cnapy.legacy as legacy
 import pkg_resources
 from cnapy.cnadata import CnaData
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+from cnapy.legacy import try_matlab_engine, is_matlab_ready, try_octave_engine, is_octave_ready, try_cna
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
@@ -14,7 +16,7 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
 cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
 cross_icon = QIcon(cross_svg)
 
-check_svg = pkg_resources.resource_filename('cnapy', 'data/check.svg')
+check_svg = pkg_resources.resource_filename("cnapy", "data/check.png")
 check_icon = QIcon(check_svg)
 
 
@@ -221,7 +223,27 @@ class ConfigDialog(QDialog):
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.matlab_path.setText(directory)
-        pass
+        
+        self.try_install_matlab_engine(directory)
+            
+        self.check_matlab()
+
+    def try_install_matlab_engine(self, directory:str):
+        try:
+            path = os.path.join(directory,'extern/engines/python')
+            print("path:",path)
+            cwd = os.getcwd()
+            os.chdir(path)
+            temp_dir =  TemporaryDirectory()
+            os.system("python setup.py build --build-base="+temp_dir.name+' install')
+            os.chdir(cwd)
+        except:           
+            print("Install failed");
+
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            print(exstr)
 
     def choose_oc_exe(self):
         dialog = QFileDialog(self, directory=self.oc_exe.text())
@@ -241,6 +263,7 @@ class ConfigDialog(QDialog):
     def check_octave(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
+        try_octave_engine()
         if is_octave_ready():
             self.oc_label.setPixmap(check)
         else:
@@ -249,9 +272,12 @@ class ConfigDialog(QDialog):
     def check_matlab(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
+        try_matlab_engine()
         if is_matlab_ready():
+            print("matlab ready")
             self.ml_label.setPixmap(check)
         else:
+            print("matlab not ready")
             self.ml_label.setPixmap(cross)
 
     def choose_cna_path(self):
@@ -265,7 +291,7 @@ class ConfigDialog(QDialog):
     def check_cna(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
-        if restart_cna(self.cna_path.text()):
+        if try_cna(self.cna_path.text()):
             self.cna_label.setPixmap(check)
         else:
             self.cna_label.setPixmap(cross)
@@ -320,7 +346,7 @@ class ConfigDialog(QDialog):
         self.appdata.octave_executable = self.oc_exe.text()
         self.appdata.cna_path = self.cna_path.text()
         if is_matlab_ready() or is_octave_ready():
-            if restart_cna(self.appdata.cna_path):
+            if try_cna(self.appdata.cna_path):
                 self.appdata.window.efm_action.setEnabled(True)
                 self.appdata.window.mcs_action.setEnabled(True)
             else:

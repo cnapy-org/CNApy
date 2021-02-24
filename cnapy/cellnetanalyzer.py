@@ -23,8 +23,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import (is_matlab_ready, is_octave_ready, restart_cna,
-                          use_matlab, use_octave)
+from cnapy.legacy import (try_matlab_engine, is_matlab_ready, use_matlab, try_octave_engine, is_octave_ready, use_octave, try_cna                       )
 
 
 class CellNetAnalyzer:
@@ -41,6 +40,8 @@ class CellNetAnalyzer:
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
+        try_matlab_engine()
+        try_octave_engine()
         try:
             first_run = configParser.get('cnapy-config', 'first_run')
             self.appdata.first_run = int(first_run)
@@ -58,18 +59,30 @@ class CellNetAnalyzer:
         except:
             self.appdata.octave_executable = "/usr/bin"
         try:
+            default_engine = configParser.get(
+                'cnapy-config', 'default_engine')
+            self.appdata.default_engine = default_engine
+        except:
+            print("Could not read default_engine in cnapy-config.txt")
+            self.appdata.default_engine = "matlab"
+
+        if self.appdata.default_engine == "octave" and is_octave_ready():
+            use_octave()
+        elif is_matlab_ready():
+            use_matlab()
+        try:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
         except:
             self.appdata.cna_path = "/"
         else:
             if is_matlab_ready():
-                if restart_cna(self.appdata.cna_path):
+                if try_cna(self.appdata.cna_path):
                     self.window.efm_action.setEnabled(True)
                     self.window.mcs_action.setEnabled(True)
 
             if is_octave_ready():
-                if restart_cna(self.appdata.cna_path):
+                if try_cna(self.appdata.cna_path):
                     self.window.efm_action.setEnabled(True)
                     self.window.mcs_action.setEnabled(True)
 
@@ -124,18 +137,7 @@ class CellNetAnalyzer:
         except:
             print("Could not read abs_tol in cnapy-config.txt")
             self.appdata.abs_tol = 0.000000001
-        try:
-            default_engine = configParser.get(
-                'cnapy-config', 'default_engine')
-            self.appdata.default_engine = default_engine
-        except:
-            print("Could not read default_engine in cnapy-config.txt")
-            self.appdata.default_engine = "matlab"
 
-        if self.appdata.default_engine == "octave" and is_octave_ready():
-            use_octave()
-        elif is_matlab_ready():
-            use_matlab()
         if self.appdata.first_run > 0:
             self.window.show_config_dialog()
 
