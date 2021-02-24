@@ -11,7 +11,11 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
-
+# import sympy
+import cobra.util.array
+import optlang
+import cnapy.cMCS_enumerator as cMCS_enumerator
+from itertools import groupby
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""
@@ -207,6 +211,8 @@ class MCSDialog(QDialog):
         # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
         buttons.addWidget(self.compute_mcs)
+        self.compute_mcs2 = QPushButton("Compute MCS2")
+        buttons.addWidget(self.compute_mcs2)
         self.cancel = QPushButton("Close")
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
@@ -222,6 +228,7 @@ class MCSDialog(QDialog):
         # Connecting the signal
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
+        self.compute_mcs2.clicked.connect(self.compute2)
 
     def add_target_region(self):
         i = self.target_list.rowCount()
@@ -437,6 +444,131 @@ class MCSDialog(QDialog):
                 current_mcs[reaction] = c_value
             print(current_mcs)
             omcs.append(current_mcs)
+            self.appdata.project.modes = omcs
+            self.centralwidget.mode_navigator.current = 0
+            QMessageBox.information(self, 'Cut sets found',
+                                          str(len(omcs))+' Cut sets have been calculated.')
+
+        self.centralwidget.update_mode()
+        self.centralwidget.mode_navigator.title.setText("MCS Navigation")
+
+    def compute2(self):
+
+        # self.eng.eval("genes = [];", nargout=0,
+        #               stdout=self.out, stderr=self.err)
+        # cmd = "maxSolutions = " + str(float(self.max_solu.text())) + ";"
+        # self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
+
+        max_mcs_size = int(self.max_size.text())
+        timeout = float(self.time_limit.text())
+        if timeout is float('inf'):
+            timeout = None
+
+        # if self.gen_kos.isChecked():
+        #     self.eng.eval("gKOs = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("gKOs = 0;", nargout=0)
+        # if self.advanced.isChecked():
+        #     self.eng.eval("advanced_on = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("advanced_on = 0;", nargout=0)
+
+        # if self.solver_intlinprog.isChecked():
+        #     self.eng.eval("solver = 'intlinprog';", nargout=0)
+        # if self.solver_cplex_java.isChecked():
+        #     self.eng.eval("solver = 'java_cplex_new';", nargout=0)
+        # if self.solver_cplex_matlab.isChecked():
+        #     self.eng.eval("solver = 'matlab_cplex';", nargout=0)
+        # if self.solver_glpk.isChecked():
+        #     self.eng.eval("solver = 'glpk';", nargout=0)
+
+        if self.smalles_mcs_first.isChecked():
+            enum_method = 1
+        elif self.mcs_by_cardinality.isChecked():
+            enum_method = 2
+        elif self.any_mcs.isChecked():
+            enum_method = 3
+
+        # if self.consider_scenario.isChecked():
+        #     self.eng.eval("reac_box_vals = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("reac_box_vals = 0;", nargout=0)
+
+        stdf = cobra.util.array.create_stoichiometric_matrix(self.appdata.project.cobra_py_model, array_type='DataFrame')
+        rev = [r.reversibility for r in self.appdata.project.cobra_py_model.reactions]
+        reac_id = stdf.columns.tolist()
+        reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
+        # reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
+        rows = self.target_list.rowCount()
+        # targets = [None] * rows
+        targets = dict()
+        for i in range(0, rows):
+            p1 = self.target_list.cellWidget(i, 0).text()
+            p2 = self.target_list.cellWidget(i, 1).text()
+            if len(p1) > 0 and len(p2) > 0:
+                if self.target_list.cellWidget(i, 2).currentText() == '≤':
+                    p3 = "<="
+                else:
+                    p3 = ">="
+                p4 = float(self.target_list.cellWidget(i, 3).text())
+                targets.setdefault(p1, []).append((p2, p3, p4))
+            # print(p1, p2, p3, p4)
+            # targets[i] = (p1, p2, p3, p4)
+            # lhs, rhs = cMCS_enumerator.parse_relation(p2, p4, reac_id_symbols=reac_id_symbols)
+            # # lhs ist ein dict über Reaktionsindizes, damit einen Zeilenvektor konfigurieren, auf p3 achten
+            # targets[i] = (p1, lhs, p3, rhs)
+            # # 
+        # targets.sort() # nur nach erstem Element
+        targets = list(targets.values())
+        print(targets)
+        targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
+        print(targets)
+        # groups = []
+        # uniquekeys = []
+        # for k, g in groupby(targets, key=lambda x: x[0]):
+        #     groups.append(list(g))      # Store group iterator as a list
+        #     uniquekeys.append(k)
+        # print(groups)
+
+        rows = self.desired_list.rowCount()
+        # desired = [None] * rows
+        desired = dict()
+        for i in range(0, rows):
+            p1 = self.desired_list.cellWidget(i, 0).text()
+            p2 = self.desired_list.cellWidget(i, 1).text()
+            if len(p1) > 0 and len(p2) > 0:
+                if self.desired_list.cellWidget(i, 2).currentText() == '≤':
+                    p3 = "<="
+                else:
+                    p3 = ">="
+                p4 = float(self.desired_list.cellWidget(i, 3).text())
+                desired.setdefault(p1, []).append((p2, p3, p4))
+            # print(p1, p2, p3, p4)
+            # desired[i] = (p1, p2, p3, p4)
+            # lhs, rhs = cMCS_enumerator.parse_relation(p2, p4, reac_id_symbols=reac_id_symbols)
+            # desired[i] = (p1, lhs, p3, rhs)
+        # desired.sort()
+        print(desired)
+        # if len(desired) > 0:
+        desired = list(desired.values())
+        desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
+        # else:
+            # desired = None
+        print(desired)
+
+        e = cMCS_enumerator.ConstrainedMinimalCutSetsEnumerator(optlang.glpk_interface, stdf.values, rev, targets, desired=desired,
+                                        bigM= 100, threshold=0.1, split_reversible_v=True, irrev_geq=True)
+        mcs = e.enumerate_mcs(max_mcs_size=max_mcs_size, enum_method=enum_method)
+        print(mcs)
+
+        values = []
+        reactions = []
+        if len(mcs) == 0:
+            QMessageBox.information(self, 'No cut sets',
+                                          'Cut sets have not been calculated or do not exist.')
+            return targets, desired
+        else:
+            omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
             self.appdata.project.modes = omcs
             self.centralwidget.mode_navigator.current = 0
             QMessageBox.information(self, 'Cut sets found',

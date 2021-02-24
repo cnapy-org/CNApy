@@ -1,4 +1,5 @@
 import numpy
+import scipy
 import cobra
 import optlang.cplex_interface
 import optlang.glpk_interface
@@ -10,50 +11,51 @@ from cplex.exceptions import CplexSolverError
 from cplex._internal._subinterfaces import SolutionStatus # can be also accessed by a CPLEX object under .solution.status
 import itertools
 from typing import List, Tuple
-
-# exec(open('cMCS_enumerator.py').read())
+import time
+import sys
 
 class ConstrainedMinimalCutSetsEnumerator:
     def __init__(self, optlang_interface, st, reversible, targets, kn=None, cuts=None,
         desired=[], knock_in=[], bigM=0, threshold=1, split_reversible_v=True,
-        reduce_constraints=True, combined_z=True, irrev_geq=False, ref_set= None):
+        irrev_geq=False, ref_set= None): # reduce_constraints=True, combined_z=True
         # targets is a list of (T,t) pairs that represent T <= t
-        # combined_z will probably be fixed to True which implies reduce_constraints=True
+        # imlements only combined_z which implies reduce_constraints=True
         self.ref_set = ref_set # optional set of reference MCS for debugging
         self.model = optlang_interface.Model()
         self.model.configuration.presolve = True # presolve on
         # without presolve CPLEX sometimes gives false results when using indicators ?!?
         self.model.configuration.lp_method = 'auto'
-        self.optlang_constraint_class = optlang_interface.Constraint
-        if bigM <= 0 and self.optlang_constraint_class._INDICATOR_CONSTRAINT_SUPPORT is False:
+        self.Constraint = optlang_interface.Constraint
+        if bigM <= 0 and self.Constraint._INDICATOR_CONSTRAINT_SUPPORT is False:
             raise IndicatorConstraintsNotSupported("This solver does not support indicators. Please choose a differen solver or use a big M formulation.")
         self.optlang_variable_class = optlang_interface.Variable
         irr = [not r for r in reversible]
         self.num_reac = len(reversible)
         if cuts is None:
-            #cuts = [True] * self.num_reac
             cuts = numpy.full(self.num_reac, True, dtype=bool)
             irrepressible = []
         else:
             irrepressible = numpy.where(cuts == False)[0]
-            #print("irrepressible", irrepressible)
             #iv_cost(irrepressible)= 0;
         num_targets = len(targets)
         use_kn_in_dual = kn is not None
+        if use_kn_in_dual:
+            if irrev_geq:
+                raise
+            if type(kn) is numpy.ndarray:
+                kn = scipy.sparse.csc_matrix(kn) # otherwise stacking for dual does not work
+
         if split_reversible_v:
             split_v_idx = [i for i, x in enumerate(reversible) if x]
             dual_rev_neg_idx = [i for i in range(self.num_reac, self.num_reac + len(split_v_idx))]
             dual_rev_neg_idx_map = [None] * self.num_reac
             for i in range(len(split_v_idx)):
                 dual_rev_neg_idx_map[split_v_idx[i]]= dual_rev_neg_idx[i];
-            #print(split_v_idx)
-            #print(dual_rev_neg_idx)
-            #print(dual_rev_neg_idx_map)
         else:
             split_v_idx = []
 
         self.zero_objective= optlang_interface.Objective(0, direction='min', name='zero_objective')
-        self.model.objective= self.zero_objective;
+        self.model.objective= self.zero_objective
         self.z_vars = [self.optlang_variable_class("Z"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
         self.model.add(self.z_vars)
         self.model.update() # cannot change bound below without this
@@ -62,39 +64,20 @@ class ConstrainedMinimalCutSetsEnumerator:
         self.minimize_sum_over_z= optlang_interface.Objective(add(self.z_vars), direction='min', name='minimize_sum_over_z')
         z_local = [None] * num_targets
         if num_targets == 1:
-            #obj.z_var_names= cell(obj.num_reac + length(obj.rev_pos_idx), 1);
-            #obj.z_var_names(1:obj.num_reac)= strcat(z_string, nums_idx(1:obj.num_reac));
-            #obj.z_var_names(obj.rev_neg_idx)= strcat('ZN', nums_idx(obj.rev_pos_idx));
-            #z_local = [self.z_vars] # global and local Z are the same if there is only one target
             z_local[0] = self.z_vars # global and local Z are the same if there is only one target
-            #iv_cost= [iv_cost, iv_cost(obj.rev_pos_idx)];
         else:
-            # da reduced_constraints tandard ist können auch hier lokale und globale Z gleich sein
+            # with reduce constraints is should not be necessary to have local Z, they can be the same as the global Z
             for k in range(num_targets):
                 z_local[k] = [self.optlang_variable_class("Z"+str(k)+"_"+str(i), type="binary", problem=self.model.problem) for i in range(self.num_reac)]
                 self.model.add(z_local[k])
-            # z_local= cell(obj.num_reac + length(obj.rev_pos_idx), num_targets);
-            # obj.z_var_names= strcat('Z', numsn); % global Z
-            # obj.split_z= false;
-            # for k= 1:num_targets
-            # z_local(1:obj.num_reac, k)= strcat(sprintf('%s%d_', z_string, k), nums_idx(1:obj.num_reac));
-            # z_local(obj.rev_neg_idx, k)= strcat(sprintf('ZN%d_', k), nums_idx(obj.rev_pos_idx));
             for i in range(self.num_reac):
                 if cuts[i]: # && ~knock_in(i) % knock-ins only use global Z, do not need local ones
-                    #if irr[i]: #|| combined_z
-                    self.model.add(self.optlang_constraint_class(
+                    self.model.add(self.Constraint(
                         (1/num_targets - 1e-9)*add([z_local[k][i] for k in range(num_targets)]) - self.z_vars[i], ub=0,
                         name= "ZL"+str(i)))
 
-                    #lpfw.write_expression([], [repmat(1/num_targets - 1e-9, 1, num_targets), -1],...
-                    #    [z_local(i, :), sprintf('%s', obj.z_var_names{i})], '<= 0');
-                    #else:
-                    #    lpfw.write_expression([], [repmat(1/(2*num_targets) - 1e-9, 1, 2*num_targets), -1],...
-                    #    [z_local(i, :), z_local(obj.rev_neg_idx_map(i), :), sprintf('%s', obj.z_var_names{i})], '<= 0');
-
-
         dual_vars = [None] * num_targets
-        num_dual_cols = [0] * num_targets # noch nötig?
+        # num_dual_cols = [0] * num_targets
         for k in range(num_targets):
             # !! unboundedness is only properly represented by None with optlang; using inifinity may cause trouble !!
             dual_lb = [None] * self.num_reac # optlang interprets None as Inf
@@ -127,82 +110,81 @@ class ConstrainedMinimalCutSetsEnumerator:
                 dual_vars[k] = [self.optlang_variable_class("DR"+str(k)+"_"+str(i), lb=dual_lb[i], ub=dual_ub[i]) for i in range(self.num_reac)]
             first_w= len(dual_vars[k]) # + 1;
             if use_kn_in_dual is False:
-                dual = numpy.eye(self.num_reac)
+                dual = scipy.sparse.eye(self.num_reac, format='csr')
                 if split_reversible_v:
-                    dual = numpy.hstack((dual, dual[:, split_v_idx]))
-                #st_T_part = numpy.hstack((st.transpose(), targets[k][0].transpose()))
-                #dual = numpy.hstack((dual, st_T_part))
-                dual = numpy.hstack((dual, st.transpose(), targets[k][0].transpose()))
-                #print(dual)
+                    dual = scipy.sparse.hstack((dual, dual[:, split_v_idx]), format='csr')
+                dual = scipy.sparse.hstack((dual, st.transpose(), targets[k][0].transpose()), format='csr')
                 dual_vars[k] += [self.optlang_variable_class("DS"+str(k)+"_"+str(i)) for i in range(st.shape[0])]
                 first_w += st.shape[0]
             else:
-                pass
-    #       switch split_level
-    #         case 1 % split dual vars associated with reversible reactions
-    #           dual= [kn', kn(~irr, :)', kn'*T{k}'];
-    #         case 2 % split all dual vars which are associated with reactions into DN <= 0, DP >= 0
-    #           dual= [kn', kn', kn'*T{k}'];
-    #         otherwise % no splitting
-    #           dual= [kn', kn'*T{k}'];
-    #       end
+                if split_reversible_v:
+                    dual = scipy.sparse.hstack((kn.transpose(), kn[reversible, :].transpose(), kn.transpose() @ targets[k][0].transpose()), format='csr')
+                else:
+                    dual = scipy.sparse.hstack((kn.transpose(), kn.transpose() @ targets[k][0].transpose()), format='csr')
+                #       switch split_level
+                #         case 1 % split dual vars associated with reversible reactions
+                #           dual= [kn', kn(~irr, :)', kn'*T{k}'];
+                #         case 2 % split all dual vars which are associated with reactions into DN <= 0, DP >= 0
+                #           dual= [kn', kn', kn'*T{k}'];
+                #         otherwise % no splitting
+                #           dual= [kn', kn'*T{k}'];
             dual_vars[k] += [self.optlang_variable_class("DT"+str(k)+"_"+str(i), lb=0) for i in range(targets[k][0].shape[0])]
             self.model.add(dual_vars[k])
-            num_dual_cols[k]= dual.shape[1]
+            # num_dual_cols[k]= dual.shape[1]
             constr= [None] * (dual.shape[0]+1)
-            print(dual_vars[k][first_w:])
+            # print(dual_vars[k][first_w:])
+            expr = matrix_row_expressions(dual, dual_vars[k])
+            # print(expr)
             for i in range(dual.shape[0]):
                 if irrev_geq and irr[i]:
                     ub = None
                 else:
                     ub = 0
-                expr = add([cf * var for cf, var in zip(dual[i, :], dual_vars[k]) if cf != 0])
-                #print(expr)
-                constr[i] = self.optlang_constraint_class(expr, lb=0, ub=ub, name="D"+str(k)+"_"+str(i), sloppy=True)
-                #print(constr[i])
+                #expr = add([cf * var for cf, var in zip(dual[i, :], dual_vars[k]) if cf != 0])
+                #expr = add([dual[i, k] *  dual_vars[k] for k in dual[i, :].nonzero()[1]])
+                constr[i] = self.Constraint(expr[i], lb=0, ub=ub, name="D"+str(k)+"_"+str(i), sloppy=True)
             expr = add([cf * var for cf, var in zip(targets[k][1], dual_vars[k][first_w:]) if cf != 0])
-            constr[-1] = self.optlang_constraint_class(expr, ub=-threshold, name="DW"+str(k), sloppy=True)
+            constr[-1] = self.Constraint(expr, ub=-threshold, name="DW"+str(k), sloppy=True)
             self.model.add(constr)
 
             # constraints for the target(s) (cuts and knock-ins)
             if bigM > 0:
                 for i in range(self.num_reac):
                     if cuts[i]:
-                        self.model.add(self.optlang_constraint_class(dual_vars[k][i] - bigM*z_local[k][i],
+                        self.model.add(self.Constraint(dual_vars[k][i] - bigM*z_local[k][i],
                                        ub=0, name=z_local[k][i].name+dual_vars[k][i].name))
                         if reversible[i]:
                             if split_reversible_v:
                                 dn = dual_vars[k][dual_rev_neg_idx_map[i]]
                             else:
                                 dn = dual_vars[k][i]
-                            self.model.add(self.optlang_constraint_class(dn + bigM*z_local[k][i],
+                            self.model.add(self.Constraint(dn + bigM*z_local[k][i],
                                            lb=0, name=z_local[k][i].name+dn.name+"r"))
-
-    #         if knock_in(i)
-    #           lpfw.write_z_flux_link(obj.z_var_names{i}, dual_var_names{k}{i}, bigM, '<=');
-    #           if ~irr(i)
-    #             switch split_level
-    #               case 1
-    #                 dn= dual_var_names{k}{dual_rev_neg_idx_map(i)};
-    #               case 2
-    #                 dn= dual_var_names{k}{obj.num_reac+i};
-    #               otherwise
-    #                 dn= dual_var_names{k}{i};
-    #             end
-    #             lpfw.write_z_flux_link(obj.z_var_names{i}, dn, -bigM, '>=');
-    #           end
-    #         end
-    #       end
+                #         if knock_in(i)
+                #           lpfw.write_z_flux_link(obj.z_var_names{i}, dual_var_names{k}{i}, bigM, '<=');
+                #           if ~irr(i)
+                #             switch split_level
+                #               case 1
+                #                 dn= dual_var_names{k}{dual_rev_neg_idx_map(i)};
+                #               case 2
+                #                 dn= dual_var_names{k}{obj.num_reac+i};
+                #               otherwise
+                #                 dn= dual_var_names{k}{i};
+                #             end
+                #             lpfw.write_z_flux_link(obj.z_var_names{i}, dn, -bigM, '>=');
+                #           end
+                #         end
+                #       end
             else: # indicators
                 for i in range(self.num_reac):
                     if cuts[i]:
                         if split_reversible_v:
-                            self.model.add(self.optlang_constraint_class(dual_vars[k][i], ub=0,
+                            self.model.add(self.Constraint(dual_vars[k][i], ub=0,
                                            indicator_variable=z_local[k][i], active_when=0,
                                            name=z_local[k][i].name+dual_vars[k][i].name))
                             if reversible[i]:
                                 dn = dual_vars[k][dual_rev_neg_idx_map[i]]
-                                self.model.add(self.optlang_constraint_class(dn, lb=0,
+                                self.model.add(self.Constraint(dn, lb=0,
                                                indicator_variable=z_local[k][i], active_when=0,
                                                name=z_local[k][i].name+dn.name))
                         else:
@@ -210,27 +192,24 @@ class ConstrainedMinimalCutSetsEnumerator:
                                 lb = None
                             else:
                                 lb = 0
-                            self.model.add(self.optlang_constraint_class(dual_vars[k][i], lb=lb, ub=0,
+                            self.model.add(self.Constraint(dual_vars[k][i], lb=lb, ub=0,
                                            indicator_variable=z_local[k][i], active_when=0,
                                            name=z_local[k][i].name+dual_vars[k][i].name))
-
-    #         if knock_in(i)
-    #           fprintf(lpfw_fid, '%s = 1 -> %s <= 0\n', obj.z_var_names{i}, dual_var_names{k}{i});
-    #           if ~irr(i)
-    #             switch split_level
-    #               case 1
-    #                 dn= dual_var_names{k}{dual_rev_neg_idx_map(i)};
-    #               case 2
-    #                 dn= dual_var_names{k}{obj.num_reac+i};
-    #               otherwise
-    #                 dn= dual_var_names{k}{i};
-    #             end
-    #             fprintf(lpfw_fid, '%s = 1 -> %s >= 0\n', obj.z_var_names{i}, dn);
-    #           end
-    #         end
-    #       end
-    #     end % if bigM > 0
-    #   end % for k= 1:num_targets
+                #         if knock_in(i)
+                #           fprintf(lpfw_fid, '%s = 1 -> %s <= 0\n', obj.z_var_names{i}, dual_var_names{k}{i});
+                #           if ~irr(i)
+                #             switch split_level
+                #               case 1
+                #                 dn= dual_var_names{k}{dual_rev_neg_idx_map(i)};
+                #               case 2
+                #                 dn= dual_var_names{k}{obj.num_reac+i};
+                #               otherwise
+                #                 dn= dual_var_names{k}{i};
+                #             end
+                #             fprintf(lpfw_fid, '%s = 1 -> %s >= 0\n', obj.z_var_names{i}, dn);
+                #           end
+                #         end
+                #       end
 
         self.flux_vars= [None]*len(desired)
         for l in range(len(desired)):
@@ -241,43 +220,42 @@ class ConstrainedMinimalCutSetsEnumerator:
                                 lb=flux_lb[i], ub=flux_ub[i],
                                 problem=self.model.problem) for i in range(self.num_reac)]
             self.model.add(self.flux_vars[l])
+            expr = matrix_row_expressions(st, self.flux_vars[l])
             constr= [None]*st.shape[0]
             for i in range(st.shape[0]):
-                expr = add([cf * var for cf, var in zip(st[i, :], self.flux_vars[l]) if cf != 0])
-                print(expr)
-                constr[i] = self.optlang_constraint_class(expr, lb=0, ub=0, name="M"+str(l)+"_"+str(i), sloppy=True)
+                # expr = add([cf * var for cf, var in zip(st[i, :], self.flux_vars[l]) if cf != 0])
+                # print(expr)
+                constr[i] = self.Constraint(expr[i], lb=0, ub=0, name="M"+str(l)+"_"+str(i), sloppy=True)
             self.model.add(constr)
             constr= [None]*desired[l][0].shape[0]
             for i in range(desired[l][0].shape[0]):
                 expr = add([cf * var for cf, var in zip(desired[l][0][i, :], self.flux_vars[l]) if cf != 0])
-                print(expr)
-                constr[i] = self.optlang_constraint_class(expr, ub=desired[l][1][i], name="DES"+str(l)+"_"+str(i), sloppy=True)
+                # print(expr)
+                constr[i] = self.Constraint(expr, ub=desired[l][1][i], name="DES"+str(l)+"_"+str(i), sloppy=True)
             self.model.add(constr)
 
             for i in numpy.where(cuts)[0]:
                 if flux_ub[i] != 0: # a repressible (non_essential) reacion must have flux_ub >= 0
                     # self.flux_vars[l][i] <= (1 - self.z_vars[i]) * flux_ub[i]
-                    self.model.add(self.optlang_constraint_class(
+                    self.model.add(self.Constraint(
                       self.flux_vars[l][i] + flux_ub[i]*self.z_vars[i], ub=flux_ub[i],
                       name= self.flux_vars[l][i].name+self.z_vars[i].name+"UB"))
                 if flux_lb[i] != 0: # a repressible (non_essential) reacion must have flux_ub >= 0
                     # self.flux_vars[l][i] >= (1 - self.z_vars[i]) * flux_lb[i]
-                    self.model.add(self.optlang_constraint_class(
+                    self.model.add(self.Constraint(
                       self.flux_vars[l][i] + flux_lb[i]*self.z_vars[i], lb=flux_lb[i],
                       name= self.flux_vars[l][i].name+self.z_vars[i].name+"LB"))
-
-    #         for i= knock_in_idx
-    #           if flux_ub{l}(i) ~= 0
-    #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_ub{l}(i), '<=');
-    #           end
-    #           if flux_lb{l}(i) ~= 0
-    #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_lb{l}(i), '>=');
-    #           end
-    #         end
-    #       end % for l= 1:length(D)
+            #         for i= knock_in_idx
+            #           if flux_ub{l}(i) ~= 0
+            #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_ub{l}(i), '<=');
+            #           end
+            #           if flux_lb{l}(i) ~= 0
+            #             lpfw.write_direct_z_flux_link(obj.z_var_names{i}, obj.flux_var_names{i, l}, flux_lb{l}(i), '>=');
+            #           end
+            #         end
         
         self.evs_sz_lb = 0
-        self.evs_sz = self.optlang_constraint_class(add(self.z_vars), lb=self.evs_sz_lb, name='evs_sz')
+        self.evs_sz = self.Constraint(add(self.z_vars), lb=self.evs_sz_lb, name='evs_sz')
         self.model.add(self.evs_sz)
         self.model.update() # transfer the model to the solver
 
@@ -292,98 +270,115 @@ class ConstrainedMinimalCutSetsEnumerator:
         #if self.model.problem.solution.get_status_string() == 'integer optimal solution': # CPLEX raw
         if status is optlang.interface.OPTIMAL or status is optlang.interface.FEASIBLE:
             print(self.model.objective.value)
-            # coeff= tuple(round(zv.primal) for zv in self.z_vars) # tuple can be used as set element
             z_idx= tuple(i for zv, i in zip(self.z_vars, range(len(self.z_vars))) if round(zv.primal))
             if self.ref_set is not None and z_idx not in self.ref_set:
                 print("Incorrect result")
                 print([zv.primal for zv in self.z_vars])
                 print([(n,v) for n,v in zip(self.model.problem.variables.get_names(), self.model.problem.solution.get_values()) if v != 0])
                 self.write_lp_file('failed')
-            #    raise
-            #coeff= [round(zv.primal) for zv in self.z_vars]
-            #coeff = numpy.zeros(len(self.z_vars), dtype=float64) # klappt noch nicht, ndarry geht aber auch nicht als Element einer Menge
-            #for i in range(len(self.z_vars)):
-            #    coeff[i] = round(self.z_vars[i])
-
-            #return coeff
             return z_idx
         else:
             return None
 
     def add_exclusion_constraint(self, mcs):
-        # for coeff:
-        #expression = add([cf * var for cf, var in zip(mcs, self.z_vars) if cf != 0]) # mul instead of * does not work directly
-        #ub = sum(mcs)-1;
-        # for z_idx
         expression = add([self.z_vars[i] for i in mcs])
         ub = len(mcs) - 1
-        self.model.add(self.optlang_constraint_class(expression, ub=ub, sloppy=True))
+        self.model.add(self.Constraint(expression, ub=ub, sloppy=True))
 
-    def enumerate_mcs(self, max_mcs_size=numpy.inf, enum_method=1):
+    def enumerate_mcs(self, max_mcs_size=None, enum_method=1, timeout=None, info=None):
+        # if a dictionary is passed as info some status/runtime information is stored in there
         all_mcs= [];
-        continue_loop = True;
+        if max_mcs_size is None:
+            max_mcs_size = len(self.z_vars)
+        if enum_method == 2:
+            # r<ise error if this is not a CPLEX model
+            # if numpy.isinf(max_mcs_size):
+            #     max_mcs_size = len(self.z_vars)
+            print("Populate up tp MCS size ", max_mcs_size)
+            self.model.problem.parameters.mip.pool.intensity.set(4)
+            # self.model.problem.parameters.mip.pool.absgap.set(0)
+            self.model.problem.parameters.mip.pool.relgap.set(self.model.configuration.tolerances.optimality)
+            self.model.problem.parameters.mip.strategy.search.set(1) # traditional branch-and-cut search
+            self.model.problem.parameters.emphasis.mip.set(1) # integer feasibility
+            # also set model.problem.parameters.parallel to deterministic?
+            # for now unlimited pool size
+            self.model.problem.parameters.mip.limits.populate.set(self.model.problem.parameters.mip.pool.capacity.get())
+            z_idx = self.model.problem.variables.get_indices([z.name for z in self.z_vars]) # for querying the solution pool
+        elif enum_method == 1 or enum_method == 3:
+            if self.model.objective is self.zero_objective:
+                self.model.objective = self.minimize_sum_over_z
+                print('Objective function is empty; set objective to self.minimize_sum_over_z')
+        else:
+            raise ValueError('Unknown enumeration method.')
+        continue_loop = True
+        start_time = time.monotonic()
         while continue_loop and self.evs_sz_lb <= max_mcs_size:
-            if enum_method == 1:
+            if timeout is not None:
+                remaining_time = round(timeout - (time.monotonic() - start_time)) # integer
+                if remaining_time <= 0:
+                    print('Time limit exceeded, stopping enumeration.')
+                    break
+                else:
+                    self.model.configuration.timeout = remaining_time
+            if enum_method == 1 or enum_method == 3:
                 mcs = self.single_solve()
                 if self.model.status == 'optimal':
-                    #ov = round(self.model.objective.value)
+                    ov = round(self.model.objective.value)
+                    if ov >  self.evs_sz_lb:
+                        self.evs_sz_lb = ov
                     #if ov > e.evs_sz.lb: # increase lower bound of evs_sz constraint, but is this really always helpful?
                     #    e.evs_sz.lb = ov
                     #    print(ov)
                     if round(self.model.objective.value) > max_mcs_size:
                         print('MCS size limit exceeded, stopping enumeration.')
                         break
-                    self.add_exclusion_constraint(mcs)
+                    if enum_method == 1:
+                        self.add_exclusion_constraint(mcs)
                     self.model.update() # needs to be done explicitly when using _optimize
                     all_mcs.append(mcs)
                 else:
-                    break
+                    print('Stopping enumeration with status', self.model.status)
+                    continue_loop = False
             elif enum_method == 2: # populate with CPLEX
-                # throw error if this is not a CPLEX model
-                if numpy.isinf(max_mcs_size):
-                    max_mcs_size = len(self.z_vars)
-                print("Populate up tp MCS size ", max_mcs_size)
-                self.model.problem.parameters.mip.pool.intensity.set(4)
-                self.model.problem.parameters.mip.pool.absgap.set(0)
-                self.model.problem.parameters.mip.strategy.search.set(1) # traditional branch-and-cut search
-                # also set model.problem.parameters.parallel to deterministic?
-                # for now unlimited pool size
-                self.model.problem.parameters.mip.limits.populate.set(self.model.problem.parameters.mip.pool.capacity.get())
-                while self.evs_sz_lb <= max_mcs_size:
+                if self.evs_sz_lb != self.evs_sz.lb: # only touch the bounds if necessary to preserve the search tree
                     self.evs_sz.ub = self.evs_sz_lb
                     self.evs_sz.lb = self.evs_sz_lb
-                    try:
-                        self.model.problem.populate_solution_pool()
-                    except CplexSolverError:
-                        print("Exception raised during populate")
-                        continue_loop = False
-                        break
-                    print(self.model.problem.solution.pool.get_num())
-                    print(self.model.problem.solution.get_status_string())
-                    cplex_status = self.model.problem.solution.get_status()
-                    if cplex_status is SolutionStatus.MIP_optimal:
+                try:
+                    self.model.problem.populate_solution_pool()
+                except CplexSolverError:
+                    print("Exception raised during populate")
+                    continue_loop = False
+                    break
+                print(self.model.problem.solution.pool.get_num())
+                print(self.model.problem.solution.get_status_string())
+                cplex_status = self.model.problem.solution.get_status()
+                if type(info) is dict:
+                    info['cplex_status'] = cplex_status
+                    info['cplex_status_string'] = self.model.problem.solution.get_status_string()
+                if cplex_status is SolutionStatus.MIP_optimal or cplex_status is SolutionStatus.MIP_time_limit_feasible \
+                        or cplex_status is SolutionStatus.optimal_populated_tolerance: # may occur when a non-zero onjective function is set
+                    if cplex_status is SolutionStatus.MIP_optimal or cplex_status is SolutionStatus.optimal_populated_tolerance:
                         self.evs_sz_lb += 1
                         print(self.evs_sz_lb)
-                        z_idx = self.model.problem.variables.get_indices([z.name for z in self.z_vars])
-                        for i in range(self.model.problem.solution.pool.get_num()):
-                            mcs = tuple(numpy.where(numpy.round(
-                                        self.model.problem.solution.pool.get_values(i, z_idx)))[0])
-                            self.add_exclusion_constraint(mcs)
-                            all_mcs.append(mcs)
-                        self.model.update() # needs to be done explicitly when using _optimize
-                    elif cplex_status is SolutionStatus.MIP_infeasible:
-                        print('No MCS of size ', self.evs_sz_lb)
-                        self.evs_sz_lb += 1
-                    else:
-                        print('Unexpected CPLEX status ', self.model.problem.solution.get_status_string())
-                        continue_loop = False
-                        break # provisional break
+                    for i in range(self.model.problem.solution.pool.get_num()):
+                        mcs = tuple(numpy.where(numpy.round(
+                                    self.model.problem.solution.pool.get_values(i, z_idx)))[0])
+                        self.add_exclusion_constraint(mcs)
+                        all_mcs.append(mcs)
+                    self.model.update() # needs to be done explicitly when not using optlang optimize
+                elif cplex_status is SolutionStatus.MIP_infeasible:
+                    print('No MCS of size ', self.evs_sz_lb)
+                    self.evs_sz_lb += 1
+                elif cplex_status is SolutionStatus.MIP_time_limit_infeasible:
+                    print('No further MCS of size', self.evs_sz_lb, 'found, time limit reached.')
+                else:
+                    print('Unexpected CPLEX status ', self.model.problem.solution.get_status_string())
+                    continue_loop = False
+                    break # provisional break
                 # reset parameters here?
-            else:
-                print("Unknown enumeration method.")
-                break
-
-        print(self.model.status)
+        if type(info) is dict:
+            info['optlang_status'] = self.model.status
+            info['time'] = time.monotonic() - start_time
         return all_mcs
 
     def write_lp_file(self, fname):
@@ -412,7 +407,6 @@ def equations_to_matrix(model, equations):
         raise RuntimeError("Index order was not preserved.")
 
 def expand_mcs(mcs: List[Tuple], subT):
-    #mcs = [[numpy.where(m)[0]] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
     mcs = [[list(m)] for m in mcs] # list of lists; mcs[i] will contain a list of MCS expanded from it
     rxn_in_sub = [numpy.where(subT[:, i])[0] for i in range(subT.shape[1])]
     for i in range(len(mcs)):
@@ -426,3 +420,52 @@ def expand_mcs(mcs: List[Tuple], subT):
                     mcs[i][-1][s_idx] = rxns[k]
     mcs = list(itertools.chain(*mcs))
     return set(map(tuple, map(numpy.sort, mcs)))
+
+def matrix_row_expressions(mat, vars):
+    # mat can be a numpy matrix or scipy sparse matrix (csc, csr, lil formats work; COO format does not work)
+    # expr = [None] * mat.shape[0]
+    # for i in range(mat.shape[0]):
+    #     idx = numpy.nonzero(mat)
+    ridx, cidx = mat.nonzero() # !! assumes that the indices in ridx are grouped together !!
+    if len(ridx) == 0:
+        return []
+    # expr = []
+    expr = [None] * mat.shape[0]
+    first = 0
+    current_row = ridx[0]
+    i = 1
+    while True:
+        at_end = i == len(ridx)
+        if at_end or ridx[i] != current_row:
+            # expr.append(add([mat[current_row, c] * vars[c] for c in cidx[first:i]]))
+            expr[current_row] = add([mat[current_row, c] * vars[c] for c in cidx[first:i]])
+            if at_end:
+                break
+            first = i
+            current_row = ridx[i]
+        i = i + 1
+    return expr
+
+def leq_constraints(optlang_constraint_class, row_expressions, rhs):
+    return [optlang_constraint_class(expr, ub=ub) for expr, ub in zip(row_expressions, rhs)]
+#%%
+def check_mcs(model, constr, mcs, expected_status, flux_expr=None):
+    if flux_expr is None:
+        flux_expr = [r.flux_expression for r in model.reactions]
+    check_ok= numpy.zeros(len(mcs), dtype=numpy.bool)
+    with model as constr_model:
+        rexpr = matrix_row_expressions(constr[0], flux_expr)
+        constr_model.add_cons_vars(leq_constraints(constr_model.problem.Constraint, rexpr, constr[1]))
+        for m in range(len(mcs)):
+            with constr_model as KO_model:
+                for r in mcs[m]:
+                    if type(r) is str:
+                        KO_model.reactions.get_by_id(r).knock_out()
+                    else: # assume r is an index if it is not a string
+                        KO_model.reactions[r].knock_out()
+                # for r in KO_model.reactions.get_by_any(mcs[m]): # get_by_any() does not accept tuple
+                #     r.knock_out()
+                KO_model.slim_optimize()
+                check_ok[m] = KO_model.solver.status == expected_status
+    return check_ok
+#%%
