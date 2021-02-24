@@ -1,12 +1,16 @@
 """The cnapy configuration dialog"""
-from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
+from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette, QIcon
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                             QPushButton, QVBoxLayout)
+from qtpy.QtCore import QSize
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
 from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
+
+import pkg_resources
+cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
 
 
 class ConfigDialog(QDialog):
@@ -16,22 +20,84 @@ class ConfigDialog(QDialog):
         QDialog.__init__(self)
         self.appdata = appdata
         self.layout = QVBoxLayout()
-        h1 = QHBoxLayout()
-        label = QLabel("CNA path")
-        h1.addWidget(label)
-        self.cna_path = QLineEdit()
-        self.cna_path.setReadOnly(True)
-        self.cna_path.setMinimumWidth(800)
+
+        cross_icon = QIcon(cross_svg)
+        cross = cross_icon.pixmap(QSize(32, 32))
+
+        ml = QHBoxLayout()
+        label = QLabel("Matlab")
+        label.setFixedWidth(100)
+        ml.addWidget(label)
+        self.ml_label = QLabel()
+        self.ml_label.setPixmap(cross)
+        self.ml_label.setFixedWidth(100)
+        ml.addWidget(self.ml_label)
+        self.choose_ml_path_btn = QPushButton(
+            "Choose path to Matlab engine")
+        self.choose_ml_path_btn.setFixedWidth(300)
+        ml.addWidget(self.choose_ml_path_btn)
+        label2 = QLabel("")
+        label2.setFixedWidth(30)
+        ml.addWidget(label2)
+        self.ml_path = QLabel()
+        # self.ml_path.setReadOnly(True)
+        self.ml_path.setMinimumWidth(200)
+        self.ml_path.setText(self.appdata.matlab_path)
+        ml.addWidget(self.ml_path)
+
+        self.layout.addItem(ml)
+
+        oc = QHBoxLayout()
+        label = QLabel("Octave")
+        label.setFixedWidth(100)
+        oc.addWidget(label)
+        self.oc_label = QLabel()
+        self.oc_label.setPixmap(cross)
+        self.oc_label.setFixedWidth(100)
+        oc.addWidget(self.oc_label)
+
+        self.choose_oc_exe_btn = QPushButton(
+            "Choose path to octave executable")
+        self.choose_oc_exe_btn.setFixedWidth(300)
+        oc.addWidget(self.choose_oc_exe_btn)
+
+        label2 = QLabel("")
+        label2.setFixedWidth(30)
+        oc.addWidget(label2)
+
+        self.oc_exe = QLabel()
+        self.oc_exe.setText(self.appdata.octave_executable)
+        self.oc_exe.setMinimumWidth(200)
+        oc.addWidget(self.oc_exe)
+
+        self.layout.addItem(oc)
+
+        cna_l = QHBoxLayout()
+        label = QLabel("CNA")
+        label.setFixedWidth(100)
+        cna_l.addWidget(label)
+        self.cna_label = QLabel()
+        self.cna_label.setPixmap(cross)
+        self.cna_label.setFixedWidth(100)
+        cna_l.addWidget(self.cna_label)
+        self.choose_cna_path_btn = QPushButton("Choose CNA directory")
+        self.choose_cna_path_btn.setFixedWidth(300)
+        cna_l.addWidget(self.choose_cna_path_btn)
+        label2 = QLabel("")
+        label2.setFixedWidth(30)
+        cna_l.addWidget(label2)
+
+        self.cna_path = QLabel()
+        self.cna_path.setMinimumWidth(200)
         self.cna_path.setText(self.appdata.cna_path)
-        h1.addWidget(self.cna_path)
-        self.choose_cna_path_btn = QPushButton("Choose Directory")
-        h1.addWidget(self.choose_cna_path_btn)
-        self.layout.addItem(h1)
+        cna_l.addWidget(self.cna_path)
+        self.layout.addItem(cna_l)
 
         h2 = QHBoxLayout()
         label = QLabel("Default color for values in a scenario:")
         h2.addWidget(label)
         self.scen_color_btn = QPushButton()
+        self.scen_color_btn.setFixedWidth(100)
         palette = self.scen_color_btn.palette()
         palette.setColor(QPalette.Button, self.appdata.Scencolor)
         self.scen_color_btn.setPalette(palette)
@@ -43,6 +109,7 @@ class ConfigDialog(QDialog):
             "Default color for computed values not part of the scenario:")
         h3.addWidget(label)
         self.comp_color_btn = QPushButton()
+        self.comp_color_btn.setFixedWidth(100)
         palette = self.comp_color_btn.palette()
         palette.setColor(QPalette.Button, self.appdata.Compcolor)
         self.comp_color_btn.setPalette(palette)
@@ -54,6 +121,7 @@ class ConfigDialog(QDialog):
             "Special Color used for non equal flux bounds:")
         h4.addWidget(label)
         self.spec1_color_btn = QPushButton()
+        self.spec1_color_btn.setFixedWidth(100)
         palette = self.spec1_color_btn.palette()
         palette.setColor(QPalette.Button, self.appdata.SpecialColor1)
         self.spec1_color_btn.setPalette(palette)
@@ -65,6 +133,7 @@ class ConfigDialog(QDialog):
             "Special Color 2 used for non equal flux bounds that exclude 0:")
         h5.addWidget(label)
         self.spec2_color_btn = QPushButton()
+        self.spec2_color_btn.setFixedWidth(100)
         palette = self.spec2_color_btn.palette()
         palette.setColor(QPalette.Button, self.appdata.SpecialColor2)
         self.spec2_color_btn.setPalette(palette)
@@ -76,6 +145,7 @@ class ConfigDialog(QDialog):
             "Color used for empty reaction boxes:")
         h6.addWidget(label)
         self.default_color_btn = QPushButton()
+        self.default_color_btn.setFixedWidth(100)
         palette = self.default_color_btn.palette()
         palette.setColor(QPalette.Button, self.appdata.Defaultcolor)
         self.default_color_btn.setPalette(palette)
@@ -87,6 +157,7 @@ class ConfigDialog(QDialog):
             "Shown number of digits after the decimal point:")
         h7.addWidget(label)
         self.rounding = QLineEdit()
+        self.rounding.setFixedWidth(100)
         self.rounding.setText(str(self.appdata.rounding))
         validator = QIntValidator(0, 20, self)
         self.rounding.setValidator(validator)
@@ -98,6 +169,7 @@ class ConfigDialog(QDialog):
             "Absolute tolerance used to compare float values in the UI:")
         h8.addWidget(label)
         self.abs_tol = QLineEdit()
+        self.abs_tol.setFixedWidth(100)
         self.abs_tol.setText(str(self.appdata.abs_tol))
         validator = QDoubleValidator(self)
         validator.setTop(1)
@@ -106,10 +178,10 @@ class ConfigDialog(QDialog):
         self.layout.addItem(h8)
 
         h9 = QHBoxLayout()
-        label = QLabel("MatLab/Octave engine:")
+        label = QLabel("Matlab/Octave engine:")
         h9.addWidget(label)
         self.default_engine = QComboBox()
-        self.default_engine.insertItem(1, "MatLab")
+        self.default_engine.insertItem(1, "Matlab")
         self.default_engine.insertItem(2, "Octave")
         if self.appdata.default_engine == "octave":
             self.default_engine.setCurrentIndex(1)
@@ -127,6 +199,8 @@ class ConfigDialog(QDialog):
         self.setLayout(self.layout)
 
         # Connecting the signal
+        self.choose_ml_path_btn.clicked.connect(self.choose_ml_path)
+        self.choose_oc_exe_btn.clicked.connect(self.choose_oc_exe)
         self.choose_cna_path_btn.clicked.connect(self.choose_cna_path)
         self.scen_color_btn.clicked.connect(self.choose_scen_color)
         self.comp_color_btn.clicked.connect(self.choose_comp_color)
@@ -136,9 +210,22 @@ class ConfigDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.apply)
 
+    def choose_ml_path(self):
+        dialog = QFileDialog(self, directory=self.ml_path.text())
+        dialog.setFileMode(QFileDialog.DirectoryOnly)
+        directory: str = dialog.getExistingDirectory()
+        self.ml_path.setText(directory)
+        pass
+
+    def choose_oc_exe(self):
+        dialog = QFileDialog(self, directory=self.oc_exe.text())
+        dialog.setFileMode(QFileDialog.DirectoryOnly)
+        directory: str = dialog.getExistingDirectory()
+        self.oc_exe.setText(directory)
+        pass
+
     def choose_cna_path(self):
-        dialog = QFileDialog(self)
-        # dialog.setFileMode(QFileDialog.Directory)
+        dialog = QFileDialog(self, directory=self.cna_path.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.cna_path.setText(directory)
