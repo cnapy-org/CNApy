@@ -4,9 +4,7 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                             QPushButton, QVBoxLayout)
 
-import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
-from cnapy.legacy import is_matlab_ready, is_octave_ready, restart_cna
 
 
 class RenameMapDialog(QDialog):
