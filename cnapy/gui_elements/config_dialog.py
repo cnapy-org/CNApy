@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
 cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
 cross_icon = QIcon(cross_svg)
 
-check_svg = pkg_resources.resource_filename("cnapy", "data/check.png")
+check_svg = pkg_resources.resource_filename("cnapy", "data/check.svg")
 check_icon = QIcon(check_svg)
 
 
@@ -25,7 +25,6 @@ class ConfigDialog(QDialog):
 
     def __init__(self, appdata: CnaData):
         cross = cross_icon.pixmap(QSize(32, 32))
-        check = check_icon.pixmap(QSize(32, 32))
 
         QDialog.__init__(self)
         self.appdata = appdata
@@ -223,22 +222,23 @@ class ConfigDialog(QDialog):
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.matlab_path.setText(directory)
-        
+
         self.try_install_matlab_engine(directory)
-            
+
         self.check_matlab()
 
-    def try_install_matlab_engine(self, directory:str):
+    def try_install_matlab_engine(self, directory: str):
         try:
-            path = os.path.join(directory,'extern/engines/python')
-            print("path:",path)
+            path = os.path.join(directory, 'extern/engines/python')
+            print("path:", path)
             cwd = os.getcwd()
             os.chdir(path)
-            temp_dir =  TemporaryDirectory()
-            os.system("python setup.py build --build-base="+temp_dir.name+' install')
+            temp_dir = TemporaryDirectory()
+            os.system("python setup.py build --build-base=" +
+                      temp_dir.name+' install')
             os.chdir(cwd)
-        except:           
-            print("Install failed");
+        except:
+            print("Install failed")
 
             output = io.StringIO()
             traceback.print_exc(file=output)

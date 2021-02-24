@@ -39,34 +39,4 @@ try:
             return self.eval('cnan.cplex_interface.java;')
 
 except:
-    print('Matlab engine not available.')
-
-def run_tests():
-    cna_path = 'E:\gwdg_owncloud\CNAgit\CellNetAnalyzer'
-    m = CNAMatlabEngine()
-    m.start_cna(cna_path)
-    read_cnapy_model(m)
-    a = m.get_reacID()
-    o = CNAoctaveEngine()
-    o.start_cna(cna_path)
-    read_cnapy_model(o)
-    b = o.get_reacID()
-    # advanced stuff
-    ptr = o.get_pointer('cnap')
-    o.CNAcomputeEFM(ptr)
-
-    # m.eval('x=SimpleClass()', nargout=0)
-    # x= m.workspace['x']
-    # m.foo(x, nargout= 0)
-
-    # o.eval('x=SimpleClass()', nargout=0)
-    # x= o.workspace['x']
-    # #o.foo(x, nargout= 0) foo is not recognized as function
-
-    # not needed in octave, has pointers to structs
-    cnap = m.eval('CNA_MFNetwork(cnap);')
-    ems = m.CNAcomputeEFM(cnap)
-
-    o.eval('cnap_MFNetwork= CNA_MFNetwork(cnap);')
-    cnap = o.get_pointer('cnap_MFNetwork')
-    ems = o.CNAcomputeEFM(cnap)
+    pass

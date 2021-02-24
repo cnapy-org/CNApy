@@ -36,12 +36,13 @@ def try_matlab_engine():
         meng = None
         print("Matlab engine not available")
 
+
 def try_octave_engine():
     global oeng
     global eng
     try:
         print("Try Octave engine ...")
-        from cnapy.ocatve_engine import CNAoctaveEngine
+        from cnapy.octave_engine import CNAoctaveEngine
         oeng = CNAoctaveEngine()
         print("Octave engine available")
     except:
@@ -51,6 +52,7 @@ def try_octave_engine():
         # print(exstr)
         oeng = None
         print("Octave engine not available")
+
 
 def reset_engine():
     global eng
