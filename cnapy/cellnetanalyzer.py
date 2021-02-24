@@ -32,6 +32,7 @@ class CellNetAnalyzer:
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
+        self.qapp.setStyle("fusion")
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
 
