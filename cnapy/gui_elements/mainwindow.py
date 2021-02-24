@@ -282,7 +282,7 @@ class MainWindow(QMainWindow):
         self.setPalette(palette)
 
     @Slot()
-    def exit_app(self, _checked):
+    def exit_app(self):
         QApplication.quit()
 
     def setCurrentFile(self, fileName):
@@ -297,17 +297,17 @@ class MainWindow(QMainWindow):
             "CNApy - " + shownName)
 
     @Slot()
-    def show_about(self, _checked):
+    def show_about(self):
         dialog = AboutDialog()
         dialog.exec_()
 
     @Slot()
-    def phase_plane(self, _checked):
+    def phase_plane(self):
         dialog = PhasePlaneDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
-    def optimize_yield(self, _checked):
+    def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
 
@@ -317,29 +317,29 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
-    def import_sbml(self, _checked):
+    def import_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.xml")
+            directory=os.getcwd(), filter="*.xml")
 
         self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
             filename[0])
         self.centralWidget().update()
 
     @Slot()
-    def export_sbml(self, _checked):
+    def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.xml")
+            directory=os.getcwd(), filter="*.xml")
 
         cobra.io.write_sbml_model(
             self.appdata.project.cobra_py_model, filename[0])
 
     @Slot()
-    def load_box_positions(self, _checked):
+    def load_box_positions(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.maps")
+            directory=os.getcwd(), filter="*.maps")
 
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
@@ -364,10 +364,10 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def load_scenario(self, _checked):
+    def load_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.scen")
+            directory=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'r') as fp:
             values = json.load(fp)
@@ -380,10 +380,10 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def load_modes(self, _checked):
+    def load_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.modes")
+            directory=os.getcwd(), filter="*.modes")
 
         with open(filename[0], 'r') as fp:
             self.appdata.project.modes = json.load(fp)
@@ -396,10 +396,10 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def change_background(self, _checked):
+    def change_background(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.svg")
+            directory=os.getcwd(), filter="*.svg")
 
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
@@ -419,13 +419,13 @@ class MainWindow(QMainWindow):
             self.centralWidget().map_tabs.setCurrentIndex(idx)
 
     @Slot()
-    def change_map_name(self, _checked):
+    def change_map_name(self):
         dialog = RenameMapDialog(
             self.appdata, self.centralWidget())
         dialog.exec_()
 
     @Slot()
-    def inc_bg_size(self, _checked):
+    def inc_bg_size(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] += 0.2
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def dec_bg_size(self, _checked):
+    def dec_bg_size(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         self.appdata.project.maps[name]["bg-size"] -= 0.2
@@ -441,32 +441,32 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def save_box_positions(self, _checked):
+    def save_box_positions(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.maps")
+            directory=os.getcwd(), filter="*.maps")
 
         with open(filename[0], 'w') as fp:
             json.dump(self.appdata.project.maps[name]["boxes"], fp)
 
     @Slot()
-    def save_scenario(self, _checked):
+    def save_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.scen")
+            directory=os.getcwd(), filter="*.scen")
 
         with open(filename[0], 'w') as fp:
             json.dump(self.appdata.project.scen_values, fp)
         self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
 
     @Slot()
-    def save_modes(self, _checked):
+    def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.modes")
+            directory=os.getcwd(), filter="*.modes")
 
         with open(filename[0], 'w') as fp:
             json.dump(self.appdata.project.modes, fp)
@@ -493,7 +493,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def new_project(self, _checked):
+    def new_project(self):
         self.appdata.project.cobra_py_model = cobra.Model()
         self.appdata.project.maps = {}
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
@@ -507,10 +507,10 @@ class MainWindow(QMainWindow):
         self.save_project_action.setEnabled(False)
 
     @Slot()
-    def open_project(self, _checked):
+    def open_project(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            dir=os.getcwd(), filter="*.cna")
+            directory=os.getcwd(), filter="*.cna")
 
         self.appdata.temp_dir = TemporaryDirectory()
 
@@ -542,7 +542,7 @@ class MainWindow(QMainWindow):
         self.setCurrentFile(filename[0])
 
     @Slot()
-    def save_project(self, _checked):
+    def save_project(self):
 
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
@@ -583,11 +583,11 @@ class MainWindow(QMainWindow):
         self.setPalette(palette)
 
     @Slot()
-    def save_project_as(self, _checked):
+    def save_project_as(self):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            dir=os.getcwd(), filter="*.cna")
+            directory=os.getcwd(), filter="*.cna")
 
         if len(filename[0]) != 0:
             self.setCurrentFile(filename[0])
@@ -644,7 +644,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def clipboard_arithmetics(self, _checked):
+    def clipboard_arithmetics(self):
         print("clipboard_arithmetics")
         dialog = ClipboardCalculator(self.appdata.project)
         dialog.exec_()
