@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cnapy.cellnetanalyzer import CellNetAnalyzer
 import configparser
 import os
 import appdirs
@@ -27,4 +26,5 @@ if (os.path.isfile(os.environ.get('OCTAVE_EXECUTABLE', '')) == False) and config
     if os.path.isfile(oe):
         os.environ['OCTAVE_EXECUTABLE'] = oe
 
+from cnapy.cellnetanalyzer import CellNetAnalyzer
 cna = CellNetAnalyzer()

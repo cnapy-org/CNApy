@@ -8,28 +8,20 @@ def read_cnapy_model(engine):
 
 
 try:
-    import matlab.engine
-    from matlab.engine import MatlabEngine, pythonengine
+    from oct2py import Oct2Py
 
-    class CNAMatlabEngine(MatlabEngine):
+    class CNAoctaveEngine(Oct2Py):
         def __init__(self):
-            future = matlab.engine.matlabfuture.MatlabFuture(
-                option="-nodesktop")
-            super().__init__(matlab.engine.pythonengine.getMATLAB(future._future))
+            Oct2Py.__init__(self)
 
         def start_cna(self, cna_path):
-            cwd = os.getcwd()
-            os.chdir(cna_path)
-            future = matlab.engine.matlabfuture.MatlabFuture(
-                option="-nodesktop")
-            super().__init__(matlab.engine.pythonengine.getMATLAB(future._future))
-            os.chdir(cwd)
             self.cd(cna_path)
-            self.startcna(1, nargout=0)
+            self.startcna(1)
 
         def get_reacID(self):
-            self.eval("reac_id = cellstr(cnap.reacID);", nargout=0)
-            reac_id = self.workspace['reac_id']
+            self.eval("reac_id = cellstr(cnap.reacID);")
+            reac_id = self.pull('reac_id')
+            reac_id = reac_id.tolist()
             return reac_id
 
         def is_cplex_matlab_ready(self):
@@ -37,9 +29,9 @@ try:
 
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
-
 except:
-    print('Matlab engine not available.')
+    print('Octave is not available.')
+
 
 def run_tests():
     cna_path = 'E:\gwdg_owncloud\CNAgit\CellNetAnalyzer'

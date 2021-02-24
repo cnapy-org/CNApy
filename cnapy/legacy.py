@@ -31,7 +31,7 @@ except:
     meng = None
 
 try:
-    from cnapy.CNA_MEngine import CNAoctaveEngine
+    from cnapy.ocatve_engine import CNAoctaveEngine
     oeng = CNAoctaveEngine()
     print("Octave engine available")
     eng = oeng
@@ -49,7 +49,7 @@ def reset_engine():
     if is_octave_set():
         oeng = CNAoctaveEngine()
         eng = oeng
-    elif is_matlab_set:
+    elif is_matlab_set():
         meng = CNAMatlabEngine()
         eng = meng
 
