@@ -15,13 +15,8 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
 
 import cnapy.resources
 
-# cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
 cross_icon = QIcon(":/icons/cross.svg")
-
-check_svg = pkg_resources.resource_filename("cnapy", "data/check.svg")
-check_icon = QIcon(check_svg)
-
-# qmark_svg = pkg_resources.resource_filename("cnapy", "data/qmark.svg")
+# check_icon = QIcon(":/icons/check.png")
 qmark_icon = QIcon(":/icons/qmark.svg")
 
 
@@ -273,6 +268,7 @@ class ConfigDialog(QDialog):
 
     def check_octave(self):
         cross = cross_icon.pixmap(QSize(32, 32))
+        check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
         self.oeng = try_octave_engine(self.oc_exe.text())
         if self.oeng is not None:
@@ -282,6 +278,7 @@ class ConfigDialog(QDialog):
 
     def check_matlab(self):
         cross = cross_icon.pixmap(QSize(32, 32))
+        check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
         self.meng = try_matlab_engine()
         if self.meng is not None:
@@ -308,6 +305,7 @@ class ConfigDialog(QDialog):
             self.check_octave()
 
         cross = cross_icon.pixmap(QSize(32, 32))
+        check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
         qmark = qmark_icon.pixmap(QSize(32, 32))
         if self.oeng is not None:
