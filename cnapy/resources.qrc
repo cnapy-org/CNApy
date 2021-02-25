@@ -2,6 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="icons">
         <file alias="qmark.svg">/data/qmark.svg</file>
+        <file alias="check.png">/data/check.png</file>
         <file alias="cross.svg">/data/cross.svg</file>
     </qresource>
 </RCC> 
