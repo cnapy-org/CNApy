@@ -281,9 +281,12 @@ class ConfigDialog(QDialog):
     def check_matlab(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
-        self.meng = try_matlab_engine()
+        # only recheck matlab if necessary
+        if self.meng is None:
+            self.meng = try_matlab_engine()
         if self.meng is not None:
-            print("matlab ready")
+            # disable button if matlab is already working
+            self.choose_ml_path_btn.setEnabled(False)
             self.ml_label.setPixmap(check)
         else:
             print("matlab not ready")
