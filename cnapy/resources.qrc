@@ -1,8 +1,12 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="icons">
-        <file alias="qmark.svg">/data/qmark.svg</file>
+        <file alias="qmark.png">/data/qmark.png</file>
         <file alias="check.png">/data/check.png</file>
-        <file alias="cross.svg">/data/cross.svg</file>
+        <file alias="cross.png">/data/cross.png</file>
+        <file alias="onoff.png">/data/onoff.png</file>
+        <file alias="heat.png">/data/heat.png</file>
+        <file alias="default-color.png">/data/default-color.png</file>
+        <file alias="d-font.png">/data/d-font.png</file>
     </qresource>
 </RCC> 

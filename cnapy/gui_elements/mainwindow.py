@@ -40,14 +40,6 @@ class MainWindow(QMainWindow):
         palette = self.palette()
         self.original_color = palette.color(QPalette.Window)
 
-        import pkg_resources
-        heat_svg = pkg_resources.resource_filename('cnapy', 'data/heat.svg')
-        onoff_svg = pkg_resources.resource_filename('cnapy', 'data/onoff.svg')
-        default_color_svg = pkg_resources.resource_filename(
-            'cnapy', 'data/default-color.svg')
-        default_scenario_svg = pkg_resources.resource_filename(
-            'cnapy', 'data/Font_D.svg')
-
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
 
@@ -120,12 +112,12 @@ class MainWindow(QMainWindow):
             self.set_model_bounds_to_scenario)
 
         heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon(heat_svg))
+        heaton_action.setIcon(QIcon(":/icons/heat.png"))
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
 
         onoff_action = QAction("Apply On/Off coloring", self)
-        onoff_action.setIcon(QIcon(onoff_svg))
+        onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         onoff_action.triggered.connect(self.set_onoff)
         self.scenario_menu.addAction(onoff_action)
 
@@ -248,11 +240,11 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
         update_action = QAction("Default Coloring", self)
-        update_action.setIcon(QIcon(default_color_svg))
+        update_action.setIcon(QIcon(":/icons/default-color.png"))
         update_action.triggered.connect(central_widget.update)
 
         set_default_scenario_action = QAction("Default scenario", self)
-        set_default_scenario_action.setIcon(QIcon(default_scenario_svg))
+        set_default_scenario_action.setIcon(QIcon(":/icons/d-font.png"))
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
@@ -592,7 +584,7 @@ class MainWindow(QMainWindow):
         if len(filename[0]) != 0:
             self.setCurrentFile(filename[0])
             self.save_project_action.setEnabled(True)
-            self.save_project(_checked=True)
+            self.save_project()
         else:
             return False
 

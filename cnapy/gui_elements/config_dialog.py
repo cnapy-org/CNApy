@@ -3,8 +3,6 @@ import os
 import io
 import traceback
 from tempfile import TemporaryDirectory
-import cnapy.legacy as legacy
-import pkg_resources
 from cnapy.cnadata import CnaData
 from cnapy.legacy import try_matlab_engine, try_octave_engine, try_cna
 from qtpy.QtCore import QSize
@@ -15,15 +13,12 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
 
 import cnapy.resources
 
-cross_icon = QIcon(":/icons/cross.svg")
-# check_icon = QIcon(":/icons/check.png")
-qmark_icon = QIcon(":/icons/qmark.svg")
-
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
     def __init__(self, appdata: CnaData):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
 
         QDialog.__init__(self)
@@ -267,6 +262,7 @@ class ConfigDialog(QDialog):
             self.default_engine.setCurrentIndex(1)
 
     def check_octave(self):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
@@ -277,6 +273,7 @@ class ConfigDialog(QDialog):
             self.oc_label.setPixmap(cross)
 
     def check_matlab(self):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
@@ -307,9 +304,11 @@ class ConfigDialog(QDialog):
         else:
             self.check_octave()
 
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
+        qmark_icon = QIcon(":/icons/qmark.png")
         qmark = qmark_icon.pixmap(QSize(32, 32))
         if self.oeng is not None:
             if try_cna(self.oeng, self.cna_path.text()):
