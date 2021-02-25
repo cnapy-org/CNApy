@@ -59,7 +59,7 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_label)
 
         self.choose_oc_exe_btn = QPushButton(
-            "Choose path to octave executable")
+            "Choose path to Octave executable")
         self.choose_oc_exe_btn.setFixedWidth(300)
         oc.addWidget(self.choose_oc_exe_btn)
 
@@ -268,6 +268,8 @@ class ConfigDialog(QDialog):
         check = check_icon.pixmap(QSize(32, 32))
         self.oeng = try_octave_engine(self.oc_exe.text())
         if self.oeng is not None:
+            # disable button if octave is already working
+            self.choose_oc_exe_btn.setEnabled(False)
             self.oc_label.setPixmap(check)
         else:
             self.oc_label.setPixmap(cross)
