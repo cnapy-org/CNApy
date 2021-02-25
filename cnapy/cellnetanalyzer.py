@@ -40,13 +40,42 @@ class CellNetAnalyzer:
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
-        self.appdata.matlab_engine = try_matlab_engine()
         try:
             first_run = configParser.get('cnapy-config', 'first_run')
             self.appdata.first_run = int(first_run)
         except:
             print("Could not read first_run in cnapy-config.txt")
             self.appdata.first_run = 1
+
+        if self.appdata.first_run > 0:
+            self.window.show_config_dialog()
+        else: 
+            self.config_app()
+
+    
+        self.window.save_project_action.setEnabled(False)
+        self.window.resize(800, 600)
+        self.window.show()
+
+        # Execute application
+
+        self.qapp.aboutToQuit.connect(
+            self.window.centralWidget().shutdown_kernel)
+        sys.exit(self.qapp.exec_())
+
+    def model(self):
+        return self.appdata.project.cobra_py_model
+
+    def set_model(self, model: cobra.Model):
+        self.appdata.project.cobra_py_model = model
+
+    def config_app(self):
+        
+        configParser = configparser.RawConfigParser()
+        configParser.read(self.appdata.conf_path)
+        
+        self.appdata.matlab_engine = try_matlab_engine()
+
         try:
             self.appdata.matlab_path = configParser.get(
                 'cnapy-config', 'matlab_path')
@@ -139,21 +168,4 @@ class CellNetAnalyzer:
             print("Could not read abs_tol in cnapy-config.txt")
             self.appdata.abs_tol = 0.000000001
 
-        if self.appdata.first_run > 0:
-            self.window.show_config_dialog()
 
-        self.window.save_project_action.setEnabled(False)
-        self.window.resize(800, 600)
-        self.window.show()
-
-        # Execute application
-
-        self.qapp.aboutToQuit.connect(
-            self.window.centralWidget().shutdown_kernel)
-        sys.exit(self.qapp.exec_())
-
-    def model(self):
-        return self.appdata.project.cobra_py_model
-
-    def set_model(self, model: cobra.Model):
-        self.appdata.project.cobra_py_model = model

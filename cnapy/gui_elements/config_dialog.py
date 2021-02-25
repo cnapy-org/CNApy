@@ -3,8 +3,6 @@ import os
 import io
 import traceback
 from tempfile import TemporaryDirectory
-import cnapy.legacy as legacy
-import pkg_resources
 from cnapy.cnadata import CnaData
 from cnapy.legacy import try_matlab_engine, try_octave_engine, try_cna
 from qtpy.QtCore import QSize
@@ -15,15 +13,11 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
 
 import cnapy.resources
 
-cross_icon = QIcon(":/icons/cross.svg")
-# check_icon = QIcon(":/icons/check.png")
-qmark_icon = QIcon(":/icons/qmark.svg")
-
-
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
     def __init__(self, appdata: CnaData):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
 
         QDialog.__init__(self)
@@ -64,7 +58,7 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_label)
 
         self.choose_oc_exe_btn = QPushButton(
-            "Choose path to octave executable")
+            "Choose path to Octave executable")
         self.choose_oc_exe_btn.setFixedWidth(300)
         oc.addWidget(self.choose_oc_exe_btn)
 
@@ -267,22 +261,29 @@ class ConfigDialog(QDialog):
             self.default_engine.setCurrentIndex(1)
 
     def check_octave(self):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
         self.oeng = try_octave_engine(self.oc_exe.text())
         if self.oeng is not None:
+            # disable button if octave is already working
+            self.choose_oc_exe_btn.setEnabled(False)
             self.oc_label.setPixmap(check)
         else:
             self.oc_label.setPixmap(cross)
 
     def check_matlab(self):
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
-        self.meng = try_matlab_engine()
+        # only recheck matlab if necessary
+        if self.meng is None:
+            self.meng = try_matlab_engine()
         if self.meng is not None:
-            print("matlab ready")
+            # disable button if matlab is already working
+            self.choose_ml_path_btn.setEnabled(False)
             self.ml_label.setPixmap(check)
         else:
             print("matlab not ready")
@@ -304,9 +305,11 @@ class ConfigDialog(QDialog):
         else:
             self.check_octave()
 
+        cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
+        qmark_icon = QIcon(":/icons/qmark.png")
         qmark = qmark_icon.pixmap(QSize(32, 32))
         if self.oeng is not None:
             if try_cna(self.oeng, self.cna_path.text()):
