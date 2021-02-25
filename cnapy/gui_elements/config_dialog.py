@@ -187,7 +187,7 @@ class ConfigDialog(QDialog):
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
-        self.cancel = QPushButton("Cancel")
+        self.cancel = QPushButton("Close")
         l2.addWidget(self.button)
         l2.addWidget(self.cancel)
         self.layout.addItem(l2)
@@ -212,9 +212,7 @@ class ConfigDialog(QDialog):
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.matlab_path.setText(directory)
-
         self.try_install_matlab_engine(directory)
-
         self.check_matlab()
 
     def try_install_matlab_engine(self, directory: str):
@@ -286,7 +284,6 @@ class ConfigDialog(QDialog):
             self.choose_ml_path_btn.setEnabled(False)
             self.ml_label.setPixmap(check)
         else:
-            print("matlab not ready")
             self.ml_label.setPixmap(cross)
 
     def choose_cna_path(self):
@@ -294,16 +291,20 @@ class ConfigDialog(QDialog):
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
         self.cna_path.setText(directory)
+        self.update()
+        self.reset_engine()        
         self.check_cna()
-        pass
 
-    def check_cna(self):
+
+    def reset_engine(self):
 
         # This resets the engines
         if self.oeng is None:
-            self.check_matlab()
+            self.meng = try_matlab_engine()
         else:
-            self.check_octave()
+            self.oeng = try_octave_engine()
+
+    def check_cna(self):
 
         cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
