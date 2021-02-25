@@ -23,8 +23,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import (try_matlab_engine, is_matlab_ready, use_matlab,
-                          try_octave_engine, is_octave_ready, use_octave, try_cna)
+from cnapy.legacy import (try_matlab_engine, try_octave_engine, try_cna)
 
 
 class CellNetAnalyzer:
@@ -41,8 +40,7 @@ class CellNetAnalyzer:
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
-        try_matlab_engine()
-        try_octave_engine()
+        self.appdata.matlab_engine = try_matlab_engine()
         try:
             first_run = configParser.get('cnapy-config', 'first_run')
             self.appdata.first_run = int(first_run)
@@ -59,6 +57,8 @@ class CellNetAnalyzer:
                 'cnapy-config', 'OCTAVE_EXECUTABLE')
         except:
             self.appdata.octave_executable = "/usr/bin"
+        self.appdata.octave_engine = try_octave_engine(
+            self.appdata.octave_executable)
         try:
             default_engine = configParser.get(
                 'cnapy-config', 'default_engine')
@@ -67,25 +67,25 @@ class CellNetAnalyzer:
             print("Could not read default_engine in cnapy-config.txt")
             self.appdata.default_engine = "matlab"
 
-        if self.appdata.default_engine == "octave" and is_octave_ready():
-            use_octave()
-        elif is_matlab_ready():
-            use_matlab()
+        if self.appdata.default_engine == "octave" and self.appdata.is_octave_ready():
+            self.appdata.use_octave()
+        elif self.appdata.is_matlab_ready():
+            self.appdata.use_matlab()
         try:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
         except:
             self.appdata.cna_path = "/"
-        else:
-            if is_matlab_ready():
-                if try_cna(self.appdata.cna_path):
-                    self.window.efm_action.setEnabled(True)
-                    self.window.mcs_action.setEnabled(True)
 
-            if is_octave_ready():
-                if try_cna(self.appdata.cna_path):
-                    self.window.efm_action.setEnabled(True)
-                    self.window.mcs_action.setEnabled(True)
+        if self.appdata.is_matlab_ready():
+            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
+                self.window.efm_action.setEnabled(True)
+                self.window.mcs_action.setEnabled(True)
+
+        if self.appdata.is_octave_ready():
+            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
+                self.window.efm_action.setEnabled(True)
+                self.window.mcs_action.setEnabled(True)
 
         try:
             color = configParser.get(

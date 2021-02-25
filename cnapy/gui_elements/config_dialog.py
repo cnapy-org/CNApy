@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import cnapy.legacy as legacy
 import pkg_resources
 from cnapy.cnadata import CnaData
-from cnapy.legacy import try_matlab_engine, is_matlab_ready, try_octave_engine, is_octave_ready, try_cna
+from cnapy.legacy import try_matlab_engine, try_octave_engine, try_cna
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
@@ -19,6 +19,9 @@ cross_icon = QIcon(cross_svg)
 check_svg = pkg_resources.resource_filename("cnapy", "data/check.svg")
 check_icon = QIcon(check_svg)
 
+qmark_svg = pkg_resources.resource_filename("cnapy", "data/qmark.svg")
+qmark_icon = QIcon(qmark_svg)
+
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
@@ -28,6 +31,8 @@ class ConfigDialog(QDialog):
 
         QDialog.__init__(self)
         self.appdata = appdata
+        self.oeng = appdata.octave_engine
+        self.meng = appdata.matlab_engine
         self.layout = QVBoxLayout()
 
         ml = QHBoxLayout()
@@ -186,12 +191,6 @@ class ConfigDialog(QDialog):
         label = QLabel("Matlab/Octave engine:")
         h9.addWidget(label)
         self.default_engine = QComboBox()
-        self.default_engine.insertItem(1, "Matlab")
-        self.default_engine.insertItem(2, "Octave")
-        if self.appdata.default_engine == "octave":
-            self.default_engine.setCurrentIndex(1)
-        else:
-            self.default_engine.setCurrentIndex(0)
         h9.addWidget(self.default_engine)
         self.layout.addItem(h9)
 
@@ -258,13 +257,23 @@ class ConfigDialog(QDialog):
 
     def check_all(self):
         self.check_octave()
+        self.check_matlab()
         self.check_cna()
+
+        self.default_engine.clear()
+        if self.meng is not None:
+            self.default_engine.insertItem(1, "Matlab")
+        if self.oeng is not None:
+            self.default_engine.insertItem(2, "Octave")
+
+        if self.appdata.default_engine == "octave":
+            self.default_engine.setCurrentIndex(1)
 
     def check_octave(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
-        try_octave_engine()
-        if is_octave_ready():
+        self.oeng = try_octave_engine(self.oc_exe.text())
+        if self.oeng is not None:
             self.oc_label.setPixmap(check)
         else:
             self.oc_label.setPixmap(cross)
@@ -272,8 +281,8 @@ class ConfigDialog(QDialog):
     def check_matlab(self):
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
-        try_matlab_engine()
-        if is_matlab_ready():
+        self.meng = try_matlab_engine()
+        if self.meng is not None:
             print("matlab ready")
             self.ml_label.setPixmap(check)
         else:
@@ -289,12 +298,28 @@ class ConfigDialog(QDialog):
         pass
 
     def check_cna(self):
+
+        # This resets the engines
+        if self.oeng is None:
+            self.check_matlab()
+        else:
+            self.check_octave()
+
         cross = cross_icon.pixmap(QSize(32, 32))
         check = check_icon.pixmap(QSize(32, 32))
-        if try_cna(self.cna_path.text()):
-            self.cna_label.setPixmap(check)
+        qmark = qmark_icon.pixmap(QSize(32, 32))
+        if self.oeng is not None:
+            if try_cna(self.oeng, self.cna_path.text()):
+                self.cna_label.setPixmap(check)
+            else:
+                self.cna_label.setPixmap(cross)
+        elif self.meng is not None:
+            if try_cna(self.meng, self.cna_path.text()):
+                self.cna_label.setPixmap(check)
+            else:
+                self.cna_label.setPixmap(cross)
         else:
-            self.cna_label.setPixmap(cross)
+            self.cna_label.setPixmap(qmark)
 
     def choose_scen_color(self):
         dialog = QColorDialog(self)
@@ -345,8 +370,18 @@ class ConfigDialog(QDialog):
         self.appdata.matlab_path = self.matlab_path.text()
         self.appdata.octave_executable = self.oc_exe.text()
         self.appdata.cna_path = self.cna_path.text()
-        if is_matlab_ready() or is_octave_ready():
-            if try_cna(self.appdata.cna_path):
+        self.appdata.matlab_engine = self.meng
+        self.appdata.octave_engine = self.oeng
+
+        if self.default_engine.currentIndex() == 0:
+            self.appdata.default_engine = "matlab"
+            self.appdata.use_matlab()
+        elif self.default_engine.currentIndex() == 1:
+            self.appdata.default_engine = "octave"
+            self.appdata.use_octave()
+
+        if self.appdata.is_matlab_ready() or self.appdata.is_octave_ready():
+            if try_cna(self.appdata.engine, self.appdata.cna_path):
                 self.appdata.window.efm_action.setEnabled(True)
                 self.appdata.window.mcs_action.setEnabled(True)
             else:
@@ -370,21 +405,6 @@ class ConfigDialog(QDialog):
 
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
-
-        if self.default_engine.currentIndex() == 0:
-            if is_matlab_ready():
-                self.appdata.default_engine = "matlab"
-                legacy.use_matlab()
-            else:
-                QMessageBox.information(
-                    self, 'MATLAB engine not found!', 'See instructions for installing the matlab python engine!')
-        elif self.default_engine.currentIndex() == 1:
-            if is_octave_ready():
-                self.appdata.default_engine = "octave"
-                legacy.use_octave()
-            else:
-                QMessageBox.information(
-                    self, 'Octave engine not found!', 'Install Octave version 5.0 or higher!')
 
         self.appdata.first_run = False
         import configparser

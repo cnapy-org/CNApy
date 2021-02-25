@@ -54,7 +54,7 @@ class YieldOptimizationDialog(QDialog):
         self.setWindowTitle("Yield optimization")
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = legacy.get_matlab_engine()
+        self.eng = appdata.engine
 
         self.polynom_re = re.compile(
             '([ ]*(?P<factor1>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>\d*)[ ]*)')
@@ -155,7 +155,7 @@ class YieldOptimizationDialog(QDialog):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             # create CobraModel for matlab
-            legacy.createCobraModel(self.appdata)
+            self.appdata.createCobraModel()
 
             a = self.eng.eval("load('cobra_model.mat')",
                               nargout=0)
@@ -166,9 +166,9 @@ class YieldOptimizationDialog(QDialog):
             a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
                               nargout=0)
             reac_id = []
-            if legacy.is_matlab_set():
+            if self.appdata.is_matlab_set():
                 reac_id = self.eng.workspace['reac_id']
-            elif legacy.is_octave_ready():
+            elif self.appdata.is_octave_ready():
                 reac_id = self.eng.pull('reac_id')
                 reac_id = reac_id.tolist()[0]
             else:
@@ -256,7 +256,7 @@ class YieldOptimizationDialog(QDialog):
             #  1: as option '0' but with additional solver output
             #  (default: 0)
             self.eng.eval("verbose = 0;", nargout=0)
-            if legacy.is_matlab_set():
+            if self.appdata.is_matlab_set():
                 try:
                     a = self.eng.eval(
                         "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
@@ -292,7 +292,7 @@ class YieldOptimizationDialog(QDialog):
 
                         self.centralwidget.update()
 
-            elif legacy.is_octave_ready():
+            elif self.appdata.is_octave_ready():
                 a = self.eng.eval(
                     "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
                 print(a)
