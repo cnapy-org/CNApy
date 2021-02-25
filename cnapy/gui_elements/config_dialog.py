@@ -13,14 +13,16 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                             QPushButton, QVBoxLayout)
 
-cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
-cross_icon = QIcon(cross_svg)
+import cnapy.resources
+
+# cross_svg = pkg_resources.resource_filename('cnapy', 'data/cross.svg')
+cross_icon = QIcon(":/icons/cross.svg")
 
 check_svg = pkg_resources.resource_filename("cnapy", "data/check.svg")
 check_icon = QIcon(check_svg)
 
-qmark_svg = pkg_resources.resource_filename("cnapy", "data/qmark.svg")
-qmark_icon = QIcon(qmark_svg)
+# qmark_svg = pkg_resources.resource_filename("cnapy", "data/qmark.svg")
+qmark_icon = QIcon(":/icons/qmark.svg")
 
 
 class ConfigDialog(QDialog):
