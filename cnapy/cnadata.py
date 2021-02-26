@@ -11,8 +11,14 @@ from qtpy.QtGui import QColor
 class CnaData:
 
     def __init__(self):
+        self.first_run = 1
         self.unsaved = False
         self.project = ProjectData()
+        self.octave_executable = "/usr/bin"
+        self.matlab_path = "/"
+        self.engine = None
+        self.matlab_engine = None
+        self.octave_engine = None
         self.Scencolor = Qt.green
         self.Compcolor = QColor(170, 170, 255)
         self.SpecialColor1 = Qt.yellow
@@ -20,12 +26,47 @@ class CnaData:
         self.Defaultcolor = Qt.gray
         self.abs_tol = 0.0001
         self.rounding = 3
-        self.cna_path = ""
+        self.cna_path = "/"
         self.default_engine = "matlab"
-        self.work_directory = ""
+        self.work_directory = "/"
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+
+    def createCobraModel(self):
+        if self.engine is not None:  # matlab or octave:
+            cobra.io.save_matlab_model(
+                self.project.cobra_py_model, os.path.join(self.cna_path+"/cobra_model.mat"), varname="cbmodel")
+        else:
+            print("Could not create a CobraModel because no engine is selected")
+
+    def is_matlab_ready(self):
+        return self.matlab_engine is not None
+
+    def is_octave_ready(self):
+        return self.octave_engine is not None
+
+    def is_matlab_set(self):
+        return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
+
+    def is_octave_set(self):
+        return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
+
+    def use_matlab(self):
+        """
+        switch to Matlab
+        """
+        if self.matlab_engine is not None:
+            self.engine = self.matlab_engine
+            print("Using Matlab engine!")
+
+    def use_octave(self):
+        """
+        switch to Octave
+        """
+        if self.octave_engine is not None:
+            self.engine = self.octave_engine
+            print("Using Octave engine!")
 
 
 class ProjectData:

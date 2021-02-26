@@ -9,7 +9,6 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
-from cnapy.legacy import get_matlab_engine
 
 
 class EFMDialog(QDialog):
@@ -19,7 +18,7 @@ class EFMDialog(QDialog):
         QDialog.__init__(self)
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = get_matlab_engine()
+        self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
 
@@ -92,7 +91,7 @@ class EFMDialog(QDialog):
     def compute(self):
 
         # create CobraModel for matlab
-        legacy.createCobraModel(self.appdata)
+        self.appdata.createCobraModel()
 
         print(".")
         self.eng.read_cnapy_model()
@@ -226,7 +225,7 @@ class EFMDialog(QDialog):
 
         print(".")
 
-        if legacy.is_matlab_set():
+        if self.appdata.is_matlab_set():
             try:
                 a = self.eng.eval(
                     "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
@@ -247,7 +246,7 @@ class EFMDialog(QDialog):
                 self.result2ui(ems, idx, reac_id, scenario)
 
                 self.accept()
-        elif legacy.is_octave_ready():
+        elif self.appdata.is_octave_ready():
             a = self.eng.eval(
                 "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
             print(a)

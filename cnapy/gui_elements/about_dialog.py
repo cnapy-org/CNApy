@@ -10,7 +10,8 @@ class AboutDialog(QDialog):
         QDialog.__init__(self)
 
         self.button = QPushButton("Ok!")
-        self.text = QLabel("Something something about cnapy!")
+        self.text = QLabel(
+            "An integrated environment for metabolic model analysis.")
         self.text.setAlignment(Qt.AlignCenter)
 
         self.layout = QVBoxLayout()

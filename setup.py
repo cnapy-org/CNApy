@@ -31,5 +31,5 @@ setup(
     package_data={'cnapy': ['data/*.svg']},
     entry_points={'console_scripts': ['cnapy = cnapy.__main__:main_cnapy']},
     # packages not in conda on windows
-    # install_requires=[,'cameo==0.13','qtconsole==4.7.7',]
+    # install_requires=['cameo==0.13']
 )

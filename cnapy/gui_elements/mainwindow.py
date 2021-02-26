@@ -7,25 +7,23 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from qtpy.QtCore import Qt
-from qtpy.QtCore import QFileInfo, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar)
-
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
-from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
+from qtpy.QtCore import QFileInfo, Qt, Slot
+from qtpy.QtGui import QColor, QIcon, QPalette
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -39,14 +37,6 @@ class MainWindow(QMainWindow):
         # safe original color
         palette = self.palette()
         self.original_color = palette.color(QPalette.Window)
-
-        import pkg_resources
-        heat_svg = pkg_resources.resource_filename('cnapy', 'data/heat.svg')
-        onoff_svg = pkg_resources.resource_filename('cnapy', 'data/onoff.svg')
-        default_color_svg = pkg_resources.resource_filename(
-            'cnapy', 'data/default-color.svg')
-        default_scenario_svg = pkg_resources.resource_filename(
-            'cnapy', 'data/Font_D.svg')
 
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
@@ -120,12 +110,12 @@ class MainWindow(QMainWindow):
             self.set_model_bounds_to_scenario)
 
         heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon(heat_svg))
+        heaton_action.setIcon(QIcon(":/icons/heat.png"))
         heaton_action.triggered.connect(self.set_heaton)
         self.scenario_menu.addAction(heaton_action)
 
         onoff_action = QAction("Apply On/Off coloring", self)
-        onoff_action.setIcon(QIcon(onoff_svg))
+        onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         onoff_action.triggered.connect(self.set_onoff)
         self.scenario_menu.addAction(onoff_action)
 
@@ -233,9 +223,10 @@ class MainWindow(QMainWindow):
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
-        yield_optimization_action = QAction("Yield optimization ...", self)
-        yield_optimization_action.triggered.connect(self.optimize_yield)
-        self.analysis_menu.addAction(yield_optimization_action)
+        self.yield_optimization_action = QAction(
+            "Yield optimization ...", self)
+        self.yield_optimization_action.triggered.connect(self.optimize_yield)
+        self.analysis_menu.addAction(self.yield_optimization_action)
 
         self.help_menu = self.menu.addMenu("Help")
 
@@ -248,11 +239,11 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
         update_action = QAction("Default Coloring", self)
-        update_action.setIcon(QIcon(default_color_svg))
+        update_action.setIcon(QIcon(":/icons/default-color.png"))
         update_action.triggered.connect(central_widget.update)
 
         set_default_scenario_action = QAction("Default scenario", self)
-        set_default_scenario_action.setIcon(QIcon(default_scenario_svg))
+        set_default_scenario_action.setIcon(QIcon(":/icons/d-font.png"))
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
@@ -277,9 +268,35 @@ class MainWindow(QMainWindow):
 
     def unsaved_changes(self):
         self.appdata.unsaved = True
+        self.save_project_action.setEnabled(True)
         palette = self.palette()
         palette.setColor(QPalette.Window, Qt.yellow)
         self.setPalette(palette)
+
+    def nounsaved_changes(self):
+        self.appdata.unsaved = False
+        self.save_project_action.setEnabled(False)
+        palette = self.palette()
+        palette.setColor(QPalette.Window, self.original_color)
+        self.setPalette(palette)
+
+    def disable_enable_dependent_actions(self):
+
+        self.efm_action.setEnabled(False)
+        self.mcs_action.setEnabled(False)
+        self.yield_optimization_action.setEnabled(False)
+
+        if self.appdata.is_matlab_ready():
+            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
+                self.efm_action.setEnabled(True)
+                self.mcs_action.setEnabled(True)
+                self.yield_optimization_action.setEnabled(True)
+
+        elif self.appdata.is_octave_ready():
+            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
+                self.efm_action.setEnabled(True)
+                self.mcs_action.setEnabled(True)
+                self.yield_optimization_action.setEnabled(True)
 
     @Slot()
     def exit_app(self):
@@ -320,26 +337,32 @@ class MainWindow(QMainWindow):
     def import_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.xml")
+            directory=os.getcwd(), filter="*.xml")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
         self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
-            filename[0])
+            filename)
         self.centralWidget().update()
 
     @Slot()
     def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.xml")
+            directory=os.getcwd(), filter="*.xml")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
         cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, filename[0])
+            self.appdata.project.cobra_py_model, filename)
 
     @Slot()
     def load_box_positions(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.maps")
+            directory=os.getcwd(), filter="*.maps")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
@@ -347,7 +370,7 @@ class MainWindow(QMainWindow):
             idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
 
-        with open(filename[0], 'r') as fp:
+        with open(filename, 'r') as fp:
             print(fp)
             self.appdata.project.maps[name]["boxes"] = json.load(fp)
 
@@ -367,9 +390,11 @@ class MainWindow(QMainWindow):
     def load_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.scen")
+            directory=os.getcwd(), filter="*.scen")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
-        with open(filename[0], 'r') as fp:
+        with open(filename, 'r') as fp:
             values = json.load(fp)
             self.appdata.project.scen_values.clear()
             for i in values:
@@ -383,9 +408,11 @@ class MainWindow(QMainWindow):
     def load_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.modes")
+            directory=os.getcwd(), filter="*.modes")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
-        with open(filename[0], 'r') as fp:
+        with open(filename, 'r') as fp:
             self.appdata.project.modes = json.load(fp)
             self.centralWidget().mode_navigator.current = 0
             values = self.appdata.project.modes[0].copy()
@@ -399,12 +426,13 @@ class MainWindow(QMainWindow):
     def change_background(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.svg")
+            directory=os.getcwd(), filter="*.svg")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
-        if filename[0] != '':
-            # try:
+        if filename != '':
             self.appdata.project.maps[name]["background"] = filename[0]
             print(self.appdata.project.maps[name]["background"])
 
@@ -412,8 +440,6 @@ class MainWindow(QMainWindow):
                 self.appdata.project.maps[name]["background"])
             background.setFlags(QGraphicsItem.ItemClipsToShape)
             self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
-            # except:
-            # print("could not update background")
 
             self.centralWidget().update()
             self.centralWidget().map_tabs.setCurrentIndex(idx)
@@ -447,18 +473,22 @@ class MainWindow(QMainWindow):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.maps")
+            directory=os.getcwd(), filter="*.maps")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
-        with open(filename[0], 'w') as fp:
+        with open(filename, 'w') as fp:
             json.dump(self.appdata.project.maps[name]["boxes"], fp)
 
     @Slot()
     def save_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.scen")
+            directory=os.getcwd(), filter="*.scen")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
-        with open(filename[0], 'w') as fp:
+        with open(filename, 'w') as fp:
             json.dump(self.appdata.project.scen_values, fp)
         self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
 
@@ -466,9 +496,10 @@ class MainWindow(QMainWindow):
     def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.modes")
-
-        with open(filename[0], 'w') as fp:
+            directory=os.getcwd(), filter="*.modes")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+        with open(filename, 'w') as fp:
             json.dump(self.appdata.project.modes, fp)
 
     def reset_scenario(self):
@@ -504,31 +535,37 @@ class MainWindow(QMainWindow):
         self.clear_scenario()
 
         self.setCurrentFile("Untitled project")
-        self.save_project_action.setEnabled(False)
+        self.nounsaved_changes()
 
     @Slot()
     def open_project(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.cna")
+            directory=os.getcwd(), filter="*.cna")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
 
-        self.appdata.temp_dir = TemporaryDirectory()
+        temp_dir = TemporaryDirectory()
 
-        with ZipFile(filename[0], 'r') as zip_ref:
-            zip_ref.extractall(self.appdata.temp_dir.name)
+        with ZipFile(filename, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir.name)
 
-            with open(self.appdata.temp_dir.name+"/maps.json", 'r') as fp:
-                self.appdata.project.maps = json.load(fp)
+            with open(temp_dir.name+"/maps.json", 'r') as fp:
+                maps = json.load(fp)
 
                 count = 1
-                for name, m in self.appdata.project.maps.items():
-                    m["background"] = self.appdata.temp_dir.name + \
+                for name, m in maps.items():
+                    m["background"] = temp_dir.name + \
                         "/.bg" + str(count) + ".svg"
                     count += 1
 
-            self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
-                self.appdata.temp_dir.name + "/model.sbml")
+            cobra_py_model = cobra.io.read_sbml_model(
+                temp_dir.name + "/model.sbml")
 
+            self.appdata.temp_dir = temp_dir
+            self.appdata.project.maps = maps
+            self.appdata.project.cobra_py_model = cobra_py_model
+            self.setCurrentFile(filename)
             self.recreate_maps()
             self.centralWidget().mode_navigator.clear()
             self.clear_scenario()
@@ -536,10 +573,8 @@ class MainWindow(QMainWindow):
                 if 'cnapy-default' in r.annotation.keys():
                     self.centralWidget().update_reaction_value(
                         r.id, r.annotation['cnapy-default'])
-            self.save_project_action.setEnabled(True)
+            self.nounsaved_changes()
             self.centralWidget().reaction_list.update()
-
-        self.setCurrentFile(filename[0])
 
     @Slot()
     def save_project(self):
@@ -578,9 +613,7 @@ class MainWindow(QMainWindow):
                     "/.bg" + str(count) + ".svg"
                 count += 1
 
-        palette = self.palette()
-        palette.setColor(QPalette.Window, self.original_color)
-        self.setPalette(palette)
+        self.nounsaved_changes()
 
     @Slot()
     def save_project_as(self):
@@ -591,10 +624,9 @@ class MainWindow(QMainWindow):
 
         if len(filename[0]) != 0:
             self.setCurrentFile(filename[0])
-            self.save_project_action.setEnabled(True)
-            self.save_project(_checked=True)
+            self.save_project()
         else:
-            return False
+            return
 
     def recreate_maps(self):
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
