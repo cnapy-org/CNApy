@@ -1,9 +1,11 @@
+"""The application data"""
 import os
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
 import appdirs
 import cobra
+import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 
@@ -80,6 +82,7 @@ class ProjectData:
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.modes: Dict[str, Tuple[float, float]] = []
         self.compute_color_type = 1
+        self.meta_data = {}
 
     def load_scenario_into_model(self, model):
         for x in self.scen_values:
@@ -94,7 +97,6 @@ class ProjectData:
 
 
 def CnaMap(name):
-    import pkg_resources
     background_svg = pkg_resources.resource_filename(
         'cnapy', 'data/cnapylogo.svg')
     return {"name": name,

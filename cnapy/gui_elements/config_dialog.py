@@ -4,13 +4,14 @@ import os
 import traceback
 from tempfile import TemporaryDirectory
 
+import appdirs
 import cnapy.resources
 from cnapy.cnadata import CnaData
 from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                            QHBoxLayout, QLabel, QLineEdit,
                             QPushButton, QVBoxLayout)
 
 
@@ -311,7 +312,6 @@ class ConfigDialog(QDialog):
             self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_cna(self):
-
         cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
@@ -444,9 +444,7 @@ class ConfigDialog(QDialog):
         try:
             fp = open(self.appdata.conf_path, "w")
         except:
-            import os
 
-            import appdirs
             os.makedirs(appdirs.user_config_dir(
                 "cnapy", roaming=True, appauthor=False))
             fp = open(self.appdata.conf_path, "w")

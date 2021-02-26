@@ -1,9 +1,6 @@
 """The cnapy configuration dialog"""
-from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
-from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit,
                             QPushButton, QVBoxLayout)
-
 from cnapy.cnadata import CnaData
 
 
@@ -40,7 +37,7 @@ class RenameMapDialog(QDialog):
     def apply(self):
 
         new_name = self.name_field.text()
-        if not (new_name in self.appdata.project.maps.keys()):
+        if not new_name in self.appdata.project.maps.keys():
             self.appdata.project.maps[new_name] = self.appdata.project.maps.pop(
                 self.old_name)
             self.central_widget.map_tabs.setTabText(self.idx, new_name)

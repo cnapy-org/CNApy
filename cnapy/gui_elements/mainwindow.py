@@ -12,6 +12,7 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
+from cnapy.gui_elements.description_dialog import DescriptionDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
@@ -72,6 +73,10 @@ class MainWindow(QMainWindow):
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
+
+        description_action = QAction("Project description ...", self)
+        self.file_menu.addAction(description_action)
+        description_action.triggered.connect(self.show_description_dialog)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -335,6 +340,11 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
+    def show_description_dialog(self):
+        dialog = DescriptionDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
     def import_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
@@ -555,7 +565,7 @@ class MainWindow(QMainWindow):
                 maps = json.load(fp)
 
                 count = 1
-                for name, m in maps.items():
+                for _name, m in maps.items():
                     m["background"] = temp_dir.name + \
                         "/.bg" + str(count) + ".svg"
                     count += 1
@@ -634,25 +644,25 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
-        for name, map in self.appdata.project.maps.items():
-            map = MapView(self.appdata, name)
-            map.show()
-            map.switchToReactionDialog.connect(
+        for name, mmap in self.appdata.project.maps.items():
+            mmap = MapView(self.appdata, name)
+            mmap.show()
+            mmap.switchToReactionDialog.connect(
                 self.centralWidget().switch_to_reaction)
-            map.minimizeReaction.connect(
+            mmap.minimizeReaction.connect(
                 self.centralWidget().minimize_reaction)
-            map.maximizeReaction.connect(
+            mmap.maximizeReaction.connect(
                 self.centralWidget().maximize_reaction)
-            map.reactionValueChanged.connect(
+            mmap.reactionValueChanged.connect(
                 self.centralWidget().update_reaction_value)
-            map.reactionRemoved.connect(
+            mmap.reactionRemoved.connect(
                 self.centralWidget().update_reaction_maps)
-            map.reactionAdded.connect(
+            mmap.reactionAdded.connect(
                 self.centralWidget().update_reaction_maps)
-            map.mapChanged.connect(
+            mmap.mapChanged.connect(
                 self.centralWidget().handle_mapChanged)
-            self.centralWidget().map_tabs.addTab(map, name)
-            map.update()
+            self.centralWidget().map_tabs.addTab(mmap, name)
+            mmap.update()
 
     def on_tab_change(self, idx):
         if idx >= 0:
@@ -715,12 +725,12 @@ class MainWindow(QMainWindow):
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
-    def fba_optimize_reaction(self, reaction: str, min: bool):
+    def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 if r.id == reaction:
-                    if min:
+                    if mmin:
                         r.objective_coefficient = -1
                     else:
                         r.objective_coefficient = 1
@@ -860,7 +870,6 @@ class MainWindow(QMainWindow):
         print("maximize:", res)
 
     def print_model_stats(self):
-        import cobra
         m = cobra.util.array.create_stoichiometric_matrix(
             self.appdata.project.cobra_py_model, array_type='DataFrame')
         metabolites = m.shape[0]
@@ -868,26 +877,26 @@ class MainWindow(QMainWindow):
         print('Stoichiometric matrix:\n', m)
         print('\nNumber of metabolites: ', metabolites)
         print('Number of reactions: ', reactions)
-        import numpy
-        rank = numpy.linalg.matrix_rank(m)
+        import numpy as np
+        rank = np.linalg.matrix_rank(m)
         print('\nRank of stoichiometric matrix: ' + str(rank))
         print('Degrees of freedom: ' + str(reactions-rank))
         print('Conservation relations: ' + str(metabolites-rank))
-        import numpy as np
+
         has_non_zero = False
-        min = None
+        mmin = None
         abs_m = np.absolute(m.to_numpy())
         for r in abs_m:
             for e in r:
                 if not has_non_zero:
                     if e > 0.0:
                         has_non_zero = True
-                        min = e
+                        mmin = e
                 else:
-                    if e > 0.0 and e < min:
-                        min = e
+                    if e > 0.0 and e < mmin:
+                        mmin = e
         if has_non_zero:
-            print('\nSmallest (absolute) non-zero-value:', min)
+            print('\nSmallest (absolute) non-zero-value:', mmin)
         else:
             print('\nIt\'s the zero matrix')
 

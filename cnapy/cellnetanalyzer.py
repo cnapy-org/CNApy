@@ -27,7 +27,6 @@ from cnapy.legacy import try_matlab_engine, try_octave_engine
 
 
 class CellNetAnalyzer:
-
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
