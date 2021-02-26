@@ -1,12 +1,7 @@
-import configparser
 import io
 import os
 import traceback
 
-import appdirs
-import cobra
-
-from cnapy.cnadata import CnaData
 from importlib import reload
 import cnapy.CNA_MEngine
 

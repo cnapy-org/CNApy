@@ -23,6 +23,7 @@ class CentralWidget(QWidget):
         self.appdata: CnaData = parent.appdata
         self.map_counter = 0
         self.searchbar = QLineEdit()
+        self.searchbar.setPlaceholderText("Enter search term")
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()

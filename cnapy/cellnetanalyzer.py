@@ -23,7 +23,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
+from cnapy.legacy import try_matlab_engine, try_octave_engine
 
 
 class CellNetAnalyzer:
