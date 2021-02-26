@@ -208,8 +208,10 @@ class CentralWidget(QWidget):
             self.metabolite_list.update_selected(x)
 
         idx = self.map_tabs.currentIndex()
-        m = self.map_tabs.widget(idx)
-        m.update_selected(x)
+        if idx >= 0:
+            print(idx)
+            m = self.map_tabs.widget(idx)
+            m.update_selected(x)
 
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
