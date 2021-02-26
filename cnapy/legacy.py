@@ -17,14 +17,14 @@ def try_matlab_engine():
         reload(cnapy.CNA_MEngine)
         from cnapy.CNA_MEngine import CNAMatlabEngine
         meng = CNAMatlabEngine()
-        print("Matlab engine available")
+        print("Matlab engine available.")
         return meng
     except:
         # output = io.StringIO()
         # traceback.print_exc(file=output)
         # exstr = output.getvalue()
         # print(exstr)
-        print("Matlab engine not available")
+        print("Matlab engine not available ... continue with Matlab disabled.")
         return None
 
 
@@ -35,14 +35,14 @@ def try_octave_engine(octave_executable: str):
         print("Try Octave engine ...")
         from cnapy.octave_engine import CNAoctaveEngine
         oeng = CNAoctaveEngine()
-        print("Octave engine available")
+        print("Octave engine available.")
         return oeng
     except:
         # output = io.StringIO()
         # traceback.print_exc(file=output)
         # exstr = output.getvalue()
         # print(exstr)
-        print("Octave engine not available")
+        print("Octave engine not available ... continue with Octave disabled.")
         return None
 
 
@@ -62,5 +62,5 @@ def try_cna(eng, cna_path):
             # traceback.print_exc(file=output)
             # exstr = output.getvalue()
             # print(exstr)
-            print("CNA not working. Maybe check your CNA path!")
+            print("CNA not availabe ... continue with CNA disabled.")
             return False
