@@ -14,8 +14,8 @@ class CnaData:
         self.first_run = 1
         self.unsaved = False
         self.project = ProjectData()
-        self.octave_executable = "/usr/bin"
-        self.matlab_path = "/"
+        self.octave_executable = ""
+        self.matlab_path = ""
         self.engine = None
         self.matlab_engine = None
         self.octave_engine = None
@@ -26,9 +26,9 @@ class CnaData:
         self.Defaultcolor = Qt.gray
         self.abs_tol = 0.0001
         self.rounding = 3
-        self.cna_path = "/"
+        self.cna_path = ""
         self.default_engine = "matlab"
-        self.work_directory = "/"
+        self.work_directory = ""
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")

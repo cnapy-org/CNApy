@@ -78,12 +78,12 @@ class CellNetAnalyzer:
             self.appdata.matlab_path = configParser.get(
                 'cnapy-config', 'matlab_path')
         except:
-            self.appdata.matlab_path = "/"
+            self.appdata.matlab_path = ""
         try:
             self.appdata.octave_executable = configParser.get(
                 'cnapy-config', 'OCTAVE_EXECUTABLE')
         except:
-            self.appdata.octave_executable = "/usr/bin"
+            self.appdata.octave_executable = ""
         self.appdata.octave_engine = try_octave_engine(
             self.appdata.octave_executable)
         try:
@@ -102,7 +102,7 @@ class CellNetAnalyzer:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')
         except:
-            self.appdata.cna_path = "/"
+            self.appdata.cna_path = ""
 
         try:
             color = configParser.get(
