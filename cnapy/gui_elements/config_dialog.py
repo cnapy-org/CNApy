@@ -212,6 +212,9 @@ class ConfigDialog(QDialog):
         dialog = QFileDialog(self, directory=self.matlab_path.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
+        if not directory or len(directory) == 0 or not os.path.exists(directory):
+            return
+
         self.matlab_path.setText(directory)
         self.try_install_matlab_engine(directory)
         self.check_matlab()
@@ -238,11 +241,12 @@ class ConfigDialog(QDialog):
         dialog = QFileDialog(self, directory=self.oc_exe.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
-        self.oc_exe.setText(directory)
+        if not directory or len(directory) == 0 or not os.path.exists(directory):
+            return
 
+        self.oc_exe.setText(directory)
         if os.path.isfile(directory):
             os.environ['OCTAVE_EXECUTABLE'] = directory
-
         self.check_octave()
 
     def check_all(self):
@@ -291,6 +295,9 @@ class ConfigDialog(QDialog):
         dialog = QFileDialog(self, directory=self.cna_path.text())
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         directory: str = dialog.getExistingDirectory()
+        if not directory or len(directory) == 0 or not os.path.exists(directory):
+            return
+
         self.cna_path.setText(directory)
         self.update()
         self.reset_engine()
@@ -325,49 +332,54 @@ class ConfigDialog(QDialog):
             self.cna_label.setPixmap(qmark)
 
     def choose_scen_color(self):
-        dialog = QColorDialog(self)
-        color: str = dialog.getColor()
-
         palette = self.scen_color_btn.palette()
-        palette.setColor(QPalette.Button, color)
-        self.scen_color_btn.setPalette(palette)
-        pass
+        initial = palette.color(QPalette.Button)
+
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor(initial)
+        if color.isValid():
+            palette.setColor(QPalette.Button, color)
+            self.scen_color_btn.setPalette(palette)
 
     def choose_comp_color(self):
-        dialog = QColorDialog(self)
-        color: str = dialog.getColor()
-
         palette = self.comp_color_btn.palette()
-        palette.setColor(QPalette.Button, color)
-        self.comp_color_btn.setPalette(palette)
-        pass
+        initial = palette.color(QPalette.Button)
+
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor(initial)
+        if color.isValid():
+            palette.setColor(QPalette.Button, color)
+            self.comp_color_btn.setPalette(palette)
 
     def choose_spec1_color(self):
-        dialog = QColorDialog(self)
-        color: str = dialog.getColor()
-
         palette = self.spec1_color_btn.palette()
-        palette.setColor(QPalette.Button, color)
-        self.spec1_color_btn.setPalette(palette)
-        pass
+        initial = palette.color(QPalette.Button)
+
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor(initial)
+        if color.isValid():
+            palette.setColor(QPalette.Button, color)
+            self.spec1_color_btn.setPalette(palette)
 
     def choose_spec2_color(self):
-        dialog = QColorDialog(self)
-        color: str = dialog.getColor()
-
         palette = self.spec2_color_btn.palette()
-        palette.setColor(QPalette.Button, color)
-        self.spec2_color_btn.setPalette(palette)
-        pass
+        initial = palette.color(QPalette.Button)
+
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor(initial)
+        if color.isValid():
+            palette.setColor(QPalette.Button, color)
+            self.spec2_color_btn.setPalette(palette)
 
     def choose_default_color(self):
-        dialog = QColorDialog(self)
-        color: str = dialog.getColor()
-
         palette = self.default_color_btn.palette()
-        palette.setColor(QPalette.Button, color)
-        self.default_color_btn.setPalette(palette)
-        pass
+        initial = palette.color(QPalette.Button)
+
+        dialog = QColorDialog(self)
+        color: str = dialog.getColor(initial)
+        if color.isValid():
+            palette.setColor(QPalette.Button, color)
+            self.default_color_btn.setPalette(palette)
 
     def apply(self):
         self.appdata.matlab_path = self.matlab_path.text()
