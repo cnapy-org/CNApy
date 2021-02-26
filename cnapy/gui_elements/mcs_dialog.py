@@ -453,12 +453,7 @@ class MCSDialog(QDialog):
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
 
     def compute2(self):
-
-        # self.eng.eval("genes = [];", nargout=0,
-        #               stdout=self.out, stderr=self.err)
-        # cmd = "maxSolutions = " + str(float(self.max_solu.text())) + ";"
-        # self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
-
+        max_mcs_num = float(self.max_solu.text())
         max_mcs_size = int(self.max_size.text())
         timeout = float(self.time_limit.text())
         if timeout is float('inf'):
@@ -500,7 +495,6 @@ class MCSDialog(QDialog):
         reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
         # reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
         rows = self.target_list.rowCount()
-        # targets = [None] * rows
         targets = dict()
         for i in range(0, rows):
             p1 = self.target_list.cellWidget(i, 0).text()
@@ -512,26 +506,12 @@ class MCSDialog(QDialog):
                     p3 = ">="
                 p4 = float(self.target_list.cellWidget(i, 3).text())
                 targets.setdefault(p1, []).append((p2, p3, p4))
-            # print(p1, p2, p3, p4)
-            # targets[i] = (p1, p2, p3, p4)
-            # lhs, rhs = cMCS_enumerator.parse_relation(p2, p4, reac_id_symbols=reac_id_symbols)
-            # # lhs ist ein dict über Reaktionsindizes, damit einen Zeilenvektor konfigurieren, auf p3 achten
-            # targets[i] = (p1, lhs, p3, rhs)
-            # # 
-        # targets.sort() # nur nach erstem Element
         targets = list(targets.values())
         print(targets)
         targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
         print(targets)
-        # groups = []
-        # uniquekeys = []
-        # for k, g in groupby(targets, key=lambda x: x[0]):
-        #     groups.append(list(g))      # Store group iterator as a list
-        #     uniquekeys.append(k)
-        # print(groups)
 
         rows = self.desired_list.rowCount()
-        # desired = [None] * rows
         desired = dict()
         for i in range(0, rows):
             p1 = self.desired_list.cellWidget(i, 0).text()
@@ -543,26 +523,16 @@ class MCSDialog(QDialog):
                     p3 = ">="
                 p4 = float(self.desired_list.cellWidget(i, 3).text())
                 desired.setdefault(p1, []).append((p2, p3, p4))
-            # print(p1, p2, p3, p4)
-            # desired[i] = (p1, p2, p3, p4)
-            # lhs, rhs = cMCS_enumerator.parse_relation(p2, p4, reac_id_symbols=reac_id_symbols)
-            # desired[i] = (p1, lhs, p3, rhs)
-        # desired.sort()
         print(desired)
-        # if len(desired) > 0:
         desired = list(desired.values())
         desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
-        # else:
-            # desired = None
         print(desired)
 
         e = cMCS_enumerator.ConstrainedMinimalCutSetsEnumerator(optlang.glpk_interface, stdf.values, rev, targets, desired=desired,
                                         bigM= 100, threshold=0.1, split_reversible_v=True, irrev_geq=True)
-        mcs = e.enumerate_mcs(max_mcs_size=max_mcs_size, enum_method=enum_method)
+        mcs = e.enumerate_mcs(max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, enum_method=enum_method)
         print(mcs)
 
-        values = []
-        reactions = []
         if len(mcs) == 0:
             QMessageBox.information(self, 'No cut sets',
                                           'Cut sets have not been calculated or do not exist.')
