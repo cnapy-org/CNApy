@@ -23,7 +23,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
-from cnapy.legacy import (try_matlab_engine, try_octave_engine, try_cna)
+from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 
 
 class CellNetAnalyzer:
@@ -35,8 +35,6 @@ class CellNetAnalyzer:
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
 
-        self.window.efm_action.setEnabled(False)
-        self.window.mcs_action.setEnabled(False)
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
@@ -49,10 +47,10 @@ class CellNetAnalyzer:
 
         if self.appdata.first_run > 0:
             self.window.show_config_dialog()
-        else: 
+        else:
             self.config_app()
 
-    
+        self.window.disable_enable_dependent_actions()
         self.window.save_project_action.setEnabled(False)
         self.window.resize(800, 600)
         self.window.show()
@@ -70,10 +68,10 @@ class CellNetAnalyzer:
         self.appdata.project.cobra_py_model = model
 
     def config_app(self):
-        
+
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
-        
+
         self.appdata.matlab_engine = try_matlab_engine()
 
         try:
@@ -105,16 +103,6 @@ class CellNetAnalyzer:
                 'cnapy-config', 'cna_path')
         except:
             self.appdata.cna_path = "/"
-
-        if self.appdata.is_matlab_ready():
-            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
-                self.window.efm_action.setEnabled(True)
-                self.window.mcs_action.setEnabled(True)
-
-        if self.appdata.is_octave_ready():
-            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
-                self.window.efm_action.setEnabled(True)
-                self.window.mcs_action.setEnabled(True)
 
         try:
             color = configParser.get(
@@ -167,5 +155,3 @@ class CellNetAnalyzer:
         except:
             print("Could not read abs_tol in cnapy-config.txt")
             self.appdata.abs_tol = 0.000000001
-
-

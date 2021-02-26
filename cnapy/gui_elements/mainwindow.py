@@ -7,25 +7,23 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from qtpy.QtCore import Qt
-from qtpy.QtCore import QFileInfo, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar)
-
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
-from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
+from qtpy.QtCore import QFileInfo, Qt, Slot
+from qtpy.QtGui import QColor, QIcon, QPalette
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -225,9 +223,10 @@ class MainWindow(QMainWindow):
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
-        yield_optimization_action = QAction("Yield optimization ...", self)
-        yield_optimization_action.triggered.connect(self.optimize_yield)
-        self.analysis_menu.addAction(yield_optimization_action)
+        self.yield_optimization_action = QAction(
+            "Yield optimization ...", self)
+        self.yield_optimization_action.triggered.connect(self.optimize_yield)
+        self.analysis_menu.addAction(self.yield_optimization_action)
 
         self.help_menu = self.menu.addMenu("Help")
 
@@ -272,6 +271,24 @@ class MainWindow(QMainWindow):
         palette = self.palette()
         palette.setColor(QPalette.Window, Qt.yellow)
         self.setPalette(palette)
+
+    def disable_enable_dependent_actions(self):
+
+        self.efm_action.setEnabled(False)
+        self.mcs_action.setEnabled(False)
+        self.yield_optimization_action.setEnabled(False)
+
+        if self.appdata.is_matlab_ready():
+            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
+                self.efm_action.setEnabled(True)
+                self.mcs_action.setEnabled(True)
+                self.yield_optimization_action.setEnabled(True)
+
+        elif self.appdata.is_octave_ready():
+            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
+                self.efm_action.setEnabled(True)
+                self.mcs_action.setEnabled(True)
+                self.yield_optimization_action.setEnabled(True)
 
     @Slot()
     def exit_app(self):

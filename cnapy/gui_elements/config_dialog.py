@@ -1,17 +1,18 @@
 """The cnapy configuration dialog"""
-import os
 import io
+import os
 import traceback
 from tempfile import TemporaryDirectory
+
+import cnapy.resources
 from cnapy.cnadata import CnaData
-from cnapy.legacy import try_matlab_engine, try_octave_engine, try_cna
+from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                             QPushButton, QVBoxLayout)
 
-import cnapy.resources
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
@@ -292,17 +293,15 @@ class ConfigDialog(QDialog):
         directory: str = dialog.getExistingDirectory()
         self.cna_path.setText(directory)
         self.update()
-        self.reset_engine()        
+        self.reset_engine()
         self.check_cna()
 
-
     def reset_engine(self):
-
         # This resets the engines
         if self.oeng is None:
             self.meng = try_matlab_engine()
         else:
-            self.oeng = try_octave_engine()
+            self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_cna(self):
 
@@ -384,13 +383,7 @@ class ConfigDialog(QDialog):
             self.appdata.default_engine = "octave"
             self.appdata.use_octave()
 
-        if self.appdata.is_matlab_ready() or self.appdata.is_octave_ready():
-            if try_cna(self.appdata.engine, self.appdata.cna_path):
-                self.appdata.window.efm_action.setEnabled(True)
-                self.appdata.window.mcs_action.setEnabled(True)
-            else:
-                self.appdata.window.efm_action.setEnabled(False)
-                self.appdata.window.mcs_action.setEnabled(False)
+        self.appdata.window.disable_enable_dependent_actions()
 
         palette = self.scen_color_btn.palette()
         self.appdata.Scencolor = palette.color(QPalette.Button)
