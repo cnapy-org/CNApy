@@ -10,6 +10,7 @@ from cnapy.cnadata import CnaData
 from importlib import reload
 import cnapy.CNA_MEngine
 
+
 def try_matlab_engine():
     try:
         print("Try Matlab engine ...")
@@ -19,10 +20,10 @@ def try_matlab_engine():
         print("Matlab engine available")
         return meng
     except:
-        output = io.StringIO()
-        traceback.print_exc(file=output)
-        exstr = output.getvalue()
-        print(exstr)
+        # output = io.StringIO()
+        # traceback.print_exc(file=output)
+        # exstr = output.getvalue()
+        # print(exstr)
         print("Matlab engine not available")
         return None
 
