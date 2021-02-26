@@ -13,6 +13,9 @@ import itertools
 from typing import List, Tuple
 import time
 import sys
+import sympy
+from sympy.parsing.sympy_parser import parse_expr
+from sympy.parsing.sympy_parser import standard_transformations, implicit_multiplication_application
 
 class ConstrainedMinimalCutSetsEnumerator:
     def __init__(self, optlang_interface, st, reversible, targets, kn=None, cuts=None,
@@ -285,7 +288,7 @@ class ConstrainedMinimalCutSetsEnumerator:
         ub = len(mcs) - 1
         self.model.add(self.Constraint(expression, ub=ub, sloppy=True))
 
-    def enumerate_mcs(self, max_mcs_size=None, enum_method=1, timeout=None, info=None):
+    def enumerate_mcs(self, max_mcs_size=None, max_mcs_num=float('inf'), enum_method=1, timeout=None, info=None):
         # if a dictionary is passed as info some status/runtime information is stored in there
         all_mcs= [];
         if max_mcs_size is None:
@@ -312,7 +315,7 @@ class ConstrainedMinimalCutSetsEnumerator:
             raise ValueError('Unknown enumeration method.')
         continue_loop = True
         start_time = time.monotonic()
-        while continue_loop and self.evs_sz_lb <= max_mcs_size:
+        while continue_loop and self.evs_sz_lb <= max_mcs_size and len(all_mcs) < max_mcs_num:
             if timeout is not None:
                 remaining_time = round(timeout - (time.monotonic() - start_time)) # integer
                 if remaining_time <= 0:
@@ -468,4 +471,66 @@ def check_mcs(model, constr, mcs, expected_status, flux_expr=None):
                 KO_model.slim_optimize()
                 check_ok[m] = KO_model.solver.status == expected_status
     return check_ok
+
+def make_minimal_cut_set(model, cut_set, targets, flux_expr=None):
+    if flux_expr is None:
+        flux_expr = [r.flux_expression for r in model.reactions]
+    ori_bounds = [model.reactions[r].bounds for r in cut_set]
+    # with model as KO_model:
+    #     for r in cut_set:
+    #         KO_model.reactions[r].knock_out()
+    try:
+        for r in cut_set:
+            model.reactions[r].knock_out()
+        for i in range(len(cut_set)):
+            r = cut_set[i]
+            model.reactions[r].bounds = ori_bounds(i)
+    # don't handle the exception, just restore the model
+    finally:
+        for i in range(len(cut_set)):
+            r = cut_set[i]
+            model.reactions[r].bounds = ori_bounds(i)
+    
+
+def parse_relation(lhs : str, rhs : float, reac_id_symbols=None):
+    transformations = (standard_transformations + (implicit_multiplication_application,))
+    slash = lhs.find('/')
+    if slash >= 0:
+        denominator = lhs[slash+1:]
+        numerator = lhs[0:slash]
+        denominator = parse_expr(denominator, transformations=transformations, evaluate=False, local_dict=reac_id_symbols)
+        denominator = sympy.collect(denominator, denominator.free_symbols)
+        numerator = parse_expr(numerator, transformations=transformations, evaluate=False, local_dict=reac_id_symbols)
+        numerator = sympy.collect(numerator, numerator.free_symbols)
+        lhs = numerator - rhs*denominator
+        rhs = 0
+    else:
+        lhs = parse_expr(lhs, transformations=transformations, evaluate=False, local_dict=reac_id_symbols)
+    lhs = sympy.collect(lhs, lhs.free_symbols, evaluate=False)
+    
+    return lhs, rhs
 #%%
+def parse_relations(relations : List, reac_id_symbols=None):
+    for r in range(len(relations)):
+        lhs, rhs = parse_relation(relations[r][0], relations[r][2], reac_id_symbols=reac_id_symbols)
+        relations[r] = (lhs, relations[r][1], rhs)
+    return relations
+#%%
+# def get_reac_id_symbols(model) -> dict:
+#     return {id: sympy.symbols(id) for id in model.reactions.list_attr("id")}
+
+def get_reac_id_symbols(reac_id) -> dict:
+    return {rxn: sympy.symbols(rxn) for rxn in reac_id}
+
+def relations2leq_matrix(relations : List, variables):
+    matrix = numpy.zeros((len(relations), len(variables)))
+    rhs = numpy.zeros(len(relations))
+    for i in range(len(relations)):
+        if relations[i][1] == ">=":
+            f = -1.0
+        else:
+            f = 1.0
+        for r in relations[i][0].keys(): # the keys are symbols
+            matrix[i][variables.index(str(r))] = f*relations[i][0][r]
+        rhs[i] = f*relations[i][2]
+    return matrix, rhs # matrix <= rhs
