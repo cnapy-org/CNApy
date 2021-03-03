@@ -398,7 +398,7 @@ class ConfigDialog(QDialog):
         self.appdata.matlab_engine = self.meng
         self.appdata.octave_engine = self.oeng
 
-        if self.default_engine.currentText == "None":
+        if self.default_engine.currentText() == "None":
             self.appdata.default_engine = None
         elif self.default_engine.currentText() == "Matlab":
             self.appdata.default_engine = "matlab"
