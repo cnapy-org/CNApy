@@ -60,7 +60,7 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_label)
 
         self.choose_oc_exe_btn = QPushButton(
-            "Choose path to Octave executable")
+            "Choose Octave executable")
         self.choose_oc_exe_btn.setFixedWidth(300)
         oc.addWidget(self.choose_oc_exe_btn)
 
@@ -239,15 +239,15 @@ class ConfigDialog(QDialog):
             print(exstr)
 
     def choose_oc_exe(self):
+
         dialog = QFileDialog(self, directory=self.oc_exe.text())
-        dialog.setFileMode(QFileDialog.DirectoryOnly)
-        directory: str = dialog.getExistingDirectory()
-        if not directory or len(directory) == 0 or not os.path.exists(directory):
+        filename: str = dialog.getOpenFileName(directory=os.getcwd())[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
-        self.oc_exe.setText(directory)
-        if os.path.isfile(directory):
-            os.environ['OCTAVE_EXECUTABLE'] = directory
+        self.oc_exe.setText(filename)
+        if os.path.isfile(filename):
+            os.environ['OCTAVE_EXECUTABLE'] = filename
         self.check_octave()
 
     def check_all(self):
