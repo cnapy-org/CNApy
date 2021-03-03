@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
 # import sympy
 import cobra.util.array
 import optlang
-import cnapy.cMCS_enumerator as cMCS_enumerator
+import cnapy.optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 from itertools import groupby
 
 class MCSDialog(QDialog):

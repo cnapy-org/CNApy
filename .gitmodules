@@ -1,0 +1,3 @@
+[submodule "cnapy/optlang_enumerator"]
+	path = cnapy/optlang_enumerator
+	url = https://github.com/cnapy-org/optlang_enumerator.git
