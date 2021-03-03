@@ -85,14 +85,14 @@ class CellNetAnalyzer:
         self.appdata.octave_engine = try_octave_engine(
             self.appdata.octave_executable)
         try:
-            default_engine = configParser.get(
-                'cnapy-config', 'default_engine')
-            self.appdata.default_engine = default_engine
+            selected_engine = configParser.get(
+                'cnapy-config', 'selected_engine')
+            self.appdata.selected_engine = selected_engine
         except:
-            print("Could not read default_engine in cnapy-config.txt")
-            self.appdata.default_engine = None
+            print("Could not read selected_engine in cnapy-config.txt")
+            self.appdata.selected_engine = None
 
-        self.appdata.selected_engine()
+        self.appdata.select_engine()
 
         try:
             self.appdata.cna_path = configParser.get(

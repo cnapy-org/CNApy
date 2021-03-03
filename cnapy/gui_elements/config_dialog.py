@@ -183,8 +183,8 @@ class ConfigDialog(QDialog):
         h9 = QHBoxLayout()
         label = QLabel("Matlab/Octave engine:")
         h9.addWidget(label)
-        self.default_engine = QComboBox()
-        h9.addWidget(self.default_engine)
+        self.selected_engine = QComboBox()
+        h9.addWidget(self.selected_engine)
         self.layout.addItem(h9)
 
         l2 = QHBoxLayout()
@@ -255,24 +255,24 @@ class ConfigDialog(QDialog):
         self.check_matlab()
         self.check_cna()
 
-        self.default_engine.clear()
+        self.selected_engine.clear()
 
-        self.default_engine.addItem("None")
+        self.selected_engine.addItem("None")
         if self.meng is not None:
-            self.default_engine.addItem("Matlab")
+            self.selected_engine.addItem("Matlab")
         if self.oeng is not None:
-            self.default_engine.addItem("Octave")
+            self.selected_engine.addItem("Octave")
 
-        if self.appdata.default_engine is None:
-            self.default_engine.setCurrentIndex(0)
-        if self.appdata.default_engine == "matlab":
-            self.default_engine.setCurrentIndex(1)
-        if self.appdata.default_engine == "octave":
-            print(self.default_engine.count())
-            if self.default_engine.count() == 2:
-                self.default_engine.setCurrentIndex(1)
-            elif self.default_engine.count() == 3:
-                self.default_engine.setCurrentIndex(2)
+        if self.appdata.selected_engine is None:
+            self.selected_engine.setCurrentIndex(0)
+        if self.appdata.selected_engine == "matlab":
+            self.selected_engine.setCurrentIndex(1)
+        if self.appdata.selected_engine == "octave":
+            print(self.selected_engine.count())
+            if self.selected_engine.count() == 2:
+                self.selected_engine.setCurrentIndex(1)
+            elif self.selected_engine.count() == 3:
+                self.selected_engine.setCurrentIndex(2)
 
     def check_octave(self):
         cross_icon = QIcon(":/icons/cross.png")
@@ -398,14 +398,14 @@ class ConfigDialog(QDialog):
         self.appdata.matlab_engine = self.meng
         self.appdata.octave_engine = self.oeng
 
-        if self.default_engine.currentText() == "None":
-            self.appdata.default_engine = None
-        elif self.default_engine.currentText() == "Matlab":
-            self.appdata.default_engine = "matlab"
-        elif self.default_engine.currentText() == "Octave":
-            self.appdata.default_engine = "octave"
+        if self.selected_engine.currentText() == "None":
+            self.appdata.selected_engine = None
+        elif self.selected_engine.currentText() == "Matlab":
+            self.appdata.selected_engine = "matlab"
+        elif self.selected_engine.currentText() == "Octave":
+            self.appdata.selected_engine = "octave"
 
-        self.appdata.selected_engine()
+        self.appdata.select_engine()
 
         self.appdata.window.disable_enable_dependent_actions()
 
@@ -449,8 +449,8 @@ class ConfigDialog(QDialog):
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',
                    str(self.appdata.abs_tol))
-        parser.set('cnapy-config', 'default_engine',
-                   str(self.appdata.default_engine))
+        parser.set('cnapy-config', 'selected_engine',
+                   str(self.appdata.selected_engine))
 
         try:
             fp = open(self.appdata.conf_path, "w")

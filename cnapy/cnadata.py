@@ -29,7 +29,7 @@ class CnaData:
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
-        self.default_engine = None
+        self.selected_engine = None
         self.work_directory = ""
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
@@ -54,26 +54,26 @@ class CnaData:
     def is_octave_set(self):
         return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
 
-    def selected_engine(self):
+    def select_engine(self):
         """
         select Engine
         """
-        if self.default_engine == "matlab":
+        if self.selected_engine == "matlab":
             if self.matlab_engine is not None:
                 self.engine = self.matlab_engine
                 print("Using Matlab engine!")
             else:
-                self.default_engine = None
-                print("Running without selected engine!")
-        elif self.default_engine == "octave":
+                self.selected_engine = None
+                print("No engine selected!")
+        elif self.selected_engine == "octave":
             if self.octave_engine is not None:
                 self.engine = self.octave_engine
                 print("Using Octave engine!")
             else:
-                self.default_engine = None
-                print("Running without selected engine!")
+                self.selected_engine = None
+                print("No engine selected!")
         else:
-            print("Running without selected engine!")
+            print("No engine selected!")
 
 
 class ProjectData:

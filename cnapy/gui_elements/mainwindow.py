@@ -290,13 +290,13 @@ class MainWindow(QMainWindow):
         self.mcs_action.setEnabled(False)
         self.yield_optimization_action.setEnabled(False)
 
-        if self.appdata.default_engine == "matlab" and self.appdata.is_matlab_ready():
+        if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
             if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
-        elif self.appdata.default_engine == "octave" and self.appdata.is_octave_ready():
+        elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
             if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
