@@ -37,14 +37,13 @@ class CellNetAnalyzer:
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
+        version = "unknown"
         try:
-            first_run = configParser.get('cnapy-config', 'first_run')
-            self.appdata.first_run = int(first_run)
+            version = configParser.get('cnapy-config', 'version')
         except:
-            print("Could not read first_run in cnapy-config.txt")
-            self.appdata.first_run = 1
+            print("Could not read version in cnapy-config.txt")
 
-        if self.appdata.first_run > 0:
+        if version != self.appdata.version:
             self.window.show_config_dialog()
         else:
             self.config_app()
@@ -91,12 +90,10 @@ class CellNetAnalyzer:
             self.appdata.default_engine = default_engine
         except:
             print("Could not read default_engine in cnapy-config.txt")
-            self.appdata.default_engine = "matlab"
+            self.appdata.default_engine = None
 
-        if self.appdata.default_engine == "octave" and self.appdata.is_octave_ready():
-            self.appdata.use_octave()
-        elif self.appdata.is_matlab_ready():
-            self.appdata.use_matlab()
+        self.appdata.selected_engine()
+
         try:
             self.appdata.cna_path = configParser.get(
                 'cnapy-config', 'cna_path')

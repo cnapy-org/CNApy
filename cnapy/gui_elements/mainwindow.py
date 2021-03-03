@@ -143,6 +143,10 @@ class MainWindow(QMainWindow):
 
         self.map_menu = self.menu.addMenu("Map")
 
+        add_map_action = QAction("Add new map", self)
+        self.map_menu.addAction(add_map_action)
+        add_map_action.triggered.connect(central_widget.add_map)
+
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
@@ -253,11 +257,6 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
-        add_map_action = QAction("Add new map", self)
-        # add_map_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
-        add_map_action.triggered.connect(
-            central_widget.add_map)
-
         self.setCurrentFile("Untitled project")
 
         self.tool_bar = QToolBar()
@@ -267,7 +266,6 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
-        self.tool_bar.addAction(add_map_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -292,13 +290,13 @@ class MainWindow(QMainWindow):
         self.mcs_action.setEnabled(False)
         self.yield_optimization_action.setEnabled(False)
 
-        if self.appdata.is_matlab_ready():
+        if self.appdata.default_engine == "matlab" and self.appdata.is_matlab_ready():
             if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
-        elif self.appdata.is_octave_ready():
+        elif self.appdata.default_engine == "octave" and self.appdata.is_octave_ready():
             if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
@@ -609,11 +607,11 @@ class MainWindow(QMainWindow):
         with open(tmp_dir + "maps.json", 'w') as fp:
             json.dump(self.appdata.project.maps, fp)
 
-        with ZipFile(filename, 'w') as zipObj:
-            zipObj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zipObj.write(tmp_dir + "maps.json", arcname="maps.json")
+        with ZipFile(filename, 'w') as zip_obj:
+            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
+            zip_obj.write(tmp_dir + "maps.json", arcname="maps.json")
             for name, m in svg_files.items():
-                zipObj.write(name, arcname=m)
+                zip_obj.write(name, arcname=m)
 
         # put svgs into temporary directory and update references
         with ZipFile(filename, 'r') as zip_ref:

@@ -256,13 +256,23 @@ class ConfigDialog(QDialog):
         self.check_cna()
 
         self.default_engine.clear()
-        if self.meng is not None:
-            self.default_engine.insertItem(1, "Matlab")
-        if self.oeng is not None:
-            self.default_engine.insertItem(2, "Octave")
 
-        if self.appdata.default_engine == "octave":
+        self.default_engine.addItem("None")
+        if self.meng is not None:
+            self.default_engine.addItem("Matlab")
+        if self.oeng is not None:
+            self.default_engine.addItem("Octave")
+
+        if self.appdata.default_engine is None:
+            self.default_engine.setCurrentIndex(0)
+        if self.appdata.default_engine == "matlab":
             self.default_engine.setCurrentIndex(1)
+        if self.appdata.default_engine == "octave":
+            print(self.default_engine.count())
+            if self.default_engine.count() == 2:
+                self.default_engine.setCurrentIndex(1)
+            elif self.default_engine.count() == 3:
+                self.default_engine.setCurrentIndex(2)
 
     def check_octave(self):
         cross_icon = QIcon(":/icons/cross.png")
@@ -388,12 +398,14 @@ class ConfigDialog(QDialog):
         self.appdata.matlab_engine = self.meng
         self.appdata.octave_engine = self.oeng
 
-        if self.default_engine.currentIndex() == 0:
+        if self.default_engine.currentText == "None":
+            self.appdata.default_engine = None
+        elif self.default_engine.currentText() == "Matlab":
             self.appdata.default_engine = "matlab"
-            self.appdata.use_matlab()
-        elif self.default_engine.currentIndex() == 1:
+        elif self.default_engine.currentText() == "Octave":
             self.appdata.default_engine = "octave"
-            self.appdata.use_octave()
+
+        self.appdata.selected_engine()
 
         self.appdata.window.disable_enable_dependent_actions()
 
@@ -415,11 +427,10 @@ class ConfigDialog(QDialog):
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
 
-        self.appdata.first_run = False
         import configparser
         parser = configparser.ConfigParser()
         parser.add_section('cnapy-config')
-        parser.set('cnapy-config', 'first_run', '0')
+        parser.set('cnapy-config', 'version', self.appdata.version)
         parser.set('cnapy-config', 'matlab_path', self.appdata.matlab_path)
         parser.set('cnapy-config', 'OCTAVE_EXECUTABLE',
                    self.appdata.octave_executable)
