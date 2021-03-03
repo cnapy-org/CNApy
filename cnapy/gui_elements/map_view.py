@@ -66,17 +66,15 @@ class MapView(QGraphicsView):
         event.setAccepted(True)
         point = event.pos()
         point_item = self.mapToScene(point)
-        id = event.mimeData().text()
-        new = False
-        if not id in self.appdata.project.maps[self.name]["boxes"].keys():
-            new = True
-        self.appdata.project.maps[self.name]["boxes"][id] = (
-            point_item.x(), point_item.y())
-        print("box changed")
-        if new:
-            self.reactionAdded.emit(id)
+        r_id = event.mimeData().text()
+
+        if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
+            self.mapChanged.emit(r_id)
         else:
-            self.mapChanged.emit(id)
+            self.reactionAdded.emit(r_id)
+
+        self.appdata.project.maps[self.name]["boxes"][r_id] = (
+            point_item.x(), point_item.y())
         self.update()
 
     def dragLeaveEvent(self, _event):
@@ -86,11 +84,11 @@ class MapView(QGraphicsView):
         self.drag = False
         point = event.pos()
         point_item = self.mapToScene(point)
-        id = event.mimeData().text()
-        self.appdata.project.maps[self.name]["boxes"][id] = (
+        identifier = event.mimeData().text()
+        self.appdata.project.maps[self.name]["boxes"][identifier] = (
             point_item.x(), point_item.y())
         print("box drpped")
-        self.mapChanged.emit(id)
+        self.mapChanged.emit(identifier)
         self.update()
 
     def wheelEvent(self, event):
@@ -169,13 +167,13 @@ class MapView(QGraphicsView):
     def update_selected(self, string):
         print("mapview:update_selected", string)
 
-        for id in self.reaction_boxes:
-            if string.lower() in id.lower():
-                self.reaction_boxes[id].item.setHidden(False)
-            elif string.lower() in self.reaction_boxes[id].name.lower():
-                self.reaction_boxes[id].item.setHidden(False)
+        for r_id in self.reaction_boxes:
+            if string.lower() in r_id.lower():
+                self.reaction_boxes[r_id].item.setHidden(False)
+            elif string.lower() in self.reaction_boxes[r_id].name.lower():
+                self.reaction_boxes[r_id].item.setHidden(False)
             else:
-                self.reaction_boxes[id].item.setHidden(True)
+                self.reaction_boxes[r_id].item.setHidden(True)
 
     def focus_reaction(self, reaction: str):
         print("mapview:focus_reaction", reaction)
@@ -203,17 +201,17 @@ class MapView(QGraphicsView):
         background.setScale(self.appdata.project.maps[self.name]["bg-size"])
         self.scene.addItem(background)
 
-        for id in self.appdata.project.maps[self.name]["boxes"]:
+        for r_id in self.appdata.project.maps[self.name]["boxes"]:
             try:
                 name = self.appdata.project.cobra_py_model.reactions.get_by_id(
-                    id).name
-                box = ReactionBox(self, id, name)
-                box.setPos(self.appdata.project.maps[self.name]["boxes"][id]
-                           [0], self.appdata.project.maps[self.name]["boxes"][id][1])
+                    r_id).name
+                box = ReactionBox(self, r_id, name)
+                box.setPos(self.appdata.project.maps[self.name]["boxes"][r_id]
+                           [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
                 self.scene.addItem(box)
-                self.reaction_boxes[id] = box
+                self.reaction_boxes[r_id] = box
             except:
-                pass
+                print("failed to add reaction box for", r_id)
 
         self.set_values()
 
@@ -225,13 +223,13 @@ class MapView(QGraphicsView):
             self.appdata.project.maps[self.name]["pos"][1])
 
     def set_values(self):
-        for id in self.appdata.project.maps[self.name]["boxes"]:
-            if id in self.appdata.project.scen_values.keys():
-                self.reaction_boxes[id].set_val_and_color(
-                    self.appdata.project.scen_values[id])
-            elif id in self.appdata.project.comp_values.keys():
-                self.reaction_boxes[id].set_val_and_color(
-                    self.appdata.project.comp_values[id])
+        for r_id in self.appdata.project.maps[self.name]["boxes"]:
+            if r_id in self.appdata.project.scen_values.keys():
+                self.reaction_boxes[r_id].set_val_and_color(
+                    self.appdata.project.scen_values[r_id])
+            elif r_id in self.appdata.project.comp_values.keys():
+                self.reaction_boxes[r_id].set_val_and_color(
+                    self.appdata.project.comp_values[r_id])
 
     def remove_box(self, reaction: str):
         del self.appdata.project.maps[self.name]["boxes"][reaction]
@@ -259,17 +257,16 @@ class MapView(QGraphicsView):
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
-    def __init__(self, parent: MapView, id: str, name):
+    def __init__(self, parent: MapView, r_id: str, name):
         QGraphicsItem.__init__(self)
 
         self.map = parent
-        self.id = id
+        self.id = r_id
         self.name = name
 
         self.item = QLineEdit()
         self.item.setMaximumWidth(80)
-        r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
-            id)
+        r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(r_id)
         text = "Id: " + r.id + "\nName: " + r.name \
             + "\nEquation: " + r.build_reaction_string()\
             + "\nLowerbound: " + str(r.lower_bound) \
@@ -422,11 +419,9 @@ class ReactionBox(QGraphicsItem):
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         print("ReactionBox::mousePressedEvent")
-        pass
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
         print("ReactionBox::mouseReleaseEvent")
-        pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         drag = QDrag(event.widget())
@@ -468,7 +463,7 @@ class ReactionBox(QGraphicsItem):
 
 def validate_value(value):
     try:
-        x = float(value)
+        _x = float(value)
     except:
         try:
             (vl, vh) = make_tuple(value)

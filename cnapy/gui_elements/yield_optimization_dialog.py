@@ -8,7 +8,6 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
-import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.centralwidget import CentralWidget
 
@@ -57,7 +56,7 @@ class YieldOptimizationDialog(QDialog):
         self.eng = appdata.engine
 
         self.polynom_re = re.compile(
-            '([ ]*(?P<factor1>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>\d*)[ ]*)')
+            r'([ ]*(?P<factor1>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>\d*)[ ]*)')
         completer = QCompleter(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)

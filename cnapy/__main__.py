@@ -15,7 +15,7 @@
 from cnapy.cellnetanalyzer import CellNetAnalyzer
 
 
-def main_cnapy(args=None):
+def main_cnapy():
 
     CellNetAnalyzer()
 

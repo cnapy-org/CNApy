@@ -1,12 +1,12 @@
 """The metabolite list"""
 import cobra
-from cnapy.cnadata import CnaData
-from cnapy.utils import *
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+from cnapy.cnadata import CnaData
+from cnapy.utils import turn_red, turn_white
 
 
 class MetaboliteList(QWidget):
@@ -186,8 +186,10 @@ class MetabolitesMask(QWidget):
     def __init__(self, appdata):
         QWidget.__init__(self)
         self.appdata = appdata
+        self.metabolite = None
         self.is_valid = True
         self.changed = False
+
         layout = QVBoxLayout()
         l = QHBoxLayout()
         label = QLabel("Id:")
@@ -275,7 +277,6 @@ class MetabolitesMask(QWidget):
             msgBox = QMessageBox()
             msgBox.setText("Could not apply changes identifier already used.")
             msgBox.exec()
-            pass
         else:
             self.metabolite.name = self.name.text()
             self.metabolite.formula = self.formula.text()
@@ -339,7 +340,7 @@ class MetabolitesMask(QWidget):
     def validate_charge(self):
         try:
             if self.charge.text() != "":
-                x = int(self.charge.text())
+                _x = int(self.charge.text())
         except:
             turn_red(self.charge)
             return False
@@ -349,7 +350,7 @@ class MetabolitesMask(QWidget):
 
     def validate_compartment(self):
         try:
-            m = cobra.Metabolite(id="test_id", name=self.compartment.text())
+            _m = cobra.Metabolite(id="test_id", name=self.compartment.text())
         except:
             turn_red(self.compartment)
             return False

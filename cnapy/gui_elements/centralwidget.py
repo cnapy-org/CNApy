@@ -2,16 +2,17 @@
 from ast import literal_eval as make_tuple
 
 import cobra
-from cnapy.cnadata import CnaData, CnaMap
-from cnapy.gui_elements.map_view import MapView
-from cnapy.gui_elements.metabolite_list import MetaboliteList
-from cnapy.gui_elements.modenavigator import ModeNavigator
-from cnapy.gui_elements.reactions_list import ReactionList
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget)
+
+from cnapy.cnadata import CnaData, CnaMap
+from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.metabolite_list import MetaboliteList
+from cnapy.gui_elements.modenavigator import ModeNavigator
+from cnapy.gui_elements.reactions_list import ReactionList
 
 
 class CentralWidget(QWidget):
@@ -93,32 +94,27 @@ class CentralWidget(QWidget):
 
     def scroll_down(self):
         vSB = self.console.children()[2].verticalScrollBar()
-        max = vSB.maximum()
-        print(max)
-        vSB.setValue(max-100)
+        max_scroll = vSB.maximum()
+        vSB.setValue(max_scroll-100)
 
     def handle_changedReaction(self, old_id: str, reaction: cobra.Reaction):
-        print("CentralWidget handle_changedReaction", old_id, reaction)
-
         self.parent.unsaved_changes()
-        for map in self.appdata.project.maps:
-            if old_id in self.appdata.project.maps[map]["boxes"].keys():
-                self.appdata.project.maps[map]["boxes"][reaction.id] = self.appdata.project.maps[map]["boxes"].pop(
+        for mmap in self.appdata.project.maps:
+            if old_id in self.appdata.project.maps[mmap]["boxes"].keys():
+                self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     old_id)
 
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
 
     def handle_deletedReaction(self, reaction: cobra.Reaction):
-
-        print("CentralWidget handle_deletedReaction", reaction)
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
 
         self.parent.unsaved_changes()
-        for map in self.appdata.project.maps:
-            if reaction.id in self.appdata.project.maps[map]["boxes"].keys():
-                self.appdata.project.maps[map]["boxes"].pop(reaction.id)
+        for mmap in self.appdata.project.maps:
+            if reaction.id in self.appdata.project.maps[mmap]["boxes"].keys():
+                self.appdata.project.maps[mmap]["boxes"].pop(reaction.id)
 
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
@@ -179,22 +175,21 @@ class CentralWidget(QWidget):
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
-        map = MapView(self.appdata, name)
-        map.switchToReactionDialog.connect(self.switch_to_reaction)
-        map.minimizeReaction.connect(self.minimize_reaction)
-        map.maximizeReaction.connect(self.maximize_reaction)
+        mmap = MapView(self.appdata, name)
+        mmap.switchToReactionDialog.connect(self.switch_to_reaction)
+        mmap.minimizeReaction.connect(self.minimize_reaction)
+        mmap.maximizeReaction.connect(self.maximize_reaction)
 
-        map.reactionValueChanged.connect(self.update_reaction_value)
-        map.reactionRemoved.connect(self.update_reaction_maps)
-        map.reactionAdded.connect(self.update_reaction_maps)
-        map.mapChanged.connect(self.handle_mapChanged)
-        self.map_tabs.addTab(map, m["name"])
+        mmap.reactionValueChanged.connect(self.update_reaction_value)
+        mmap.reactionRemoved.connect(self.update_reaction_maps)
+        mmap.reactionAdded.connect(self.update_reaction_maps)
+        mmap.mapChanged.connect(self.handle_mapChanged)
+        self.map_tabs.addTab(mmap, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
         self.reaction_list.reaction_mask.update_state()
 
     def delete_map(self, idx: int):
-        print("delete map: "+str(idx))
         name = self.map_tabs.tabText(idx)
         diag = ConfirmMapDeleteDialog(self, idx, name)
         diag.exec()
@@ -209,7 +204,6 @@ class CentralWidget(QWidget):
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
-            print(idx)
             m = self.map_tabs.widget(idx)
             m.update_selected(x)
 
@@ -255,11 +249,11 @@ class CentralWidget(QWidget):
             m = self.map_tabs.widget(idx)
             m.update()
 
-    def jump_to_map(self, id: str, reaction: str):
-        print("centralwidget::jump_to_map", id, reaction)
+    def jump_to_map(self, identifier: str, reaction: str):
+        print("centralwidget::jump_to_map", identifier, reaction)
         for idx in range(0, self.map_tabs.count()):
             name = self.map_tabs.tabText(idx)
-            if name == id:
+            if name == identifier:
                 m = self.map_tabs.widget(idx)
                 self.map_tabs.setCurrentIndex(idx)
 

@@ -7,11 +7,12 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from cnapy.cnadata import CnaData
+from cnapy.cnadata import CnaData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
+from cnapy.gui_elements.description_dialog import DescriptionDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
@@ -72,6 +73,10 @@ class MainWindow(QMainWindow):
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
+
+        description_action = QAction("Project description ...", self)
+        self.file_menu.addAction(description_action)
+        description_action.triggered.connect(self.show_description_dialog)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -137,6 +142,10 @@ class MainWindow(QMainWindow):
             self.clipboard_arithmetics)
 
         self.map_menu = self.menu.addMenu("Map")
+
+        add_map_action = QAction("Add new map", self)
+        self.map_menu.addAction(add_map_action)
+        add_map_action.triggered.connect(central_widget.add_map)
 
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
@@ -248,11 +257,6 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
-        add_map_action = QAction("Add new map", self)
-        # add_map_action.setIcon(QIcon("cnapy/data/Font_D.svg"))
-        add_map_action.triggered.connect(
-            central_widget.add_map)
-
         self.setCurrentFile("Untitled project")
 
         self.tool_bar = QToolBar()
@@ -262,7 +266,6 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
-        self.tool_bar.addAction(add_map_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -287,13 +290,13 @@ class MainWindow(QMainWindow):
         self.mcs_action.setEnabled(False)
         self.yield_optimization_action.setEnabled(False)
 
-        if self.appdata.is_matlab_ready():
+        if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
             if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
-        elif self.appdata.is_octave_ready():
+        elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
             if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
@@ -332,6 +335,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_description_dialog(self):
+        dialog = DescriptionDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
@@ -526,8 +534,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def new_project(self):
-        self.appdata.project.cobra_py_model = cobra.Model()
-        self.appdata.project.maps = {}
+        self.appdata.project = ProjectData()
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -555,16 +562,20 @@ class MainWindow(QMainWindow):
                 maps = json.load(fp)
 
                 count = 1
-                for name, m in maps.items():
+                for _name, m in maps.items():
                     m["background"] = temp_dir.name + \
                         "/.bg" + str(count) + ".svg"
                     count += 1
+            # load meta_data
+            with open(temp_dir.name+"/meta.json", 'r') as fp:
+                meta_data = json.load(fp)
 
             cobra_py_model = cobra.io.read_sbml_model(
                 temp_dir.name + "/model.sbml")
 
             self.appdata.temp_dir = temp_dir
             self.appdata.project.maps = maps
+            self.appdata.project.meta_data = meta_data
             self.appdata.project.cobra_py_model = cobra_py_model
             self.setCurrentFile(filename)
             self.recreate_maps()
@@ -599,11 +610,16 @@ class MainWindow(QMainWindow):
         with open(tmp_dir + "maps.json", 'w') as fp:
             json.dump(self.appdata.project.maps, fp)
 
-        with ZipFile(filename, 'w') as zipObj:
-            zipObj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zipObj.write(tmp_dir + "maps.json", arcname="maps.json")
+        # Save meta data
+        with open(tmp_dir + "meta.json", 'w') as fp:
+            json.dump(self.appdata.project.meta_data, fp)
+
+        with ZipFile(filename, 'w') as zip_obj:
+            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
+            zip_obj.write(tmp_dir + "maps.json", arcname="maps.json")
+            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
             for name, m in svg_files.items():
-                zipObj.write(name, arcname=m)
+                zip_obj.write(name, arcname=m)
 
         # put svgs into temporary directory and update references
         with ZipFile(filename, 'r') as zip_ref:
@@ -634,25 +650,25 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
-        for name, map in self.appdata.project.maps.items():
-            map = MapView(self.appdata, name)
-            map.show()
-            map.switchToReactionDialog.connect(
+        for name, mmap in self.appdata.project.maps.items():
+            mmap = MapView(self.appdata, name)
+            mmap.show()
+            mmap.switchToReactionDialog.connect(
                 self.centralWidget().switch_to_reaction)
-            map.minimizeReaction.connect(
+            mmap.minimizeReaction.connect(
                 self.centralWidget().minimize_reaction)
-            map.maximizeReaction.connect(
+            mmap.maximizeReaction.connect(
                 self.centralWidget().maximize_reaction)
-            map.reactionValueChanged.connect(
+            mmap.reactionValueChanged.connect(
                 self.centralWidget().update_reaction_value)
-            map.reactionRemoved.connect(
+            mmap.reactionRemoved.connect(
                 self.centralWidget().update_reaction_maps)
-            map.reactionAdded.connect(
+            mmap.reactionAdded.connect(
                 self.centralWidget().update_reaction_maps)
-            map.mapChanged.connect(
+            mmap.mapChanged.connect(
                 self.centralWidget().handle_mapChanged)
-            self.centralWidget().map_tabs.addTab(map, name)
-            map.update()
+            self.centralWidget().map_tabs.addTab(mmap, name)
+            mmap.update()
 
     def on_tab_change(self, idx):
         if idx >= 0:
@@ -715,12 +731,12 @@ class MainWindow(QMainWindow):
                 self.appdata.project.comp_values.clear()
             self.centralWidget().update()
 
-    def fba_optimize_reaction(self, reaction: str, min: bool):
+    def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 if r.id == reaction:
-                    if min:
+                    if mmin:
                         r.objective_coefficient = -1
                     else:
                         r.objective_coefficient = 1
@@ -860,7 +876,6 @@ class MainWindow(QMainWindow):
         print("maximize:", res)
 
     def print_model_stats(self):
-        import cobra
         m = cobra.util.array.create_stoichiometric_matrix(
             self.appdata.project.cobra_py_model, array_type='DataFrame')
         metabolites = m.shape[0]
@@ -868,26 +883,26 @@ class MainWindow(QMainWindow):
         print('Stoichiometric matrix:\n', m)
         print('\nNumber of metabolites: ', metabolites)
         print('Number of reactions: ', reactions)
-        import numpy
-        rank = numpy.linalg.matrix_rank(m)
+        import numpy as np
+        rank = np.linalg.matrix_rank(m)
         print('\nRank of stoichiometric matrix: ' + str(rank))
         print('Degrees of freedom: ' + str(reactions-rank))
         print('Conservation relations: ' + str(metabolites-rank))
-        import numpy as np
+
         has_non_zero = False
-        min = None
+        mmin = None
         abs_m = np.absolute(m.to_numpy())
         for r in abs_m:
             for e in r:
                 if not has_non_zero:
                     if e > 0.0:
                         has_non_zero = True
-                        min = e
+                        mmin = e
                 else:
-                    if e > 0.0 and e < min:
-                        min = e
+                    if e > 0.0 and e < mmin:
+                        mmin = e
         if has_non_zero:
-            print('\nSmallest (absolute) non-zero-value:', min)
+            print('\nSmallest (absolute) non-zero-value:', mmin)
         else:
             print('\nIt\'s the zero matrix')
 

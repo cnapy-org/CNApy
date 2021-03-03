@@ -3,13 +3,13 @@
 import io
 import traceback
 
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
+
+from cnapy.cnadata import CnaData
 
 
 class MCSDialog(QDialog):

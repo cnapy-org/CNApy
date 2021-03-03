@@ -7,7 +7,6 @@ from qtpy.QtGui import QIntValidator
 from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
-import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
 
 
