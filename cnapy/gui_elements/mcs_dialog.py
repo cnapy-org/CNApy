@@ -5,7 +5,6 @@ import traceback
 
 import cnapy.legacy as legacy
 from cnapy.cnadata import CnaData
-from cnapy.legacy import get_matlab_engine
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
@@ -24,7 +23,7 @@ class MCSDialog(QDialog):
         QDialog.__init__(self)
         self.appdata = appdata
         self.centralwidget = centralwidget
-        self.eng = get_matlab_engine()
+        self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
 
@@ -171,9 +170,9 @@ class MCSDialog(QDialog):
             self.solver_cplex_matlab.setEnabled(False)
         if not self.eng.is_cplex_java_ready():
             self.solver_cplex_java.setEnabled(False)
-        if legacy.is_matlab_set():
+        if self.appdata.is_matlab_set():
             self.solver_cplex_java.setEnabled(False)
-        if not legacy.is_matlab_set():
+        if not self.appdata.is_matlab_set():
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
 
@@ -280,7 +279,7 @@ class MCSDialog(QDialog):
 
     def compute(self):
         # create CobraModel for matlab
-        legacy.createCobraModel(self.appdata)
+        self.appdata.createCobraModel()
 
         print(".")
         self.eng.eval("load('cobra_model.mat')",
@@ -379,7 +378,7 @@ class MCSDialog(QDialog):
         values = []
         reactions = []
         reac_id = []
-        if legacy.is_matlab_set():
+        if self.appdata.is_matlab_set():
             reac_id = self.eng.workspace['reac_id']
             try:
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
@@ -399,7 +398,7 @@ class MCSDialog(QDialog):
                 reactions = self.eng.workspace['reaction']
                 mcs = self.eng.workspace['mcs']
                 values = self.eng.workspace['value']
-        elif legacy.is_octave_ready():
+        elif self.appdata.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
             reac_id = reac_id[0]
             try:

@@ -23,6 +23,7 @@ class CentralWidget(QWidget):
         self.appdata: CnaData = parent.appdata
         self.map_counter = 0
         self.searchbar = QLineEdit()
+        self.searchbar.setPlaceholderText("Enter search term")
         self.searchbar.textChanged.connect(self.update_selected)
 
         self.tabs = QTabWidget()
@@ -89,6 +90,12 @@ class CentralWidget(QWidget):
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
 
         self.update()
+
+    def scroll_down(self):
+        vSB = self.console.children()[2].verticalScrollBar()
+        max = vSB.maximum()
+        print(max)
+        vSB.setValue(max-100)
 
     def handle_changedReaction(self, old_id: str, reaction: cobra.Reaction):
         print("CentralWidget handle_changedReaction", old_id, reaction)
@@ -201,8 +208,10 @@ class CentralWidget(QWidget):
             self.metabolite_list.update_selected(x)
 
         idx = self.map_tabs.currentIndex()
-        m = self.map_tabs.widget(idx)
-        m.update_selected(x)
+        if idx >= 0:
+            print(idx)
+            m = self.map_tabs.widget(idx)
+            m.update_selected(x)
 
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
@@ -272,7 +281,7 @@ class CentralWidget(QWidget):
 
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
-        self.splitter2.setSizes([0, 0, 100])
+        self.scroll_down()
 
 
 class ConfirmMapDeleteDialog(QDialog):

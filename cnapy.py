@@ -14,17 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from cnapy.cellnetanalyzer import CellNetAnalyzer
-import configparser
-import os
-import appdirs
-conf_path = os.path.join(appdirs.user_config_dir(
-    "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
-configParser = configparser.RawConfigParser()
-configParser.read(conf_path)
-
-if (os.path.isfile(os.environ.get('OCTAVE_EXECUTABLE', '')) == False) and configParser.has_option('cnapy-config', 'OCTAVE_EXECUTABLE'):
-    oe = configParser.get('cnapy-config', 'OCTAVE_EXECUTABLE')
-    if os.path.isfile(oe):
-        os.environ['OCTAVE_EXECUTABLE'] = oe
-
 cna = CellNetAnalyzer()

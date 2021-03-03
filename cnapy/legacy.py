@@ -1,105 +1,61 @@
-import configparser
 import io
 import os
 import traceback
 
-import appdirs
-import cobra
-
-from cnapy.cnadata import CnaData
-
-conf_path = os.path.join(appdirs.user_config_dir(
-    "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
-
-configParser = configparser.RawConfigParser()
-configParser.read(conf_path)
-try:
-    cna_path = configParser.get('cnapy-config', 'cna_path')
-except:
-    pass
-
-out = io.StringIO()
-err = io.StringIO()
-eng = None
-
-try:
-    from cnapy.CNA_MEngine import CNAMatlabEngine
-    meng = CNAMatlabEngine(cna_path)
-    print("CNA Matlab engine available")
-    eng = meng
-except:
-    meng = None
-    print("CNA Matlab engine not working")
-
-try:
-    from cnapy.CNA_MEngine import CNAoctaveEngine
-    oeng = CNAoctaveEngine(cna_path)
-    print("CNA octave engine available")
-    eng = oeng
-except:
-    output = io.StringIO()
-    traceback.print_exc(file=output)
-    exstr = output.getvalue()
-    print(exstr)
-    oeng = None
-    print("CNA octave engine not working")
+from importlib import reload
+import cnapy.CNA_MEngine
 
 
-def restart_cna(cna_path):
+def try_matlab_engine():
     try:
-        eng.cd(cna_path)
-        eng.eval("startcna(1)", nargout=0)
-        return True
+        print("Try Matlab engine ...")
+        reload(cnapy.CNA_MEngine)
+        from cnapy.CNA_MEngine import CNAMatlabEngine
+        meng = CNAMatlabEngine()
+        print("Matlab engine available.")
+        return meng
     except:
-        output = io.StringIO()
-        traceback.print_exc(file=output)
-        exstr = output.getvalue()
-        print(exstr)
-        print("CNA not found. Check your CNA path!")
+        # output = io.StringIO()
+        # traceback.print_exc(file=output)
+        # exstr = output.getvalue()
+        # print(exstr)
+        print("Matlab engine not available ... continue with Matlab disabled.")
+        return None
+
+
+def try_octave_engine(octave_executable: str):
+    if os.path.isfile(octave_executable):
+        os.environ['OCTAVE_EXECUTABLE'] = octave_executable
+    try:
+        print("Try Octave engine ...")
+        from cnapy.octave_engine import CNAoctaveEngine
+        oeng = CNAoctaveEngine()
+        print("Octave engine available.")
+        return oeng
+    except:
+        # output = io.StringIO()
+        # traceback.print_exc(file=output)
+        # exstr = output.getvalue()
+        # print(exstr)
+        print("Octave engine not available ... continue with Octave disabled.")
+        return None
+
+
+def try_cna(eng, cna_path):
+    if eng is None:
+        print("Can't try CNA because no engine (matlab/octave) selected.")
         return False
-
-
-def createCobraModel(appdata: CnaData):
-    if eng is not None:  # matlab or octave:
-        cobra.io.save_matlab_model(
-            appdata.project.cobra_py_model, os.path.join(appdata.cna_path+"/cobra_model.mat"), varname="cbmodel")
-
-
-def get_matlab_engine():
-    return eng
-
-
-def is_matlab_ready():
-    return meng is not None
-
-
-def is_octave_ready():
-    return oeng is not None
-
-
-def is_matlab_set():
-    return str(type(eng)) == "<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
-
-
-def is_octave_set():
-    return str(type(eng)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
-
-
-def use_matlab():
-    """
-    switch to Matlab
-    """
-    global eng
-    if meng is not None:
-        eng = meng
-        print("use matlab engine")
-
-
-def use_octave():
-    """
-    switch to Octave
-    """
-    global eng
-    if oeng is not None:
-        eng = oeng
-        print("use octave engine")
+    else:
+        try:
+            print("Try CNA ...")
+            eng.cd(cna_path)
+            eng.eval("startcna(1)", nargout=0)
+            print("CNA seems working.")
+            return True
+        except:
+            # output = io.StringIO()
+            # traceback.print_exc(file=output)
+            # exstr = output.getvalue()
+            # print(exstr)
+            print("CNA not availabe ... continue with CNA disabled.")
+            return False
