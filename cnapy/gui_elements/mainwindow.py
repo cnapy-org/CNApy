@@ -7,7 +7,7 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
-from cnapy.cnadata import CnaData
+from cnapy.cnadata import CnaData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -534,8 +534,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def new_project(self):
-        self.appdata.project.cobra_py_model = cobra.Model()
-        self.appdata.project.maps = {}
+        self.appdata.project = ProjectData()
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -567,12 +566,16 @@ class MainWindow(QMainWindow):
                     m["background"] = temp_dir.name + \
                         "/.bg" + str(count) + ".svg"
                     count += 1
+            # load meta_data
+            with open(temp_dir.name+"/meta.json", 'r') as fp:
+                meta_data = json.load(fp)
 
             cobra_py_model = cobra.io.read_sbml_model(
                 temp_dir.name + "/model.sbml")
 
             self.appdata.temp_dir = temp_dir
             self.appdata.project.maps = maps
+            self.appdata.project.meta_data = meta_data
             self.appdata.project.cobra_py_model = cobra_py_model
             self.setCurrentFile(filename)
             self.recreate_maps()
@@ -607,9 +610,14 @@ class MainWindow(QMainWindow):
         with open(tmp_dir + "maps.json", 'w') as fp:
             json.dump(self.appdata.project.maps, fp)
 
+        # Save meta data
+        with open(tmp_dir + "meta.json", 'w') as fp:
+            json.dump(self.appdata.project.meta_data, fp)
+
         with ZipFile(filename, 'w') as zip_obj:
             zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
             zip_obj.write(tmp_dir + "maps.json", arcname="maps.json")
+            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
             for name, m in svg_files.items():
                 zip_obj.write(name, arcname=m)
 
