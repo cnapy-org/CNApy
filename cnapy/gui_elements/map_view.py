@@ -35,6 +35,7 @@ class MapView(QGraphicsView):
         self.reaction_boxes: Dict[str, ReactionBox] = {}
         self._zoom = 0
         self.drag = False
+        self.drag_start = None
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -402,7 +403,7 @@ class ReactionBox(QGraphicsItem):
     def boundingRect(self):
         return QRectF(-15, -15, 20, 20)
 
-    def paint(self, painter: QPainter, option, widget: QWidget):
+    def paint(self, painter: QPainter, _option, _widget: QWidget):
         # painter.setPen(Qt.NoPen)
         # set color depending on wether the value belongs to the scenario
         if self.id in self.map.appdata.project.scen_values.keys():
@@ -417,7 +418,7 @@ class ReactionBox(QGraphicsItem):
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+    def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
         print("ReactionBox::mousePressedEvent")
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):

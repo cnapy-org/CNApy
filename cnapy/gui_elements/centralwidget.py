@@ -153,11 +153,11 @@ class CentralWidget(QWidget):
                 self.appdata.project.scen_values[reaction] = (vl, vh)
         self.reaction_list.update()
 
-    def update_reaction_maps(self, reaction: str):
+    def update_reaction_maps(self, _reaction: str):
         self.parent.unsaved_changes()
         self.reaction_list.reaction_mask.update_state()
 
-    def handle_mapChanged(self, reaction: str):
+    def handle_mapChanged(self, _reaction: str):
         self.parent.unsaved_changes()
 
     def tabs_changed(self, idx):
