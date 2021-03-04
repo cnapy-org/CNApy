@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import json
 import time
-from random import *
+from random import randint
 from shutil import copyfile
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -52,7 +52,7 @@ def open_project(cna, name):
     folder = TemporaryDirectory()
     with ZipFile(name, 'r') as zip_ref:
         zip_ref.extractall(folder.name)
-        with open(folder.name+"/maps.json", 'r') as fp:
+        with open(folder.name+"/box_positions.json", 'r') as fp:
             cna.appdata.project.maps = json.load(fp)
             for m in cna.appdata.project.maps:
                 copyfile(folder.name+"/"+m["background"], m["background"])

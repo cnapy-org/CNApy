@@ -558,13 +558,13 @@ class MainWindow(QMainWindow):
         with ZipFile(filename, 'r') as zip_ref:
             zip_ref.extractall(temp_dir.name)
 
-            with open(temp_dir.name+"/maps.json", 'r') as fp:
+            with open(temp_dir.name+"/box_positions.json", 'r') as fp:
                 maps = json.load(fp)
 
                 count = 1
                 for _name, m in maps.items():
                     m["background"] = temp_dir.name + \
-                        "/.bg" + str(count) + ".svg"
+                        "/map" + str(count) + ".svg"
                     count += 1
             # load meta_data
             with open(temp_dir.name+"/meta.json", 'r') as fp:
@@ -601,13 +601,13 @@ class MainWindow(QMainWindow):
         svg_files = {}
         count = 1
         for name, m in self.appdata.project.maps.items():
-            arc_name = ".bg" + str(count) + ".svg"
+            arc_name = "map" + str(count) + ".svg"
             svg_files[m["background"]] = arc_name
             m["background"] = arc_name
             count += 1
 
         # Save maps information
-        with open(tmp_dir + "maps.json", 'w') as fp:
+        with open(tmp_dir + "box_positions.json", 'w') as fp:
             json.dump(self.appdata.project.maps, fp)
 
         # Save meta data
@@ -616,7 +616,8 @@ class MainWindow(QMainWindow):
 
         with ZipFile(filename, 'w') as zip_obj:
             zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zip_obj.write(tmp_dir + "maps.json", arcname="maps.json")
+            zip_obj.write(tmp_dir + "box_positions.json",
+                          arcname="box_positions.json")
             zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
             for name, m in svg_files.items():
                 zip_obj.write(name, arcname=m)
@@ -627,7 +628,7 @@ class MainWindow(QMainWindow):
             count = 1
             for name, m in self.appdata.project.maps.items():
                 m["background"] = self.appdata.temp_dir.name + \
-                    "/.bg" + str(count) + ".svg"
+                    "/map" + str(count) + ".svg"
                 count += 1
 
         self.nounsaved_changes()
