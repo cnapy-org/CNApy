@@ -90,7 +90,8 @@ class ReactionList(QWidget):
         self.reaction_list.clear()
         self.reaction_mask.hide()
 
-    def add_reaction(self, reaction):
+    def add_reaction(self, reaction: cobra.Reaction) -> QTreeWidgetItem:
+        ''' create a new item in the reaction list'''
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
@@ -176,10 +177,11 @@ class ReactionList(QWidget):
         self.reaction_mask.annotation.itemChanged.connect(
             self.reaction_mask.reaction_data_changed)
 
-    def reaction_selected(self, item, _column):
+    def reaction_selected(self, item: QTreeWidgetItem, _column):
         if item is None:
             self.reaction_mask.hide()
         else:
+            item.setSelected(True)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
 
