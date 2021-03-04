@@ -555,38 +555,45 @@ class MainWindow(QMainWindow):
 
         temp_dir = TemporaryDirectory()
 
-        with ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(temp_dir.name)
+        try:
+            with ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir.name)
 
-            with open(temp_dir.name+"/box_positions.json", 'r') as fp:
-                maps = json.load(fp)
+                with open(temp_dir.name+"/box_positions.json", 'r') as fp:
+                    maps = json.load(fp)
 
-                count = 1
-                for _name, m in maps.items():
-                    m["background"] = temp_dir.name + \
-                        "/map" + str(count) + ".svg"
-                    count += 1
-            # load meta_data
-            with open(temp_dir.name+"/meta.json", 'r') as fp:
-                meta_data = json.load(fp)
+                    count = 1
+                    for _name, m in maps.items():
+                        m["background"] = temp_dir.name + \
+                            "/map" + str(count) + ".svg"
+                        count += 1
+                # load meta_data
+                with open(temp_dir.name+"/meta.json", 'r') as fp:
+                    meta_data = json.load(fp)
 
-            cobra_py_model = cobra.io.read_sbml_model(
-                temp_dir.name + "/model.sbml")
+                cobra_py_model = cobra.io.read_sbml_model(
+                    temp_dir.name + "/model.sbml")
 
-            self.appdata.temp_dir = temp_dir
-            self.appdata.project.maps = maps
-            self.appdata.project.meta_data = meta_data
-            self.appdata.project.cobra_py_model = cobra_py_model
-            self.setCurrentFile(filename)
-            self.recreate_maps()
-            self.centralWidget().mode_navigator.clear()
-            self.clear_scenario()
-            for r in self.appdata.project.cobra_py_model.reactions:
-                if 'cnapy-default' in r.annotation.keys():
-                    self.centralWidget().update_reaction_value(
-                        r.id, r.annotation['cnapy-default'])
-            self.nounsaved_changes()
-            self.centralWidget().reaction_list.update()
+                self.appdata.temp_dir = temp_dir
+                self.appdata.project.maps = maps
+                self.appdata.project.meta_data = meta_data
+                self.appdata.project.cobra_py_model = cobra_py_model
+                self.setCurrentFile(filename)
+                self.recreate_maps()
+                self.centralWidget().mode_navigator.clear()
+                self.clear_scenario()
+                for r in self.appdata.project.cobra_py_model.reactions:
+                    if 'cnapy-default' in r.annotation.keys():
+                        self.centralWidget().update_reaction_value(
+                            r.id, r.annotation['cnapy-default'])
+                self.nounsaved_changes()
+                self.centralWidget().reaction_list.update()
+        except FileNotFoundError:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            QMessageBox.warning(self, 'Could not open project.', exstr)
+            return
 
     @Slot()
     def save_project(self):
