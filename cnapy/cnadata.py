@@ -1,5 +1,6 @@
 """The application data"""
 import os
+import pathlib
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
@@ -11,6 +12,7 @@ from qtpy.QtGui import QColor
 
 
 class CnaData:
+    ''' The cnapy application data '''
 
     def __init__(self):
         self.version = "cnapy-dev-0.1"
@@ -21,21 +23,21 @@ class CnaData:
         self.engine = None
         self.matlab_engine = None
         self.octave_engine = None
-        self.Scencolor = Qt.green
-        self.Compcolor = QColor(170, 170, 255)
-        self.SpecialColor1 = Qt.yellow
-        self.SpecialColor2 = QColor(170, 255, 0)  # for bounds excluding 0
-        self.Defaultcolor = Qt.gray
+        self.scen_color = QColor(255, 170, 255)
+        self.comp_color = QColor(170, 170, 255)
+        self.special_color_1 = Qt.yellow
+        self.special_color_2 = QColor(170, 255, 0)  # for bounds excluding 0
+        self.default_color = Qt.gray
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
         self.selected_engine = None
-        self.work_directory = ""
+        self.work_directory = str(pathlib.Path.home())+"/cnapy-projects"
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
 
-    def createCobraModel(self):
+    def create_cobra_model(self):
         if self.engine is not None:  # matlab or octave:
             cobra.io.save_matlab_model(
                 self.project.cobra_py_model, os.path.join(self.cna_path+"/cobra_model.mat"), varname="cbmodel")
@@ -77,6 +79,8 @@ class CnaData:
 
 
 class ProjectData:
+    ''' The cnapy project data '''
+
     def __init__(self):
         self.name = "Unnamed project"
         self.cobra_py_model = cobra.Model()

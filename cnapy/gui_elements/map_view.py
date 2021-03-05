@@ -88,7 +88,6 @@ class MapView(QGraphicsView):
         identifier = event.mimeData().text()
         self.appdata.project.maps[self.name]["boxes"][identifier] = (
             point_item.x(), point_item.y())
-        print("box drpped")
         self.mapChanged.emit(identifier)
         self.update()
 
@@ -112,33 +111,12 @@ class MapView(QGraphicsView):
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(factor, factor)
 
-    # def toggleDragMode(self):
-    #     if self.dragMode() == QGraphicsView.ScrollHandDrag:
-    #         self.setDragMode(QGraphicsView.NoDrag)
-    #     elif not self._photo.pixmap().isNull():
-    #         self.setDragMode(QGraphicsView.ScrollHandDrag)
-    # def mouseDoubleClickEvent(self, event: QMouseEvent):
-    #     print("Mapview::double_clickEvent")
-    #     x = self.itemAt(event.pos())
-    #     print(x)
-    #     if isinstance(x, QGraphicsProxyWidget):
-    #         print("yeah")
-    #         w = x.widget()
-    #         print(w)
-    #     elif isinstance(x, ReactionBox):
-    #         print("juuh")
-    #         self.doubleClickedReaction.emit(x.id)
-    #         # check if reaction box is under the cursor
-    #     super(MapView, self).mouseDoubleClickEvent(event)
-
     def mousePressEvent(self, event: QMouseEvent):
-        print("MapView::mousePressEvent")
         self.drag = True
         self.drag_start = event.pos()
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        # print("mouse-move")
         modifiers = QApplication.queryKeyboardModifiers()
         if modifiers == Qt.ControlModifier:
             if self.drag:
@@ -158,7 +136,6 @@ class MapView(QGraphicsView):
             super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        print("Mapview::mouseReleaseEvent")
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
             self.translate(1, 1)
@@ -166,7 +143,6 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
 
     def update_selected(self, string):
-        print("mapview:update_selected", string)
 
         for r_id in self.reaction_boxes:
             if string.lower() in r_id.lower():
@@ -177,14 +153,11 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[r_id].item.setHidden(True)
 
     def focus_reaction(self, reaction: str):
-        print("mapview:focus_reaction", reaction)
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
         y = self.appdata.project.maps[self.name]["boxes"][reaction][1]
         self.centerOn(x, y)
 
     def highlight_reaction(self, string):
-        print("mapview:highlight", string)
-
         # hide other boxes
         # for id in self.reaction_boxes:
         #     self.reaction_boxes[id].item.setHidden(True)
@@ -234,6 +207,7 @@ class MapView(QGraphicsView):
 
     def remove_box(self, reaction: str):
         del self.appdata.project.maps[self.name]["boxes"][reaction]
+        del self.reaction_boxes[reaction]
         self.update()
         self.reactionRemoved.emit(reaction)
 
@@ -242,11 +216,10 @@ class MapView(QGraphicsView):
     #     self.doubleClickedReaction.emit(reaction)
 
     def value_changed(self, reaction: str, value: str):
-        print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
 
-    switchToReactionDialog = Signal(str)
+    switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
     minimizeReaction = Signal(str)
     reactionRemoved = Signal(str)
@@ -279,7 +252,7 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
         palette = self.item.palette()
-        palette.setColor(QPalette.Base, self.map.appdata.Defaultcolor)
+        palette.setColor(QPalette.Base, self.map.appdata.default_color)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
@@ -293,21 +266,21 @@ class ReactionBox(QGraphicsItem):
         self.item.customContextMenuRequested.connect(self.on_context_menu)
 
         # create context menu
-        self.popMenu = QMenu(parent)
+        self.pop_menu = QMenu(parent)
         maximize_action = QAction('maximize flux for this reaction', parent)
-        self.popMenu.addAction(maximize_action)
+        self.pop_menu.addAction(maximize_action)
         maximize_action.triggered.connect(self.emit_maximize_action)
         minimize_action = QAction('minimize flux for this reaction', parent)
-        self.popMenu.addAction(minimize_action)
+        self.pop_menu.addAction(minimize_action)
         minimize_action.triggered.connect(self.emit_minimize_action)
-        switch_action = QAction('switch to reaction dialog', parent)
-        self.popMenu.addAction(switch_action)
-        switch_action.triggered.connect(self.switch_to_reaction_dialog)
+        switch_action = QAction('switch to reaction mask', parent)
+        self.pop_menu.addAction(switch_action)
+        switch_action.triggered.connect(self.switch_to_reaction_mask)
         remove_action = QAction('remove from map', parent)
-        self.popMenu.addAction(remove_action)
+        self.pop_menu.addAction(remove_action)
         remove_action.triggered.connect(self.remove)
 
-        self.popMenu.addSeparator()
+        self.pop_menu.addSeparator()
 
     def returnPressed(self):
         print(self.id, "return pressed to", self.item.text())
@@ -318,17 +291,16 @@ class ReactionBox(QGraphicsItem):
         # self.map.update()
 
     def value_changed(self):
-        print(self.id, "value changed to", self.item.text())
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.id, test)
-            self.set_color(self.map.appdata.Defaultcolor)
+            self.set_color(self.map.appdata.default_color)
         elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
-                self.set_color(self.map.appdata.Scencolor)
+                self.set_color(self.map.appdata.scen_color)
             else:
-                self.set_color(self.map.appdata.Compcolor)
+                self.set_color(self.map.appdata.comp_color)
         else:
             self.set_color(Qt.magenta)
 
@@ -356,7 +328,7 @@ class ReactionBox(QGraphicsItem):
         value = self.item.text()
         test = value.replace(" ", "")
         if test == "":
-            self.set_color(self.map.appdata.Defaultcolor)
+            self.set_color(self.map.appdata.default_color)
         elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.id]
@@ -364,18 +336,18 @@ class ReactionBox(QGraphicsItem):
                 # We differentiate special cases like (vl==vu)
                 # try:
                 #     x_ = float(value)
-                #     self.set_color(self.map.appdata.Scencolor)
+                #     self.set_color(self.map.appdata.scen_color)
                 # except:
                 #     (vl, vu) = make_tuple(value)
                 #     if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                 #         self.set_color(self.map.appdata.Specialcolor)
-                self.set_color(self.map.appdata.Scencolor)
+                self.set_color(self.map.appdata.scen_color)
             else:
                 value = self.map.appdata.project.comp_values[self.id]
                 (vl, vu) = value
                 if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                     if len(self.map.appdata.project.modes) == 0:
-                        self.set_color(self.map.appdata.Compcolor)
+                        self.set_color(self.map.appdata.comp_color)
                     else:
                         if vl == 0:
                             self.set_color(Qt.red)
@@ -383,13 +355,13 @@ class ReactionBox(QGraphicsItem):
                             self.set_color(Qt.green)
                 else:
                     if math.isclose(vl, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     elif math.isclose(vu, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     elif vl <= 0 and vu >= 0:
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     else:
-                        self.set_color(self.map.appdata.SpecialColor2)
+                        self.set_color(self.map.appdata.special_color_2)
         else:
             self.set_color(Qt.magenta)
 
@@ -443,14 +415,14 @@ class ReactionBox(QGraphicsItem):
 
     def on_context_menu(self, point):
         # show context menu
-        self.popMenu.exec_(self.item.mapToGlobal(point))
+        self.pop_menu.exec_(self.item.mapToGlobal(point))
 
     def remove(self):
         self.map.remove_box(self.id)
         self.map.drag = False
 
-    def switch_to_reaction_dialog(self):
-        self.map.switchToReactionDialog.emit(self.id)
+    def switch_to_reaction_mask(self):
+        self.map.switchToReactionMask.emit(self.id)
         self.map.drag = False
 
     def emit_maximize_action(self):

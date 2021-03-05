@@ -154,7 +154,7 @@ class YieldOptimizationDialog(QDialog):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             # create CobraModel for matlab
-            self.appdata.createCobraModel()
+            self.appdata.create_cobra_model()
 
             a = self.eng.eval("load('cobra_model.mat')",
                               nargout=0)
