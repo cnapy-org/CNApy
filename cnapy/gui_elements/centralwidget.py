@@ -79,11 +79,11 @@ class CentralWidget(QWidget):
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.reaction_list.reactionChanged.connect(
-            self.handle_changedReaction)
+            self.handle_changed_reaction)
         self.reaction_list.reactionDeleted.connect(
-            self.handle_deletedReaction)
+            self.handle_deleted_reaction)
         self.metabolite_list.metaboliteChanged.connect(
-            self.handle_changedMetabolite)
+            self.handle_changed_metabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
@@ -97,7 +97,7 @@ class CentralWidget(QWidget):
         max_scroll = vSB.maximum()
         vSB.setValue(max_scroll-100)
 
-    def handle_changedReaction(self, old_id: str, reaction: cobra.Reaction):
+    def handle_changed_reaction(self, old_id: str, reaction: cobra.Reaction):
         self.parent.unsaved_changes()
         for mmap in self.appdata.project.maps:
             if old_id in self.appdata.project.maps[mmap]["boxes"].keys():
@@ -107,7 +107,7 @@ class CentralWidget(QWidget):
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
 
-    def handle_deletedReaction(self, reaction: cobra.Reaction):
+    def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
 
@@ -119,8 +119,8 @@ class CentralWidget(QWidget):
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
 
-    def handle_changedMetabolite(self, old_id: str, metabolite: cobra.Metabolite):
-        print("CentralWidget handle_changedMetabolite", old_id, metabolite)
+    def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
+        print("CentralWidget handle_changed_metabolite", old_id, metabolite)
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
@@ -240,7 +240,7 @@ class CentralWidget(QWidget):
 
     def update_map(self, idx):
         m = self.map_tabs.widget(idx)
-        if m != None:
+        if m is not None:
             m.update()
 
     def update_maps(self):

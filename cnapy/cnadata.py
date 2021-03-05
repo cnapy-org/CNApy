@@ -37,7 +37,7 @@ class CnaData:
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
 
-    def createCobraModel(self):
+    def create_cobra_model(self):
         if self.engine is not None:  # matlab or octave:
             cobra.io.save_matlab_model(
                 self.project.cobra_py_model, os.path.join(self.cna_path+"/cobra_model.mat"), varname="cbmodel")

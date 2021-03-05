@@ -88,7 +88,6 @@ class MapView(QGraphicsView):
         identifier = event.mimeData().text()
         self.appdata.project.maps[self.name]["boxes"][identifier] = (
             point_item.x(), point_item.y())
-        print("box drpped")
         self.mapChanged.emit(identifier)
         self.update()
 
@@ -208,6 +207,7 @@ class MapView(QGraphicsView):
 
     def remove_box(self, reaction: str):
         del self.appdata.project.maps[self.name]["boxes"][reaction]
+        del self.reaction_boxes[reaction]
         self.update()
         self.reactionRemoved.emit(reaction)
 
@@ -216,7 +216,6 @@ class MapView(QGraphicsView):
     #     self.doubleClickedReaction.emit(reaction)
 
     def value_changed(self, reaction: str, value: str):
-        print("emit_value_changed")
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
 
@@ -292,7 +291,6 @@ class ReactionBox(QGraphicsItem):
         # self.map.update()
 
     def value_changed(self):
-        print(self.id, "value changed to", self.item.text())
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.id, test)

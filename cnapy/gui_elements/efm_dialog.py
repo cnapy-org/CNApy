@@ -91,7 +91,7 @@ class EFMDialog(QDialog):
     def compute(self):
 
         # create CobraModel for matlab
-        self.appdata.createCobraModel()
+        self.appdata.create_cobra_model()
 
         print(".")
         legacy.read_cnapy_model(self.eng)

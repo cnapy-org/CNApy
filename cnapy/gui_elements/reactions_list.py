@@ -68,8 +68,10 @@ class ReactionList(QWidget):
         self.setLayout(self.layout)
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
-        self.reaction_mask.reactionChanged.connect(self.handle_changedReaction)
-        self.reaction_mask.reactionDeleted.connect(self.handle_deletedReaction)
+        self.reaction_mask.reactionChanged.connect(
+            self.handle_changed_reaction)
+        self.reaction_mask.reactionDeleted.connect(
+            self.handle_deleted_reaction)
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
         self.reaction_mask.jumpToMetabolite.connect(
             self.emit_jump_to_metabolite)
@@ -203,7 +205,7 @@ class ReactionList(QWidget):
         self.splitter.setSizes([100, 100])
         self.reaction_mask.update_state()
 
-    def handle_changedReaction(self, reaction: cobra.Reaction):
+    def handle_changed_reaction(self, reaction: cobra.Reaction):
         print("ReactionList handle changedReaction", reaction)
 
         # Update reaction item in list
@@ -221,11 +223,8 @@ class ReactionList(QWidget):
         print("ReactionList emit changedReaction", reaction)
         self.reactionChanged.emit(old_id, reaction)
 
-    def handle_deletedReaction(self, reaction: cobra.Reaction):
-
-        print("ReactionList handle deletedReaction", reaction)
-
-        # remove reaction item from reaction list
+    def handle_deleted_reaction(self, reaction: cobra.Reaction):
+        '''Remove reaction item from reaction list'''
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
@@ -236,7 +235,6 @@ class ReactionList(QWidget):
                 break
 
         self.last_selected = self.reaction_mask.id.text()
-        print("ReactionList emit deletedReaction", reaction)
         self.reactionDeleted.emit(reaction)
 
     def update_selected(self, string):

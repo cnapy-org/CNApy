@@ -272,7 +272,7 @@ class MCSDialog(QDialog):
 
     def compute(self):
         # create CobraModel for matlab
-        self.appdata.createCobraModel()
+        self.appdata.create_cobra_model()
 
         print(".")
         self.eng.eval("load('cobra_model.mat')",

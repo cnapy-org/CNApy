@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
-        self.setCurrentFile("Untitled project")
+        self.set_current_filename("Untitled project")
 
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
@@ -310,16 +310,15 @@ class MainWindow(QMainWindow):
     def exit_app(self):
         QApplication.quit()
 
-    def setCurrentFile(self, fileName):
-        self.appdata.project.name = fileName
+    def set_current_filename(self, filename):
+        self.appdata.project.name = filename
 
         if len(self.appdata.project.name) == 0:
-            shownName = "Untitled project"
+            shown_name = "Untitled project"
         else:
-            shownName = QFileInfo(self.appdata.project.name).fileName()
+            shown_name = QFileInfo(self.appdata.project.name).fileName()
 
-        self.setWindowTitle(
-            "CNApy - " + shownName)
+        self.setWindowTitle("CNApy - " + shown_name)
 
     @Slot()
     def show_about(self):
@@ -534,7 +533,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
 
-        self.setCurrentFile("Untitled project")
+        self.set_current_filename("Untitled project")
         self.nounsaved_changes()
 
     @Slot()
@@ -583,7 +582,7 @@ class MainWindow(QMainWindow):
                 self.appdata.project.maps = maps
                 self.appdata.project.meta_data = meta_data
                 self.appdata.project.cobra_py_model = cobra_py_model
-                self.setCurrentFile(filename)
+                self.set_current_filename(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
                 self.clear_scenario()
@@ -653,7 +652,7 @@ class MainWindow(QMainWindow):
             directory=self.appdata.work_directory, filter="*.cna")
 
         if len(filename[0]) != 0:
-            self.setCurrentFile(filename[0])
+            self.set_current_filename(filename[0])
             self.save_project()
         else:
             return
@@ -830,7 +829,8 @@ class MainWindow(QMainWindow):
                     if r.reactants == []:
                         if len(r.products) != 1:
                             print(
-                                'Error: Expected only import reactions with one metabolite but', i, 'imports', r.products)
+                                'Error: Expected only import reactions with one metabolite but',
+                                i, 'imports', r.products)
                             errors = True
                         else:
                             if val > 0.0:
@@ -843,7 +843,8 @@ class MainWindow(QMainWindow):
                     elif r.products == []:
                         if len(r.reactants) != 1:
                             print(
-                                'Error: Expected only export reactions with one metabolite but', i, 'exports', r.reactants)
+                                'Error: Expected only export reactions with one metabolite but',
+                                i, 'exports', r.reactants)
                             errors = True
                         else:
                             if val > 0.0:

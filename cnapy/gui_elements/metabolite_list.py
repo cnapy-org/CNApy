@@ -53,7 +53,7 @@ class MetaboliteList(QWidget):
         self.metabolite_list.currentItemChanged.connect(
             self.metabolite_selected)
         self.metabolite_mask.metaboliteChanged.connect(
-            self.handle_changedMetabolite)
+            self.handle_changed_metabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
 
@@ -90,7 +90,7 @@ class MetaboliteList(QWidget):
         self.metabolite_mask.annotation.itemChanged.connect(
             self.metabolite_mask.metabolites_data_changed)
 
-    def handle_changedMetabolite(self, metabolite: cobra.Metabolite):
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite):
         print("MetaboliteList handle changedMetabolie", metabolite)
 
         # Update metabolite item in list
