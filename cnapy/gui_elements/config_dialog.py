@@ -223,7 +223,6 @@ class ConfigDialog(QDialog):
     def try_install_matlab_engine(self, directory: str):
         try:
             path = os.path.join(directory, 'extern/engines/python')
-            print("path:", path)
             cwd = os.getcwd()
             os.chdir(path)
             temp_dir = TemporaryDirectory()
@@ -268,7 +267,6 @@ class ConfigDialog(QDialog):
         if self.appdata.selected_engine == "matlab":
             self.selected_engine.setCurrentIndex(1)
         if self.appdata.selected_engine == "octave":
-            print(self.selected_engine.count())
             if self.selected_engine.count() == 2:
                 self.selected_engine.setCurrentIndex(1)
             elif self.selected_engine.count() == 3:

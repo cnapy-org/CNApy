@@ -34,6 +34,8 @@ class CellNetAnalyzer:
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
 
+        self.read_config()
+
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
 
@@ -46,7 +48,10 @@ class CellNetAnalyzer:
         if version != self.appdata.version:
             self.window.show_config_dialog()
         else:
-            self.config_app()
+            self.appdata.matlab_engine = try_matlab_engine()
+            self.appdata.octave_engine = try_octave_engine(
+                self.appdata.octave_executable)
+            self.appdata.select_engine()
 
         self.window.disable_enable_dependent_actions()
         self.window.save_project_action.setEnabled(False)
@@ -65,12 +70,10 @@ class CellNetAnalyzer:
     def set_model(self, model: cobra.Model):
         self.appdata.project.cobra_py_model = model
 
-    def config_app(self):
+    def read_config(self):
 
         configParser = configparser.RawConfigParser()
         configParser.read(self.appdata.conf_path)
-
-        self.appdata.matlab_engine = try_matlab_engine()
 
         try:
             self.appdata.matlab_path = configParser.get(
@@ -82,8 +85,7 @@ class CellNetAnalyzer:
                 'cnapy-config', 'OCTAVE_EXECUTABLE')
         except:
             self.appdata.octave_executable = ""
-        self.appdata.octave_engine = try_octave_engine(
-            self.appdata.octave_executable)
+
         try:
             selected_engine = configParser.get(
                 'cnapy-config', 'selected_engine')
@@ -91,8 +93,6 @@ class CellNetAnalyzer:
         except:
             print("Could not read selected_engine in cnapy-config.txt")
             self.appdata.selected_engine = None
-
-        self.appdata.select_engine()
 
         try:
             self.appdata.cna_path = configParser.get(
