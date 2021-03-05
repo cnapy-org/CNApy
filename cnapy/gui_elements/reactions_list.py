@@ -76,16 +76,6 @@ class ReactionList(QWidget):
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
-    def mouseMoveEvent(self, event):
-        print("ReactionList::mouseMoveEvent")
-        drag = QDrag(event.widget())
-        mime = QMimeData()
-        mime.setText(str("what"))
-        drag.setMimeData(mime)
-        # self.setCursor(Qt.ClosedHandCursor)
-        drag.exec_()
-        # self.setCursor(Qt.OpenHandCursor)
-
     def clear(self):
         self.reaction_list.clear()
         self.reaction_mask.hide()
@@ -275,7 +265,6 @@ class ReactionList(QWidget):
 
             for i in items:
                 self.reaction_list.setCurrentItem(i)
-                print(i.text(0))
                 break
 
         self.reaction_mask.update_state()
@@ -356,9 +345,9 @@ class ReactionMask(QWidget):
         self.reaction = None
         self.is_valid = True
         self.changed = False
+        self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
-
         l = QHBoxLayout()
         self.delete_button = QPushButton("Delete reaction")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))

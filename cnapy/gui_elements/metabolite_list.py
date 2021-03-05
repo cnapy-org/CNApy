@@ -28,10 +28,10 @@ class MetaboliteList(QWidget):
             self.on_context_menu)
 
         # create context menu
-        self.popMenu = QMenu(self.metabolite_list)
+        self.pop_menu = QMenu(self.metabolite_list)
         in_out_fluxes_action = QAction(
             'compute in/out fluxes for this metabolite', self.metabolite_list)
-        self.popMenu.addAction(in_out_fluxes_action)
+        self.pop_menu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
         self.metabolite_mask = MetabolitesMask(appdata)
@@ -66,7 +66,7 @@ class MetaboliteList(QWidget):
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.metabolites) > 0:
-            self.popMenu.exec_(self.mapToGlobal(point))
+            self.pop_menu.exec_(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
 
@@ -189,6 +189,7 @@ class MetabolitesMask(QWidget):
         self.metabolite = None
         self.is_valid = True
         self.changed = False
+        self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
         l = QHBoxLayout()

@@ -176,7 +176,7 @@ class CentralWidget(QWidget):
 
         self.appdata.project.maps[name] = m
         mmap = MapView(self.appdata, name)
-        mmap.switchToReactionDialog.connect(self.switch_to_reaction)
+        mmap.switchToReactionMask.connect(self.switch_to_reaction)
         mmap.minimizeReaction.connect(self.minimize_reaction)
         mmap.maximizeReaction.connect(self.maximize_reaction)
 

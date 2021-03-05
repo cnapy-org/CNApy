@@ -597,7 +597,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_project(self):
-
+        ''' Save the project '''
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
 
@@ -661,7 +661,7 @@ class MainWindow(QMainWindow):
         for name, mmap in self.appdata.project.maps.items():
             mmap = MapView(self.appdata, name)
             mmap.show()
-            mmap.switchToReactionDialog.connect(
+            mmap.switchToReactionMask.connect(
                 self.centralWidget().switch_to_reaction)
             mmap.minimizeReaction.connect(
                 self.centralWidget().minimize_reaction)

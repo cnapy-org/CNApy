@@ -112,33 +112,12 @@ class MapView(QGraphicsView):
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(factor, factor)
 
-    # def toggleDragMode(self):
-    #     if self.dragMode() == QGraphicsView.ScrollHandDrag:
-    #         self.setDragMode(QGraphicsView.NoDrag)
-    #     elif not self._photo.pixmap().isNull():
-    #         self.setDragMode(QGraphicsView.ScrollHandDrag)
-    # def mouseDoubleClickEvent(self, event: QMouseEvent):
-    #     print("Mapview::double_clickEvent")
-    #     x = self.itemAt(event.pos())
-    #     print(x)
-    #     if isinstance(x, QGraphicsProxyWidget):
-    #         print("yeah")
-    #         w = x.widget()
-    #         print(w)
-    #     elif isinstance(x, ReactionBox):
-    #         print("juuh")
-    #         self.doubleClickedReaction.emit(x.id)
-    #         # check if reaction box is under the cursor
-    #     super(MapView, self).mouseDoubleClickEvent(event)
-
     def mousePressEvent(self, event: QMouseEvent):
-        print("MapView::mousePressEvent")
         self.drag = True
         self.drag_start = event.pos()
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        # print("mouse-move")
         modifiers = QApplication.queryKeyboardModifiers()
         if modifiers == Qt.ControlModifier:
             if self.drag:
@@ -158,7 +137,6 @@ class MapView(QGraphicsView):
             super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        print("Mapview::mouseReleaseEvent")
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
             self.translate(1, 1)
@@ -166,7 +144,6 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
 
     def update_selected(self, string):
-        print("mapview:update_selected", string)
 
         for r_id in self.reaction_boxes:
             if string.lower() in r_id.lower():
@@ -177,14 +154,11 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[r_id].item.setHidden(True)
 
     def focus_reaction(self, reaction: str):
-        print("mapview:focus_reaction", reaction)
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
         y = self.appdata.project.maps[self.name]["boxes"][reaction][1]
         self.centerOn(x, y)
 
     def highlight_reaction(self, string):
-        print("mapview:highlight", string)
-
         # hide other boxes
         # for id in self.reaction_boxes:
         #     self.reaction_boxes[id].item.setHidden(True)
@@ -246,7 +220,7 @@ class MapView(QGraphicsView):
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
 
-    switchToReactionDialog = Signal(str)
+    switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
     minimizeReaction = Signal(str)
     reactionRemoved = Signal(str)
@@ -293,21 +267,21 @@ class ReactionBox(QGraphicsItem):
         self.item.customContextMenuRequested.connect(self.on_context_menu)
 
         # create context menu
-        self.popMenu = QMenu(parent)
+        self.pop_menu = QMenu(parent)
         maximize_action = QAction('maximize flux for this reaction', parent)
-        self.popMenu.addAction(maximize_action)
+        self.pop_menu.addAction(maximize_action)
         maximize_action.triggered.connect(self.emit_maximize_action)
         minimize_action = QAction('minimize flux for this reaction', parent)
-        self.popMenu.addAction(minimize_action)
+        self.pop_menu.addAction(minimize_action)
         minimize_action.triggered.connect(self.emit_minimize_action)
-        switch_action = QAction('switch to reaction dialog', parent)
-        self.popMenu.addAction(switch_action)
-        switch_action.triggered.connect(self.switch_to_reaction_dialog)
+        switch_action = QAction('switch to reaction mask', parent)
+        self.pop_menu.addAction(switch_action)
+        switch_action.triggered.connect(self.switch_to_reaction_mask)
         remove_action = QAction('remove from map', parent)
-        self.popMenu.addAction(remove_action)
+        self.pop_menu.addAction(remove_action)
         remove_action.triggered.connect(self.remove)
 
-        self.popMenu.addSeparator()
+        self.pop_menu.addSeparator()
 
     def returnPressed(self):
         print(self.id, "return pressed to", self.item.text())
@@ -443,14 +417,14 @@ class ReactionBox(QGraphicsItem):
 
     def on_context_menu(self, point):
         # show context menu
-        self.popMenu.exec_(self.item.mapToGlobal(point))
+        self.pop_menu.exec_(self.item.mapToGlobal(point))
 
     def remove(self):
         self.map.remove_box(self.id)
         self.map.drag = False
 
-    def switch_to_reaction_dialog(self):
-        self.map.switchToReactionDialog.emit(self.id)
+    def switch_to_reaction_mask(self):
+        self.map.switchToReactionMask.emit(self.id)
         self.map.drag = False
 
     def emit_maximize_action(self):
