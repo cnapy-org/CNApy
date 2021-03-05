@@ -172,9 +172,6 @@ class MCSDialog(QDialog):
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
 
-        print(self.eng.is_cplex_matlab_ready())
-        print(self.eng.is_cplex_java_ready())
-
         # Search type: by cardinality only with CPLEX possible
         self.mcs_by_cardinality = QRadioButton("by cardinality")
         s34.addWidget(self.mcs_by_cardinality)
@@ -273,11 +270,9 @@ class MCSDialog(QDialog):
     def compute(self):
         # create CobraModel for matlab
         self.appdata.create_cobra_model()
-
-        print(".")
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
-        print(".")
+
         try:
             self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
                           nargout=0,
@@ -291,8 +286,6 @@ class MCSDialog(QDialog):
                                 exstr+'\nPlease report the problem to:\n\
                                     \nhttps://github.com/ARB-Lab/CNApy/issues')
             return
-
-        print(".")
 
         self.eng.eval("genes = [];", nargout=0,
                       stdout=self.out, stderr=self.err)
@@ -345,7 +338,6 @@ class MCSDialog(QDialog):
             p4 = self.target_list.cellWidget(i, 3).text()
             cmd = "dg_T = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
-            print(cmd)
             self.eng.eval(cmd, nargout=0,
                           stdout=self.out, stderr=self.err)
 
@@ -360,7 +352,6 @@ class MCSDialog(QDialog):
             p4 = self.desired_list.cellWidget(i, 3).text()
             cmd = "dg_D = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
-            print(cmd)
             self.eng.eval(cmd, nargout=0)
 
         # get some data
@@ -420,7 +411,6 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            print(reac_id)
             for i in range(0, len(reac_id)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
@@ -430,11 +420,9 @@ class MCSDialog(QDialog):
                     c_value = 0
                 if c_mcs > last_mcs:
                     omcs.append(current_mcs)
-                    print(current_mcs)
                     last_mcs = c_mcs
                     current_mcs = {}
                 current_mcs[reaction] = c_value
-            print(current_mcs)
             omcs.append(current_mcs)
             self.appdata.project.modes = omcs
             self.centralwidget.mode_navigator.current = 0
