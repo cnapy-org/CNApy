@@ -3,8 +3,6 @@
 import io
 import traceback
 
-import cnapy.legacy as legacy
-from cnapy.cnadata import CnaData
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
@@ -13,6 +11,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
 import cobra.util.array
 import optlang
 import cnapy.optlang_enumerator.cMCS_enumerator as cMCS_enumerator
+from cnapy.cnadata import CnaData
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""

@@ -2,15 +2,15 @@
 from math import isclose
 
 import cobra
-from cnapy.cnadata import CnaData
-from cnapy.utils import *
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot
 from qtpy.QtGui import QDrag, QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
-                            QTreeWidgetItem, QTreeWidgetItemIterator,
+                            QTreeWidgetItem,
                             QVBoxLayout, QWidget)
+from cnapy.cnadata import CnaData
+from cnapy.utils import turn_red, turn_white
 
 
 class DragableTreeWidget(QTreeWidget):
@@ -90,7 +90,8 @@ class ReactionList(QWidget):
         self.reaction_list.clear()
         self.reaction_mask.hide()
 
-    def add_reaction(self, reaction):
+    def add_reaction(self, reaction: cobra.Reaction) -> QTreeWidgetItem:
+        ''' create a new item in the reaction list'''
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
@@ -176,10 +177,11 @@ class ReactionList(QWidget):
         self.reaction_mask.annotation.itemChanged.connect(
             self.reaction_mask.reaction_data_changed)
 
-    def reaction_selected(self, item, _column):
+    def reaction_selected(self, item: QTreeWidgetItem, _column):
         if item is None:
             self.reaction_mask.hide()
         else:
+            item.setSelected(True)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
 
@@ -197,7 +199,6 @@ class ReactionList(QWidget):
                 str(reaction.gene_reaction_rule))
             self.update_annotations(reaction.annotation)
 
-            self.reaction_mask.old = reaction
             self.reaction_mask.changed = False
 
             turn_white(self.reaction_mask.id)
@@ -299,10 +300,10 @@ class ReactionList(QWidget):
 class JumpButton(QPushButton):
     """button to jump to reactions on map"""
 
-    def __init__(self, parent, id: str):
-        QPushButton.__init__(self, str(id))
+    def __init__(self, parent, r_id: str):
+        QPushButton.__init__(self, r_id)
         self.parent = parent
-        self.id: str = id
+        self.id: str = r_id
         self.clicked.connect(self.emit_jump_to_map)
 
     def emit_jump_to_map(self):
@@ -352,6 +353,7 @@ class ReactionMask(QWidget):
         QWidget.__init__(self)
 
         self.parent = parent
+        self.reaction = None
         self.is_valid = True
         self.changed = False
 
@@ -474,7 +476,6 @@ class ReactionMask(QWidget):
             msgBox = QMessageBox()
             msgBox.setText("Could not apply changes identifier already used.")
             msgBox.exec()
-            pass
         else:
             self.reaction.name = self.name.text()
             self.reaction.build_reaction_from_string(self.equation.text())
@@ -558,7 +559,7 @@ class ReactionMask(QWidget):
 
     def validate_lowerbound(self):
         try:
-            x = float(self.lower_bound.text())
+            _x = float(self.lower_bound.text())
         except:
             turn_red(self.lower_bound)
             return False
@@ -568,7 +569,7 @@ class ReactionMask(QWidget):
 
     def validate_upperbound(self):
         try:
-            x = float(self.upper_bound.text())
+            _x = float(self.upper_bound.text())
         except:
             turn_red(self.upper_bound)
             return False
@@ -578,7 +579,7 @@ class ReactionMask(QWidget):
 
     def validate_coefficient(self):
         try:
-            x = float(self.coefficent.text())
+            _x = float(self.coefficent.text())
         except:
             turn_red(self.coefficent)
             return False
@@ -588,7 +589,7 @@ class ReactionMask(QWidget):
 
     def validate_gene_reaction_rule(self):
         try:
-            x = float(self.gene_reaction_rule.text())
+            _x = float(self.gene_reaction_rule.text())
         except:
             turn_red(self.gene_reaction_rule)
             return False

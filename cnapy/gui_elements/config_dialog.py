@@ -4,13 +4,14 @@ import os
 import traceback
 from tempfile import TemporaryDirectory
 
+import appdirs
 import cnapy.resources
 from cnapy.cnadata import CnaData
 from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                            QHBoxLayout, QLabel, QLineEdit,
                             QPushButton, QVBoxLayout)
 
 
@@ -59,7 +60,7 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_label)
 
         self.choose_oc_exe_btn = QPushButton(
-            "Choose path to Octave executable")
+            "Choose Octave executable")
         self.choose_oc_exe_btn.setFixedWidth(300)
         oc.addWidget(self.choose_oc_exe_btn)
 
@@ -182,8 +183,8 @@ class ConfigDialog(QDialog):
         h9 = QHBoxLayout()
         label = QLabel("Matlab/Octave engine:")
         h9.addWidget(label)
-        self.default_engine = QComboBox()
-        h9.addWidget(self.default_engine)
+        self.selected_engine = QComboBox()
+        h9.addWidget(self.selected_engine)
         self.layout.addItem(h9)
 
         l2 = QHBoxLayout()
@@ -238,15 +239,15 @@ class ConfigDialog(QDialog):
             print(exstr)
 
     def choose_oc_exe(self):
+
         dialog = QFileDialog(self, directory=self.oc_exe.text())
-        dialog.setFileMode(QFileDialog.DirectoryOnly)
-        directory: str = dialog.getExistingDirectory()
-        if not directory or len(directory) == 0 or not os.path.exists(directory):
+        filename: str = dialog.getOpenFileName(directory=os.getcwd())[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
-        self.oc_exe.setText(directory)
-        if os.path.isfile(directory):
-            os.environ['OCTAVE_EXECUTABLE'] = directory
+        self.oc_exe.setText(filename)
+        if os.path.isfile(filename):
+            os.environ['OCTAVE_EXECUTABLE'] = filename
         self.check_octave()
 
     def check_all(self):
@@ -254,14 +255,24 @@ class ConfigDialog(QDialog):
         self.check_matlab()
         self.check_cna()
 
-        self.default_engine.clear()
-        if self.meng is not None:
-            self.default_engine.insertItem(1, "Matlab")
-        if self.oeng is not None:
-            self.default_engine.insertItem(2, "Octave")
+        self.selected_engine.clear()
 
-        if self.appdata.default_engine == "octave":
-            self.default_engine.setCurrentIndex(1)
+        self.selected_engine.addItem("None")
+        if self.meng is not None:
+            self.selected_engine.addItem("Matlab")
+        if self.oeng is not None:
+            self.selected_engine.addItem("Octave")
+
+        if self.appdata.selected_engine is None:
+            self.selected_engine.setCurrentIndex(0)
+        if self.appdata.selected_engine == "matlab":
+            self.selected_engine.setCurrentIndex(1)
+        if self.appdata.selected_engine == "octave":
+            print(self.selected_engine.count())
+            if self.selected_engine.count() == 2:
+                self.selected_engine.setCurrentIndex(1)
+            elif self.selected_engine.count() == 3:
+                self.selected_engine.setCurrentIndex(2)
 
     def check_octave(self):
         cross_icon = QIcon(":/icons/cross.png")
@@ -311,7 +322,6 @@ class ConfigDialog(QDialog):
             self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_cna(self):
-
         cross_icon = QIcon(":/icons/cross.png")
         cross = cross_icon.pixmap(QSize(32, 32))
         check_icon = QIcon(":/icons/check.png")
@@ -388,12 +398,14 @@ class ConfigDialog(QDialog):
         self.appdata.matlab_engine = self.meng
         self.appdata.octave_engine = self.oeng
 
-        if self.default_engine.currentIndex() == 0:
-            self.appdata.default_engine = "matlab"
-            self.appdata.use_matlab()
-        elif self.default_engine.currentIndex() == 1:
-            self.appdata.default_engine = "octave"
-            self.appdata.use_octave()
+        if self.selected_engine.currentText() == "None":
+            self.appdata.selected_engine = None
+        elif self.selected_engine.currentText() == "Matlab":
+            self.appdata.selected_engine = "matlab"
+        elif self.selected_engine.currentText() == "Octave":
+            self.appdata.selected_engine = "octave"
+
+        self.appdata.select_engine()
 
         self.appdata.window.disable_enable_dependent_actions()
 
@@ -415,11 +427,10 @@ class ConfigDialog(QDialog):
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
 
-        self.appdata.first_run = False
         import configparser
         parser = configparser.ConfigParser()
         parser.add_section('cnapy-config')
-        parser.set('cnapy-config', 'first_run', '0')
+        parser.set('cnapy-config', 'version', self.appdata.version)
         parser.set('cnapy-config', 'matlab_path', self.appdata.matlab_path)
         parser.set('cnapy-config', 'OCTAVE_EXECUTABLE',
                    self.appdata.octave_executable)
@@ -438,15 +449,13 @@ class ConfigDialog(QDialog):
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',
                    str(self.appdata.abs_tol))
-        parser.set('cnapy-config', 'default_engine',
-                   str(self.appdata.default_engine))
+        parser.set('cnapy-config', 'selected_engine',
+                   str(self.appdata.selected_engine))
 
         try:
             fp = open(self.appdata.conf_path, "w")
         except:
-            import os
 
-            import appdirs
             os.makedirs(appdirs.user_config_dir(
                 "cnapy", roaming=True, appauthor=False))
             fp = open(self.appdata.conf_path, "w")

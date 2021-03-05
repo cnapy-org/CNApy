@@ -2,7 +2,6 @@
 
 import matplotlib.pyplot as plt
 import pandas
-from matplotlib.pyplot import scatter
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QPushButton, QVBoxLayout)
@@ -103,15 +102,15 @@ class PhasePlaneDialog(QDialog):
                                                 y_axis),
                                             points=100)
 
-            fig, ax = plt.subplots()
+            _fig, axes = plt.subplots()
 
             variable = result.variable_ids[0]
             y_axis_label = result._axis_label(
                 result.objective, result.nice_objective_id, 'flux')
             x_axis_label = result._axis_label(
                 variable, result.nice_variable_ids[0], '[mmol gDW^-1 h^-1]')
-            ax.set_xlabel(x_axis_label)
-            ax.set_ylabel(y_axis_label)
+            axes.set_xlabel(x_axis_label)
+            axes.set_ylabel(y_axis_label)
             dataframe = pandas.DataFrame(
                 columns=["ub", "lb", "value", "strain"])
 

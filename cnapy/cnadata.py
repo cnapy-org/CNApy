@@ -1,9 +1,11 @@
+"""The application data"""
 import os
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
 import appdirs
 import cobra
+import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 
@@ -11,7 +13,7 @@ from qtpy.QtGui import QColor
 class CnaData:
 
     def __init__(self):
-        self.first_run = 1
+        self.version = "cnapy-dev-0.1"
         self.unsaved = False
         self.project = ProjectData()
         self.octave_executable = ""
@@ -27,7 +29,7 @@ class CnaData:
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
-        self.default_engine = "matlab"
+        self.selected_engine = None
         self.work_directory = ""
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
@@ -52,21 +54,26 @@ class CnaData:
     def is_octave_set(self):
         return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
 
-    def use_matlab(self):
+    def select_engine(self):
         """
-        switch to Matlab
+        select Engine
         """
-        if self.matlab_engine is not None:
-            self.engine = self.matlab_engine
-            print("Using Matlab engine!")
-
-    def use_octave(self):
-        """
-        switch to Octave
-        """
-        if self.octave_engine is not None:
-            self.engine = self.octave_engine
-            print("Using Octave engine!")
+        if self.selected_engine == "matlab":
+            if self.matlab_engine is not None:
+                self.engine = self.matlab_engine
+                print("Using Matlab engine!")
+            else:
+                self.selected_engine = None
+                print("No engine selected!")
+        elif self.selected_engine == "octave":
+            if self.octave_engine is not None:
+                self.engine = self.octave_engine
+                print("Using Octave engine!")
+            else:
+                self.selected_engine = None
+                print("No engine selected!")
+        else:
+            print("No engine selected!")
 
 
 class ProjectData:
@@ -80,6 +87,7 @@ class ProjectData:
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.modes: Dict[str, Tuple[float, float]] = []
         self.compute_color_type = 1
+        self.meta_data = {}
 
     def load_scenario_into_model(self, model):
         for x in self.scen_values:
@@ -94,7 +102,6 @@ class ProjectData:
 
 
 def CnaMap(name):
-    import pkg_resources
     background_svg = pkg_resources.resource_filename(
         'cnapy', 'data/cnapylogo.svg')
     return {"name": name,

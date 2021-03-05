@@ -4,6 +4,7 @@ import traceback
 
 from importlib import reload
 import cnapy.CNA_MEngine
+import cnapy.octave_engine
 
 
 def try_matlab_engine():
@@ -28,6 +29,7 @@ def try_octave_engine(octave_executable: str):
         os.environ['OCTAVE_EXECUTABLE'] = octave_executable
     try:
         print("Try Octave engine ...")
+        reload(cnapy.octave_engine)
         from cnapy.octave_engine import CNAoctaveEngine
         oeng = CNAoctaveEngine()
         print("Octave engine available.")
