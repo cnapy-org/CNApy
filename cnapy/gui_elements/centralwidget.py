@@ -234,8 +234,8 @@ class CentralWidget(QWidget):
         elif idx == 1:
             self.metabolite_list.update()
         idx = self.map_tabs.currentIndex()
-        m = self.map_tabs.widget(idx)
-        if m != None:
+        if idx >= 0:
+            m = self.map_tabs.widget(idx)
             m.update()
 
     def update_map(self, idx):

@@ -51,6 +51,12 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
+        new_project_from_sbml_action = QAction(
+            "New project from SBML ...", self)
+        self.file_menu.addAction(new_project_from_sbml_action)
+        new_project_from_sbml_action.triggered.connect(
+            self.new_project_from_sbml)
+
         open_project_action = QAction("&Open project ...", self)
         open_project_action.setShortcut("Ctrl+O")
         self.file_menu.addAction(open_project_action)
@@ -65,10 +71,6 @@ class MainWindow(QMainWindow):
         save_as_project_action.setShortcut("Ctrl+Shift+S")
         self.file_menu.addAction(save_as_project_action)
         save_as_project_action.triggered.connect(self.save_project_as)
-
-        import_sbml_action = QAction("Import SBML...", self)
-        self.file_menu.addAction(import_sbml_action)
-        import_sbml_action.triggered.connect(self.import_sbml)
 
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
@@ -151,10 +153,12 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
 
-        save_box_positions_action = QAction(
+        self.save_box_positions_action = QAction(
             "Save reaction box positions...", self)
-        self.map_menu.addAction(save_box_positions_action)
-        save_box_positions_action.triggered.connect(self.save_box_positions)
+        self.map_menu.addAction(self.save_box_positions_action)
+        self.save_box_positions_action.triggered.connect(
+            self.save_box_positions)
+        self.save_box_positions_action.setEnabled(False)
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -238,14 +242,14 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
-        self.help_menu = self.menu.addMenu("Help")
+        self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy ...", self)
-        self.help_menu.addAction(config_action)
+        self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
         about_action = QAction("About cnapy...", self)
-        self.help_menu.addAction(about_action)
+        self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
         update_action = QAction("Default Coloring", self)
@@ -341,18 +345,6 @@ class MainWindow(QMainWindow):
     def show_description_dialog(self):
         dialog = DescriptionDialog(self.appdata)
         dialog.exec_()
-
-    @Slot()
-    def import_sbml(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.xml")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
-
-        self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
-            filename)
-        self.centralWidget().update()
 
     @Slot()
     def export_sbml(self):
@@ -546,6 +538,19 @@ class MainWindow(QMainWindow):
         self.nounsaved_changes()
 
     @Slot()
+    def new_project_from_sbml(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=os.getcwd(), filter="*.xml")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+
+        cobra_py_model = cobra.io.read_sbml_model(filename)
+        self.new_project()
+        self.appdata.project.cobra_py_model = cobra_py_model
+        self.centralWidget().update()
+
+    @Slot()
     def open_project(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
@@ -684,12 +689,14 @@ class MainWindow(QMainWindow):
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
+            self.save_box_positions_action.setEnabled(True)
             self.centralWidget().update_map(idx)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)
+            self.save_box_positions_action.setEnabled(False)
 
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
@@ -998,6 +1005,8 @@ class MainWindow(QMainWindow):
                     item.setBackground(2, color)
 
         idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            return
         name = self.centralWidget().map_tabs.tabText(idx)
         view = self.centralWidget().map_tabs.widget(idx)
         for key in self.appdata.project.maps[name]["boxes"]:
@@ -1040,6 +1049,8 @@ class MainWindow(QMainWindow):
                     item.setBackground(2, color)
 
         idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            return
         name = self.centralWidget().map_tabs.tabText(idx)
         view = self.centralWidget().map_tabs.widget(idx)
         for key in self.appdata.project.maps[name]["boxes"]:

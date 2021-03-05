@@ -1,12 +1,15 @@
 """The metabolite list"""
+import sys
+import traceback
+
 import cobra
+from cnapy.cnadata import CnaData
+from cnapy.utils import turn_red, turn_white
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
-from cnapy.cnadata import CnaData
-from cnapy.utils import turn_red, turn_white
 
 
 class MetaboliteList(QWidget):
@@ -301,8 +304,6 @@ class MetabolitesMask(QWidget):
             self.metaboliteChanged.emit(self.metabolite)
 
     def validate_id(self):
-        import sys
-        import traceback
         with self.appdata.project.cobra_py_model as model:
             text = self.id.text()
             if text == "":
@@ -314,8 +315,7 @@ class MetabolitesMask(QWidget):
             try:
                 m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
-            except Exception:
-
+            except:
                 traceback.print_exception(*sys.exc_info())
                 turn_red(self.id)
                 return False
