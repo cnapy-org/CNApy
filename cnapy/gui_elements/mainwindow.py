@@ -350,7 +350,7 @@ class MainWindow(QMainWindow):
     def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.xml")[0]
+            directory=self.appdata.work_directory, filter="*.xml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
     def load_box_positions(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.maps")[0]
+            directory=self.appdata.work_directory, filter="*.maps")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -391,7 +391,7 @@ class MainWindow(QMainWindow):
     def load_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.scen")[0]
+            directory=self.appdata.work_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -409,7 +409,7 @@ class MainWindow(QMainWindow):
     def load_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.modes")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -427,7 +427,7 @@ class MainWindow(QMainWindow):
     def change_background(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.svg")[0]
+            directory=self.appdata.work_directory, filter="*.svg")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -474,7 +474,7 @@ class MainWindow(QMainWindow):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.maps")[0]
+            directory=self.appdata.work_directory, filter="*.maps")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -485,7 +485,7 @@ class MainWindow(QMainWindow):
     def save_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.scen")[0]
+            directory=self.appdata.work_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -497,7 +497,7 @@ class MainWindow(QMainWindow):
     def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.modes")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
         with open(filename, 'w') as fp:
@@ -541,7 +541,7 @@ class MainWindow(QMainWindow):
     def new_project_from_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.xml")[0]
+            directory=self.appdata.work_directory, filter="*.xml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -554,7 +554,7 @@ class MainWindow(QMainWindow):
     def open_project(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.cna")[0]
+            directory=self.appdata.work_directory, filter="*.cna")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -650,7 +650,7 @@ class MainWindow(QMainWindow):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.cna")
+            directory=self.appdata.work_directory, filter="*.cna")
 
         if len(filename[0]) != 0:
             self.setCurrentFile(filename[0])

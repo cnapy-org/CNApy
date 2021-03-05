@@ -1,5 +1,6 @@
 """The application data"""
 import os
+import pathlib
 from tempfile import TemporaryDirectory
 from typing import Dict, Tuple
 
@@ -30,7 +31,7 @@ class CnaData:
         self.rounding = 3
         self.cna_path = ""
         self.selected_engine = None
-        self.work_directory = appdirs.user_data_dir
+        self.work_directory = str(pathlib.Path.home())+"/cnapy-projects"
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
