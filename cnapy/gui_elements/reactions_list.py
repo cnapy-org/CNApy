@@ -106,7 +106,7 @@ class ReactionList(QWidget):
             else:
                 item.setData(
                     2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
-            item.setBackground(2, self.appdata.Scencolor)
+            item.setBackground(2, self.appdata.scen_color)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
             (vl, vu) = self.appdata.project.comp_values[key]
@@ -114,7 +114,7 @@ class ReactionList(QWidget):
             # We differentiate special cases like (vl==vu)
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if len(self.appdata.project.modes) == 0:
-                    item.setBackground(2, self.appdata.Compcolor)
+                    item.setBackground(2, self.appdata.comp_color)
                 else:
                     if vl == 0:
                         item.setBackground(2, Qt.red)
@@ -124,13 +124,13 @@ class ReactionList(QWidget):
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
                 if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 elif vl <= 0 and vu >= 0:
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 else:
-                    item.setBackground(2, self.appdata.SpecialColor2)
+                    item.setBackground(2, self.appdata.special_color_2)
                 item.setData(
                     2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 

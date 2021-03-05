@@ -253,7 +253,7 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
         palette = self.item.palette()
-        palette.setColor(QPalette.Base, self.map.appdata.Defaultcolor)
+        palette.setColor(QPalette.Base, self.map.appdata.default_color)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
@@ -296,13 +296,13 @@ class ReactionBox(QGraphicsItem):
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.id, test)
-            self.set_color(self.map.appdata.Defaultcolor)
+            self.set_color(self.map.appdata.default_color)
         elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
-                self.set_color(self.map.appdata.Scencolor)
+                self.set_color(self.map.appdata.scen_color)
             else:
-                self.set_color(self.map.appdata.Compcolor)
+                self.set_color(self.map.appdata.comp_color)
         else:
             self.set_color(Qt.magenta)
 
@@ -330,7 +330,7 @@ class ReactionBox(QGraphicsItem):
         value = self.item.text()
         test = value.replace(" ", "")
         if test == "":
-            self.set_color(self.map.appdata.Defaultcolor)
+            self.set_color(self.map.appdata.default_color)
         elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.id]
@@ -338,18 +338,18 @@ class ReactionBox(QGraphicsItem):
                 # We differentiate special cases like (vl==vu)
                 # try:
                 #     x_ = float(value)
-                #     self.set_color(self.map.appdata.Scencolor)
+                #     self.set_color(self.map.appdata.scen_color)
                 # except:
                 #     (vl, vu) = make_tuple(value)
                 #     if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                 #         self.set_color(self.map.appdata.Specialcolor)
-                self.set_color(self.map.appdata.Scencolor)
+                self.set_color(self.map.appdata.scen_color)
             else:
                 value = self.map.appdata.project.comp_values[self.id]
                 (vl, vu) = value
                 if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                     if len(self.map.appdata.project.modes) == 0:
-                        self.set_color(self.map.appdata.Compcolor)
+                        self.set_color(self.map.appdata.comp_color)
                     else:
                         if vl == 0:
                             self.set_color(Qt.red)
@@ -357,13 +357,13 @@ class ReactionBox(QGraphicsItem):
                             self.set_color(Qt.green)
                 else:
                     if math.isclose(vl, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     elif math.isclose(vu, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     elif vl <= 0 and vu >= 0:
-                        self.set_color(self.map.appdata.SpecialColor1)
+                        self.set_color(self.map.appdata.special_color_1)
                     else:
-                        self.set_color(self.map.appdata.SpecialColor2)
+                        self.set_color(self.map.appdata.special_color_2)
         else:
             self.set_color(Qt.magenta)
 

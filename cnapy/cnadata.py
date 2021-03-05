@@ -21,16 +21,16 @@ class CnaData:
         self.engine = None
         self.matlab_engine = None
         self.octave_engine = None
-        self.Scencolor = Qt.green
-        self.Compcolor = QColor(170, 170, 255)
-        self.SpecialColor1 = Qt.yellow
-        self.SpecialColor2 = QColor(170, 255, 0)  # for bounds excluding 0
-        self.Defaultcolor = Qt.gray
+        self.scen_color = Qt.green
+        self.comp_color = QColor(170, 170, 255)
+        self.special_color_1 = Qt.yellow
+        self.special_color_2 = QColor(170, 255, 0)  # for bounds excluding 0
+        self.default_color = Qt.gray
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
         self.selected_engine = None
-        self.work_directory = ""
+        self.work_directory = appdirs.user_data_dir
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")

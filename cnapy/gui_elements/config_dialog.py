@@ -102,7 +102,7 @@ class ConfigDialog(QDialog):
         self.scen_color_btn = QPushButton()
         self.scen_color_btn.setFixedWidth(100)
         palette = self.scen_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Scencolor)
+        palette.setColor(QPalette.Button, self.appdata.scen_color)
         self.scen_color_btn.setPalette(palette)
         h2.addWidget(self.scen_color_btn)
         self.layout.addItem(h2)
@@ -114,7 +114,7 @@ class ConfigDialog(QDialog):
         self.comp_color_btn = QPushButton()
         self.comp_color_btn.setFixedWidth(100)
         palette = self.comp_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Compcolor)
+        palette.setColor(QPalette.Button, self.appdata.comp_color)
         self.comp_color_btn.setPalette(palette)
         h3.addWidget(self.comp_color_btn)
         self.layout.addItem(h3)
@@ -126,7 +126,7 @@ class ConfigDialog(QDialog):
         self.spec1_color_btn = QPushButton()
         self.spec1_color_btn.setFixedWidth(100)
         palette = self.spec1_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.SpecialColor1)
+        palette.setColor(QPalette.Button, self.appdata.special_color_1)
         self.spec1_color_btn.setPalette(palette)
         h4.addWidget(self.spec1_color_btn)
         self.layout.addItem(h4)
@@ -138,7 +138,7 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn = QPushButton()
         self.spec2_color_btn.setFixedWidth(100)
         palette = self.spec2_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.SpecialColor2)
+        palette.setColor(QPalette.Button, self.appdata.special_color_2)
         self.spec2_color_btn.setPalette(palette)
         h5.addWidget(self.spec2_color_btn)
         self.layout.addItem(h5)
@@ -150,7 +150,7 @@ class ConfigDialog(QDialog):
         self.default_color_btn = QPushButton()
         self.default_color_btn.setFixedWidth(100)
         palette = self.default_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Defaultcolor)
+        palette.setColor(QPalette.Button, self.appdata.default_color)
         self.default_color_btn.setPalette(palette)
         h6.addWidget(self.default_color_btn)
         self.layout.addItem(h6)
@@ -408,19 +408,19 @@ class ConfigDialog(QDialog):
         self.appdata.window.disable_enable_dependent_actions()
 
         palette = self.scen_color_btn.palette()
-        self.appdata.Scencolor = palette.color(QPalette.Button)
+        self.appdata.scen_color = palette.color(QPalette.Button)
 
         palette = self.comp_color_btn.palette()
-        self.appdata.Compcolor = palette.color(QPalette.Button)
+        self.appdata.comp_color = palette.color(QPalette.Button)
 
         palette = self.spec1_color_btn.palette()
-        self.appdata.SpecialColor1 = palette.color(QPalette.Button)
+        self.appdata.special_color_1 = palette.color(QPalette.Button)
 
         palette = self.spec2_color_btn.palette()
-        self.appdata.SpecialColor2 = palette.color(QPalette.Button)
+        self.appdata.special_color_2 = palette.color(QPalette.Button)
 
         palette = self.default_color_btn.palette()
-        self.appdata.Defaultcolor = palette.color(QPalette.Button)
+        self.appdata.default_color = palette.color(QPalette.Button)
 
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
@@ -434,15 +434,15 @@ class ConfigDialog(QDialog):
                    self.appdata.octave_executable)
         parser.set('cnapy-config', 'cna_path', self.appdata.cna_path)
         parser.set('cnapy-config', 'scen_color',
-                   str(self.appdata.Scencolor.rgb()))
+                   str(self.appdata.scen_color.rgb()))
         parser.set('cnapy-config', 'comp_color',
-                   str(self.appdata.Compcolor.rgb()))
+                   str(self.appdata.comp_color.rgb()))
         parser.set('cnapy-config', 'spec1_color',
-                   str(self.appdata.SpecialColor1.rgb()))
+                   str(self.appdata.special_color_1.rgb()))
         parser.set('cnapy-config', 'spec2_color',
-                   str(self.appdata.SpecialColor2.rgb()))
+                   str(self.appdata.special_color_2.rgb()))
         parser.set('cnapy-config', 'default_color',
-                   str(self.appdata.Defaultcolor.rgb()))
+                   str(self.appdata.default_color.rgb()))
         parser.set('cnapy-config', 'rounding',
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',

@@ -103,39 +103,39 @@ class CellNetAnalyzer:
         try:
             color = configParser.get(
                 'cnapy-config', 'scen_color')
-            self.appdata.Scencolor = QColor.fromRgb(int(color))
+            self.appdata.scen_color = QColor.fromRgb(int(color))
         except:
             print("Could not read scen_color in cnapy-config.txt")
-            self.appdata.Scencolor = QColor.fromRgb(4278230527)
+            self.appdata.scen_color = QColor.fromRgb(4278230527)
         try:
             color = configParser.get(
                 'cnapy-config', 'comp_color')
-            self.appdata.Compcolor = QColor.fromRgb(int(color))
+            self.appdata.comp_color = QColor.fromRgb(int(color))
         except:
             print("Could not read comp_color in cnapy-config.txt")
-            self.appdata.Compcolor = QColor.fromRgb(4290369023)
+            self.appdata.comp_color = QColor.fromRgb(4290369023)
         try:
             color = configParser.get(
                 'cnapy-config', 'spec1_color')
-            self.appdata.SpecialColor1 = QColor.fromRgb(int(color))
+            self.appdata.special_color_1 = QColor.fromRgb(int(color))
         except:
             print("Could not read spec1_color in cnapy-config.txt")
-            self.appdata.SpecialColor1 = QColor.fromRgb(4294956551)
+            self.appdata.special_color_1 = QColor.fromRgb(4294956551)
         try:
             color = configParser.get(
                 'cnapy-config', 'spec2_color')
-            self.appdata.SpecialColor2 = QColor.fromRgb(int(color))
+            self.appdata.special_color_2 = QColor.fromRgb(int(color))
         except:
             print("Could not read spec2_color in cnapy-config.txt")
-            self.appdata.SpecialColor2 = QColor.fromRgb(
+            self.appdata.special_color_2 = QColor.fromRgb(
                 4289396480)  # for bounds excluding 0
         try:
             color = configParser.get(
                 'cnapy-config', 'default_color')
-            self.appdata.Defaultcolor = QColor.fromRgb(int(color))
+            self.appdata.default_color = QColor.fromRgb(int(color))
         except:
             print("Could not read default_color in cnapy-config.txt")
-            self.appdata.Defaultcolor = QColor.fromRgb(
+            self.appdata.default_color = QColor.fromRgb(
                 4288716964)
         try:
             rounding = configParser.get(
