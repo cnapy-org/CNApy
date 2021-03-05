@@ -15,6 +15,7 @@
 # limitations under the License.
 """The CellNetAnalyzer class"""
 import configparser
+from configparser import NoOptionError, NoSectionError
 import sys
 
 import cobra
@@ -36,14 +37,16 @@ class CellNetAnalyzer:
 
         self.read_config()
 
-        configParser = configparser.RawConfigParser()
-        configParser.read(self.appdata.conf_path)
+        config_parser = configparser.RawConfigParser()
+        config_parser.read(self.appdata.conf_path)
 
         version = "unknown"
         try:
-            version = configParser.get('cnapy-config', 'version')
-        except:
-            print("Could not read version in cnapy-config.txt")
+            version = config_parser.get('cnapy-config', 'version')
+        except (KeyError, NoOptionError):
+            print("Could not find version in cnapy-config.txt")
+        except NoSectionError:
+            print("Could not find section cnapy-config in cnapy-config.txt")
 
         if version != self.appdata.version:
             self.window.show_config_dialog()
@@ -71,83 +74,82 @@ class CellNetAnalyzer:
         self.appdata.project.cobra_py_model = model
 
     def read_config(self):
+        ''' Try to read data from cnapy-config.txt into appdata'''
+        config_parser = configparser.RawConfigParser()
+        config_parser.read(self.appdata.conf_path)
+        try:
+            try:
+                self.appdata.matlab_path = config_parser.get(
+                    'cnapy-config', 'matlab_path')
+            except (KeyError, NoOptionError):
+                self.appdata.matlab_path = ""
+            try:
+                self.appdata.octave_executable = config_parser.get(
+                    'cnapy-config', 'OCTAVE_EXECUTABLE')
+            except ((KeyError, NoOptionError), NoOptionError):
+                self.appdata.octave_executable = ""
 
-        configParser = configparser.RawConfigParser()
-        configParser.read(self.appdata.conf_path)
+            try:
+                selected_engine = config_parser.get(
+                    'cnapy-config', 'selected_engine')
+                self.appdata.selected_engine = selected_engine
+            except (KeyError, NoOptionError):
+                print("Could not find selected_engine in cnapy-config.txt")
+                self.appdata.selected_engine = None
 
-        try:
-            self.appdata.matlab_path = configParser.get(
-                'cnapy-config', 'matlab_path')
-        except:
-            self.appdata.matlab_path = ""
-        try:
-            self.appdata.octave_executable = configParser.get(
-                'cnapy-config', 'OCTAVE_EXECUTABLE')
-        except:
-            self.appdata.octave_executable = ""
+            try:
+                self.appdata.cna_path = config_parser.get(
+                    'cnapy-config', 'cna_path')
+            except (KeyError, NoOptionError):
+                self.appdata.cna_path = ""
 
-        try:
-            selected_engine = configParser.get(
-                'cnapy-config', 'selected_engine')
-            self.appdata.selected_engine = selected_engine
-        except:
-            print("Could not read selected_engine in cnapy-config.txt")
-            self.appdata.selected_engine = None
+            try:
+                self.appdata.work_directory = config_parser.get(
+                    'cnapy-config', 'work_directory')
+            except ((KeyError, NoOptionError), NoOptionError):
+                print("Could not find work_directory in cnapy-config.txt")
 
-        try:
-            self.appdata.cna_path = configParser.get(
-                'cnapy-config', 'cna_path')
-        except:
-            self.appdata.cna_path = ""
-
-        try:
-            color = configParser.get(
-                'cnapy-config', 'scen_color')
-            self.appdata.scen_color = QColor.fromRgb(int(color))
-        except:
-            print("Could not read scen_color in cnapy-config.txt")
-            self.appdata.scen_color = QColor.fromRgb(4278230527)
-        try:
-            color = configParser.get(
-                'cnapy-config', 'comp_color')
-            self.appdata.comp_color = QColor.fromRgb(int(color))
-        except:
-            print("Could not read comp_color in cnapy-config.txt")
-            self.appdata.comp_color = QColor.fromRgb(4290369023)
-        try:
-            color = configParser.get(
-                'cnapy-config', 'spec1_color')
-            self.appdata.special_color_1 = QColor.fromRgb(int(color))
-        except:
-            print("Could not read spec1_color in cnapy-config.txt")
-            self.appdata.special_color_1 = QColor.fromRgb(4294956551)
-        try:
-            color = configParser.get(
-                'cnapy-config', 'spec2_color')
-            self.appdata.special_color_2 = QColor.fromRgb(int(color))
-        except:
-            print("Could not read spec2_color in cnapy-config.txt")
-            self.appdata.special_color_2 = QColor.fromRgb(
-                4289396480)  # for bounds excluding 0
-        try:
-            color = configParser.get(
-                'cnapy-config', 'default_color')
-            self.appdata.default_color = QColor.fromRgb(int(color))
-        except:
-            print("Could not read default_color in cnapy-config.txt")
-            self.appdata.default_color = QColor.fromRgb(
-                4288716964)
-        try:
-            rounding = configParser.get(
-                'cnapy-config', 'rounding')
-            self.appdata.rounding = int(rounding)
-        except:
-            print("Could not read rounding in cnapy-config.txt")
-            self.appdata.rounding = 3
-        try:
-            abs_tol = configParser.get(
-                'cnapy-config', 'abs_tol')
-            self.appdata.abs_tol = float(abs_tol)
-        except:
-            print("Could not read abs_tol in cnapy-config.txt")
-            self.appdata.abs_tol = 0.000000001
+            try:
+                color = config_parser.get(
+                    'cnapy-config', 'scen_color')
+                self.appdata.scen_color = QColor.fromRgb(int(color))
+            except (KeyError, NoOptionError):
+                print("Could not find scen_color in cnapy-config.txt")
+            try:
+                color = config_parser.get(
+                    'cnapy-config', 'comp_color')
+                self.appdata.comp_color = QColor.fromRgb(int(color))
+            except (KeyError, NoOptionError):
+                print("Could not find comp_color in cnapy-config.txt")
+            try:
+                color = config_parser.get(
+                    'cnapy-config', 'spec1_color')
+                self.appdata.special_color_1 = QColor.fromRgb(int(color))
+            except (KeyError, NoOptionError):
+                print("Could not find spec1_color in cnapy-config.txt")
+            try:
+                color = config_parser.get(
+                    'cnapy-config', 'spec2_color')
+                self.appdata.special_color_2 = QColor.fromRgb(int(color))
+            except (KeyError, NoOptionError):
+                print("Could not find spec2_color in cnapy-config.txt")
+            try:
+                color = config_parser.get(
+                    'cnapy-config', 'default_color')
+                self.appdata.default_color = QColor.fromRgb(int(color))
+            except (KeyError, NoOptionError):
+                print("Could not find default_color in cnapy-config.txt")
+            try:
+                rounding = config_parser.get(
+                    'cnapy-config', 'rounding')
+                self.appdata.rounding = int(rounding)
+            except (KeyError, NoOptionError):
+                print("Could not find rounding in cnapy-config.txt")
+            try:
+                abs_tol = config_parser.get(
+                    'cnapy-config', 'abs_tol')
+                self.appdata.abs_tol = float(abs_tol)
+            except (KeyError, NoOptionError):
+                print("Could not find abs_tol in cnapy-config.txt")
+        except NoSectionError:
+            print("Could not find section cnapy-config in cnapy-config.txt")

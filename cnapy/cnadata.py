@@ -12,6 +12,7 @@ from qtpy.QtGui import QColor
 
 
 class CnaData:
+    ''' The cnapy application data '''
 
     def __init__(self):
         self.version = "cnapy-dev-0.1"
@@ -22,7 +23,7 @@ class CnaData:
         self.engine = None
         self.matlab_engine = None
         self.octave_engine = None
-        self.scen_color = Qt.green
+        self.scen_color = QColor(255, 170, 255)
         self.comp_color = QColor(170, 170, 255)
         self.special_color_1 = Qt.yellow
         self.special_color_2 = QColor(170, 255, 0)  # for bounds excluding 0
@@ -78,6 +79,8 @@ class CnaData:
 
 
 class ProjectData:
+    ''' The cnapy project data '''
+
     def __init__(self):
         self.name = "Unnamed project"
         self.cobra_py_model = cobra.Model()
