@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.cnadata import CnaData
+import cnapy.legacy as legacy
 
 
 class EFMDialog(QDialog):
@@ -93,7 +94,7 @@ class EFMDialog(QDialog):
         self.appdata.createCobraModel()
 
         print(".")
-        self.eng.read_cnapy_model()
+        legacy.read_cnapy_model(self.eng)
         print(".")
 
         # get some data

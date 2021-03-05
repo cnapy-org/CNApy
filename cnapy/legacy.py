@@ -47,17 +47,22 @@ def try_cna(eng, cna_path):
     if eng is None:
         print("Can't try CNA because no engine (matlab/octave) selected.")
         return False
-    else:
-        try:
-            print("Try CNA ...")
-            eng.cd(cna_path)
-            eng.eval("startcna(1)", nargout=0)
-            print("CNA seems working.")
-            return True
-        except:
-            # output = io.StringIO()
-            # traceback.print_exc(file=output)
-            # exstr = output.getvalue()
-            # print(exstr)
-            print("CNA not availabe ... continue with CNA disabled.")
-            return False
+
+    try:
+        print("Try CNA ...")
+        eng.cd(cna_path)
+        eng.eval("startcna(1)", nargout=0)
+        print("CNA seems working.")
+        return True
+    except:
+        # output = io.StringIO()
+        # traceback.print_exc(file=output)
+        # exstr = output.getvalue()
+        # print(exstr)
+        print("CNA not availabe ... continue with CNA disabled.")
+        return False
+
+
+def read_cnapy_model(engine):
+    engine.eval("load cobra_model.mat", nargout=0)
+    engine.eval("cnap= CNAcobra2cna(cbmodel);", nargout=0)

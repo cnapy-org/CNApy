@@ -1,11 +1,5 @@
 import os
 
-
-def read_cnapy_model(engine):
-    engine.eval("load cobra_model.mat", nargout=0)
-    engine.eval("cnap= CNAcobra2cna(cbmodel);", nargout=0)
-
-
 try:
     import matlab.engine
     from matlab.engine import MatlabEngine, pythonengine
@@ -19,9 +13,6 @@ try:
         def start_cna(self, cna_path):
             cwd = os.getcwd()
             os.chdir(cna_path)
-            future = matlab.engine.matlabfuture.MatlabFuture(
-                option="-nodesktop")
-            super().__init__(matlab.engine.pythonengine.getMATLAB(future._future))
             os.chdir(cwd)
             self.cd(cna_path)
             self.startcna(1, nargout=0)
