@@ -8,9 +8,10 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
-
+import cobra.util.array
+import optlang
+import cnapy.optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 from cnapy.cnadata import CnaData
-
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""
@@ -102,6 +103,7 @@ class MCSDialog(QDialog):
 
         sgx = QVBoxLayout()
         self.gen_kos = QCheckBox("Gene KOs")
+        self.exclude_boundary = QCheckBox("Exclude boundary\nreactions as cuts")
         sg1 = QHBoxLayout()
         s31 = QVBoxLayout()
         l = QLabel("Max. Solutions")
@@ -126,12 +128,18 @@ class MCSDialog(QDialog):
 
         sg1.addItem(s32)
         sgx.addWidget(self.gen_kos)
+        sgx.addWidget(self.exclude_boundary)
         sgx.addItem(sg1)
         s3.addItem(sgx)
 
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
         self.bg1 = QButtonGroup()
+        self.solver_optlang = QRadioButton("optlang")
+        self.solver_optlang.setToolTip(
+            "Uses the solver specified by the current model.")
+        s33.addWidget(self.solver_optlang)
+        self.bg1.addButton(self.solver_optlang)
         self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
         self.solver_cplex_matlab.setToolTip(
             "Only enabled with MATLAB and CPLEX")
@@ -203,6 +211,8 @@ class MCSDialog(QDialog):
         # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
         buttons.addWidget(self.compute_mcs)
+        # self.compute_mcs2 = QPushButton("Compute MCS2")
+        # buttons.addWidget(self.compute_mcs2)
         self.cancel = QPushButton("Close")
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
@@ -218,6 +228,7 @@ class MCSDialog(QDialog):
         # Connecting the signal
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
+        # self.compute_mcs2.clicked.connect(self.compute2)
 
     def add_target_region(self):
         i = self.target_list.rowCount()
@@ -268,6 +279,12 @@ class MCSDialog(QDialog):
         self.desired_list.removeRow(i-1)
 
     def compute(self):
+        if self.solver_optlang.isChecked():
+            self.compute_optlang()
+        else:
+            self.compute_legacy()
+
+    def compute_legacy(self):
         # create CobraModel for matlab
         self.appdata.create_cobra_model()
         self.eng.eval("load('cobra_model.mat')",
@@ -317,7 +334,7 @@ class MCSDialog(QDialog):
             self.eng.eval("solver = 'glpk';", nargout=0)
         if self.any_mcs.isChecked():
             self.eng.eval("mcs_search_mode = 'search_1';", nargout=0)
-        elif self.any_mcs.isChecked():
+        elif self.mcs_by_cardinality.isChecked():
             self.eng.eval("mcs_search_mode = 'search_2';", nargout=0)
         elif self.smalles_mcs_first.isChecked():
             self.eng.eval("mcs_search_mode = 'search_3';", nargout=0)
@@ -411,7 +428,8 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            for i in range(0, len(reac_id)):
+            print(reac_id)
+            for i in range(0, len(reactions)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
                 c_mcs = int(mcs[i][0])
@@ -424,6 +442,119 @@ class MCSDialog(QDialog):
                     current_mcs = {}
                 current_mcs[reaction] = c_value
             omcs.append(current_mcs)
+            self.appdata.project.modes = omcs
+            self.centralwidget.mode_navigator.current = 0
+            QMessageBox.information(self, 'Cut sets found',
+                                          str(len(omcs))+' Cut sets have been calculated.')
+
+        self.centralwidget.update_mode()
+        self.centralwidget.mode_navigator.title.setText("MCS Navigation")
+
+    def compute_optlang(self):
+        max_mcs_num = float(self.max_solu.text())
+        max_mcs_size = int(self.max_size.text())
+        timeout = float(self.time_limit.text())
+        if timeout is float('inf'):
+            timeout = None
+
+        # if self.gen_kos.isChecked():
+        #     self.eng.eval("gKOs = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("gKOs = 0;", nargout=0)
+        # if self.advanced.isChecked():
+        #     self.eng.eval("advanced_on = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("advanced_on = 0;", nargout=0)
+
+        # if self.solver_intlinprog.isChecked():
+        #     self.eng.eval("solver = 'intlinprog';", nargout=0)
+        # if self.solver_cplex_java.isChecked():
+        #     self.eng.eval("solver = 'java_cplex_new';", nargout=0)
+        # if self.solver_cplex_matlab.isChecked():
+        #     self.eng.eval("solver = 'matlab_cplex';", nargout=0)
+        # if self.solver_glpk.isChecked():
+        #     self.eng.eval("solver = 'glpk';", nargout=0)
+
+        if self.smalles_mcs_first.isChecked():
+            enum_method = 1
+        elif self.mcs_by_cardinality.isChecked():
+            enum_method = 2
+        elif self.any_mcs.isChecked():
+            enum_method = 3
+
+        # if self.consider_scenario.isChecked():
+        #     self.eng.eval("reac_box_vals = 1;", nargout=0)
+        # else:
+        #     self.eng.eval("reac_box_vals = 0;", nargout=0)
+
+        model = self.appdata.project.cobra_py_model
+        # stdf = cobra.util.array.create_stoichiometric_matrix(model, array_type='DataFrame')
+        # rev = [r.reversibility for r in model.reactions]
+        # reac_id = stdf.columns.tolist()
+        reac_id = model.reactions.list_attr("id")
+        reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
+        # reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(model.reactions.list_attr("id"))
+        rows = self.target_list.rowCount()
+        targets = dict()
+        for i in range(0, rows):
+            p1 = self.target_list.cellWidget(i, 0).text()
+            p2 = self.target_list.cellWidget(i, 1).text()
+            if len(p1) > 0 and len(p2) > 0:
+                if self.target_list.cellWidget(i, 2).currentText() == '≤':
+                    p3 = "<="
+                else:
+                    p3 = ">="
+                p4 = float(self.target_list.cellWidget(i, 3).text())
+                targets.setdefault(p1, []).append((p2, p3, p4))
+        targets = list(targets.values())
+        # print(targets)
+        targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
+        # print(targets)
+
+        rows = self.desired_list.rowCount()
+        desired = dict()
+        for i in range(0, rows):
+            p1 = self.desired_list.cellWidget(i, 0).text()
+            p2 = self.desired_list.cellWidget(i, 1).text()
+            if len(p1) > 0 and len(p2) > 0:
+                if self.desired_list.cellWidget(i, 2).currentText() == '≤':
+                    p3 = "<="
+                else:
+                    p3 = ">="
+                p4 = float(self.desired_list.cellWidget(i, 3).text())
+                desired.setdefault(p1, []).append((p2, p3, p4))
+        # print(desired)
+        desired = list(desired.values())
+        desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
+        # print(desired)
+
+        # # add reaction bounds defined in the model to the target/desired regions
+        # bounds_mat, bounds_rhs = cMCS_enumerator.reaction_bounds_to_leq_matrix(model)
+        # targets = [(scipy.sparse.vstack((t[0], bounds_mat), format='csr'), numpy.hstack((t[1], bounds_rhs))) for t in targets]
+        # desired = [(scipy.sparse.vstack((d[0], bounds_mat), format='csr'), numpy.hstack((d[1], bounds_rhs))) for d in desired]
+
+        # # make boundary reactions irrepressible (or not?)
+        # cuts= numpy.full(len(model.reactions), True, dtype=bool)
+        # if self.exclude_boundary.isChecked():
+        #     for r in range(len(model.reactions)):
+        #         if model.reactions[r].boundary:
+        #             cuts[r] = False
+
+        # e = cMCS_enumerator.ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, targets, desired=desired,
+        #                                 bigM=1000, threshold=0.1, cuts=cuts, split_reversible_v=True, irrev_geq=True)
+        
+        # mcs = e.enumerate_mcs(max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, enum_method=enum_method,
+        #                       model=model, targets=targets)
+        mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
+                 max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+        print(mcs)
+
+        if len(mcs) == 0:
+            QMessageBox.information(self, 'No cut sets',
+                                          'Cut sets have not been calculated or do not exist.')
+            return targets, desired
+        else:
+            omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
             self.appdata.project.modes = omcs
             self.centralwidget.mode_navigator.current = 0
             QMessageBox.information(self, 'Cut sets found',
