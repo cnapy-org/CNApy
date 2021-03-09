@@ -341,7 +341,7 @@ class MCSDialog(QDialog):
             self.eng.eval("solver = 'glpk';", nargout=0)
         if self.any_mcs.isChecked():
             self.eng.eval("mcs_search_mode = 'search_1';", nargout=0)
-        elif self.any_mcs.isChecked():
+        elif self.mcs_by_cardinality.isChecked():
             self.eng.eval("mcs_search_mode = 'search_2';", nargout=0)
         elif self.smalles_mcs_first.isChecked():
             self.eng.eval("mcs_search_mode = 'search_3';", nargout=0)
@@ -438,7 +438,7 @@ class MCSDialog(QDialog):
             omcs = []
             current_mcs = {}
             print(reac_id)
-            for i in range(0, len(reac_id)):
+            for i in range(0, len(reactions)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
                 c_mcs = int(mcs[i][0])
