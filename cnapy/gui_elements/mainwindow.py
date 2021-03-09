@@ -51,6 +51,12 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
+        new_project_from_sbml_action = QAction(
+            "New project from SBML ...", self)
+        self.file_menu.addAction(new_project_from_sbml_action)
+        new_project_from_sbml_action.triggered.connect(
+            self.new_project_from_sbml)
+
         open_project_action = QAction("&Open project ...", self)
         open_project_action.setShortcut("Ctrl+O")
         self.file_menu.addAction(open_project_action)
@@ -65,10 +71,6 @@ class MainWindow(QMainWindow):
         save_as_project_action.setShortcut("Ctrl+Shift+S")
         self.file_menu.addAction(save_as_project_action)
         save_as_project_action.triggered.connect(self.save_project_as)
-
-        import_sbml_action = QAction("Import SBML...", self)
-        self.file_menu.addAction(import_sbml_action)
-        import_sbml_action.triggered.connect(self.import_sbml)
 
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
@@ -151,10 +153,12 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
 
-        save_box_positions_action = QAction(
+        self.save_box_positions_action = QAction(
             "Save reaction box positions...", self)
-        self.map_menu.addAction(save_box_positions_action)
-        save_box_positions_action.triggered.connect(self.save_box_positions)
+        self.map_menu.addAction(self.save_box_positions_action)
+        self.save_box_positions_action.triggered.connect(
+            self.save_box_positions)
+        self.save_box_positions_action.setEnabled(False)
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -238,14 +242,14 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
-        self.help_menu = self.menu.addMenu("Help")
+        self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy ...", self)
-        self.help_menu.addAction(config_action)
+        self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
         about_action = QAction("About cnapy...", self)
-        self.help_menu.addAction(about_action)
+        self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
         update_action = QAction("Default Coloring", self)
@@ -257,7 +261,7 @@ class MainWindow(QMainWindow):
         set_default_scenario_action.triggered.connect(
             self.set_default_scenario)
 
-        self.setCurrentFile("Untitled project")
+        self.set_current_filename("Untitled project")
 
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
@@ -306,16 +310,15 @@ class MainWindow(QMainWindow):
     def exit_app(self):
         QApplication.quit()
 
-    def setCurrentFile(self, fileName):
-        self.appdata.project.name = fileName
+    def set_current_filename(self, filename):
+        self.appdata.project.name = filename
 
         if len(self.appdata.project.name) == 0:
-            shownName = "Untitled project"
+            shown_name = "Untitled project"
         else:
-            shownName = QFileInfo(self.appdata.project.name).fileName()
+            shown_name = QFileInfo(self.appdata.project.name).fileName()
 
-        self.setWindowTitle(
-            "CNApy - " + shownName)
+        self.setWindowTitle("CNApy - " + shown_name)
 
     @Slot()
     def show_about(self):
@@ -343,22 +346,10 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
-    def import_sbml(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.xml")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
-
-        self.appdata.project.cobra_py_model = cobra.io.read_sbml_model(
-            filename)
-        self.centralWidget().update()
-
-    @Slot()
     def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.xml")[0]
+            directory=self.appdata.work_directory, filter="*.xml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -369,7 +360,7 @@ class MainWindow(QMainWindow):
     def load_box_positions(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.maps")[0]
+            directory=self.appdata.work_directory, filter="*.maps")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -399,7 +390,7 @@ class MainWindow(QMainWindow):
     def load_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.scen")[0]
+            directory=self.appdata.work_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -417,7 +408,7 @@ class MainWindow(QMainWindow):
     def load_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.modes")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -435,7 +426,7 @@ class MainWindow(QMainWindow):
     def change_background(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.svg")[0]
+            directory=self.appdata.work_directory, filter="*.svg")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -482,7 +473,7 @@ class MainWindow(QMainWindow):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.maps")[0]
+            directory=self.appdata.work_directory, filter="*.maps")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -493,7 +484,7 @@ class MainWindow(QMainWindow):
     def save_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.scen")[0]
+            directory=self.appdata.work_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -505,7 +496,7 @@ class MainWindow(QMainWindow):
     def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.modes")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
         with open(filename, 'w') as fp:
@@ -542,14 +533,27 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.clear()
         self.clear_scenario()
 
-        self.setCurrentFile("Untitled project")
+        self.set_current_filename("Untitled project")
         self.nounsaved_changes()
+
+    @Slot()
+    def new_project_from_sbml(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.work_directory, filter="*.xml")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+
+        cobra_py_model = cobra.io.read_sbml_model(filename)
+        self.new_project()
+        self.appdata.project.cobra_py_model = cobra_py_model
+        self.centralWidget().update()
 
     @Slot()
     def open_project(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=os.getcwd(), filter="*.cna")[0]
+            directory=self.appdata.work_directory, filter="*.cna")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -578,7 +582,7 @@ class MainWindow(QMainWindow):
                 self.appdata.project.maps = maps
                 self.appdata.project.meta_data = meta_data
                 self.appdata.project.cobra_py_model = cobra_py_model
-                self.setCurrentFile(filename)
+                self.set_current_filename(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
                 self.clear_scenario()
@@ -597,7 +601,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_project(self):
-
+        ''' Save the project '''
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
 
@@ -645,10 +649,10 @@ class MainWindow(QMainWindow):
 
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=os.getcwd(), filter="*.cna")
+            directory=self.appdata.work_directory, filter="*.cna")
 
         if len(filename[0]) != 0:
-            self.setCurrentFile(filename[0])
+            self.set_current_filename(filename[0])
             self.save_project()
         else:
             return
@@ -661,7 +665,7 @@ class MainWindow(QMainWindow):
         for name, mmap in self.appdata.project.maps.items():
             mmap = MapView(self.appdata, name)
             mmap.show()
-            mmap.switchToReactionDialog.connect(
+            mmap.switchToReactionMask.connect(
                 self.centralWidget().switch_to_reaction)
             mmap.minimizeReaction.connect(
                 self.centralWidget().minimize_reaction)
@@ -684,12 +688,14 @@ class MainWindow(QMainWindow):
             self.change_background_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
+            self.save_box_positions_action.setEnabled(True)
             self.centralWidget().update_map(idx)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)
+            self.save_box_positions_action.setEnabled(False)
 
     def copy_to_clipboard(self):
         print("copy_to_clipboard")
@@ -823,7 +829,8 @@ class MainWindow(QMainWindow):
                     if r.reactants == []:
                         if len(r.products) != 1:
                             print(
-                                'Error: Expected only import reactions with one metabolite but', i, 'imports', r.products)
+                                'Error: Expected only import reactions with one metabolite but',
+                                i, 'imports', r.products)
                             errors = True
                         else:
                             if val > 0.0:
@@ -836,7 +843,8 @@ class MainWindow(QMainWindow):
                     elif r.products == []:
                         if len(r.reactants) != 1:
                             print(
-                                'Error: Expected only export reactions with one metabolite but', i, 'exports', r.reactants)
+                                'Error: Expected only export reactions with one metabolite but',
+                                i, 'exports', r.reactants)
                             errors = True
                         else:
                             if val > 0.0:
@@ -998,6 +1006,8 @@ class MainWindow(QMainWindow):
                     item.setBackground(2, color)
 
         idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            return
         name = self.centralWidget().map_tabs.tabText(idx)
         view = self.centralWidget().map_tabs.widget(idx)
         for key in self.appdata.project.maps[name]["boxes"]:
@@ -1040,6 +1050,8 @@ class MainWindow(QMainWindow):
                     item.setBackground(2, color)
 
         idx = self.centralWidget().map_tabs.currentIndex()
+        if idx < 0:
+            return
         name = self.centralWidget().map_tabs.tabText(idx)
         view = self.centralWidget().map_tabs.widget(idx)
         for key in self.appdata.project.maps[name]["boxes"]:

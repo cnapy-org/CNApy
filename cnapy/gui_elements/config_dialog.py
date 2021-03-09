@@ -1,18 +1,19 @@
 """The cnapy configuration dialog"""
+import configparser
 import io
 import os
 import traceback
 from tempfile import TemporaryDirectory
 
 import appdirs
-import cnapy.resources
-from cnapy.cnadata import CnaData
-from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 from qtpy.QtCore import QSize
 from qtpy.QtGui import QDoubleValidator, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit,
-                            QPushButton, QVBoxLayout)
+                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
+                            QVBoxLayout)
+import cnapy.resources
+from cnapy.cnadata import CnaData
+from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 
 
 class ConfigDialog(QDialog):
@@ -96,13 +97,20 @@ class ConfigDialog(QDialog):
         cna_l.addWidget(self.cna_path)
         self.layout.addItem(cna_l)
 
+        h9 = QHBoxLayout()
+        label = QLabel("Selected engine:")
+        h9.addWidget(label)
+        self.selected_engine = QComboBox()
+        h9.addWidget(self.selected_engine)
+        self.layout.addItem(h9)
+
         h2 = QHBoxLayout()
         label = QLabel("Default color for values in a scenario:")
         h2.addWidget(label)
         self.scen_color_btn = QPushButton()
         self.scen_color_btn.setFixedWidth(100)
         palette = self.scen_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Scencolor)
+        palette.setColor(QPalette.Button, self.appdata.scen_color)
         self.scen_color_btn.setPalette(palette)
         h2.addWidget(self.scen_color_btn)
         self.layout.addItem(h2)
@@ -114,7 +122,7 @@ class ConfigDialog(QDialog):
         self.comp_color_btn = QPushButton()
         self.comp_color_btn.setFixedWidth(100)
         palette = self.comp_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Compcolor)
+        palette.setColor(QPalette.Button, self.appdata.comp_color)
         self.comp_color_btn.setPalette(palette)
         h3.addWidget(self.comp_color_btn)
         self.layout.addItem(h3)
@@ -126,7 +134,7 @@ class ConfigDialog(QDialog):
         self.spec1_color_btn = QPushButton()
         self.spec1_color_btn.setFixedWidth(100)
         palette = self.spec1_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.SpecialColor1)
+        palette.setColor(QPalette.Button, self.appdata.special_color_1)
         self.spec1_color_btn.setPalette(palette)
         h4.addWidget(self.spec1_color_btn)
         self.layout.addItem(h4)
@@ -138,7 +146,7 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn = QPushButton()
         self.spec2_color_btn.setFixedWidth(100)
         palette = self.spec2_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.SpecialColor2)
+        palette.setColor(QPalette.Button, self.appdata.special_color_2)
         self.spec2_color_btn.setPalette(palette)
         h5.addWidget(self.spec2_color_btn)
         self.layout.addItem(h5)
@@ -150,10 +158,18 @@ class ConfigDialog(QDialog):
         self.default_color_btn = QPushButton()
         self.default_color_btn.setFixedWidth(100)
         palette = self.default_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.Defaultcolor)
+        palette.setColor(QPalette.Button, self.appdata.default_color)
         self.default_color_btn.setPalette(palette)
         h6.addWidget(self.default_color_btn)
         self.layout.addItem(h6)
+
+        h = QHBoxLayout()
+        label = QLabel("Work directory:")
+        h.addWidget(label)
+        self.work_directory = QPushButton()
+        self.work_directory.setText(self.appdata.work_directory)
+        h.addWidget(self.work_directory)
+        self.layout.addItem(h)
 
         h7 = QHBoxLayout()
         label = QLabel(
@@ -180,13 +196,6 @@ class ConfigDialog(QDialog):
         h8.addWidget(self.abs_tol)
         self.layout.addItem(h8)
 
-        h9 = QHBoxLayout()
-        label = QLabel("Matlab/Octave engine:")
-        h9.addWidget(label)
-        self.selected_engine = QComboBox()
-        h9.addWidget(self.selected_engine)
-        self.layout.addItem(h9)
-
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
         self.cancel = QPushButton("Close")
@@ -199,6 +208,7 @@ class ConfigDialog(QDialog):
         self.choose_ml_path_btn.clicked.connect(self.choose_ml_path)
         self.choose_oc_exe_btn.clicked.connect(self.choose_oc_exe)
         self.choose_cna_path_btn.clicked.connect(self.choose_cna_path)
+        self.work_directory.clicked.connect(self.choose_work_directory)
         self.scen_color_btn.clicked.connect(self.choose_scen_color)
         self.comp_color_btn.clicked.connect(self.choose_comp_color)
         self.spec1_color_btn.clicked.connect(self.choose_spec1_color)
@@ -223,7 +233,6 @@ class ConfigDialog(QDialog):
     def try_install_matlab_engine(self, directory: str):
         try:
             path = os.path.join(directory, 'extern/engines/python')
-            print("path:", path)
             cwd = os.getcwd()
             os.chdir(path)
             temp_dir = TemporaryDirectory()
@@ -268,7 +277,6 @@ class ConfigDialog(QDialog):
         if self.appdata.selected_engine == "matlab":
             self.selected_engine.setCurrentIndex(1)
         if self.appdata.selected_engine == "octave":
-            print(self.selected_engine.count())
             if self.selected_engine.count() == 2:
                 self.selected_engine.setCurrentIndex(1)
             elif self.selected_engine.count() == 3:
@@ -313,6 +321,13 @@ class ConfigDialog(QDialog):
         self.update()
         self.reset_engine()
         self.check_cna()
+
+    def choose_work_directory(self):
+        dialog = QFileDialog(self, directory=self.work_directory.text())
+        directory: str = dialog.getExistingDirectory()
+        if not directory or len(directory) == 0 or not os.path.exists(directory):
+            return
+        self.work_directory.setText(directory)
 
     def reset_engine(self):
         # This resets the engines
@@ -409,42 +424,45 @@ class ConfigDialog(QDialog):
 
         self.appdata.window.disable_enable_dependent_actions()
 
+        self.appdata.work_directory = self.work_directory.text()
+
         palette = self.scen_color_btn.palette()
-        self.appdata.Scencolor = palette.color(QPalette.Button)
+        self.appdata.scen_color = palette.color(QPalette.Button)
 
         palette = self.comp_color_btn.palette()
-        self.appdata.Compcolor = palette.color(QPalette.Button)
+        self.appdata.comp_color = palette.color(QPalette.Button)
 
         palette = self.spec1_color_btn.palette()
-        self.appdata.SpecialColor1 = palette.color(QPalette.Button)
+        self.appdata.special_color_1 = palette.color(QPalette.Button)
 
         palette = self.spec2_color_btn.palette()
-        self.appdata.SpecialColor2 = palette.color(QPalette.Button)
+        self.appdata.special_color_2 = palette.color(QPalette.Button)
 
         palette = self.default_color_btn.palette()
-        self.appdata.Defaultcolor = palette.color(QPalette.Button)
+        self.appdata.default_color = palette.color(QPalette.Button)
 
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
 
-        import configparser
         parser = configparser.ConfigParser()
         parser.add_section('cnapy-config')
         parser.set('cnapy-config', 'version', self.appdata.version)
         parser.set('cnapy-config', 'matlab_path', self.appdata.matlab_path)
         parser.set('cnapy-config', 'OCTAVE_EXECUTABLE',
                    self.appdata.octave_executable)
+        parser.set('cnapy-config', 'work_directory',
+                   self.appdata.work_directory)
         parser.set('cnapy-config', 'cna_path', self.appdata.cna_path)
         parser.set('cnapy-config', 'scen_color',
-                   str(self.appdata.Scencolor.rgb()))
+                   str(self.appdata.scen_color.rgb()))
         parser.set('cnapy-config', 'comp_color',
-                   str(self.appdata.Compcolor.rgb()))
+                   str(self.appdata.comp_color.rgb()))
         parser.set('cnapy-config', 'spec1_color',
-                   str(self.appdata.SpecialColor1.rgb()))
+                   str(self.appdata.special_color_1.rgb()))
         parser.set('cnapy-config', 'spec2_color',
-                   str(self.appdata.SpecialColor2.rgb()))
+                   str(self.appdata.special_color_2.rgb()))
         parser.set('cnapy-config', 'default_color',
-                   str(self.appdata.Defaultcolor.rgb()))
+                   str(self.appdata.default_color.rgb()))
         parser.set('cnapy-config', 'rounding',
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',

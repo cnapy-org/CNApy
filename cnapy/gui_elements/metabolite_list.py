@@ -1,12 +1,15 @@
 """The metabolite list"""
+import sys
+import traceback
+
 import cobra
+from cnapy.cnadata import CnaData
+from cnapy.utils import turn_red, turn_white
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
-from cnapy.cnadata import CnaData
-from cnapy.utils import turn_red, turn_white
 
 
 class MetaboliteList(QWidget):
@@ -28,10 +31,10 @@ class MetaboliteList(QWidget):
             self.on_context_menu)
 
         # create context menu
-        self.popMenu = QMenu(self.metabolite_list)
+        self.pop_menu = QMenu(self.metabolite_list)
         in_out_fluxes_action = QAction(
             'compute in/out fluxes for this metabolite', self.metabolite_list)
-        self.popMenu.addAction(in_out_fluxes_action)
+        self.pop_menu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
         self.metabolite_mask = MetabolitesMask(appdata)
@@ -50,7 +53,7 @@ class MetaboliteList(QWidget):
         self.metabolite_list.currentItemChanged.connect(
             self.metabolite_selected)
         self.metabolite_mask.metaboliteChanged.connect(
-            self.handle_changedMetabolite)
+            self.handle_changed_metabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
 
@@ -66,7 +69,7 @@ class MetaboliteList(QWidget):
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.metabolites) > 0:
-            self.popMenu.exec_(self.mapToGlobal(point))
+            self.pop_menu.exec_(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
 
@@ -87,7 +90,7 @@ class MetaboliteList(QWidget):
         self.metabolite_mask.annotation.itemChanged.connect(
             self.metabolite_mask.metabolites_data_changed)
 
-    def handle_changedMetabolite(self, metabolite: cobra.Metabolite):
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite):
         print("MetaboliteList handle changedMetabolie", metabolite)
 
         # Update metabolite item in list
@@ -189,6 +192,7 @@ class MetabolitesMask(QWidget):
         self.metabolite = None
         self.is_valid = True
         self.changed = False
+        self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
         l = QHBoxLayout()
@@ -300,8 +304,6 @@ class MetabolitesMask(QWidget):
             self.metaboliteChanged.emit(self.metabolite)
 
     def validate_id(self):
-        import sys
-        import traceback
         with self.appdata.project.cobra_py_model as model:
             text = self.id.text()
             if text == "":
@@ -313,8 +315,7 @@ class MetabolitesMask(QWidget):
             try:
                 m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
-            except Exception:
-
+            except:
                 traceback.print_exception(*sys.exc_info())
                 turn_red(self.id)
                 return False

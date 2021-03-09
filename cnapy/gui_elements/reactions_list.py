@@ -68,23 +68,15 @@ class ReactionList(QWidget):
         self.setLayout(self.layout)
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
-        self.reaction_mask.reactionChanged.connect(self.handle_changedReaction)
-        self.reaction_mask.reactionDeleted.connect(self.handle_deletedReaction)
+        self.reaction_mask.reactionChanged.connect(
+            self.handle_changed_reaction)
+        self.reaction_mask.reactionDeleted.connect(
+            self.handle_deleted_reaction)
         self.reaction_mask.jumpToMap.connect(self.emit_jump_to_map)
         self.reaction_mask.jumpToMetabolite.connect(
             self.emit_jump_to_metabolite)
 
         self.add_button.clicked.connect(self.add_new_reaction)
-
-    def mouseMoveEvent(self, event):
-        print("ReactionList::mouseMoveEvent")
-        drag = QDrag(event.widget())
-        mime = QMimeData()
-        mime.setText(str("what"))
-        drag.setMimeData(mime)
-        # self.setCursor(Qt.ClosedHandCursor)
-        drag.exec_()
-        # self.setCursor(Qt.OpenHandCursor)
 
     def clear(self):
         self.reaction_list.clear()
@@ -116,7 +108,7 @@ class ReactionList(QWidget):
             else:
                 item.setData(
                     2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
-            item.setBackground(2, self.appdata.Scencolor)
+            item.setBackground(2, self.appdata.scen_color)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
             (vl, vu) = self.appdata.project.comp_values[key]
@@ -124,7 +116,7 @@ class ReactionList(QWidget):
             # We differentiate special cases like (vl==vu)
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if len(self.appdata.project.modes) == 0:
-                    item.setBackground(2, self.appdata.Compcolor)
+                    item.setBackground(2, self.appdata.comp_color)
                 else:
                     if vl == 0:
                         item.setBackground(2, Qt.red)
@@ -134,13 +126,13 @@ class ReactionList(QWidget):
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
                 if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 elif vl <= 0 and vu >= 0:
-                    item.setBackground(2, self.appdata.SpecialColor1)
+                    item.setBackground(2, self.appdata.special_color_1)
                 else:
-                    item.setBackground(2, self.appdata.SpecialColor2)
+                    item.setBackground(2, self.appdata.special_color_2)
                 item.setData(
                     2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
 
@@ -213,7 +205,7 @@ class ReactionList(QWidget):
         self.splitter.setSizes([100, 100])
         self.reaction_mask.update_state()
 
-    def handle_changedReaction(self, reaction: cobra.Reaction):
+    def handle_changed_reaction(self, reaction: cobra.Reaction):
         print("ReactionList handle changedReaction", reaction)
 
         # Update reaction item in list
@@ -231,11 +223,8 @@ class ReactionList(QWidget):
         print("ReactionList emit changedReaction", reaction)
         self.reactionChanged.emit(old_id, reaction)
 
-    def handle_deletedReaction(self, reaction: cobra.Reaction):
-
-        print("ReactionList handle deletedReaction", reaction)
-
-        # remove reaction item from reaction list
+    def handle_deleted_reaction(self, reaction: cobra.Reaction):
+        '''Remove reaction item from reaction list'''
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
@@ -246,7 +235,6 @@ class ReactionList(QWidget):
                 break
 
         self.last_selected = self.reaction_mask.id.text()
-        print("ReactionList emit deletedReaction", reaction)
         self.reactionDeleted.emit(reaction)
 
     def update_selected(self, string):
@@ -275,7 +263,6 @@ class ReactionList(QWidget):
 
             for i in items:
                 self.reaction_list.setCurrentItem(i)
-                print(i.text(0))
                 break
 
         self.reaction_mask.update_state()
@@ -356,9 +343,9 @@ class ReactionMask(QWidget):
         self.reaction = None
         self.is_valid = True
         self.changed = False
+        self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
-
         l = QHBoxLayout()
         self.delete_button = QPushButton("Delete reaction")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
