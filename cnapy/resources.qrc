@@ -8,6 +8,7 @@
         <file alias="heat.png">/data/heat.png</file>
         <file alias="default-color.png">/data/default-color.png</file>
         <file alias="d-font.png">/data/d-font.png</file>
+        <file alias="clear.png">/data/clear.png</file>
         <file alias="undo.png">/data/undo.png</file>
         <file alias="redo.png">/data/redo.png</file>
     </qresource>

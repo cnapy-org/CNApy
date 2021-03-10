@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
         save_scenario_action.triggered.connect(self.save_scenario)
 
         clear_scenario_action = QAction("Clear scenario", self)
-        clear_scenario_action.setIcon(QIcon.fromTheme("edit-clear"))
+        clear_scenario_action.setIcon(QIcon(":/icons/clear.png"))
         self.scenario_menu.addAction(clear_scenario_action)
         clear_scenario_action.triggered.connect(self.clear_scenario)
 
@@ -548,7 +548,10 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         self.centralWidget().mode_navigator.clear()
-        self.clear_scenario()
+
+        self.appdata.project.scen_values.clear()
+        self.appdata.scenario_past.clear()
+        self.appdata.scenario_future.clear()
 
         self.set_current_filename("Untitled project")
         self.nounsaved_changes()
@@ -602,7 +605,9 @@ class MainWindow(QMainWindow):
                 self.set_current_filename(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
-                self.clear_scenario()
+                self.appdata.project.scen_values.clear()
+                self.appdata.scenario_past.clear()
+                self.appdata.scenario_future.clear()
                 for r in self.appdata.project.cobra_py_model.reactions:
                     if 'cnapy-default' in r.annotation.keys():
                         self.centralWidget().update_reaction_value(
