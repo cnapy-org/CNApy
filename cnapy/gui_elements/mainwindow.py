@@ -100,10 +100,15 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(clear_scenario_action)
         clear_scenario_action.triggered.connect(self.clear_scenario)
 
-        reset_scenario_action = QAction("Reset scenario", self)
-        reset_scenario_action.setIcon(QIcon.fromTheme("edit-undo"))
-        self.scenario_menu.addAction(reset_scenario_action)
-        reset_scenario_action.triggered.connect(self.reset_scenario)
+        undo_scenario_action = QAction("Undo scenario edit", self)
+        undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
+        self.scenario_menu.addAction(undo_scenario_action)
+        undo_scenario_action.triggered.connect(self.undo_scenario_edit)
+
+        redo_scenario_action = QAction("Redo scenario edit", self)
+        redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
+        self.scenario_menu.addAction(redo_scenario_action)
+        redo_scenario_action.triggered.connect(self.redo_scenario_edit)
 
         add_values_to_scenario_action = QAction(
             "Add all values to scenario", self)
@@ -265,7 +270,8 @@ class MainWindow(QMainWindow):
 
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
-        self.tool_bar.addAction(reset_scenario_action)
+        self.tool_bar.addAction(undo_scenario_action)
+        self.tool_bar.addAction(redo_scenario_action)
         self.tool_bar.addAction(set_default_scenario_action)
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
@@ -350,7 +356,7 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.xml")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
+        if not filename or len(filename) == 0:
             return
 
         cobra.io.write_sbml_model(
@@ -397,10 +403,11 @@ class MainWindow(QMainWindow):
         with open(filename, 'r') as fp:
             values = json.load(fp)
             self.appdata.project.scen_values.clear()
+            self.appdata.scenario_past.clear()
+            self.appdata.scenario_future.clear()
             for i in values:
-                self.appdata.project.scen_values[i] = values[i]
+                self.appdata.scen_values_set(i, values[i])
 
-            self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
@@ -474,7 +481,7 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.maps")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
+        if not filename or len(filename) == 0:
             return
 
         with open(filename, 'w') as fp:
@@ -485,30 +492,40 @@ class MainWindow(QMainWindow):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.scen")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
+        if not filename or len(filename) == 0:
             return
 
         with open(filename, 'w') as fp:
             json.dump(self.appdata.project.scen_values, fp)
-        self.appdata.project.scenario_backup = self.appdata.project.scen_values.copy()
 
     @Slot()
     def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.modes")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
+        if not filename or len(filename) == 0:
             return
         with open(filename, 'w') as fp:
             json.dump(self.appdata.project.modes, fp)
 
-    def reset_scenario(self):
-        self.appdata.project.comp_values.clear()
-        self.appdata.project.scen_values = self.appdata.project.scenario_backup.copy()
-        self.centralWidget().update()
+    def undo_scenario_edit(self):
+        ''' undo last edit in scenario history '''
+        if len(self.appdata.scenario_past) > 0:
+            last = self.appdata.scenario_past.pop()
+            self.appdata.scenario_future.append(last)
+            self.appdata.recreate_scenario_from_history()
+            self.centralWidget().update()
+
+    def redo_scenario_edit(self):
+        ''' redo last undo of scenario history '''
+        if len(self.appdata.scenario_future) > 0:
+            nex = self.appdata.scenario_future.pop()
+            self.appdata.scenario_past.append(nex)
+            self.appdata.recreate_scenario_from_history()
+            self.centralWidget().update()
 
     def clear_scenario(self):
-        self.appdata.project.scen_values.clear()
+        self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
@@ -516,7 +533,7 @@ class MainWindow(QMainWindow):
 
     def set_default_scenario(self):
         self.appdata.project.comp_values.clear()
-        self.appdata.project.scen_values.clear()
+        self.appdata.scen_values_clear()
         for r in self.appdata.project.cobra_py_model.reactions:
             if 'cnapy-default' in r.annotation.keys():
                 self.centralWidget().update_reaction_value(
