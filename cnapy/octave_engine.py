@@ -1,7 +1,3 @@
-def read_cnapy_model(engine):
-    engine.eval("load cobra_model.mat", nargout=0)
-    engine.eval("cnap= CNAcobra2cna(cbmodel);", nargout=0)
-
 
 try:
     from oct2py import Oct2Py
@@ -25,5 +21,6 @@ try:
 
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
-except:
+
+except ModuleNotFoundError:
     pass
