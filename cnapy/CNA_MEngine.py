@@ -1,4 +1,3 @@
-import os
 
 try:
     import matlab.engine
@@ -11,9 +10,6 @@ try:
             super().__init__(matlab.engine.pythonengine.getMATLAB(future._future))
 
         def start_cna(self, cna_path):
-            cwd = os.getcwd()
-            os.chdir(cna_path)
-            os.chdir(cwd)
             self.cd(cna_path)
             self.startcna(1, nargout=0)
 
@@ -28,5 +24,5 @@ try:
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
 
-except:
+except ModuleNotFoundError:
     pass
