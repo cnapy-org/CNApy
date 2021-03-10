@@ -134,6 +134,8 @@ class MainWindow(QMainWindow):
         set_scenario_to_default_scenario_action.triggered.connect(
             self.set_scenario_to_default_scenario)
 
+        self.scenario_menu.addSeparator()
+
         heaton_action = QAction("Apply heatmap coloring", self)
         heaton_action.setIcon(QIcon(":/icons/heat.png"))
         heaton_action.triggered.connect(self.set_heaton)
@@ -199,27 +201,6 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
-        show_model_stats_action = QAction("Show model stats", self)
-        self.analysis_menu.addAction(show_model_stats_action)
-        show_model_stats_action.triggered.connect(
-            self.execute_print_model_stats)
-
-        net_conversion_action = QAction(
-            "Compute net conversion of external metabolites", self)
-        self.analysis_menu.addAction(net_conversion_action)
-        net_conversion_action.triggered.connect(
-            self.show_net_conversion)
-
-        show_optimization_function_action = QAction(
-            "Show optimization function", self)
-        self.analysis_menu.addAction(show_optimization_function_action)
-        show_optimization_function_action.triggered.connect(
-            self.show_optimization_function)
-
-        show_model_bounds_action = QAction("Show model bounds", self)
-        self.analysis_menu.addAction(show_model_bounds_action)
-        show_model_bounds_action.triggered.connect(self.show_model_bounds)
-
         fba_action = QAction("Flux Balance Analysis (FBA)", self)
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
@@ -232,6 +213,8 @@ class MainWindow(QMainWindow):
         fva_action = QAction("Flux Variability Analysis (FVA)", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
         self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
@@ -259,6 +242,29 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
+        self.analysis_menu.addSeparator()
+
+        show_model_stats_action = QAction("Show model stats", self)
+        self.analysis_menu.addAction(show_model_stats_action)
+        show_model_stats_action.triggered.connect(
+            self.execute_print_model_stats)
+
+        net_conversion_action = QAction(
+            "Net conversion of external metabolites", self)
+        self.analysis_menu.addAction(net_conversion_action)
+        net_conversion_action.triggered.connect(
+            self.show_net_conversion)
+
+        show_optimization_function_action = QAction(
+            "Show optimization function", self)
+        self.analysis_menu.addAction(show_optimization_function_action)
+        show_optimization_function_action.triggered.connect(
+            self.show_optimization_function)
+
+        show_model_bounds_action = QAction("Show model bounds", self)
+        self.analysis_menu.addAction(show_model_bounds_action)
+        show_model_bounds_action.triggered.connect(self.show_model_bounds)
+
         self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy ...", self)
@@ -279,7 +285,6 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(undo_scenario_action)
         self.tool_bar.addAction(redo_scenario_action)
-        self.tool_bar.addAction(load_default_scenario_action)
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
@@ -898,12 +903,12 @@ class MainWindow(QMainWindow):
 
                 if errors:
                     return
-                else:
-                    print(
-                        '\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
-                    print(' + '.join(imports))
-                    print('-->')
-                    print(' + '.join(exports))
+
+                print(
+                    '\x1b[1;04;34m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                print(' + '.join(imports))
+                print('-->')
+                print(' + '.join(exports))
 
             elif solution.status == 'infeasible':
                 print('No solution the scenario is infeasible!')
