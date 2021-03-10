@@ -22,5 +22,5 @@ try:
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
 
-except ModuleNotFoundError:
+except (ModuleNotFoundError, OSError):
     pass
