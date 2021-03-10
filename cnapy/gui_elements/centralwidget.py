@@ -142,15 +142,15 @@ class CentralWidget(QWidget):
 
     def update_reaction_value(self, reaction: str, value: str):
         if value == "":
-            self.appdata.project.scen_values.pop(reaction, None)
+            self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
         else:
             try:
                 x = float(value)
-                self.appdata.project.scen_values[reaction] = (x, x)
+                self.appdata.scen_values_set(reaction, (x, x))
             except:
                 (vl, vh) = make_tuple(value)
-                self.appdata.project.scen_values[reaction] = (vl, vh)
+                self.appdata.scen_values_set(reaction, (vl, vh))
         self.reaction_list.update()
 
     def update_reaction_maps(self, _reaction: str):

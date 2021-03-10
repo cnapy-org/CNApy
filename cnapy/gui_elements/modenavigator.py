@@ -52,8 +52,8 @@ class ModeNavigator(QWidget):
                            str(len(self.appdata.project.modes)))
 
     def clear(self):
-        self.appdata.project.scen_values = self.scenario
         self.appdata.project.modes.clear()
+        self.appdata.recreate_scenario_from_history()
         self.hide()
         self.modeNavigatorClosed.emit()
 

@@ -36,6 +36,33 @@ class CnaData:
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+        self.scenario_past = []
+        self.scenario_future = []
+
+    def scen_values_set(self, reaction: str, values: (float, float)):
+        self.project.scen_values[reaction] = values
+        self.scenario_past.append(("set", reaction, values))
+        self.scenario_future.clear()
+
+    def scen_values_pop(self, reaction: str):
+        self.project.scen_values.pop(reaction, None)
+        self.scenario_past.append(("pop", reaction, 0))
+        self.scenario_future.clear()
+
+    def scen_values_clear(self):
+        self.project.scen_values.clear()
+        self.scenario_past.append(("clear", "all", 0))
+        self.scenario_future.clear()
+
+    def recreate_scenario_from_history(self):
+        self.project.scen_values = {}
+        for (tag, reaction, values) in self.scenario_past:
+            if tag == "set":
+                self.project.scen_values[reaction] = values
+            elif tag == "pop":
+                self.project.scen_values.pop(reaction, None)
+            elif tag == "clear":
+                self.project.scen_values.clear()
 
     def create_cobra_model(self):
         if self.engine is not None:  # matlab or octave:
@@ -87,7 +114,6 @@ class ProjectData:
         self.maps = {}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
-        self.scenario_backup: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.modes: Dict[str, Tuple[float, float]] = []
         self.compute_color_type = 1
