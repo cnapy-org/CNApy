@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
 
 
 class CompleterLineEdit(QLineEdit):
-    # does new completion after COMMA ,
+    '''# does new completion after COMMA ,'''
 
     def __init__(self, wordlist, *args):
         QLineEdit.__init__(self, *args)
@@ -36,7 +36,7 @@ class CompleterLineEdit(QLineEdit):
         self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
         self.setCursorPosition(cursor_pos - prefix_len + len(text))
 
-    textChanged = Signal(str)
+    textChangedX = Signal(str)
 
 
 class PhasePlaneDialog(QDialog):
@@ -88,12 +88,15 @@ class PhasePlaneDialog(QDialog):
             x_axis = self.x_axis.text()
             y_axis = self.y_axis.text()
 
-            result = phenotypic_phase_plane(model,
-                                            variables=[
-                                                model.reactions.get_by_id(x_axis)],
-                                            objective=model.reactions.get_by_id(
-                                                y_axis),
-                                            points=100)
+            try:
+                result = phenotypic_phase_plane(model,
+                                                variables=[
+                                                    model.reactions.get_by_id(x_axis)],
+                                                objective=model.reactions.get_by_id(
+                                                    y_axis),
+                                                points=100)
+            except KeyError:
+                return
 
             _fig, axes = plt.subplots()
 

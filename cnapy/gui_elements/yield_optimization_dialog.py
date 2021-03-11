@@ -13,7 +13,7 @@ from cnapy.gui_elements.centralwidget import CentralWidget
 
 
 class CompleterLineEdit(QLineEdit):
-    # does new completion after Plus '+'
+    '''does new completion after Plus '+' '''
 
     def __init__(self, wordlist, *args):
         QLineEdit.__init__(self, *args)
@@ -31,6 +31,7 @@ class CompleterLineEdit(QLineEdit):
         self.mycompleter.setCompletionPrefix(prefix)
         if prefix != '':
             self.mycompleter.complete()
+        self.textChangedX.emit(self.text())
 
     def complete_text(self, text):
         cursor_pos = self.cursorPosition()
@@ -42,7 +43,7 @@ class CompleterLineEdit(QLineEdit):
         self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
         self.setCursorPosition(cursor_pos - prefix_len + len(text))
 
-    textChanged = Signal(str)
+    textChangedX = Signal(str)
 
 
 class YieldOptimizationDialog(QDialog):
@@ -71,6 +72,7 @@ class YieldOptimizationDialog(QDialog):
         self.layout.addWidget(t1)
         self.c = CompleterLineEdit(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
+        self.c.setCompleter(completer)
         self.c.setPlaceholderText("")
         self.layout.addWidget(self.c)
         t2 = QLabel(
@@ -91,8 +93,8 @@ class YieldOptimizationDialog(QDialog):
         self.setLayout(self.layout)
 
         # Connecting the signal
-        self.c.textChanged.connect(self.validate_dialog)
-        self.d.textChanged.connect(self.validate_dialog)
+        self.c.textChangedX.connect(self.validate_dialog)
+        self.d.textChangedX.connect(self.validate_dialog)
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.compute)
 
@@ -100,8 +102,8 @@ class YieldOptimizationDialog(QDialog):
 
     def validate_dialog(self):
 
-        valid_c = self.validate_c()
-        valid_d = self.validate_d()
+        valid_c = self.validate_polynom(self.c.text())
+        valid_d = self.validate_polynom(self.d.text())
         if valid_c and valid_d:
             self.button.setEnabled(True)
         else:
@@ -119,39 +121,6 @@ class YieldOptimizationDialog(QDialog):
             else:
                 if match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
                     valid = False
-        return valid
-
-    def validate_c(self):
-
-        palette = self.c.palette()
-        role = self.c.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.c.setPalette(palette)
-
-        text = self.c.text()
-        print("t", text)
-        valid = self.validate_polynom(text)
-        if valid:
-            self.c.setStyleSheet("background: white")
-        else:
-            self.c.setStyleSheet("background: #ff9999")
-        return valid
-
-    def validate_d(self):
-
-        palette = self.d.palette()
-        role = self.d.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.d.setPalette(palette)
-
-        text = self.d.text()
-        print("t", text)
-        valid = self.validate_polynom(text)
-        if valid:
-            self.d.setStyleSheet("background: white")
-        else:
-            self.d.setStyleSheet("background: #ff9999")
-
         return valid
 
     def compute(self):
