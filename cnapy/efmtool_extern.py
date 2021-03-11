@@ -4,12 +4,35 @@ import os
 import subprocess
 import numpy
 import scipy
+import configparser
+import appdirs
+
+try:
+    cp = subprocess.run(['java', '-version'])
+    if cp.returncode is 0:
+        _java_executable = 'java'
+except:
+    _java_executable = os.path.join(os.environ.get('JAVA_HOME', ''), "bin", "java")
+    try:
+        cp = subprocess.run([_java_executable, '-version'])
+        if cp.returncode is not 0:
+            _java_executable = ''
+    except:
+        _java_executable = ''
 
 # import efmtool_link
-# _java_executable = os.path.join(str(jSystem.getProperty("java.home")), "bin", "java")
-_java_executable = r'E:\mpi\Anaconda3\envs\cnapy\Library\jre\bin\java'
+# _java_executable = os.path.join(str(efmtool_link.jSystem.getProperty("java.home")), "bin", "java")
+# _java_executable = r'E:\mpi\Anaconda3\envs\cnapy\Library\jre\bin\java'
 
-efmtool_jar = r'E:\gwdg_owncloud\CNAgit\CellNetAnalyzer\code\ext\efmtool\lib\metabolic-efm-all.jar'
+conf_path = os.path.join(appdirs.user_config_dir(
+    "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+configParser = configparser.RawConfigParser()
+configParser.read(conf_path)
+if configParser.has_option('cnapy-config', 'cna_path'):
+    efmtool_jar = os.path.join(configParser.get('cnapy-config', 'cna_path'),
+                                 'code', 'ext', 'efmtool', 'lib', 'metabolic-efm-all.jar')
+else:
+    efmtool_jar = r'E:\gwdg_owncloud\CNAgit\CellNetAnalyzer\code\ext\efmtool\lib\metabolic-efm-all.jar'
 
 def calculate_flux_modes(st : numpy.array, reversible, reaction_names=None, metabolite_names=None, java_executable=None):
     if java_executable is None:
@@ -25,22 +48,27 @@ def calculate_flux_modes(st : numpy.array, reversible, reaction_names=None, meta
         os.chdir(work_dir)
         write_efmtool_input(st, reversible, reaction_names, metabolite_names)
 
-        cp = subprocess.Popen([java_executable,
-        "-cp", efmtool_jar, "ch.javasoft.metabolic.efm.main.CalculateFluxModes",
-        '-kind', 'stoichiometry', '-arithmetic', 'double', '-zero', '1e-10',
-        '-compression', 'default', '-log', 'console', '-level', 'INFO',
-        '-maxthreads', '-1', '-normalize', 'min', '-adjacency-method', 'pattern-tree-minzero', 
-        '-rowordering', 'MostZerosOrAbsLexMin', '-tmpdir', '.', '-stoich', 'stoich.txt', '-rev', 
-        'revs.txt', '-meta', 'mnames.txt', '-reac', 'rnames.txt', '-out', 'matlab', 'efms.mat'],
-        stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines=True)
-        # might there be a danger of deadlock in case an error produces a large text output that blocks the pipe?
-        while cp.poll() is None:
-            ln = cp.stdout.readlines(1) # blocks until one line has been read
-            if len(ln) > 0: # suppress empty lines that can occur in case of external termination
-                print(ln[0], end='')
-        print(cp.stderr.readlines())
+        try:
+            cp = subprocess.Popen([java_executable,
+            "-cp", efmtool_jar, "ch.javasoft.metabolic.efm.main.CalculateFluxModes",
+            '-kind', 'stoichiometry', '-arithmetic', 'double', '-zero', '1e-10',
+            '-compression', 'default', '-log', 'console', '-level', 'INFO',
+            '-maxthreads', '-1', '-normalize', 'min', '-adjacency-method', 'pattern-tree-minzero', 
+            '-rowordering', 'MostZerosOrAbsLexMin', '-tmpdir', '.', '-stoich', 'stoich.txt', '-rev', 
+            'revs.txt', '-meta', 'mnames.txt', '-reac', 'rnames.txt', '-out', 'matlab', 'efms.mat'],
+            stdout = subprocess.PIPE, stderr = subprocess.PIPE, universal_newlines=True)
+            # might there be a danger of deadlock in case an error produces a large text output that blocks the pipe?
+            while cp.poll() is None:
+                ln = cp.stdout.readlines(1) # blocks until one line has been read
+                if len(ln) > 0: # suppress empty lines that can occur in case of external termination
+                    print(ln[0], end='')
+            print(cp.stderr.readlines())
+            success = cp.poll() is 0
+        except:
+            success = False
+        
         os.chdir(curr_dir)
-        if cp.poll() is 0:
+        if success:
             efms = read_efms_from_mat(work_dir)
         else:
             print("Emftool failure")
