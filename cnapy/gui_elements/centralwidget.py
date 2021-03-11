@@ -188,6 +188,7 @@ class CentralWidget(QWidget):
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
         self.reaction_list.reaction_mask.update_state()
+        self.parent.unsaved_changes()
 
     def delete_map(self, idx: int):
         name = self.map_tabs.tabText(idx)
