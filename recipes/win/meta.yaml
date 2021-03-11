@@ -29,7 +29,7 @@ build:
   number: 1  # NOTE: increment for new build/set to zero for new version
   entry_points:
     - cnapy = cnapy.__main__:main_cnapy
-    - project-downloader = cnapy.project-downloader:main
+    - project_downloader = cnapy.project_downloader:main
 test:
   imports:
     - cnapy

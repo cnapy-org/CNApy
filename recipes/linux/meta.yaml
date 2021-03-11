@@ -32,7 +32,7 @@ build:
     - python setup.py install --single-version-externally-managed --record record.txt
   entry_points:
     - cnapy = cnapy.__main__:main_cnapy
-    - project-downloader = cnapy.project-downloader:main
+    - project_downloader = cnapy.project_downloader:main
 test:
   imports:
     - cnapy
