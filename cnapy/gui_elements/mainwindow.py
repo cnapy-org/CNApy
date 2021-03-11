@@ -671,6 +671,7 @@ class MainWindow(QMainWindow):
                 json.dump(self.appdata.project.maps, fp)
 
             # Save meta data
+            self.appdata.project.meta_data["format version"] = self.appdata.format_version
             with open(tmp_dir + "meta.json", 'w') as fp:
                 json.dump(self.appdata.project.meta_data, fp)
 
