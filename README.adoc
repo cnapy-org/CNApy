@@ -13,7 +13,7 @@ image::assets/install-cnapy.svg[install CNApy]
 
 . On windows install remaining dependencies vi pip:
 
-   ❯ pip install cameo==0.11.15 cobra==0.18.1 qtconsole==4.7.7
+   ❯ pip install cameo
 
 == Setup the CNApy development environment with conda
 
@@ -52,32 +52,7 @@ If you have conda installed you can:
 
 IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the Python API for the MATLAB engine installed and of course CNA
 
-== Install Python API for MATLAB engine in MATLAB 2019b
 
-First activate the cnapy conda environment:
-
-  ❯ matlab -batconda activate cnapy
-
-Findout your `matlabroot`:
-----
-❯ matlab -batch matlabroot
-----
-
-then on Mac and Linux:
-----
-❯ cd matlabroot/extern/engines/python
-❯ python setup.py build --build-base=$(mktemp -d) install
-----
-Windows Powershell:
-----
-❯ cd matlabroot/extern/engines/python
-❯ python setup.py build --build-base=$env:temp install
-----
-
-== Set CNA path
-
-To use the CNA MATLAB functions you need to tell CNApy where CNA is installed.
-Therefore, use the configuration dialog under help to change the path to your CNA path.
 
 == How to run a script in the cnapy terminal
 
@@ -87,21 +62,7 @@ Therefore, use the configuration dialog under help to change the path to your CN
 ----
 
 
-== Create a conda package
 
-----
-❯ cd recipes/linux
-❯ conda-build . -c conda-forge -c bioconda
-❯ anaconda login
-❯ anaconda upload -u arb-lab -l test FILENAME
-----
-
-== Create an installer with constructor
-
-----
-❯ cd constructor
-❯ constructor .
-----
 
 == Contribution
 
