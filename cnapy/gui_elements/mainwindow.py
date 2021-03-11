@@ -443,6 +443,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def change_background(self):
+        '''Load a background image for the current map'''
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             directory=self.appdata.work_directory, filter="*.svg")[0]
@@ -465,6 +466,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def change_map_name(self):
+        '''Execute RenameMapDialog'''
         dialog = RenameMapDialog(
             self.appdata, self.centralWidget())
         dialog.exec_()
