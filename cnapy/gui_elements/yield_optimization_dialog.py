@@ -62,8 +62,9 @@ class YieldOptimizationDialog(QDialog):
         completer.setCaseSensitivity(Qt.CaseInsensitive)
 
         self.layout = QVBoxLayout()
-        l = QLabel(
-            "Define the yield function Y=c*r/d*r by providing c and d as polynoms of form:\n   id_1 * w_1 + ... id_n *w_n\nWhere id_x are reaction ids and w_x optional weighting factor\n")
+        l = QLabel("Define the yield function Y=c*r/d*r by providing c and d as polynoms of form: \n \
+                   id_1 * w_1 + ... id_n * w_n\n \
+                   Where id_x are reaction ids and w_x optional weighting factor\n")
         self.layout.addWidget(l)
         t1 = QLabel(
             "Define c")
@@ -107,9 +108,11 @@ class YieldOptimizationDialog(QDialog):
             self.button.setEnabled(False)
 
     def validate_polynom(self, text: str):
+        print("text:", text)
         texts = text.split('+')
         valid = True
         for elem in texts:
+            print("elem", elem)
             match = self.polynom_re.fullmatch(elem)
             if match == None:
                 valid = False
@@ -126,6 +129,7 @@ class YieldOptimizationDialog(QDialog):
         self.c.setPalette(palette)
 
         text = self.c.text()
+        print("t", text)
         valid = self.validate_polynom(text)
         if valid:
             self.c.setStyleSheet("background: white")
@@ -141,6 +145,7 @@ class YieldOptimizationDialog(QDialog):
         self.d.setPalette(palette)
 
         text = self.d.text()
+        print("t", text)
         valid = self.validate_polynom(text)
         if valid:
             self.d.setStyleSheet("background: white")
