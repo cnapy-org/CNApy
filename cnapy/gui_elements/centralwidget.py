@@ -306,4 +306,5 @@ class ConfirmMapDeleteDialog(QDialog):
         del self.parent.appdata.project.maps[self.name]
         self.parent.map_tabs.removeTab(self.idx)
         self.parent.reaction_list.reaction_mask.update_state()
+        self.parent.parent.unsaved_changes()
         self.accept()
