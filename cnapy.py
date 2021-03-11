@@ -13,5 +13,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from cnapy.cellnetanalyzer import CellNetAnalyzer
-cna = CellNetAnalyzer()
+from cnapy.__main__ import main_cnapy
+main_cnapy()

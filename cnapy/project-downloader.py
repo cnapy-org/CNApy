@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+#
+# Copyright 2021 Sven Thiele
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+
+import os
+import urllib.request
+import pathlib
+import appdirs
+import configparser
+from configparser import NoOptionError, NoSectionError
+
+
+def main():
+
+    work_directory = str(pathlib.Path.home())+"/cnapy-projects"
+    conf_path = os.path.join(appdirs.user_config_dir(
+            "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+    config_parser = configparser.RawConfigParser()
+    config_parser.read(conf_path)
+    try:
+        try:
+            work_directory = config_parser.get(
+                'cnapy-config', 'work_directory')
+        except (KeyError, NoOptionError):
+            print("Could not find work_directory in cnapy-config.txt")
+    except NoSectionError:
+        print("Could not find section cnapy-config in cnapy-config.txt")
+
+    if not os.path.exists(work_directory):
+        print("Create work directory:", work_directory)
+        os.mkdir(work_directory)
+
+    targets = ["ECC2comp.cna", "iJO1366.cna", "SmallExample2.cna"]
+    for t in targets:
+         target = os.path.join(work_directory, t)
+        if not os.path.exists(target):
+            print("Download:",target)
+            url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/ECC2comp.cna'
+            urllib.request.urlretrieve(url, target)
+
+
+if __name__ == "__main__":
+    main()
