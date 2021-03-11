@@ -1,4 +1,4 @@
-{% set version = '0.0.3' %}
+{% set version = '0.0.4' %}
 
 package:
   name: cnapy
@@ -14,22 +14,22 @@ requirements:
     - pip
     - python=3.7
   run:
-    - cobra
-    # - cameo=0.13
+    - matplotlib-base
     - oct2py=5.2
     - openjdk=8
-    - matplotlib-base
+    - pip
+    - pyside2
     - python=3.7
     - qtpy=1.9
-    - pyside2=5.13
     - appdirs
-    # - qtconsole=4.7.7
-
+    - cobra=0.21
+    - qtconsole=5.0
+    # - cameo==0.13
 build:
   number: 1  # NOTE: increment for new build/set to zero for new version
   entry_points:
     - cnapy = cnapy.__main__:main_cnapy
-
+    - project-downloader = cnapy.project-downloader:main
 test:
   imports:
     - cnapy
