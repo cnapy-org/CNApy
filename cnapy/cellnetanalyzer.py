@@ -58,7 +58,7 @@ class CellNetAnalyzer:
 
         self.window.disable_enable_dependent_actions()
         self.window.save_project_action.setEnabled(False)
-        self.window.resize(800, 600)
+        self.window.resize(1200, 1000)
         self.window.show()
 
         # Execute application
