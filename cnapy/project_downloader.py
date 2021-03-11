@@ -43,7 +43,7 @@ def main():
 
     targets = ["ECC2comp.cna", "iJO1366.cna", "SmallExample2.cna"]
     for t in targets:
-         target = os.path.join(work_directory, t)
+        target = os.path.join(work_directory, t)
         if not os.path.exists(target):
             print("Download:",target)
             url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/ECC2comp.cna'
