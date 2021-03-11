@@ -20,25 +20,18 @@ class CompleterLineEdit(QLineEdit):
         self.mycompleter.activated.connect(self.complete_text)
 
     def text_changed(self, text):
-        # print("hey text changed")
         all_text = text
         text = all_text[:self.cursorPosition()]
         prefix = text.split(',')[-1].strip()
-        # print('prefix', prefix)
 
         self.mycompleter.setCompletionPrefix(prefix)
-        # print('CC', self.mycompleter.currentCompletion())
-        # if prefix != '' and prefix != self.mycompleter.currentCompletion():
         if prefix != '':
             self.mycompleter.complete()
 
     def complete_text(self, text):
-        # print("hey complete text", text)
         cursor_pos = self.cursorPosition()
         before_text = self.text()[:cursor_pos]
-        # print('before_text', before_text)
         after_text = self.text()[cursor_pos:]
-        # print('after_text', after_text)
         prefix_len = len(before_text.split(',')[-1].strip())
         self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
         self.setCursorPosition(cursor_pos - prefix_len + len(text))
