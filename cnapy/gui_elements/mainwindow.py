@@ -646,44 +646,53 @@ class MainWindow(QMainWindow):
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
 
-        # save SBML model
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, tmp_dir + "model.sbml")
+        try:
+            # save SBML model
+            cobra.io.write_sbml_model(
+                self.appdata.project.cobra_py_model, tmp_dir + "model.sbml")
 
-        svg_files = {}
-        count = 1
-        for name, m in self.appdata.project.maps.items():
-            arc_name = "map" + str(count) + ".svg"
-            svg_files[m["background"]] = arc_name
-            m["background"] = arc_name
-            count += 1
-
-        # Save maps information
-        with open(tmp_dir + "box_positions.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp)
-
-        # Save meta data
-        with open(tmp_dir + "meta.json", 'w') as fp:
-            json.dump(self.appdata.project.meta_data, fp)
-
-        with ZipFile(filename, 'w') as zip_obj:
-            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zip_obj.write(tmp_dir + "box_positions.json",
-                          arcname="box_positions.json")
-            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
-            for name, m in svg_files.items():
-                zip_obj.write(name, arcname=m)
-
-        # put svgs into temporary directory and update references
-        with ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(self.appdata.temp_dir.name)
+            svg_files = {}
             count = 1
             for name, m in self.appdata.project.maps.items():
-                m["background"] = self.appdata.temp_dir.name + \
-                    "/map" + str(count) + ".svg"
+                arc_name = "map" + str(count) + ".svg"
+                svg_files[m["background"]] = arc_name
+                m["background"] = arc_name
                 count += 1
 
-        self.nounsaved_changes()
+            # Save maps information
+            with open(tmp_dir + "box_positions.json", 'w') as fp:
+                json.dump(self.appdata.project.maps, fp)
+
+            # Save meta data
+            with open(tmp_dir + "meta.json", 'w') as fp:
+                json.dump(self.appdata.project.meta_data, fp)
+
+            with ZipFile(filename, 'w') as zip_obj:
+                zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
+                zip_obj.write(tmp_dir + "box_positions.json",
+                              arcname="box_positions.json")
+                zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
+                for name, m in svg_files.items():
+                    zip_obj.write(name, arcname=m)
+
+            # put svgs into temporary directory and update references
+            with ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(self.appdata.temp_dir.name)
+                count = 1
+                for name, m in self.appdata.project.maps.items():
+                    m["background"] = self.appdata.temp_dir.name + \
+                        "/map" + str(count) + ".svg"
+                    count += 1
+
+            self.nounsaved_changes()
+        except ValueError:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            QMessageBox.critical(self, 'ValueError: Could not save project!',
+                                 exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+            return
 
     @Slot()
     def save_project_as(self):
