@@ -614,9 +614,16 @@ class MainWindow(QMainWindow):
                 with open(temp_dir.name+"/meta.json", 'r') as fp:
                     meta_data = json.load(fp)
 
-                cobra_py_model = cobra.io.read_sbml_model(
-                    temp_dir.name + "/model.sbml")
-
+                try:
+                    cobra_py_model = cobra.io.read_sbml_model(
+                        temp_dir.name + "/model.sbml")
+                except cobra.io.sbml.CobraSBMLError:
+                    output = io.StringIO()
+                    traceback.print_exc(file=output)
+                    exstr = output.getvalue()
+                    QMessageBox.warning(
+                        self, 'Could not open project.', exstr)
+                    return
                 self.appdata.temp_dir = temp_dir
                 self.appdata.project.maps = maps
                 self.appdata.project.meta_data = meta_data
@@ -1010,14 +1017,15 @@ class MainWindow(QMainWindow):
                 reaction.lower_bound, reaction.upper_bound)
         self.centralWidget().update()
 
-    def fva(self, fraction_of_optimum=0.0): # cobrapy default is 1.0
+    def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
         from cobra.flux_analysis import flux_variability_analysis
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 r.objective_coefficient = 0
             try:
-                solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum)
+                solution = flux_variability_analysis(
+                    model, fraction_of_optimum=fraction_of_optimum)
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
