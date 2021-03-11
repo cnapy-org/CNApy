@@ -16,6 +16,7 @@ class CnaData:
 
     def __init__(self):
         self.version = "cnapy-dev-0.1"
+        self.format_version = 1
         self.unsaved = False
         self.project = ProjectData()
         self.octave_executable = ""
