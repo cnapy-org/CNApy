@@ -452,8 +452,7 @@ class MainWindow(QMainWindow):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
         if filename != '':
-            self.appdata.project.maps[name]["background"] = filename[0]
-            print(self.appdata.project.maps[name]["background"])
+            self.appdata.project.maps[name]["background"] = filename
 
             background = QGraphicsSvgItem(
                 self.appdata.project.maps[name]["background"])
@@ -462,6 +461,7 @@ class MainWindow(QMainWindow):
 
             self.centralWidget().update()
             self.centralWidget().map_tabs.setCurrentIndex(idx)
+            self.unsaved_changes()
 
     @Slot()
     def change_map_name(self):
