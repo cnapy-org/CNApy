@@ -149,6 +149,7 @@ class ReactionList(QWidget):
         self.appdata.project.cobra_py_model.add_reactions([reaction])
         item = self.add_reaction(reaction)
         self.reaction_selected(item, 1)
+        self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
 
