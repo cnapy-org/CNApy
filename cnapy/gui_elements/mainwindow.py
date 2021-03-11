@@ -14,6 +14,7 @@ from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.description_dialog import DescriptionDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
+from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
@@ -220,6 +221,10 @@ class MainWindow(QMainWindow):
         self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
+
+        self.efmtool_action = QAction("EFMtool ...", self)
+        self.efmtool_action.triggered.connect(self.efmtool)
+        self.efm_menu.addAction(self.efmtool_action)
 
         load_modes_action = QAction("Load modes...", self)
         self.efm_menu.addAction(load_modes_action)
@@ -994,14 +999,14 @@ class MainWindow(QMainWindow):
                 reaction.lower_bound, reaction.upper_bound)
         self.centralWidget().update()
 
-    def fva(self):
+    def fva(self, fraction_of_optimum=0.0): # cobrapy default is 1.0
         from cobra.flux_analysis import flux_variability_analysis
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 r.objective_coefficient = 0
             try:
-                solution = flux_variability_analysis(model)
+                solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum)
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
@@ -1028,6 +1033,11 @@ class MainWindow(QMainWindow):
         self.efm_dialog = EFMDialog(
             self.appdata, self.centralWidget())
         self.efm_dialog.open()
+
+    def efmtool(self):
+        self.efmtool_dialog = EFMtoolDialog(
+            self.appdata, self.centralWidget())
+        self.efmtool_dialog.open()
 
     def mcs(self):
         self.mcs_dialog = MCSDialog(
