@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='0.0.2',
+    version='0.0.4',
     url='https://github.com/arblab/cnapy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
@@ -26,7 +26,7 @@ setup(
     long_description_content_type="text/asciidoc",
     author='Sven Thiele',
     author_email='sthiele78@gmail.com',
-    packages=['cnapy', 'cnapy.gui_elements'],
+    packages=['cnapy', 'cnapy.gui_elements','cnapy.optlang_enumerator'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': ['data/*.svg']},
     entry_points={'console_scripts': ['cnapy = cnapy.__main__:main_cnapy','project_downloader = cnapy.project_downloader:main']},
