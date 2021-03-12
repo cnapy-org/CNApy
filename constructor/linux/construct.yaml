@@ -17,7 +17,4 @@ specs:
 
 license_file: LICENSE
 
-# Welcome image for Windows installer
-welcome_image: cnapylogo.png             [win]
-
-post_install: post_install.bat           [win]
+post_install: post_install.sh

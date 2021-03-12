@@ -1,4 +1,4 @@
-# Create a conda package
+# Create and upload a conda package
 
 ```sh
 cd recipes/linux
@@ -10,6 +10,6 @@ anaconda upload -u arb-lab -l test FILENAME
 # Create an installer with constructor
 
 ```sh
-cd constructor
+cd constructor/win
 constructor .
 ```
