@@ -219,7 +219,8 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        self.efm_action = QAction("Compute Elementary Flux Modes ...", self)
+        self.efm_action = QAction(
+            "Compute Elementary Flux Modes (CNA) ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
 
@@ -235,7 +236,7 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(self.save_modes_action)
         self.save_modes_action.triggered.connect(self.save_modes)
 
-        self.mcs_action = QAction("Minimal Cut Sets ...", self)
+        self.mcs_action = QAction("Minimal Cut Sets (CNA) ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.analysis_menu.addAction(self.mcs_action)
 
@@ -244,7 +245,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(phase_plane_action)
 
         self.yield_optimization_action = QAction(
-            "Yield optimization ...", self)
+            "Yield optimization (CNA) ...", self)
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
