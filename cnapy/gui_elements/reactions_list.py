@@ -522,7 +522,7 @@ class ReactionMask(QWidget):
                 test_reaction.build_reaction_from_string(self.equation.text())
                 turn_white(self.equation)
                 ok = True
-            except:
+            except ValueError:
                 # import io
                 # import traceback
                 # output = io.StringIO()
@@ -534,9 +534,9 @@ class ReactionMask(QWidget):
         try:
             test_reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
                 "xxxx_cnapy_test_reaction")
-            self.parent.appdata.project.cobra_py_model.remove_reactions([
-                                                                        test_reaction])
-        except:
+            self.parent.appdata.project.cobra_py_model.remove_reactions(
+                [test_reaction], remove_orphans=True)
+        except KeyError:
             pass
 
         return ok

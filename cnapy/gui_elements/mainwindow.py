@@ -674,9 +674,12 @@ class MainWindow(QMainWindow):
         # set unset compartments to ''
         for m in clean_model.metabolites:
             if m.compartment is None:
-                m.compartment = ''
-        for c in clean_model.compartments:
-            print("c", c)
+                m.compartment = 'undefined_compartment_please_fix'
+            else:
+                x = m.compartment
+                x.strip()
+                if x == '':
+                    m.compartment = 'undefined_compartment_please_fix'
 
         self.appdata.project.cobra_py_model = clean_model
 

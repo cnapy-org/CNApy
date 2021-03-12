@@ -347,6 +347,12 @@ class MetabolitesMask(QWidget):
 
     def validate_compartment(self):
         try:
+            if ' ' in self.compartment.text():
+                turn_red(self.compartment)
+                return False
+            if '-' in self.compartment.text():
+                turn_red(self.compartment)
+                return False
             _m = cobra.Metabolite(id="test_id", name=self.compartment.text())
         except:
             turn_red(self.compartment)
