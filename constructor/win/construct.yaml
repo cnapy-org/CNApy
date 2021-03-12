@@ -1,0 +1,23 @@
+name: CNApy
+version: 0.0.4
+
+ignore_duplicate_files: True
+
+channels:
+  - http://repo.anaconda.com/pkgs/main/
+  - arb-lab/label/test
+  - conda-forge
+  - bioconda
+
+specs:
+  - conda
+  - pip
+  - python=3.7
+  - menuinst                             [win]
+
+license_file: LICENSE
+
+# Welcome image for Windows installer
+welcome_image: cnapylogo.png             [win]
+
+post_install: post_install.bat
