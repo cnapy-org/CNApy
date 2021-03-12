@@ -91,8 +91,6 @@ class MetaboliteList(QWidget):
             self.metabolite_mask.metabolites_data_changed)
 
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite):
-        print("MetaboliteList handle changedMetabolie", metabolite)
-
         # Update metabolite item in list
         root = self.metabolite_list.invisibleRootItem()
         child_count = root.childCount()
@@ -105,11 +103,9 @@ class MetaboliteList(QWidget):
                 break
 
         self.last_selected = self.metabolite_mask.id.text()
-        print("MetaboliteList emit changedMetabolite", metabolite)
         self.metaboliteChanged.emit(old_id, metabolite)
 
     def update_selected(self, string):
-        print("metabolite_list:update_selected", string)
         root = self.metabolite_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
@@ -274,12 +270,12 @@ class MetabolitesMask(QWidget):
         self.changed = True
 
     def apply(self):
-        print("apply changes to metabolite")
         try:
             self.metabolite.id = self.id.text()
-        except:
+        except ValueError:
             msgBox = QMessageBox()
-            msgBox.setText("Could not apply changes identifier already used.")
+            msgBox.setText(
+                "Could not apply changes identifier already used.")
             msgBox.exec()
         else:
             self.metabolite.name = self.name.text()

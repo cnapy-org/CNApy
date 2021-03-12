@@ -245,13 +245,11 @@ class CentralWidget(QWidget):
             m.update()
 
     def update_maps(self):
-        print("update_maps", str(self.tabs.count()))
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
             m.update()
 
     def jump_to_map(self, identifier: str, reaction: str):
-        print("centralwidget::jump_to_map", identifier, reaction)
         for idx in range(0, self.map_tabs.count()):
             name = self.map_tabs.tabText(idx)
             if name == identifier:

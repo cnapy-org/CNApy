@@ -207,8 +207,6 @@ class ReactionList(QWidget):
         self.reaction_mask.update_state()
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
-        print("ReactionList handle changedReaction", reaction)
-
         # Update reaction item in list
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
@@ -221,7 +219,6 @@ class ReactionList(QWidget):
                 break
 
         self.last_selected = self.reaction_mask.id.text()
-        print("ReactionList emit changedReaction", reaction)
         self.reactionChanged.emit(old_id, reaction)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
@@ -483,7 +480,6 @@ class ReactionMask(QWidget):
                 self.reaction.annotation[key] = value
 
             self.changed = False
-            print("ReactionMask::emit changedReaction", self.reaction)
             self.reactionChanged.emit(self.reaction)
 
     def delete_reaction(self):
