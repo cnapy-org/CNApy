@@ -7,6 +7,7 @@ from typing import Tuple
 from zipfile import ZipFile
 
 import cobra
+from cobra.manipulation.delete import prune_unused_metabolites
 from cnapy.cnadata import CnaData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
@@ -376,8 +377,17 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0:
             return
 
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, filename)
+        try:
+            self.save_sbml(filename)
+        except ValueError:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            QMessageBox.critical(self, 'ValueError: Could not save project!',
+                                 exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+
+            return
 
     @Slot()
     def load_box_positions(self):
@@ -582,8 +592,15 @@ class MainWindow(QMainWindow):
             directory=self.appdata.work_directory, filter="*.xml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
-
-        cobra_py_model = cobra.io.read_sbml_model(filename)
+        try:
+            cobra_py_model = cobra.io.read_sbml_model(filename)
+        except cobra.io.sbml.CobraSBMLError:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            QMessageBox.warning(
+                self, 'Could not read sbml.', exstr)
+            return
         self.new_project()
         self.appdata.project.cobra_py_model = cobra_py_model
         self.centralWidget().update()
@@ -647,16 +664,46 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Could not open project.', exstr)
             return
 
+    def save_sbml(self, filename):
+        '''Save model as SBML'''
+
+        # cleanup to work around cobrapy not setting a default compartement
+        # remove unused species
+        (clean_model, unused_mets) = prune_unused_metabolites(
+            self.appdata.project.cobra_py_model)
+        # set unset compartments to ''
+        for m in clean_model.metabolites:
+            if m.compartment is None:
+                m.compartment = ''
+        for c in clean_model.compartments:
+            print("c", c)
+
+        self.appdata.project.cobra_py_model = clean_model
+
+        cobra.io.write_sbml_model(
+            self.appdata.project.cobra_py_model, filename)
+
     @Slot()
     def save_project(self):
         ''' Save the project '''
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
 
+        # cleanup to work around cobrapy not setting a default compartement
+        # remove unused species
+        (clean_model, unused_mets) = prune_unused_metabolites(
+            self.appdata.project.cobra_py_model)
+        # set unset compartments to ''
+        for m in clean_model.metabolites:
+            if m.compartment is None:
+                m.compartment = ''
+        for c in clean_model.compartments:
+            print("c", c, c.id)
+
+        self.appdata.project.cobra_py_model = clean_model
+
         try:
-            # save SBML model
-            cobra.io.write_sbml_model(
-                self.appdata.project.cobra_py_model, tmp_dir + "model.sbml")
+            self.save_sbml(tmp_dir + "model.sbml")
         except ValueError:
             output = io.StringIO()
             traceback.print_exc(file=output)
@@ -664,6 +711,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'ValueError: Could not save project!',
                                  exstr+'\nPlease report the problem to:\n\
                                     \nhttps://github.com/ARB-Lab/CNApy/issues')
+
             return
 
         svg_files = {}
