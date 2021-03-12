@@ -25,7 +25,7 @@ def main():
 
     work_directory = str(pathlib.Path.home())+"/cnapy-projects"
     conf_path = os.path.join(appdirs.user_config_dir(
-            "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+        "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
     config_parser = configparser.RawConfigParser()
     config_parser.read(conf_path)
     try:
@@ -45,8 +45,8 @@ def main():
     for t in targets:
         target = os.path.join(work_directory, t)
         if not os.path.exists(target):
-            print("Download:",target)
-            url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/ECC2comp.cna'
+            print("Download:", target)
+            url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/'+t
             urllib.request.urlretrieve(url, target)
 
 
