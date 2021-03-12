@@ -24,11 +24,19 @@ class ConfigDialog(QDialog):
         cross = cross_icon.pixmap(QSize(32, 32))
 
         QDialog.__init__(self)
+        self.setWindowTitle("Configure CNApy")
+
         self.appdata = appdata
         self.oeng = appdata.octave_engine
         self.meng = appdata.matlab_engine
         self.layout = QVBoxLayout()
 
+        descr = QLabel("\
+            Some functionalities in CNApy need a working CNA installation.\n \
+            To use CNA you need either Matlab >= R2019 or Octave >= 5 .\n \
+            Below you can choose a Matlab directory or the Octave executable.\n \
+            Only if one of the engines is green your CNA directory can be validated.")
+        self.layout.addWidget(descr)
         ml = QHBoxLayout()
         label = QLabel("Matlab")
         label.setFixedWidth(100)
