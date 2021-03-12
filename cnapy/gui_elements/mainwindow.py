@@ -672,14 +672,22 @@ class MainWindow(QMainWindow):
         (clean_model, unused_mets) = prune_unused_metabolites(
             self.appdata.project.cobra_py_model)
         # set unset compartments to ''
+        undefined = ''
         for m in clean_model.metabolites:
             if m.compartment is None:
+                undefined += m.id+'\n'
                 m.compartment = 'undefined_compartment_please_fix'
             else:
                 x = m.compartment
                 x.strip()
                 if x == '':
+                    undefined += m.id+'\n'
                     m.compartment = 'undefined_compartment_please_fix'
+
+        if undefined != '':
+            QMessageBox.warning(self, 'Undefined compartments',
+                                'The following metabolites have undefined compartments!\n' +
+                                undefined+'\nPlease check!')
 
         self.appdata.project.cobra_py_model = clean_model
 
@@ -691,19 +699,6 @@ class MainWindow(QMainWindow):
         ''' Save the project '''
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
-
-        # cleanup to work around cobrapy not setting a default compartement
-        # remove unused species
-        (clean_model, unused_mets) = prune_unused_metabolites(
-            self.appdata.project.cobra_py_model)
-        # set unset compartments to ''
-        for m in clean_model.metabolites:
-            if m.compartment is None:
-                m.compartment = ''
-        for c in clean_model.compartments:
-            print("c", c, c.id)
-
-        self.appdata.project.cobra_py_model = clean_model
 
         try:
             self.save_sbml(tmp_dir + "model.sbml")
