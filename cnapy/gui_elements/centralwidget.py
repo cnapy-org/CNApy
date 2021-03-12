@@ -120,13 +120,11 @@ class CentralWidget(QWidget):
         self.update_maps()
 
     def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
-        print("CentralWidget handle_changed_metabolite", old_id, metabolite)
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
 
     def shutdown_kernel(self):
-        print('Shutting down kernel...')
         self.console.kernel_client.stop_channels()
         self.console.kernel_manager.shutdown_kernel()
 
