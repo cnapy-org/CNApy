@@ -10,7 +10,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QRadioButton, QTableWidget, QVBoxLayout)
 import cobra.util.array
 import optlang
-import cnapy.optlang_enumerator.cMCS_enumerator as cMCS_enumerator
+import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 from cnapy.cnadata import CnaData
 
 class MCSDialog(QDialog):

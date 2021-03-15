@@ -1,6 +1,0 @@
-[submodule "cnapy/optlang_enumerator"]
-	path = cnapy/optlang_enumerator
-	url = https://github.com/cnapy-org/optlang_enumerator.git
-[submodule "cnapy/efmtool_link"]
-	path = cnapy/efmtool_link
-	url = https://github.com/cnapy-org/efmtool_link.git
