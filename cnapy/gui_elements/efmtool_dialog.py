@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.cnadata import CnaData
-import cnapy.efmtool_extern as efmtool_extern
+import efmtool_link.efmtool_extern as efmtool_extern
 from cobra.util.array import create_stoichiometric_matrix
 import numpy
 
