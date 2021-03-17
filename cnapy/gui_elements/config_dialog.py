@@ -247,13 +247,9 @@ class ConfigDialog(QDialog):
             os.system("python setup.py build --build-base=" +
                       temp_dir.name+' install')
             os.chdir(cwd)
-        except:
-            print("Install failed")
-
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
-            print(exstr)
+        except FileNotFoundError:
+            # no Matlab engine found
+            pass
 
     def choose_oc_exe(self):
 
