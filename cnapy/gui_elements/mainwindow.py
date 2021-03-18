@@ -5,6 +5,7 @@ import traceback
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
+from cnapy.flux_vector_container import FluxVectorContainer
 
 import cobra
 from cobra.manipulation.delete import prune_unused_metabolites
@@ -443,18 +444,17 @@ class MainWindow(QMainWindow):
     def load_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.npz")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
-        with open(filename, 'r') as fp:
-            self.appdata.project.modes = json.load(fp)
-            self.centralWidget().mode_navigator.current = 0
-            values = self.appdata.project.modes[0].copy()
-            self.appdata.project.scen_values.clear()
-            self.appdata.project.comp_values.clear()
-            for i in values:
-                self.appdata.project.comp_values[i] = (values[i], values[i])
+        self.appdata.project.modes = FluxVectorContainer(filename)
+        self.centralWidget().mode_navigator.current = 0
+        values = self.appdata.project.modes[0]
+        self.appdata.project.scen_values.clear()
+        self.appdata.project.comp_values.clear()
+        for i in values:
+            self.appdata.project.comp_values[i] = (values[i], values[i])
         self.centralWidget().update()
 
     @Slot()
@@ -532,11 +532,10 @@ class MainWindow(QMainWindow):
     def save_modes(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.modes")[0]
+            directory=self.appdata.work_directory, filter="*.npz")[0]
         if not filename or len(filename) == 0:
             return
-        with open(filename, 'w') as fp:
-            json.dump(self.appdata.project.modes, fp)
+        self.appdata.project.modes.save(filename)
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''

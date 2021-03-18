@@ -212,8 +212,7 @@ class CentralWidget(QWidget):
 
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
-            values = self.appdata.project.modes[self.mode_navigator.current].copy(
-            )
+            values = self.appdata.project.modes[self.mode_navigator.current]
 
             # set values
             self.appdata.project.scen_values.clear()
