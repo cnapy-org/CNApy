@@ -456,7 +456,7 @@ class ReactionMask(QWidget):
     def apply(self):
         try:
             self.reaction.id = self.id.text()
-        except:
+        except ValueError:
             turn_red(self.id)
             msgBox = QMessageBox()
             msgBox.setText("Could not apply changes identifier already used.")
