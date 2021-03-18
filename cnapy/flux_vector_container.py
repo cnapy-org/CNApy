@@ -1,3 +1,4 @@
+#%%
 import os
 import numpy
 import tempfile
@@ -13,10 +14,10 @@ class FluxVectorContainer:
             self.reac_id = reac_id # corresponds to the rows of fv_mat
 
     def __len__(self):
-        return self.fv_mat.shape[1]
+        return self.fv_mat.shape[0]
 
     def __getitem__(self, idx):
-        return{self.reac_id[i]: float(self.fv_mat[i, idx]) for i in range(len(self.reac_id)) if self.fv_mat[i, idx] != 0}
+        return{self.reac_id[i]: float(self.fv_mat[idx, i]) for i in range(len(self.reac_id)) if self.fv_mat[idx, i] != 0}
 
     def save(self, fname):
         numpy.savez_compressed(fname, fv_mat=self.fv_mat, reac_id=self.reac_id)
@@ -37,7 +38,7 @@ class FluxVectorMemmap(FluxVectorContainer):
         with open(self._memmap_fname, 'rb') as fh:
             num_efm = numpy.fromfile(fh, dtype='>i8', count=1)[0]
             num_reac = numpy.fromfile(fh, dtype='>i4', count=1)[0]
-        super().__init__(numpy.memmap(self._memmap_fname, mode='r', dtype='>d', offset=13, shape=(num_reac, num_efm), order='F'), reac_id)
+        super().__init__(numpy.memmap(self._memmap_fname, mode='r', dtype='>d', offset=13, shape=(num_efm, num_reac), order='C'), reac_id)
 
     def clear(self):
         del self.fv_mat # lose the reference to the memmap (does not have a close() method)
