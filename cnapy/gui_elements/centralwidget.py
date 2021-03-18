@@ -130,7 +130,7 @@ class CentralWidget(QWidget):
 
     def switch_to_reaction(self, reaction: str):
         self.tabs.setCurrentIndex(0)
-        self.reaction_list.setCurrentItem(reaction)
+        self.reaction_list.set_current_item(reaction)
 
     def minimize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, min=True)
@@ -263,12 +263,12 @@ class CentralWidget(QWidget):
     def jump_to_metabolite(self, metabolite: str):
         self.tabs.setCurrentIndex(1)
         m = self.tabs.widget(1)
-        m.setCurrentItem(metabolite)
+        m.set_current_item(metabolite)
 
     def jump_to_reaction(self, reaction: str):
         self.tabs.setCurrentIndex(0)
         m = self.tabs.widget(0)
-        m.setCurrentItem(reaction)
+        m.set_current_item(reaction)
 
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")

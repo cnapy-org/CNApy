@@ -159,11 +159,11 @@ class MetaboliteList(QWidget):
                 self.last_selected, Qt.MatchExactly)
 
             for i in items:
-                self.metabolite_list.setCurrentItem(i)
+                self.metabolite_list.set_current_item(i)
                 print(i.text(0))
                 break
 
-    def setCurrentItem(self, key):
+    def set_current_item(self, key):
         self.last_selected = key
         self.update()
 
