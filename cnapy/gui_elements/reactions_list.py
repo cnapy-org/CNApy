@@ -14,18 +14,16 @@ from cnapy.utils import turn_red, turn_white
 
 
 class DragableTreeWidget(QTreeWidget):
-    def __init__(self,):
-        super(DragableTreeWidget, self).__init__()
+    '''A list of dragable reaction items'''
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, _event):
         item = self.currentItem()
         reaction: cobra.Reaction = item.data(3, 0)
-        mimeData = QMimeData()
-        mimeData.setText(reaction.id)
+        mime_data = QMimeData()
+        mime_data.setText(reaction.id)
         drag = QDrag(self)
-        drag.setMimeData(mimeData)
-        drag.exec_(Qt.CopyAction |
-                   Qt.MoveAction, Qt.CopyAction)
+        drag.setMimeData(mime_data)
+        drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
 
 
 class ReactionList(QWidget):
