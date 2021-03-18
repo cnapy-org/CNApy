@@ -1,6 +1,7 @@
 """The cnapy elementary flux modes calculator dialog"""
 import io
 import traceback
+import numpy
 
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QIntValidator
@@ -9,7 +10,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
 
 from cnapy.cnadata import CnaData
 import cnapy.legacy as legacy
-
+from cnapy.flux_vector_container import FluxVectorContainer
 
 class EFMDialog(QDialog):
     """A dialog to set up EFM calculation"""
@@ -242,7 +243,7 @@ class EFMDialog(QDialog):
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
-
+                ems= numpy.array(ems)
                 self.result2ui(ems, idx, reac_id, scenario)
 
                 self.accept()
@@ -257,26 +258,11 @@ class EFMDialog(QDialog):
             self.result2ui(ems, idx, reac_id, scenario)
 
     def result2ui(self, ems, idx, reac_id, scenario):
-        oems = []
         if len(ems) == 0:
             QMessageBox.information(self, 'No modes',
                                     'Modes have not been calculated or do not exist.')
         else:
-            for mode in ems:
-                print("Mode:")
-                count_ccc = 0
-                omode = {}
-                for element in mode:
-                    idx2 = int(idx[0][count_ccc])-1
-                    reaction = reac_id[idx2]
-                    print("element: ", count_ccc,
-                          idx2, reaction, element)
-                    count_ccc += 1
-                    if element != 0:
-                        omode[reaction] = float(element)
-                oems.append(omode)
-
-            self.appdata.project.modes = oems
+            self.appdata.project.modes = FluxVectorContainer(ems, [reac_id[int(i)-1] for i in idx[0]])
             self.centralwidget.mode_navigator.current = 0
             self.centralwidget.mode_navigator.scenario = scenario
             self.centralwidget.mode_navigator.title.setText("Mode Navigation")
