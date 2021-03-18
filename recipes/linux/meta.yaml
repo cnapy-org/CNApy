@@ -25,6 +25,7 @@ requirements:
     - cobra=0.21
     - qtconsole=5.0  
     - cameo=0.13
+    - efmtool_link
 
 build:
   number: 0  # NOTE: increment for new build/set to zero for new version
