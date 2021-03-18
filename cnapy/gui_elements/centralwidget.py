@@ -146,7 +146,7 @@ class CentralWidget(QWidget):
             try:
                 x = float(value)
                 self.appdata.scen_values_set(reaction, (x, x))
-            except:
+            except ValueError:
                 (vl, vh) = make_tuple(value)
                 self.appdata.scen_values_set(reaction, (vl, vh))
         self.reaction_list.update()

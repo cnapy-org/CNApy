@@ -260,7 +260,7 @@ class ReactionList(QWidget):
                 self.last_selected, Qt.MatchExactly)
 
             for i in items:
-                self.reaction_list.set_current_item(i)
+                self.reaction_list.setCurrentItem(i)
                 break
 
         self.reaction_mask.update_state()
@@ -492,7 +492,7 @@ class ReactionMask(QWidget):
             try:
                 r = cobra.Reaction(id=self.id.text())
                 model.add_reaction(r)
-            except:
+            except ValueError:
                 turn_red(self.id)
                 return False
             else:
@@ -504,7 +504,7 @@ class ReactionMask(QWidget):
             try:
                 r = cobra.Reaction(id="testid", name=self.name.text())
                 model.add_reaction(r)
-            except:
+            except ValueError:
                 turn_red(self.name)
                 return False
             else:
@@ -523,12 +523,6 @@ class ReactionMask(QWidget):
                 turn_white(self.equation)
                 ok = True
             except ValueError:
-                # import io
-                # import traceback
-                # output = io.StringIO()
-                # traceback.print_exc(file=output)
-                # exstr = output.getvalue()
-                # print(exstr)
                 turn_red(self.equation)
 
         try:
@@ -544,7 +538,7 @@ class ReactionMask(QWidget):
     def validate_lowerbound(self):
         try:
             _x = float(self.lower_bound.text())
-        except:
+        except ValueError:
             turn_red(self.lower_bound)
             return False
         else:
@@ -554,7 +548,7 @@ class ReactionMask(QWidget):
     def validate_upperbound(self):
         try:
             _x = float(self.upper_bound.text())
-        except:
+        except ValueError:
             turn_red(self.upper_bound)
             return False
         else:
@@ -564,7 +558,7 @@ class ReactionMask(QWidget):
     def validate_coefficient(self):
         try:
             _x = float(self.coefficent.text())
-        except:
+        except ValueError:
             turn_red(self.coefficent)
             return False
         else:
@@ -574,7 +568,7 @@ class ReactionMask(QWidget):
     def validate_gene_reaction_rule(self):
         try:
             _x = float(self.gene_reaction_rule.text())
-        except:
+        except ValueError:
             turn_red(self.gene_reaction_rule)
             return False
         else:

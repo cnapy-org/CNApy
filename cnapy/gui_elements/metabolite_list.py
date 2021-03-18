@@ -1,6 +1,4 @@
 """The metabolite list"""
-import sys
-import traceback
 
 import cobra
 from cnapy.cnadata import CnaData
@@ -154,13 +152,11 @@ class MetaboliteList(QWidget):
         if self.last_selected is None:
             pass
         else:
-            # print("something was previosly selected")
             items = self.metabolite_list.findItems(
                 self.last_selected, Qt.MatchExactly)
 
             for i in items:
-                self.metabolite_list.set_current_item(i)
-                print(i.text(0))
+                self.metabolite_list.setCurrentItem(i)
                 break
 
     def set_current_item(self, key):
@@ -311,8 +307,7 @@ class MetabolitesMask(QWidget):
             try:
                 m = cobra.Metabolite(id=self.id.text())
                 model.add_metabolites([m])
-            except:
-                traceback.print_exception(*sys.exc_info())
+            except ValueError:
                 turn_red(self.id)
                 return False
             else:
@@ -324,7 +319,7 @@ class MetabolitesMask(QWidget):
             try:
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
                 model.add_metabolites([m])
-            except:
+            except ValueError:
                 turn_red(self.name)
                 return False
             else:
@@ -338,7 +333,7 @@ class MetabolitesMask(QWidget):
         try:
             if self.charge.text() != "":
                 _x = int(self.charge.text())
-        except:
+        except ValueError:
             turn_red(self.charge)
             return False
         else:
@@ -354,7 +349,7 @@ class MetabolitesMask(QWidget):
                 turn_red(self.compartment)
                 return False
             _m = cobra.Metabolite(id="test_id", name=self.compartment.text())
-        except:
+        except ValueError:
             turn_red(self.compartment)
             return False
         else:
