@@ -273,10 +273,10 @@ class MetabolitesMask(QWidget):
         try:
             self.metabolite.id = self.id.text()
         except ValueError:
-            msgBox = QMessageBox()
-            msgBox.setText(
-                "Could not apply changes identifier already used.")
-            msgBox.exec()
+            turn_red(self.id)
+            QMessageBox.information(
+                self, 'Invalid id', 'Could not apply changes identifier ' +
+                self.id.text()+' already used.')
         else:
             self.metabolite.name = self.name.text()
             self.metabolite.formula = self.formula.text()
