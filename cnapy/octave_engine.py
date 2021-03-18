@@ -1,6 +1,7 @@
 
 try:
     from oct2py import Oct2Py
+    from oct2py.utils import Oct2PyError
 
     class CNAoctaveEngine(Oct2Py):
         def __init__(self):
@@ -21,6 +22,17 @@ try:
 
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
+
+        def try_cna(self, cna_path) -> bool:
+            try:
+                print("Try CNA ...")
+                self.cd(cna_path)
+                self.eval("startcna(1)", nargout=0)
+                print("CNA seems working.")
+                return True
+            except Oct2PyError:
+                print("CNA not availabe ... continue with CNA disabled.")
+                return False
 
 except (ModuleNotFoundError, OSError):
     pass
