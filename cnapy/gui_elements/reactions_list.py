@@ -260,12 +260,12 @@ class ReactionList(QWidget):
                 self.last_selected, Qt.MatchExactly)
 
             for i in items:
-                self.reaction_list.setCurrentItem(i)
+                self.reaction_list.set_current_item(i)
                 break
 
         self.reaction_mask.update_state()
 
-    def setCurrentItem(self, key):
+    def set_current_item(self, key):
         self.last_selected = key
         self.update()
 
