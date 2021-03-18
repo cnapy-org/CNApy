@@ -476,8 +476,7 @@ class ConfigDialog(QDialog):
 
         try:
             fp = open(self.appdata.conf_path, "w")
-        except:
-
+        except FileNotFoundError:
             os.makedirs(appdirs.user_config_dir(
                 "cnapy", roaming=True, appauthor=False))
             fp = open(self.appdata.conf_path, "w")

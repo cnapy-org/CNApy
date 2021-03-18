@@ -24,5 +24,21 @@ try:
         def is_cplex_java_ready(self):
             return self.eval('cnan.cplex_interface.java;')
 
+        def try_cna(self, cna_path) -> bool:
+            try:
+                print("Try CNA ...")
+                self.cd(cna_path)
+                self.eval("startcna(1)", nargout=0)
+                print("CNA seems working.")
+                return True
+            except:
+                import io
+                output = io.StringIO()
+                import traceback
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
+                print("CNA not availabe ... continue with CNA disabled.")
+                return False
 except ModuleNotFoundError:
     pass

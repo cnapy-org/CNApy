@@ -124,7 +124,7 @@ class ProjectData:
         for x in self.scen_values:
             try:
                 y = model.reactions.get_by_id(x)
-            except:
+            except KeyError:
                 print('reaction', x, 'not found!')
             else:
                 (vl, vu) = self.scen_values[x]

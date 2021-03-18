@@ -184,13 +184,12 @@ class MapView(QGraphicsView):
                            [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
                 self.scene.addItem(box)
                 self.reaction_boxes[r_id] = box
-            except:
+            except KeyError:
                 print("failed to add reaction box for", r_id)
 
         self.set_values()
 
         # set scrollbars
-
         self.horizontalScrollBar().setValue(
             self.appdata.project.maps[self.name]["pos"][0])
         self.verticalScrollBar().setValue(
@@ -314,12 +313,8 @@ class ReactionBox(QGraphicsItem):
     def set_value(self, value: Tuple[float, float]):
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
-            # print("isclose", vl, round(vl, self.map.appdata.rounding),
-            #   vu, round(vu, self.map.appdata.rounding))
             self.item.setText(str(round(vl, self.map.appdata.rounding)))
         else:
-            # print("notclose", vl, round(vl, self.map.appdata.rounding),
-            #       vu, round(vu, self.map.appdata.rounding))
             self.item.setText(
                 str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
         self.item.setCursorPosition(0)
@@ -332,15 +327,6 @@ class ReactionBox(QGraphicsItem):
         elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
                 value = self.map.appdata.project.scen_values[self.id]
-
-                # We differentiate special cases like (vl==vu)
-                # try:
-                #     x_ = float(value)
-                #     self.set_color(self.map.appdata.scen_color)
-                # except:
-                #     (vl, vu) = make_tuple(value)
-                #     if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
-                #         self.set_color(self.map.appdata.Specialcolor)
                 self.set_color(self.map.appdata.scen_color)
             else:
                 value = self.map.appdata.project.comp_values[self.id]
@@ -376,25 +362,23 @@ class ReactionBox(QGraphicsItem):
         return QRectF(-15, -15, 20, 20)
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
-        # painter.setPen(Qt.NoPen)
         # set color depending on wether the value belongs to the scenario
         if self.id in self.map.appdata.project.scen_values.keys():
             painter.setPen(Qt.magenta)
             painter.setBrush(Qt.magenta)
         else:
-            # painter.setBrush(Qt.darkGray)
             painter.setPen(Qt.darkGray)
-        # painter.drawEllipse(-15, -15, 20, 20)
+
         painter.drawRect(-15, -15, 20, 20)
         painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
     def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
-        print("ReactionBox::mousePressedEvent")
+        pass
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
-        print("ReactionBox::mouseReleaseEvent")
+        pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         drag = QDrag(event.widget())
@@ -404,10 +388,6 @@ class ReactionBox(QGraphicsItem):
         # self.setCursor(Qt.ClosedHandCursor)
         drag.exec_()
         # self.setCursor(Qt.OpenHandCursor)
-
-    # def mouseDoubleClickEvent(self, event: QMouseEvent):
-    #     print("ReactionBox::double_clickEvent")
-    #     self.map.emit_doubleClickedReaction(self.id)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
@@ -437,14 +417,14 @@ class ReactionBox(QGraphicsItem):
 def validate_value(value):
     try:
         _x = float(value)
-    except:
+    except ValueError:
         try:
             (vl, vh) = make_tuple(value)
             if not isinstance(vl, float):
                 return False
             if not isinstance(vh, float):
                 return False
-        except:
+        except (ValueError, SyntaxError):
             return False
         else:
             return True
