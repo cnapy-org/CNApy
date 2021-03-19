@@ -374,7 +374,7 @@ class MainWindow(QMainWindow):
     def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.xml")[0]
+            directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
         if not filename or len(filename) == 0:
             return
 
@@ -590,7 +590,7 @@ class MainWindow(QMainWindow):
     def new_project_from_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.xml")[0]
+            directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
         try:
