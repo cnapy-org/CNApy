@@ -10,7 +10,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QRadioButton, QTableWidget, QVBoxLayout)
 import cobra.util.array
 import optlang
-import cnapy.optlang_enumerator.cMCS_enumerator as cMCS_enumerator
+import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 from cnapy.cnadata import CnaData
 
 class MCSDialog(QDialog):
@@ -488,12 +488,8 @@ class MCSDialog(QDialog):
         #     self.eng.eval("reac_box_vals = 0;", nargout=0)
 
         model = self.appdata.project.cobra_py_model
-        # stdf = cobra.util.array.create_stoichiometric_matrix(model, array_type='DataFrame')
-        # rev = [r.reversibility for r in model.reactions]
-        # reac_id = stdf.columns.tolist()
         reac_id = model.reactions.list_attr("id")
         reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
-        # reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(model.reactions.list_attr("id"))
         rows = self.target_list.rowCount()
         targets = dict()
         for i in range(0, rows):
@@ -528,23 +524,6 @@ class MCSDialog(QDialog):
         desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
         # print(desired)
 
-        # # add reaction bounds defined in the model to the target/desired regions
-        # bounds_mat, bounds_rhs = cMCS_enumerator.reaction_bounds_to_leq_matrix(model)
-        # targets = [(scipy.sparse.vstack((t[0], bounds_mat), format='csr'), numpy.hstack((t[1], bounds_rhs))) for t in targets]
-        # desired = [(scipy.sparse.vstack((d[0], bounds_mat), format='csr'), numpy.hstack((d[1], bounds_rhs))) for d in desired]
-
-        # # make boundary reactions irrepressible (or not?)
-        # cuts= numpy.full(len(model.reactions), True, dtype=bool)
-        # if self.exclude_boundary.isChecked():
-        #     for r in range(len(model.reactions)):
-        #         if model.reactions[r].boundary:
-        #             cuts[r] = False
-
-        # e = cMCS_enumerator.ConstrainedMinimalCutSetsEnumerator(optlang.cplex_interface, stdf.values, rev, targets, desired=desired,
-        #                                 bigM=1000, threshold=0.1, cuts=cuts, split_reversible_v=True, irrev_geq=True)
-        
-        # mcs = e.enumerate_mcs(max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, enum_method=enum_method,
-        #                       model=model, targets=targets)
         mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
                  max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
         print(mcs)

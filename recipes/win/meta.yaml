@@ -24,6 +24,8 @@ requirements:
     - appdirs
     - cobra=0.21
     - qtconsole=5.0
+    - efmtool_link
+    - optlang_enumerator
     # - cameo==0.13
 build:
   number: 1  # NOTE: increment for new build/set to zero for new version
