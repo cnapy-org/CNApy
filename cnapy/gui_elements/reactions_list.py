@@ -234,7 +234,6 @@ class ReactionList(QWidget):
         self.reactionDeleted.emit(reaction)
 
     def update_selected(self, string):
-        print("reaction_list:update_selected", string)
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
@@ -594,7 +593,6 @@ class ReactionMask(QWidget):
             self.update_state()
 
     def update_state(self):
-        # print("ReactionMask::update_state",self.id.text())
         self.jump_list.clear()
         for name, m in self.parent.appdata.project.maps.items():
             if self.id.text() in m["boxes"]:
