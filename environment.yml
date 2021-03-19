@@ -1,6 +1,6 @@
 name: cnapy
 channels:
-  - cnapy/label/test
+  - cnapy
   - bioconda
   - conda-forge
   - defaults
