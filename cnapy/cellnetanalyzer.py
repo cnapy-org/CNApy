@@ -86,7 +86,7 @@ class CellNetAnalyzer:
             try:
                 self.appdata.octave_executable = config_parser.get(
                     'cnapy-config', 'OCTAVE_EXECUTABLE')
-            except ((KeyError, NoOptionError), NoOptionError):
+            except (KeyError, NoOptionError):
                 self.appdata.octave_executable = ""
 
             try:
