@@ -5,6 +5,9 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - pytest
+  - pylint
+  - autopep8
   - oct2py=5.2
   - openjdk=8
   - matplotlib-base
