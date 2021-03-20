@@ -26,10 +26,11 @@ setup(
     long_description_content_type="text/asciidoc",
     author='Sven Thiele',
     author_email='sthiele78@gmail.com',
-    packages=['cnapy', 'cnapy.gui_elements','cnapy.optlang_enumerator'],
+    packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': ['data/*.svg']},
-    entry_points={'console_scripts': ['cnapy = cnapy.__main__:main_cnapy','project_downloader = cnapy.project_downloader:main']},
+    entry_points={'console_scripts': [
+        'cnapy = cnapy.__main__:main_cnapy', 'project_downloader = cnapy.project_downloader:main']},
     # packages not in conda on windows
     # install_requires=['cameo==0.13']
 )

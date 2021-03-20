@@ -1,0 +1,37 @@
+name: CI Test
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          environment-file: environment.yml
+          activate-environment: cnapy
+      - name: Test CNApy
+        run: |
+          conda init bash
+          source ~/.bashrc
+          conda activate cnapy
+          python setup.py install
+          pytest -v ./cnapy/tests/test.py
+
+  build-windows:
+    runs-on: "windows-latest"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          environment-file: winvironment.yml
+          activate-environment: cnapy
+      - name: Test CNApy
+        run: |
+          python setup.py install
+          pytest -v ./cnapy/tests/test.py
