@@ -28,6 +28,8 @@ from cnapy.legacy import try_matlab_engine, try_octave_engine
 
 
 class CellNetAnalyzer:
+    '''The CellNetAnalyzer class'''
+
     def __init__(self):
         self.qapp = QApplication(sys.argv)
         self.appdata = CnaData()
@@ -51,9 +53,11 @@ class CellNetAnalyzer:
         if version != self.appdata.version:
             self.window.show_config_dialog()
         else:
-            self.appdata.matlab_engine = try_matlab_engine()
-            self.appdata.octave_engine = try_octave_engine(
-                self.appdata.octave_executable)
+            if self.appdata.selected_engine == "matlab":
+                self.appdata.matlab_engine = try_matlab_engine()
+            elif self.appdata.selected_engine == "octave":
+                self.appdata.octave_engine = try_octave_engine(
+                    self.appdata.octave_executable)
             self.appdata.select_engine()
 
         self.window.disable_enable_dependent_actions()
