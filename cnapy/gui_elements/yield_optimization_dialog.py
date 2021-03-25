@@ -110,13 +110,12 @@ class YieldOptimizationDialog(QDialog):
             self.button.setEnabled(False)
 
     def validate_polynom(self, text: str):
-        print("text:", text)
+        ''' Return True if text is a valid polynom else False'''
         texts = text.split('+')
         valid = True
         for elem in texts:
-            print("elem", elem)
             match = self.polynom_re.fullmatch(elem)
-            if match == None:
+            if match is None:
                 valid = False
             else:
                 if match.groupdict()['reac_id'] not in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
@@ -177,7 +176,6 @@ class YieldOptimizationDialog(QDialog):
                         break
                 idx = idx+1
             code = "c =" + str(res)+";"
-            print(code)
             a = self.eng.eval(code, nargout=0)
 
             d = []
@@ -210,7 +208,6 @@ class YieldOptimizationDialog(QDialog):
                         break
                 idx = idx+1
             code = "d =" + str(res)+";"
-            print(code)
             self.eng.eval(code, nargout=0)
 
             self.eng.eval("fixedFluxes =[];", nargout=0)
@@ -233,7 +230,7 @@ class YieldOptimizationDialog(QDialog):
                 try:
                     a = self.eng.eval(
                         "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
-                    print(a)
+
                 except Exception:
                     output = io.StringIO()
                     traceback.print_exc(file=output)
@@ -268,7 +265,6 @@ class YieldOptimizationDialog(QDialog):
             elif self.appdata.is_octave_ready():
                 a = self.eng.eval(
                     "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
-                print(a)
 
                 success = self.eng.pull('success')
                 status = self.eng.pull('status')

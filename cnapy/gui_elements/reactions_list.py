@@ -473,7 +473,7 @@ class ReactionMask(QWidget):
                     value = ""
                 else:
                     value = self.annotation.item(i, 1).text()
-                print(key, value)
+
                 self.reaction.annotation[key] = value
 
             self.changed = False
