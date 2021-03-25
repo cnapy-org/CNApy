@@ -93,14 +93,10 @@ class EFMDialog(QDialog):
 
         # create CobraModel for matlab
         self.appdata.create_cobra_model()
-
-        print(".")
         legacy.read_cnapy_model(self.eng)
-        print(".")
 
         # get some data
         reac_id = self.eng.get_reacID()
-        print(reac_id)
 
         # setting parameters
         a = self.eng.eval("constraints = {};",
@@ -110,7 +106,6 @@ class EFMDialog(QDialog):
             onoff_str = ""
             first = True
             for r in reac_id:
-                print(r)
                 if r in self.appdata.project.scen_values.keys():
                     (vl, vu) = self.appdata.project.scen_values[r]
                     if vl == vu:
@@ -154,7 +149,6 @@ class EFMDialog(QDialog):
             ub_str = ""
             first = True
             for r in reac_id:
-                print(r)
                 c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(
                     r)
 
@@ -164,7 +158,6 @@ class EFMDialog(QDialog):
                     vl = "NaN"
                 if vu >= threshold:
                     vu = "NaN"
-                print(vl)
                 if first:
                     lb_str = str(vl)
                     ub_str = str(vu)
@@ -174,14 +167,12 @@ class EFMDialog(QDialog):
                     ub_str = ub_str+","+str(vu)
 
             lb_str = "lb = ["+lb_str+"];"
-            print(lb_str)
             a = self.eng.eval(lb_str, nargout=0,
                               stdout=self.out, stderr=self.err)
             a = self.eng.eval("constraints.lb = lb;", nargout=0,
                               stdout=self.out, stderr=self.err)
 
             ub_str = "ub = ["+ub_str+"];"
-            print(ub_str)
             a = self.eng.eval(ub_str, nargout=0,
                               stdout=self.out, stderr=self.err)
             a = self.eng.eval("constraints.ub = ub;", nargout=0,
@@ -224,13 +215,11 @@ class EFMDialog(QDialog):
             a = self.eng.eval("efmtool_options = {};",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        print(".")
-
         if self.appdata.is_matlab_set():
             try:
                 a = self.eng.eval(
                     "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
-                print(a)
+
             except Exception:
                 output = io.StringIO()
                 traceback.print_exc(file=output)
@@ -250,7 +239,6 @@ class EFMDialog(QDialog):
         elif self.appdata.is_octave_ready():
             a = self.eng.eval(
                 "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
-            print(a)
 
             ems = self.eng.pull('ems')
             idx = self.eng.pull('ems_idx')

@@ -301,7 +301,6 @@ class ConfirmMapDeleteDialog(QDialog):
         self.button_no.clicked.connect(self.reject)
 
     def delete(self):
-        print("Delete Map:"+self.name)
         del self.parent.appdata.project.maps[self.name]
         self.parent.map_tabs.removeTab(self.idx)
         self.parent.reaction_list.reaction_mask.update_state()

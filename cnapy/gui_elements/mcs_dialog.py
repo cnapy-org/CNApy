@@ -8,10 +8,9 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
-import cobra.util.array
-import optlang
 import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 from cnapy.cnadata import CnaData
+
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""
@@ -103,7 +102,8 @@ class MCSDialog(QDialog):
 
         sgx = QVBoxLayout()
         self.gen_kos = QCheckBox("Gene KOs")
-        self.exclude_boundary = QCheckBox("Exclude boundary\nreactions as cuts")
+        self.exclude_boundary = QCheckBox(
+            "Exclude boundary\nreactions as cuts")
         sg1 = QHBoxLayout()
         s31 = QVBoxLayout()
         l = QLabel("Max. Solutions")
@@ -428,7 +428,6 @@ class MCSDialog(QDialog):
             last_mcs = 1
             omcs = []
             current_mcs = {}
-            print(reac_id)
             for i in range(0, len(reactions)):
                 reacid = int(reactions[i][0])
                 reaction = reac_id[reacid-1]
@@ -503,9 +502,8 @@ class MCSDialog(QDialog):
                 p4 = float(self.target_list.cellWidget(i, 3).text())
                 targets.setdefault(p1, []).append((p2, p3, p4))
         targets = list(targets.values())
-        # print(targets)
-        targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
-        # print(targets)
+        targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
+            t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
 
         rows = self.desired_list.rowCount()
         desired = dict()
@@ -519,25 +517,25 @@ class MCSDialog(QDialog):
                     p3 = ">="
                 p4 = float(self.desired_list.cellWidget(i, 3).text())
                 desired.setdefault(p1, []).append((p2, p3, p4))
-        # print(desired)
+
         desired = list(desired.values())
-        desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
-        # print(desired)
+        desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
+            d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
 
         mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
-                 max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+                                          max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
         print(mcs)
 
         if len(mcs) == 0:
             QMessageBox.information(self, 'No cut sets',
                                           'Cut sets have not been calculated or do not exist.')
             return targets, desired
-        else:
-            omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
-            self.appdata.project.modes = omcs
-            self.centralwidget.mode_navigator.current = 0
-            QMessageBox.information(self, 'Cut sets found',
-                                          str(len(omcs))+' Cut sets have been calculated.')
+
+        omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
+        self.appdata.project.modes = omcs
+        self.centralwidget.mode_navigator.current = 0
+        QMessageBox.information(self, 'Cut sets found',
+                                      str(len(omcs))+' Cut sets have been calculated.')
 
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")

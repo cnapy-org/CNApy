@@ -282,7 +282,6 @@ class ReactionBox(QGraphicsItem):
         self.pop_menu.addSeparator()
 
     def returnPressed(self):
-        print(self.id, "return pressed to", self.item.text())
         if validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
 

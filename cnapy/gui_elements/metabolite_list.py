@@ -116,7 +116,6 @@ class MetaboliteList(QWidget):
             item.setHidden(False)
 
     def metabolite_selected(self, item, _column):
-        # print("metabolites_selected")
         if item is None:
             self.metabolite_mask.hide()
         else:
@@ -289,7 +288,7 @@ class MetabolitesMask(QWidget):
                     value = ""
                 else:
                     value = self.annotation.item(i, 1).text()
-                print(key, value)
+
                 self.metabolite.annotation[key] = value
 
             self.changed = False

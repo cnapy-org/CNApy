@@ -8,7 +8,15 @@ from zipfile import ZipFile
 from cnapy.flux_vector_container import FluxVectorContainer
 
 import cobra
+import numpy as np
+
 from cobra.manipulation.delete import prune_unused_metabolites
+from qtpy.QtCore import QFileInfo, Qt, Slot
+from qtpy.QtGui import QColor, QIcon, QPalette
+from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar)
+
 from cnapy.cnadata import CnaData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
@@ -24,11 +32,6 @@ from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
 from cnapy.legacy import try_cna
-from qtpy.QtCore import QFileInfo, Qt, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar)
 
 
 class MainWindow(QMainWindow):
@@ -1016,7 +1019,6 @@ class MainWindow(QMainWindow):
         print('Stoichiometric matrix:\n', m)
         print('\nNumber of metabolites: ', metabolites)
         print('Number of reactions: ', reactions)
-        import numpy as np
         rank = np.linalg.matrix_rank(m)
         print('\nRank of stoichiometric matrix: ' + str(rank))
         print('Degrees of freedom: ' + str(reactions-rank))
