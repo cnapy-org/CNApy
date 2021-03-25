@@ -41,13 +41,13 @@ def main():
         print("Create work directory:", work_directory)
         os.mkdir(work_directory)
 
-    targets = ["ECC2comp.cna", "iJO1366.cna", "SmallExample2.cna"]
-    for t in targets:
-        target = os.path.join(work_directory, t)
-        if not os.path.exists(target):
-            print("Download:", target)
-            url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/'+t
-            urllib.request.urlretrieve(url, target)
+        targets = ["ECC2comp.cna", "iJO1366.cna", "SmallExample.cna"]
+        for t in targets:
+            target = os.path.join(work_directory, t)
+            if not os.path.exists(target):
+                print("Download:", target)
+                url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/'+t
+                urllib.request.urlretrieve(url, target)
 
 
 if __name__ == "__main__":
