@@ -24,7 +24,8 @@ import appdirs
 
 def main():
 
-    work_directory = str(pathlib.Path.home())+"/CNApy-projects"
+    work_directory = os.path.join(
+        pathlib.Path.home(), "CNApy-projects")
     conf_path = os.path.join(appdirs.user_config_dir(
         "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
     config_parser = configparser.RawConfigParser()
