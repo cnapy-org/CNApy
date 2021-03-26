@@ -33,6 +33,9 @@ def try_octave_engine(octave_executable: str):
     except ImportError:
         print("Octave engine not available ... continue with Octave disabled.")
         return None
+    except TypeError:
+        print("Octave engine not available ... continue with Octave disabled.")
+        return None
 
 
 def try_cna(eng, cna_path: str) -> bool:
