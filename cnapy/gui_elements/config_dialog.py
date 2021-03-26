@@ -30,6 +30,7 @@ class ConfigDialog(QDialog):
         self.oeng = appdata.octave_engine
         self.meng = appdata.matlab_engine
         self.layout = QVBoxLayout()
+        self.cna_ok = False
 
         descr = QLabel("\
             Some functionalities in CNApy need a working CNA installation.\n \
@@ -46,7 +47,7 @@ class ConfigDialog(QDialog):
         self.ml_label.setFixedWidth(100)
         ml.addWidget(self.ml_label)
         self.choose_ml_path_btn = QPushButton(
-            "Choose path to Matlab engine")
+            "Choose Matlab folder")
         self.choose_ml_path_btn.setFixedWidth(300)
         ml.addWidget(self.choose_ml_path_btn)
         label2 = QLabel("")
@@ -69,7 +70,7 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_label)
 
         self.choose_oc_exe_btn = QPushButton(
-            "Choose Octave executable")
+            "Choose Octave octave-cli(.exe)")
         self.choose_oc_exe_btn.setFixedWidth(300)
         oc.addWidget(self.choose_oc_exe_btn)
 
@@ -83,6 +84,19 @@ class ConfigDialog(QDialog):
         oc.addWidget(self.oc_exe)
 
         self.layout.addItem(oc)
+
+        h9 = QHBoxLayout()
+        label = QLabel("Selected engine:")
+        h9.addWidget(label)
+        label2 = QLabel("")
+        label2.setFixedWidth(30)
+        h9.addWidget(label2)
+        self.selected_engine = QComboBox()
+        h9.addWidget(self.selected_engine)
+        label2 = QLabel("")
+        label2.setMinimumWidth(200)
+        h9.addWidget(label2)
+        self.layout.addItem(h9)
 
         cna_l = QHBoxLayout()
         label = QLabel("CNA")
@@ -104,13 +118,6 @@ class ConfigDialog(QDialog):
         self.cna_path.setText(self.appdata.cna_path)
         cna_l.addWidget(self.cna_path)
         self.layout.addItem(cna_l)
-
-        h9 = QHBoxLayout()
-        label = QLabel("Selected engine:")
-        h9.addWidget(label)
-        self.selected_engine = QComboBox()
-        h9.addWidget(self.selected_engine)
-        self.layout.addItem(h9)
 
         h2 = QHBoxLayout()
         label = QLabel("Default color for values in a scenario:")
@@ -222,10 +229,39 @@ class ConfigDialog(QDialog):
         self.spec1_color_btn.clicked.connect(self.choose_spec1_color)
         self.spec2_color_btn.clicked.connect(self.choose_spec2_color)
         self.default_color_btn.clicked.connect(self.choose_default_color)
+        self.selected_engine.currentTextChanged.connect(self.update)
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.apply)
 
         self.check_all()
+        self.update()
+
+    def update(self):
+        cross_icon = QIcon(":/icons/cross.png")
+        cross = cross_icon.pixmap(QSize(32, 32))
+        check_icon = QIcon(":/icons/check.png")
+        check = check_icon.pixmap(QSize(32, 32))
+
+        if self.selected_engine.currentText() == "None":
+            self.appdata.selected_engine = None
+            qmark_icon = QIcon(":/icons/qmark.png")
+            qmark = qmark_icon.pixmap(QSize(32, 32))
+            self.cna_label.setPixmap(qmark)
+        else:
+            if self.cna_ok:
+                self.cna_label.setPixmap(check)
+            else:
+                self.cna_label.setPixmap(cross)
+        if self.oeng is not None:
+            # disable button if octave is already working
+            self.oc_label.setPixmap(check)
+        else:
+            self.oc_label.setPixmap(cross)
+
+        if self.meng is not None:
+            self.ml_label.setPixmap(check)
+        else:
+            self.ml_label.setPixmap(cross)
 
     def choose_ml_path(self):
         dialog = QFileDialog(self, directory=self.matlab_path.text())
@@ -234,9 +270,12 @@ class ConfigDialog(QDialog):
         if not directory or len(directory) == 0 or not os.path.exists(directory):
             return
 
+        self.choose_ml_path_btn.setEnabled(False)
         self.matlab_path.setText(directory)
         self.try_install_matlab_engine(directory)
         self.check_matlab()
+        self.choose_ml_path_btn.setEnabled(True)
+        self.update()
 
     def try_install_matlab_engine(self, directory: str):
         try:
@@ -261,7 +300,11 @@ class ConfigDialog(QDialog):
         self.oc_exe.setText(filename)
         if os.path.isfile(filename):
             os.environ['OCTAVE_EXECUTABLE'] = filename
+
+        self.choose_oc_exe_btn.setEnabled(False)
         self.check_octave()
+        self.choose_oc_exe_btn.setEnabled(True)
+        self.update()
 
     def check_all(self):
         self.check_octave()
@@ -287,32 +330,13 @@ class ConfigDialog(QDialog):
                 self.selected_engine.setCurrentIndex(2)
 
     def check_octave(self):
-        cross_icon = QIcon(":/icons/cross.png")
-        cross = cross_icon.pixmap(QSize(32, 32))
-        check_icon = QIcon(":/icons/check.png")
-        check = check_icon.pixmap(QSize(32, 32))
-        self.oeng = try_octave_engine(self.oc_exe.text())
-        if self.oeng is not None:
-            # disable button if octave is already working
-            self.choose_oc_exe_btn.setEnabled(False)
-            self.oc_label.setPixmap(check)
-        else:
-            self.oc_label.setPixmap(cross)
+        if self.oeng is None:
+            self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_matlab(self):
-        cross_icon = QIcon(":/icons/cross.png")
-        cross = cross_icon.pixmap(QSize(32, 32))
-        check_icon = QIcon(":/icons/check.png")
-        check = check_icon.pixmap(QSize(32, 32))
         # only recheck matlab if necessary
         if self.meng is None:
             self.meng = try_matlab_engine()
-        if self.meng is not None:
-            # disable button if matlab is already working
-            self.choose_ml_path_btn.setEnabled(False)
-            self.ml_label.setPixmap(check)
-        else:
-            self.ml_label.setPixmap(cross)
 
     def choose_cna_path(self):
         dialog = QFileDialog(self, directory=self.cna_path.text())
@@ -325,6 +349,7 @@ class ConfigDialog(QDialog):
         self.update()
         self.reset_engine()
         self.check_cna()
+        self.update()
 
     def choose_work_directory(self):
         dialog = QFileDialog(self, directory=self.work_directory.text())
@@ -341,24 +366,11 @@ class ConfigDialog(QDialog):
             self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_cna(self):
-        cross_icon = QIcon(":/icons/cross.png")
-        cross = cross_icon.pixmap(QSize(32, 32))
-        check_icon = QIcon(":/icons/check.png")
-        check = check_icon.pixmap(QSize(32, 32))
-        qmark_icon = QIcon(":/icons/qmark.png")
-        qmark = qmark_icon.pixmap(QSize(32, 32))
+
         if self.oeng is not None:
-            if try_cna(self.oeng, self.cna_path.text()):
-                self.cna_label.setPixmap(check)
-            else:
-                self.cna_label.setPixmap(cross)
+            self.cna_ok = try_cna(self.oeng, self.cna_path.text())
         elif self.meng is not None:
-            if try_cna(self.meng, self.cna_path.text()):
-                self.cna_label.setPixmap(check)
-            else:
-                self.cna_label.setPixmap(cross)
-        else:
-            self.cna_label.setPixmap(qmark)
+            self.cna_ok = try_cna(self.meng, self.cna_path.text())
 
     def choose_scen_color(self):
         palette = self.scen_color_btn.palette()
