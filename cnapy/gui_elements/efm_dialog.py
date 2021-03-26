@@ -12,6 +12,7 @@ from cnapy.cnadata import CnaData
 import cnapy.legacy as legacy
 from cnapy.flux_vector_container import FluxVectorContainer
 
+
 class EFMDialog(QDialog):
     """A dialog to set up EFM calculation"""
 
@@ -227,12 +228,12 @@ class EFMDialog(QDialog):
                 print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
                                     exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
                 return
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
-                ems= numpy.array(ems)
+                ems = numpy.array(ems)
                 self.result2ui(ems, idx, reac_id, scenario)
 
                 self.accept()
@@ -250,7 +251,8 @@ class EFMDialog(QDialog):
             QMessageBox.information(self, 'No modes',
                                     'Modes have not been calculated or do not exist.')
         else:
-            self.appdata.project.modes = FluxVectorContainer(ems, [reac_id[int(i)-1] for i in idx[0]])
+            self.appdata.project.modes = FluxVectorContainer(
+                ems, [reac_id[int(i)-1] for i in idx[0]])
             self.centralwidget.mode_navigator.current = 0
             self.centralwidget.mode_navigator.scenario = scenario
             self.centralwidget.mode_navigator.title.setText("Mode Navigation")

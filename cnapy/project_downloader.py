@@ -13,17 +13,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 
-import os
-import urllib.request
-import pathlib
-import appdirs
 import configparser
+import os
+import pathlib
+import urllib.request
 from configparser import NoOptionError, NoSectionError
+
+import appdirs
 
 
 def main():
 
-    work_directory = str(pathlib.Path.home())+"/cnapy-projects"
+    work_directory = str(pathlib.Path.home())+"/CNApy-projects"
     conf_path = os.path.join(appdirs.user_config_dir(
         "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
     config_parser = configparser.RawConfigParser()
@@ -46,7 +47,7 @@ def main():
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
                 print("Download:", target)
-                url = 'https://github.com/cnapy-org/cnapy-projects/releases/download/0.0.1/'+t
+                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.1/'+t
                 urllib.request.urlretrieve(url, target)
 
 

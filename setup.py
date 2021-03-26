@@ -19,7 +19,7 @@ from setuptools import setup
 setup(
     name='cnapy',
     version='0.0.4',
-    url='https://github.com/arblab/cnapy/',
+    url='https://github.com/cnapy-org/CNApy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
     long_description=open('README.adoc', encoding="utf8").read(),

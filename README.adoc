@@ -7,7 +7,7 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 
 . Create a conda environment with all dependencies
 
-   ❯ conda create -n cnapy-0.1.0 -c conda-forge -c bioconda -c arb-lab/label/test cnapy
+   ❯ conda create -n cnapy-0.1.0 -c conda-forge -c bioconda -c cnapy/label/test cnapy
 
 image::assets/install-cnapy.svg[install CNApy]
 
@@ -36,7 +36,7 @@ If you have conda installed you can:
 
 .. either use `git`
       
-  ❯ git clone https://github.com/ARB-Lab/CNApy.git
+  ❯ git clone https://github.com/cnapy-org/CNApy.git
 
 .. or click on the big green button above, download and unpack zip archive. The folder is then `CNApy-master` not `CNApy`.
 
@@ -45,7 +45,7 @@ If you have conda installed you can:
   ❯ cd CNApy
   ❯ python setup.py install
 
-. Run cnapy
+. Run CNApy
       
   ❯ cnapy
 
@@ -54,7 +54,7 @@ IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the
 
 
 
-== How to run a script in the cnapy terminal
+== How to run a script in the CNApy terminal
 
 ----
 ❯ import testscript
@@ -66,6 +66,6 @@ IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the
 
 == Contribution
 
-https://github.com/klamt-lab/cnapy/blob/master/CONTRIBUTING.md[How to make a contribution to `cnapy`?]
+https://github.com/cnapy-org/CNApy/blob/master/CONTRIBUTING.md[How to make a contribution to `CNApy`?]
 
 Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.

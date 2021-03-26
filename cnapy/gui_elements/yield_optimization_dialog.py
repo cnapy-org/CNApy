@@ -238,7 +238,7 @@ class YieldOptimizationDialog(QDialog):
                     print(exstr)
                     QMessageBox.warning(self, 'Unknown exception occured!',
                                         exstr+'\nPlease report the problem to:\n\
-                                        \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                        \nhttps://github.com/cnapy-org/CNApy/issues')
                     return
                 else:
                     success = self.eng.workspace['success']
