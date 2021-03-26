@@ -92,6 +92,7 @@ class ConfigDialog(QDialog):
         label2.setFixedWidth(30)
         h9.addWidget(label2)
         self.selected_engine = QComboBox()
+        self.selected_engine.addItem("None")
         h9.addWidget(self.selected_engine)
         label2 = QLabel("")
         label2.setMinimumWidth(200)
@@ -242,8 +243,9 @@ class ConfigDialog(QDialog):
         check_icon = QIcon(":/icons/check.png")
         check = check_icon.pixmap(QSize(32, 32))
 
-        if self.selected_engine.currentText() == "None":
-            self.appdata.selected_engine = None
+        selected_engine = self.selected_engine.currentText()
+
+        if selected_engine == "None":
             qmark_icon = QIcon(":/icons/qmark.png")
             qmark = qmark_icon.pixmap(QSize(32, 32))
             self.cna_label.setPixmap(qmark)
@@ -262,6 +264,26 @@ class ConfigDialog(QDialog):
             self.ml_label.setPixmap(check)
         else:
             self.ml_label.setPixmap(cross)
+
+        self.selected_engine.currentTextChanged.disconnect(self.update)
+        self.selected_engine.clear()
+        self.selected_engine.addItem("None")
+        if self.meng is not None:
+            self.selected_engine.addItem("Matlab")
+        if self.oeng is not None:
+            self.selected_engine.addItem("Octave")
+#
+        if selected_engine is "None":
+            self.selected_engine.setCurrentIndex(0)
+        if selected_engine == "Matlab":
+            self.selected_engine.setCurrentIndex(1)
+        if selected_engine == "Octave":
+            if self.selected_engine.count() == 2:
+                self.selected_engine.setCurrentIndex(1)
+            elif self.selected_engine.count() == 3:
+                self.selected_engine.setCurrentIndex(2)
+
+        self.selected_engine.currentTextChanged.connect(self.update)
 
     def choose_ml_path(self):
         dialog = QFileDialog(self, directory=self.matlab_path.text())
@@ -310,24 +332,6 @@ class ConfigDialog(QDialog):
         self.check_octave()
         self.check_matlab()
         self.check_cna()
-
-        self.selected_engine.clear()
-
-        self.selected_engine.addItem("None")
-        if self.meng is not None:
-            self.selected_engine.addItem("Matlab")
-        if self.oeng is not None:
-            self.selected_engine.addItem("Octave")
-
-        if self.appdata.selected_engine is None:
-            self.selected_engine.setCurrentIndex(0)
-        if self.appdata.selected_engine == "matlab":
-            self.selected_engine.setCurrentIndex(1)
-        if self.appdata.selected_engine == "octave":
-            if self.selected_engine.count() == 2:
-                self.selected_engine.setCurrentIndex(1)
-            elif self.selected_engine.count() == 3:
-                self.selected_engine.setCurrentIndex(2)
 
     def check_octave(self):
         if self.oeng is None:
