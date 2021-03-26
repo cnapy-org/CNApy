@@ -827,17 +827,14 @@ class MainWindow(QMainWindow):
             self.save_box_positions_action.setEnabled(False)
 
     def copy_to_clipboard(self):
-        print("copy_to_clipboard")
         self.appdata.project.clipboard = self.appdata.project.comp_values.copy()
 
     def paste_clipboard(self):
-        print("paste_clipboard")
         self.appdata.project.comp_values = self.appdata.project.clipboard
         self.centralWidget().update()
 
     @Slot()
     def clipboard_arithmetics(self):
-        print("clipboard_arithmetics")
         dialog = ClipboardCalculator(self.appdata.project)
         dialog.exec_()
         self.centralWidget().update()
@@ -1018,7 +1015,8 @@ class MainWindow(QMainWindow):
         print('\x1b[1;04;34m'+"Optimization function:\x1b[0m\n")
         first = True
         res = ""
-        for r in self.appdata.project.cobra_py_model.reactions:
+        model = self.appdata.project.cobra_py_model
+        for r in model.reactions:
             if r.objective_coefficient != 0:
                 if first:
                     res += str(r.objective_coefficient) + " " + str(r.id)
@@ -1031,7 +1029,7 @@ class MainWindow(QMainWindow):
                         res += " "+str(r.objective_coefficient) + \
                             " " + str(r.id)
 
-        print("maximize:", res)
+        print(model.objective.direction+"imize:", res)
 
     def print_model_stats(self):
         m = cobra.util.array.create_stoichiometric_matrix(
