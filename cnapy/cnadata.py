@@ -33,7 +33,8 @@ class CnaData:
         self.rounding = 3
         self.cna_path = ""
         self.selected_engine = None
-        self.work_directory = str(pathlib.Path.home())+"/CNApy-projects"
+        self.work_directory = str(os.path.join(
+            pathlib.Path.home(), "CNApy-projects"))
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
