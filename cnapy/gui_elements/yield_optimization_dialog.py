@@ -129,14 +129,14 @@ class YieldOptimizationDialog(QDialog):
             # create CobraModel for matlab
             self.appdata.create_cobra_model()
 
-            a = self.eng.eval("load('cobra_model.mat')",
-                              nargout=0)
-            a = self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                              nargout=0)
+            self.eng.eval("load('cobra_model.mat')",
+                          nargout=0)
+            self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                          nargout=0)
 
             # get some data
-            a = self.eng.eval("reac_id = cellstr(cnap.reacID)';",
-                              nargout=0)
+            self.eng.eval("reac_id = cellstr(cnap.reacID)';",
+                          nargout=0)
             reac_id = []
             if self.appdata.is_matlab_set():
                 reac_id = self.eng.workspace['reac_id']
