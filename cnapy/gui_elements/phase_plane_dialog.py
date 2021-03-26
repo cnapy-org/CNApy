@@ -1,4 +1,4 @@
-"""The cnapy phase plane plot dialog"""
+"""The phase plane plot dialog"""
 
 import matplotlib.pyplot as plt
 import pandas

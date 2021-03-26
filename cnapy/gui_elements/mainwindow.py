@@ -390,7 +390,7 @@ class MainWindow(QMainWindow):
             exstr = output.getvalue()
             QMessageBox.critical(self, 'ValueError: Could not save project!',
                                  exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
 
             return
 
@@ -711,7 +711,7 @@ class MainWindow(QMainWindow):
             exstr = output.getvalue()
             QMessageBox.critical(self, 'ValueError: Could not save project!',
                                  exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
 
             return
 
@@ -907,7 +907,7 @@ class MainWindow(QMainWindow):
                 print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
                                     exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
             else:
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
@@ -1085,7 +1085,7 @@ class MainWindow(QMainWindow):
                 print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
                                     exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
             else:
                 minimum = solution.minimum.to_dict()
                 maximum = solution.maximum.to_dict()

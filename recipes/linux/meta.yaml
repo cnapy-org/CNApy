@@ -5,7 +5,7 @@ package:
   version: {{ version }}
 
 source:
-  git_url: https://github.com/ARB-Lab/CNApy.git
+  git_url: https://github.com/cnapy-org/CNApy.git
   git_rev: v{{ version }}
 
 requirements:
@@ -40,10 +40,10 @@ test:
     - cnapy
 
 about:
-  home:  https://github.com/ARB-Lab/CNApy
+  home:  https://github.com/cnapy-org/CNApy
   license: Apache 2
   license_family: MIT
   license_file: LICENSE
   summary: A CellNetAnalyzer GUI in Python
-  doc_url: https://github.com/ARB-Lab/CNApy
-  dev_url: https://github.com/ARB-Lab/CNApy
+  doc_url: https://github.com/cnapy-org/CNApy
+  dev_url: https://github.com/cnapy-org/CNApy

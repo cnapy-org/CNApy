@@ -1,4 +1,4 @@
-"""The cnapy configuration dialog"""
+"""The rename map dialog"""
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit,
                             QPushButton, QVBoxLayout)
 from cnapy.cnadata import CnaData

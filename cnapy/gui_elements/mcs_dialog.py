@@ -1,4 +1,4 @@
-"""The cnapy dialog for calculating minimal cut sets"""
+"""The dialog for calculating minimal cut sets"""
 
 import io
 import traceback
@@ -301,7 +301,7 @@ class MCSDialog(QDialog):
             print(exstr)
             QMessageBox.warning(self, 'Unknown exception occured!',
                                 exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
             return
 
         self.eng.eval("genes = [];", nargout=0,
@@ -391,7 +391,7 @@ class MCSDialog(QDialog):
                 print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
                                     exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
                 return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
@@ -412,7 +412,7 @@ class MCSDialog(QDialog):
                 print(exstr)
                 QMessageBox.warning(self, 'Unknown exception occured!',
                                     exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/ARB-Lab/CNApy/issues')
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
                 return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,

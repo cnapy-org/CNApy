@@ -4,7 +4,7 @@
 cd recipes/linux
 conda-build . -c conda-forge -c bioconda
 anaconda login
-anaconda upload -u arb-lab -l test FILENAME
+anaconda upload -u cnapy -l test FILENAME
 ```
 
 # Create an installer with constructor
