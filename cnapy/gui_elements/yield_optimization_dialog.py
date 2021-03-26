@@ -56,14 +56,14 @@ class YieldOptimizationDialog(QDialog):
         self.centralwidget = centralwidget
         self.eng = appdata.engine
 
-        self.polynom_re = re.compile(
-            r'([ ]*(?P<factor1>\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>\d*)[ ]*)')
+        self.linear_re = re.compile(
+            r'([ ]*(?P<factor1>[-]?\d*)[ ]*[*]?[ ]*(?P<reac_id>[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW]+\w*)[ ]*[*]?[ ]*(?P<factor2>[-]?\d*)[ ]*)')
         completer = QCompleter(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
 
         self.layout = QVBoxLayout()
-        l = QLabel("Define the yield function Y=c*r/d*r by providing c and d as polynoms of form: \n \
+        l = QLabel("Define the yield function Y=c*r/d*r by providing c and d as linear expression of form: \n \
                    id_1 * w_1 + ... id_n * w_n\n \
                    Where id_x are reaction ids and w_x optional weighting factor\n")
         self.layout.addWidget(l)
@@ -102,19 +102,19 @@ class YieldOptimizationDialog(QDialog):
 
     def validate_dialog(self):
 
-        valid_c = self.validate_polynom(self.c.text())
-        valid_d = self.validate_polynom(self.d.text())
+        valid_c = self.validate_linear_expression(self.c.text())
+        valid_d = self.validate_linear_expression(self.d.text())
         if valid_c and valid_d:
             self.button.setEnabled(True)
         else:
             self.button.setEnabled(False)
 
-    def validate_polynom(self, text: str):
+    def validate_linear_expression(self, text: str):
         ''' Return True if text is a valid polynom else False'''
         texts = text.split('+')
         valid = True
         for elem in texts:
-            match = self.polynom_re.fullmatch(elem)
+            match = self.linear_re.fullmatch(elem)
             if match is None:
                 valid = False
             else:
@@ -149,18 +149,24 @@ class YieldOptimizationDialog(QDialog):
             c = []
             c_elements = self.c.text().split('+')
             for elem in c_elements:
-                match = self.polynom_re.fullmatch(elem)
+                match = self.linear_re.fullmatch(elem)
                 reaction = match.groupdict()['reac_id']
                 factor1 = match.groupdict()['factor1']
                 factor2 = match.groupdict()['factor2']
-                if factor1 != '':
-                    factor1 = int(factor1)
-                else:
+
+                if factor1 == '':
                     factor1 = 1
-                if factor2 != '':
-                    factor2 = int(factor2)
+                elif factor1 == '-':
+                    factor1 = -1
                 else:
+                    factor1 = int(factor1)
+                if factor2 == '':
                     factor2 = 1
+                elif factor2 == '-':
+                    factor2 = -1
+                else:
+                    factor2 = int(factor2)
+
                 factor = factor1*factor2
                 c.append((factor, reaction))
             res = []
@@ -181,18 +187,22 @@ class YieldOptimizationDialog(QDialog):
             d = []
             d_elements = self.d.text().split('+')
             for elem in d_elements:
-                match = self.polynom_re.fullmatch(elem)
+                match = self.linear_re.fullmatch(elem)
                 reaction = match.groupdict()['reac_id']
                 factor1 = match.groupdict()['factor1']
                 factor2 = match.groupdict()['factor2']
-                if factor1 != '':
-                    factor1 = int(factor1)
-                else:
+                if factor1 == '':
                     factor1 = 1
-                if factor2 != '':
-                    factor2 = int(factor2)
+                elif factor1 == '-':
+                    factor1 = -1
                 else:
+                    factor1 = int(factor1)
+                if factor2 == '':
                     factor2 = 1
+                elif factor2 == '-':
+                    factor2 = -1
+                else:
+                    factor2 = int(factor2)
                 factor = factor1*factor2
                 d.append((factor, reaction))
             res = []
