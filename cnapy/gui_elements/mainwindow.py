@@ -290,6 +290,14 @@ class MainWindow(QMainWindow):
         update_action.setIcon(QIcon(":/icons/default-color.png"))
         update_action.triggered.connect(central_widget.update)
 
+        zoom_in_action = QAction("Zoom in Map", self)
+        zoom_in_action.setIcon(QIcon(":/icons/zoom-in.png"))
+        zoom_in_action.triggered.connect(self.zoom_in)
+
+        zoom_out_action = QAction("Zoom out Map", self)
+        zoom_out_action.setIcon(QIcon(":/icons/zoom-out.png"))
+        zoom_out_action.triggered.connect(self.zoom_out)
+
         self.set_current_filename("Untitled project")
 
         self.tool_bar = QToolBar()
@@ -299,6 +307,8 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(heaton_action)
         self.tool_bar.addAction(onoff_action)
         self.tool_bar.addAction(update_action)
+        self.tool_bar.addAction(zoom_in_action)
+        self.tool_bar.addAction(zoom_out_action)
         self.addToolBar(self.tool_bar)
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
@@ -494,7 +504,7 @@ class MainWindow(QMainWindow):
     def inc_bg_size(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
-        self.appdata.project.maps[name]["bg-size"] += 0.2
+        self.appdata.project.maps[name]["bg-size"] *= 1.1
         self.unsaved_changes()
         self.centralWidget().update()
 
@@ -502,9 +512,21 @@ class MainWindow(QMainWindow):
     def dec_bg_size(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
-        self.appdata.project.maps[name]["bg-size"] -= 0.2
+        self.appdata.project.maps[name]["bg-size"] *= (1/1.1)
         self.unsaved_changes()
         self.centralWidget().update()
+
+    @Slot()
+    def zoom_in(self):
+        mv: MapView = self.centralWidget().map_tabs.currentWidget()
+        if mv is not None:
+            mv.zoom_in()
+
+    @Slot()
+    def zoom_out(self):
+        mv: MapView = self.centralWidget().map_tabs.currentWidget()
+        if mv is not None:
+            mv.zoom_out()
 
     @Slot()
     def save_box_positions(self):

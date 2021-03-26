@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene
 from cnapy.cnadata import CnaData
 
 INCREASE_FACTOR = 1.1
-DECREASE_FACTOR = 0.9
+DECREASE_FACTOR = 1/INCREASE_FACTOR
 
 
 class MapView(QGraphicsView):
@@ -95,21 +95,29 @@ class MapView(QGraphicsView):
         modifiers = QApplication.queryKeyboardModifiers()
         if modifiers == Qt.ControlModifier:
             if event.angleDelta().y() > 0:
-                self.appdata.project.maps[self.name]["bg-size"] -= 0.2
+                self.appdata.project.maps[self.name]["bg-size"] *= INCREASE_FACTOR
             else:
-                self.appdata.project.maps[self.name]["bg-size"] += 0.2
+                self.appdata.project.maps[self.name]["bg-size"] *= DECREASE_FACTOR
 
             self.mapChanged.emit("dummy")
             self.update()
 
         if event.angleDelta().y() > 0:
-            factor = INCREASE_FACTOR
-            self._zoom += 1
+            self.zoom_in()
         else:
-            factor = DECREASE_FACTOR
-            self._zoom -= 1
+            self.zoom_out()
+
+    def zoom_in(self):
+        self._zoom += 1
+
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
-        self.scale(factor, factor)
+        self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
+
+    def zoom_out(self):
+        self._zoom -= 1
+
+        self.appdata.project.maps[self.name]["zoom"] = self._zoom
+        self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def mousePressEvent(self, event: QMouseEvent):
         self.drag = True
