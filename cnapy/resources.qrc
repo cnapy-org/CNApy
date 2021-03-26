@@ -11,5 +11,7 @@
         <file alias="clear.png">/data/clear.png</file>
         <file alias="undo.png">/data/undo.png</file>
         <file alias="redo.png">/data/redo.png</file>
+        <file alias="zoom-in.png">/data/zoom-in.png</file>
+        <file alias="zoom-out.png">/data/zoom-out.png</file>
     </qresource>
 </RCC> 
