@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
 
 from cnapy.cnadata import CnaData
 import efmtool_link.efmtool_extern as efmtool_extern
+import efmtool_link.efmtool4cobra as efmtool4cobra
 from cobra.util.array import create_stoichiometric_matrix
 import numpy
 from cnapy.flux_vector_container import FluxVectorMemmap
@@ -44,21 +45,30 @@ class EFMtoolDialog(QDialog):
 
     def compute(self):
         stdf = create_stoichiometric_matrix(self.appdata.project.cobra_py_model, array_type='DataFrame')
-        rev = [int(r.reversibility) for r in self.appdata.project.cobra_py_model.reactions]
+        reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(self.appdata.project.cobra_py_model)
+        if len(irrev_backwards_idx) > 0:
+            irrev_back = numpy.zeros(len(reversible), dtype=numpy.bool)
+            irrev_back[irrev_backwards_idx] = True
         scenario = {}
         if self.constraints.checkState() == Qt.Checked:
             for r in self.appdata.project.scen_values.keys():
                 (vl, vu) = self.appdata.project.scen_values[r]
                 if vl == vu and vl == 0:
-                    del rev[stdf.columns.get_loc(r)]
+                    r_idx = stdf.columns.get_loc(r)
+                    del reversible[r_idx]
                     del stdf[r] # delete the column with this reaction id from the data frame
+                    if len(irrev_backwards_idx) > 0:
+                        irrev_back = numpy.delete(irrev_back, r_idx)
                     scenario[r] = (0, 0)
-        work_dir = efmtool_extern.calculate_flux_modes(stdf.values, rev, return_work_dir_only=True)
+        if len(irrev_backwards_idx) > 0:
+            irrev_backwards_idx = numpy.where(irrev_back)[0]
+            stdf.values[:, irrev_backwards_idx] *= -1
+        work_dir = efmtool_extern.calculate_flux_modes(stdf.values, reversible, return_work_dir_only=True)
         reac_id = stdf.columns.tolist()
 
-        self.result2ui(work_dir, reac_id, scenario)
+        self.result2ui(work_dir, reac_id, scenario, irrev_backwards_idx)
 
-    def result2ui(self, work_dir, reac_id, scenario):
+    def result2ui(self, work_dir, reac_id, scenario, irrev_backwards_idx):
         if work_dir is None:
             QMessageBox.information(self, 'No modes',
                                     'An error occured and modes have not been calculated.')            
@@ -68,6 +78,7 @@ class EFMtoolDialog(QDialog):
                 QMessageBox.information(self, 'No modes',
                                         'No elementary modes exist.')
             else:
+                ems.fv_mat[:, irrev_backwards_idx] *= -1
                 self.appdata.project.modes = ems
                 self.centralwidget.mode_navigator.current = 0
                 self.centralwidget.mode_navigator.scenario = scenario

@@ -38,7 +38,7 @@ class FluxVectorMemmap(FluxVectorContainer):
         with open(self._memmap_fname, 'rb') as fh:
             num_efm = numpy.fromfile(fh, dtype='>i8', count=1)[0]
             num_reac = numpy.fromfile(fh, dtype='>i4', count=1)[0]
-        super().__init__(numpy.memmap(self._memmap_fname, mode='r', dtype='>d', offset=13, shape=(num_efm, num_reac), order='C'), reac_id)
+        super().__init__(numpy.memmap(self._memmap_fname, mode='r+', dtype='>d', offset=13, shape=(num_efm, num_reac), order='C'), reac_id)
 
     def clear(self):
         del self.fv_mat # lose the reference to the memmap (does not have a close() method)
