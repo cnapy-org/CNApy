@@ -38,6 +38,8 @@ class CnaData:
         self.temp_dir = TemporaryDirectory()
         self.conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
+        self.cobrapy_conf_path = os.path.join(appdirs.user_config_dir(
+            "cnapy", roaming=True, appauthor=False), "cobrapy-config.txt")
         self.scenario_past = []
         self.scenario_future = []
 

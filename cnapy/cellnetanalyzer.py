@@ -25,7 +25,7 @@ from qtpy.QtWidgets import QApplication
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
-
+from cobra import Configuration
 
 class CellNetAnalyzer:
     '''The CellNetAnalyzer class'''
@@ -38,6 +38,7 @@ class CellNetAnalyzer:
         self.appdata.window = self.window
 
         self.read_config()
+        self.read_cobrapy_config()
 
         config_parser = configparser.RawConfigParser()
         config_parser.read(self.appdata.conf_path)
@@ -157,3 +158,24 @@ class CellNetAnalyzer:
                 print("Could not find abs_tol in cnapy-config.txt")
         except NoSectionError:
             print("Could not find section cnapy-config in cnapy-config.txt")
+
+    def read_cobrapy_config(self):
+        ''' Try to read data from cobrapy-config.txt into appdata'''
+        config_parser = configparser.RawConfigParser()
+        config_parser.read(self.appdata.cobrapy_conf_path)
+        try:
+            Configuration().solver = config_parser.get('cobrapy-config', 'solver')
+        except:
+            pass
+        try:
+            Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
+        except:
+            pass
+        try:
+            val = float(config_parser.get('cobrapy-config', 'tolerance'))
+            if 1e-9 <= val <= 0.1:
+                Configuration().tolerance = val
+            else:
+                raise
+        except:
+            pass
