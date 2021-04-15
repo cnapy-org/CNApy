@@ -1,11 +1,7 @@
-import cobra
-import efmtool_link.efmtool4cobra as efmtool4cobra
+import cnapy.core
+from cnapy.cnadata import CnaData
 
 
-def test_import():
-    import cnapy
-
-
-def test_efmtool4cobra_get_reversibility():
-    model = cobra.Model()
-    reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(model)
+def test_efm_computation():
+    appdata = CnaData()
+    cnapy.core.efm_computation(appdata, True)
