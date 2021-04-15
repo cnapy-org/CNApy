@@ -1,7 +1,6 @@
 """The phase plane plot dialog"""
 
 import matplotlib.pyplot as plt
-import pandas
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QPushButton, QVBoxLayout)
