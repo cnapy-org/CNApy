@@ -19,13 +19,13 @@ from configparser import NoOptionError, NoSectionError
 import sys
 
 import cobra
+from cobra import Configuration
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
-from cobra import Configuration
 
 class CellNetAnalyzer:
     '''The CellNetAnalyzer class'''
@@ -166,16 +166,16 @@ class CellNetAnalyzer:
         try:
             Configuration().solver = config_parser.get('cobrapy-config', 'solver')
         except:
-            pass
+            print('Cannot set solver from cobrapy-config.txt file, reverting to COBRApy base setting.')
         try:
             Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
         except:
-            pass
+            print('Cannot set number of processes from cobrapy-config.txt file, reverting to COBRApy base setting.')
         try:
             val = float(config_parser.get('cobrapy-config', 'tolerance'))
             if 1e-9 <= val <= 0.1:
                 Configuration().tolerance = val
             else:
-                raise
+                raise ValueError
         except:
-            pass
+            print('Cannot set tolerance from cobrapy-config.txt file, reverting to COBRApy base setting.')

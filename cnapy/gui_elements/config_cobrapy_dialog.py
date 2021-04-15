@@ -1,22 +1,18 @@
 """The COBRApy configuration dialog"""
 import configparser
-import io
 import os
-import traceback
-from tempfile import TemporaryDirectory
-
 import appdirs
-from qtpy.QtCore import QSize
+
+from cobra.util.solver import interface_to_str, solvers
+from cobra import Configuration
+from multiprocessing import cpu_count
+
 from qtpy.QtGui import QDoubleValidator, QIntValidator
-from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog, QFileDialog,
+from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
 import cnapy.resources
 from cnapy.cnadata import CnaData
-# from optlang.util import list_available_solvers
-from cobra.util.solver import interface_to_str, solvers
-from cobra import Configuration
-from multiprocessing import cpu_count
 
 class ConfigCobrapyDialog(QDialog):
     """A dialog to set values in cobrapy-config.txt"""
@@ -29,8 +25,6 @@ class ConfigCobrapyDialog(QDialog):
         self.layout = QVBoxLayout()
 
         # allow MILP solvers only?
-        # avail_solvers = [s for s, t in list_available_solvers().items() if t and s != 'SCIPY'] # currently all upper case strings; SCIPY currently not even usable for FBA
-        # avail_solvers_lower_case = list(map(str.lower, avail_solvers)) # for use with interface_to_str which gives lower case
         avail_solvers = list(set(solvers.keys()) - {'scipy'}) # SCIPY currently not even usable for FBA
 
         h2 = QHBoxLayout()
@@ -38,7 +32,6 @@ class ConfigCobrapyDialog(QDialog):
         h2.addWidget(label)
         self.default_solver = QComboBox()
         self.default_solver.addItems(avail_solvers)
-        # self.default_solver.setCurrentIndex(avail_solvers_lower_case.index(interface_to_str(Configuration().solver)))
         self.default_solver.setCurrentIndex(avail_solvers.index(interface_to_str(Configuration().solver)))
         h2.addWidget(self.default_solver)
         self.layout.addItem(h2)
@@ -48,7 +41,6 @@ class ConfigCobrapyDialog(QDialog):
         h9.addWidget(label)
         self.current_solver = QComboBox()
         self.current_solver.addItems(avail_solvers)
-        # self.current_solver.setCurrentIndex(avail_solvers_lower_case.index(interface_to_str(appdata.project.cobra_py_model.problem)))
         self.current_solver.setCurrentIndex(avail_solvers.index(interface_to_str(appdata.project.cobra_py_model.problem)))
         h9.addWidget(self.current_solver)
         self.layout.addItem(h9)
@@ -104,7 +96,6 @@ class ConfigCobrapyDialog(QDialog):
 
 
     def apply(self):
-        # self.appdata.project.cobra_py_model.solver = str.lower(self.current_solver.currentText())
         Configuration().solver = self.default_solver.currentText()
         Configuration().processes = int(self.num_processes.text())
         try:
@@ -112,7 +103,7 @@ class ConfigCobrapyDialog(QDialog):
             if 1e-9 <= val <= 0.1:
                 Configuration().tolerance = val
             else:
-                raise
+                raise ValueError
         except:
             QMessageBox.critical(self, "Cannot set default tolerance", "Choose a value between 0.1 and 1e-9 as default tolerance.")
             return
