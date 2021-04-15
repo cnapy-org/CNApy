@@ -19,6 +19,4 @@ dependencies:
   - qtconsole=5.0
   - efmtool_link
   - optlang_enumerator
-  - pip:
-      - cameo==0.13
 prefix: /scratch/miniconda3/envs/cnapy
