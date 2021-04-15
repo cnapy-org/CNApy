@@ -31,6 +31,4 @@ setup(
     package_data={'cnapy': ['data/*.svg']},
     entry_points={'console_scripts': [
         'cnapy = cnapy.__main__:main_cnapy', 'project_downloader = cnapy.project_downloader:main']},
-    # packages not in conda on windows
-    # install_requires=['cameo==0.13']
 )

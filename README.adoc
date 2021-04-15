@@ -11,9 +11,6 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 
 image::assets/install-cnapy.svg[install CNApy]
 
-. On windows install remaining dependencies vi pip:
-
-   ❯ pip install cameo
 
 == Setup the CNApy development environment with conda
 
