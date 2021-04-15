@@ -1,10 +1,10 @@
 """The phase plane plot dialog"""
 
 import matplotlib.pyplot as plt
-import pandas
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QPushButton, QVBoxLayout)
+import numpy
 
 
 class CompleterLineEdit(QLineEdit):
@@ -83,57 +83,47 @@ class PhasePlaneDialog(QDialog):
 
     def compute(self):
         with self.appdata.project.cobra_py_model as model:
-            from cameo import phenotypic_phase_plane
             self.appdata.project.load_scenario_into_model(model)
             x_axis = self.x_axis.text()
             y_axis = self.y_axis.text()
-
             try:
-                result = phenotypic_phase_plane(model,
-                                                variables=[
-                                                    model.reactions.get_by_id(x_axis)],
-                                                objective=model.reactions.get_by_id(
-                                                    y_axis),
-                                                points=100)
+                x_reac_idx = model.reactions.index(x_axis)
+                y_reac_idx = model.reactions.index(y_axis)
             except KeyError:
                 return
+            points = 100
+            with model as ppmodel:
+                ppmodel.objective = ppmodel.reactions[x_reac_idx]
+                ppmodel.objective.direction = 'min'
+                x_lb = ppmodel.slim_optimize()
+                ppmodel.objective.direction = 'max'
+                x_ub = ppmodel.slim_optimize()
+            result2 = numpy.zeros((points, 3))
+            result2[:, 0] = numpy.linspace(x_lb, x_ub, num=points)
+            var = numpy.linspace(x_lb, x_ub, num=points)
+            lb = numpy.full(points, numpy.nan)
+            ub = numpy.full(points, numpy.nan)
+            with model as ppmodel:
+                ppmodel.objective = ppmodel.reactions[y_reac_idx]
+                for i in range(points):
+                    with ppmodel as ppmodel2: # without second context the original reaction bounds are not restored (?)
+                        ppmodel2.reactions[x_reac_idx].lower_bound = result2[i, 0]
+                        ppmodel2.reactions[x_reac_idx].upper_bound = result2[i, 0]
+                        ppmodel2.objective.direction = 'min'
+                        lb[i] = result2[i, 1] = ppmodel2.slim_optimize()
+                        ppmodel2.objective.direction = 'max'
+                        ub[i] = result2[i, 2] = ppmodel2.slim_optimize()
 
             _fig, axes = plt.subplots()
+            axes.set_xlabel(model.reactions[x_reac_idx].id)
+            axes.set_ylabel(model.reactions[y_reac_idx].id)
+            x = [v for v in var] + [v for v in reversed(var)]
+            y = [v for v in lb] + [v for v in reversed(ub)]
+            if lb[0] != ub[0]:
+                x.extend([var[0], var[0]])
+                y.extend([lb[0], ub[0]])
 
-            variable = result.variable_ids[0]
-            y_axis_label = result._axis_label(
-                result.objective, result.nice_objective_id, 'flux')
-            x_axis_label = result._axis_label(
-                variable, result.nice_variable_ids[0], '[mmol gDW^-1 h^-1]')
-            axes.set_xlabel(x_axis_label)
-            axes.set_ylabel(y_axis_label)
-            dataframe = pandas.DataFrame(
-                columns=["ub", "lb", "value", "strain"])
-
-            for _, row in result.iterrows():
-                _df = pandas.DataFrame([[row['objective_upper_bound'], row['objective_lower_bound'], row[variable], "WT"]],
-                                       columns=dataframe.columns)
-                dataframe = dataframe.append(_df)
-
-            # plotter
-            variables = dataframe["strain"].unique()
-            for variable in variables:
-                _dataframe = dataframe[dataframe["strain"] == variable]
-
-                ub = _dataframe["ub"].values.tolist()
-                lb = _dataframe["lb"].values.tolist()
-                var = _dataframe["value"].values.tolist()
-
-                x = [v for v in var] + [v for v in reversed(var)]
-                y = [v for v in lb] + [v for v in reversed(ub)]
-
-                if lb[0] != ub[0]:
-                    x.extend([var[0], var[0]])
-                    y.extend([lb[0], ub[0]])
-
-                plt.plot(x, y)
-
-            # display the plot
+            plt.plot(x, y)
             plt.show()
         self.appdata.window.centralWidget(
         ).scroll_down()
