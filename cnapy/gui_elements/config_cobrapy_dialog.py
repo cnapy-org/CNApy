@@ -110,8 +110,8 @@ class ConfigCobrapyDialog(QDialog):
         try:
             self.appdata.project.cobra_py_model.solver = self.current_solver.currentText()
             self.appdata.project.cobra_py_model.tolerance = float(self.current_tolerance.text())
-        except:
-            QMessageBox.critical(self, "Cannot set current solver/tolerance", "Check that the current tolerance is appropriate for the selected solver.")
+        except Exception as e:
+            QMessageBox.critical(self, "Cannot set current solver/tolerance", str(e))
             return
 
         parser = configparser.ConfigParser()

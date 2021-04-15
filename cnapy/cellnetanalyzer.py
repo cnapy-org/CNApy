@@ -162,20 +162,25 @@ class CellNetAnalyzer:
     def read_cobrapy_config(self):
         ''' Try to read data from cobrapy-config.txt into appdata'''
         config_parser = configparser.RawConfigParser()
-        config_parser.read(self.appdata.cobrapy_conf_path)
         try:
-            Configuration().solver = config_parser.get('cobrapy-config', 'solver')
-        except:
-            print('Cannot set solver from cobrapy-config.txt file, reverting to COBRApy base setting.')
-        try:
-            Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
-        except:
-            print('Cannot set number of processes from cobrapy-config.txt file, reverting to COBRApy base setting.')
-        try:
-            val = float(config_parser.get('cobrapy-config', 'tolerance'))
-            if 1e-9 <= val <= 0.1:
-                Configuration().tolerance = val
-            else:
-                raise ValueError
-        except:
-            print('Cannot set tolerance from cobrapy-config.txt file, reverting to COBRApy base setting.')
+            config_parser.read(self.appdata.cobrapy_conf_path)
+            try:
+                Configuration().solver = config_parser.get('cobrapy-config', 'solver')
+            except Exception as e:
+                print("Cannot set solver from cobrapy-config.txt file because:", e, 
+                        "\nReverting solver to COBRApy base setting.")
+            try:
+                Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
+            except Exception as e:
+                print("Cannot set number of processes from cobrapy-config.txt file because:", e, 
+                        "\nReverting number of processes to COBRApy base setting.")
+            try:
+                val = float(config_parser.get('cobrapy-config', 'tolerance'))
+                if 1e-9 <= val <= 0.1:
+                    Configuration().tolerance = val
+                else:
+                    raise ValueError
+            except Exception as e:
+                print(e, "\nCannot set tolerance from cobrapy-config.txt file because it must be a vaule between 1e-9 and 0.1, reverting to COBRApy base setting.")
+        except Exception as e:
+            print('Could not read', self.appdata.cobrapy_conf_path, 'because:', e)
