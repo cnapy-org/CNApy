@@ -40,9 +40,7 @@ class EFMtoolDialog(QDialog):
     def compute(self):
         (work_dir, reac_id, scenario, irrev_backwards_idx) = cnapy.core.efm_computation(
             self.appdata, self.constraints.checkState() == Qt.Checked)
-        self.result2ui(work_dir, reac_id, scenario, irrev_backwards_idx)
 
-    def result2ui(self, work_dir, reac_id, scenario, irrev_backwards_idx):
         if work_dir is None:
             QMessageBox.information(self, 'No modes',
                                     'An error occured and modes have not been calculated.')
