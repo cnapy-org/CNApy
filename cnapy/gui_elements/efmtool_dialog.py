@@ -1,12 +1,9 @@
 """The cnapy elementary flux modes calculator dialog"""
-import efmtool_link.efmtool4cobra as efmtool4cobra
-import efmtool_link.efmtool_extern as efmtool_extern
-import numpy
-from cobra.util.array import create_stoichiometric_matrix
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QMessageBox,
                             QPushButton, QVBoxLayout)
 
+import cnapy.core
 from cnapy.cnadata import CnaData
 from cnapy.flux_vector_container import FluxVectorMemmap
 
@@ -41,32 +38,8 @@ class EFMtoolDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
-        stdf = create_stoichiometric_matrix(
-            self.appdata.project.cobra_py_model, array_type='DataFrame')
-        reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(
-            self.appdata.project.cobra_py_model)
-        if len(irrev_backwards_idx) > 0:
-            irrev_back = numpy.zeros(len(reversible), dtype=numpy.bool)
-            irrev_back[irrev_backwards_idx] = True
-        scenario = {}
-        if self.constraints.checkState() == Qt.Checked:
-            for r in self.appdata.project.scen_values.keys():
-                (vl, vu) = self.appdata.project.scen_values[r]
-                if vl == vu and vl == 0:
-                    r_idx = stdf.columns.get_loc(r)
-                    del reversible[r_idx]
-                    # delete the column with this reaction id from the data frame
-                    del stdf[r]
-                    if len(irrev_backwards_idx) > 0:
-                        irrev_back = numpy.delete(irrev_back, r_idx)
-                    scenario[r] = (0, 0)
-        if len(irrev_backwards_idx) > 0:
-            irrev_backwards_idx = numpy.where(irrev_back)[0]
-            stdf.values[:, irrev_backwards_idx] *= -1
-        work_dir = efmtool_extern.calculate_flux_modes(
-            stdf.values, reversible, return_work_dir_only=True)
-        reac_id = stdf.columns.tolist()
-
+        (work_dir, reac_id, scenario, irrev_backwards_idx) = cnapy.core.efm_computation(
+            self.appdata, self.constraints.checkState() == Qt.Checked)
         self.result2ui(work_dir, reac_id, scenario, irrev_backwards_idx)
 
     def result2ui(self, work_dir, reac_id, scenario, irrev_backwards_idx):
