@@ -1,25 +1,27 @@
 """UI independent computations"""
 
-import efmtool_link.efmtool4cobra as efmtool4cobra
-import efmtool_link.efmtool_extern as efmtool_extern
+from typing import Dict, Tuple
+
+import cobra
 import numpy
 from cobra.util.array import create_stoichiometric_matrix
 
-from cnapy.cnadata import CnaData
+import efmtool_link.efmtool4cobra as efmtool4cobra
+import efmtool_link.efmtool_extern as efmtool_extern
 
 
-def efm_computation(appdata: CnaData, constraints: bool):
+def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool):
     stdf = create_stoichiometric_matrix(
-        appdata.project.cobra_py_model, array_type='DataFrame')
+        model, array_type='DataFrame')
     reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(
-        appdata.project.cobra_py_model)
+        model)
     if len(irrev_backwards_idx) > 0:
         irrev_back = numpy.zeros(len(reversible), dtype=numpy.bool)
         irrev_back[irrev_backwards_idx] = True
     scenario = {}
     if constraints:
-        for r in appdata.project.scen_values.keys():
-            (vl, vu) = appdata.project.scen_values[r]
+        for r in scen_values.keys():
+            (vl, vu) = scen_values[r]
             if vl == vu and vl == 0:
                 r_idx = stdf.columns.get_loc(r)
                 del reversible[r_idx]

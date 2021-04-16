@@ -39,7 +39,8 @@ class EFMtoolDialog(QDialog):
 
     def compute(self):
         (work_dir, reac_id, scenario, irrev_backwards_idx) = cnapy.core.efm_computation(
-            self.appdata, self.constraints.checkState() == Qt.Checked)
+            self.appdata.project.cobra_py_model, self.appdata.project.scen_values,
+            self.constraints.checkState() == Qt.Checked)
 
         if work_dir is None:
             QMessageBox.information(self, 'No modes',
