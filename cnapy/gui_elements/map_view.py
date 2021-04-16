@@ -430,11 +430,11 @@ def validate_value(value):
     except ValueError:
         try:
             (vl, vh) = make_tuple(value)
-            if not isinstance(vl, float):
+            if not isinstance(vl, int) and not isinstance(vl, float):
                 return False
-            if not isinstance(vh, float):
+            if not isinstance(vl, int) and not isinstance(vh, float):
                 return False
-        except (ValueError, SyntaxError):
+        except (ValueError, SyntaxError, TypeError):
             return False
         else:
             return True
