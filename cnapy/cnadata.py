@@ -24,6 +24,7 @@ class CnaData:
         self.engine = None
         self.matlab_engine = None
         self.octave_engine = None
+        self.modes_coloring = False
         self.scen_color = QColor(255, 170, 255)
         self.comp_color = QColor(170, 170, 255)
         self.special_color_1 = Qt.yellow
