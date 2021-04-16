@@ -1,7 +1,6 @@
 name: cnapy
 channels:
   - cnapy
-  - bioconda
   - conda-forge
   - defaults
 dependencies:
@@ -18,7 +17,6 @@ dependencies:
   - appdirs
   - cobra=0.21
   - qtconsole=5.0
-  - cameo=0.13
   - efmtool_link
   - optlang_enumerator
 prefix: /home/user/miniconda3/envs/cnapy

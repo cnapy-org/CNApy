@@ -17,13 +17,8 @@ image::assets/install-cnapy.svg[install CNApy]
 We use conda as package manager to install all dependencies. You can use https://docs.conda.io/en/latest/miniconda.html[miniconda].
 If you have conda installed you can:
 
-.. on linux
-
   ❯ conda env create -n cnapy -f environment.yml
 
-.. on windows
-
-  ❯ conda env create  -n cnapy -f winvironment.yml
 
 . Activate the cnapy conda environment
 
