@@ -107,6 +107,9 @@ class MapView(QGraphicsView):
         else:
             self.zoom_out()
 
+    def fit(self):
+        self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
     def zoom_in(self):
         self._zoom += 1
 

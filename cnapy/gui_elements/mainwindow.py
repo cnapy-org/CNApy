@@ -681,6 +681,13 @@ class MainWindow(QMainWindow):
                         self.centralWidget().update_reaction_value(
                             r.id, r.annotation['cnapy-default'])
                 self.nounsaved_changes()
+
+                # if project contains maps move splitter and fit mapview
+                if len(self.appdata.project.maps) > 0:
+                    (_, r) = self.centralWidget().splitter2.getRange(1)
+                    self.centralWidget().splitter2.moveSplitter(r*0.8, 1)
+                    self.centralWidget().fit_mapview()
+
                 self.centralWidget().update()
         except FileNotFoundError:
             output = io.StringIO()

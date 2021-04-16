@@ -93,6 +93,9 @@ class CentralWidget(QWidget):
 
         self.update()
 
+    def fit_mapview(self):
+        self.map_tabs.currentWidget().fit()
+
     def scroll_down(self):
         vSB = self.console.children()[2].verticalScrollBar()
         max_scroll = vSB.maximum()
