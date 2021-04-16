@@ -201,7 +201,8 @@ class ReactionList(QWidget):
             turn_white(self.reaction_mask.coefficent)
             turn_white(self.reaction_mask.gene_reaction_rule)
             self.reaction_mask.is_valid = True
-        self.splitter.setSizes([100, 100])
+        (_, r) = self.splitter.getRange(1)
+        self.splitter.moveSplitter(r/2, 1)
         self.reaction_mask.update_state()
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
