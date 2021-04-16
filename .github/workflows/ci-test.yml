@@ -29,7 +29,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          environment-file: winvironment.yml
+          environment-file: environment.yml
           activate-environment: cnapy
       - name: Test CNApy
         run: |
