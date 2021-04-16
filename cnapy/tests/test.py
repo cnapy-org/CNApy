@@ -1,7 +1,10 @@
+''' Tests '''
+import cobra
+
 import cnapy.core
-from cnapy.cnadata import CnaData
 
 
 def test_efm_computation():
-    appdata = CnaData()
-    cnapy.core.efm_computation(appdata, True)
+    model = cobra.Model()
+    scen_values = {}
+    cnapy.core.efm_computation(model, scen_values, True)
