@@ -223,7 +223,9 @@ class CentralWidget(QWidget):
             for i in values:
                 self.appdata.project.comp_values[i] = (values[i], values[i])
 
+        self.appdata.modes_coloring = True
         self.update()
+        self.appdata.modes_coloring = False
 
     def update(self):
         if len(self.appdata.project.modes) == 0:

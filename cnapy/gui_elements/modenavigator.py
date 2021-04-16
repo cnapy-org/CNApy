@@ -63,8 +63,10 @@ class ModeNavigator(QWidget):
         else:
             self.current -= 1
 
+        self.appdata.modes_coloring = True
         self.update()
         self.changedCurrentMode.emit(self.current)
+        self.appdata.modes_coloring = False
 
     def next(self):
         if self.current == len(self.appdata.project.modes)-1:
@@ -72,8 +74,10 @@ class ModeNavigator(QWidget):
         else:
             self.current += 1
 
+        self.appdata.modes_coloring = True
         self.update()
         self.changedCurrentMode.emit(self.current)
+        self.appdata.modes_coloring = False
 
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()

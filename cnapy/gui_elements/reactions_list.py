@@ -113,13 +113,13 @@ class ReactionList(QWidget):
 
             # We differentiate special cases like (vl==vu)
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
-                if len(self.appdata.project.modes) == 0:
-                    item.setBackground(2, self.appdata.comp_color)
-                else:
+                if self.appdata.modes_coloring:
                     if vl == 0:
                         item.setBackground(2, Qt.red)
                     else:
                         item.setBackground(2, Qt.green)
+                else:
+                    item.setBackground(2, self.appdata.comp_color)
 
                 item.setData(2, 0, round(vl, self.appdata.rounding))
             else:
