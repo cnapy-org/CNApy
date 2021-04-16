@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
 
         self.scenario_menu = self.menu.addMenu("Scenario")
 
-        load_default_scenario_action = QAction("Load default scenario", self)
+        load_default_scenario_action = QAction("Apply default scenario", self)
         self.scenario_menu.addAction(load_default_scenario_action)
         load_default_scenario_action.setIcon(QIcon(":/icons/d-font.png"))
         load_default_scenario_action.triggered.connect(
@@ -127,6 +127,10 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(add_values_to_scenario_action)
         add_values_to_scenario_action.triggered.connect(
             self.add_values_to_scenario)
+
+        show_model_bounds_action = QAction("Show model bounds", self)
+        self.scenario_menu.addAction(show_model_bounds_action)
+        show_model_bounds_action.triggered.connect(self.show_model_bounds)
 
         set_model_bounds_to_scenario_action = QAction(
             "Set the model bounds as scenario values", self)
@@ -224,11 +228,12 @@ class MainWindow(QMainWindow):
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
         self.efm_action = QAction(
-            "Compute Elementary Flux Modes (CNA) ...", self)
+            "Compute Elementary Flux Modes via CNA ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
 
-        self.efmtool_action = QAction("EFMtool ...", self)
+        self.efmtool_action = QAction(
+            "Compute Elementary Flux Modes via EFMtool ...", self)
         self.efmtool_action.triggered.connect(self.efmtool)
         self.efm_menu.addAction(self.efmtool_action)
 
@@ -240,7 +245,7 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(self.save_modes_action)
         self.save_modes_action.triggered.connect(self.save_modes)
 
-        self.mcs_action = QAction("Minimal Cut Sets (CNA) ...", self)
+        self.mcs_action = QAction("Minimal Cut Sets via CNA ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.analysis_menu.addAction(self.mcs_action)
 
@@ -249,7 +254,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(phase_plane_action)
 
         self.yield_optimization_action = QAction(
-            "Yield optimization (CNA) ...", self)
+            "Yield optimization via CNA ...", self)
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
@@ -271,10 +276,6 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(show_optimization_function_action)
         show_optimization_function_action.triggered.connect(
             self.show_optimization_function)
-
-        show_model_bounds_action = QAction("Show model bounds", self)
-        self.analysis_menu.addAction(show_model_bounds_action)
-        show_model_bounds_action.triggered.connect(self.show_model_bounds)
 
         self.config_menu = self.menu.addMenu("Config")
 
