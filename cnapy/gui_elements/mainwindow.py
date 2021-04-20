@@ -42,10 +42,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("cnapy")
         self.appdata = appdata
 
-        # safe original color
-        palette = self.palette()
-        self.original_color = palette.color(QPalette.Window)
-
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
 
@@ -315,18 +311,26 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
     def unsaved_changes(self):
-        self.appdata.unsaved = True
-        self.save_project_action.setEnabled(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, Qt.yellow)
-        self.setPalette(palette)
+        if not self.appdata.unsaved:
+            self.appdata.unsaved = True
+            self.save_project_action.setEnabled(True)
+            if len(self.appdata.project.name) == 0:
+                shown_name = "Untitled project"
+            else:
+                shown_name = QFileInfo(self.appdata.project.name).fileName()
+
+            self.setWindowTitle("CNApy - " + shown_name + ' - unsaved changes')
 
     def nounsaved_changes(self):
-        self.appdata.unsaved = False
-        self.save_project_action.setEnabled(False)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, self.original_color)
-        self.setPalette(palette)
+        if self.appdata.unsaved:
+            self.appdata.unsaved = False
+            self.save_project_action.setEnabled(False)
+            if len(self.appdata.project.name) == 0:
+                shown_name = "Untitled project"
+            else:
+                shown_name = QFileInfo(self.appdata.project.name).fileName()
+
+            self.setWindowTitle("CNApy - " + shown_name)
 
     def disable_enable_dependent_actions(self):
 

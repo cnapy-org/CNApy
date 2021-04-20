@@ -18,12 +18,13 @@ class DragableTreeWidget(QTreeWidget):
 
     def mouseMoveEvent(self, _event):
         item = self.currentItem()
-        reaction: cobra.Reaction = item.data(3, 0)
-        mime_data = QMimeData()
-        mime_data.setText(reaction.id)
-        drag = QDrag(self)
-        drag.setMimeData(mime_data)
-        drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
+        if item is not None:
+            reaction: cobra.Reaction = item.data(3, 0)
+            mime_data = QMimeData()
+            mime_data.setText(reaction.id)
+            drag = QDrag(self)
+            drag.setMimeData(mime_data)
+            drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
 
 
 class ReactionList(QWidget):
@@ -82,6 +83,7 @@ class ReactionList(QWidget):
 
     def add_reaction(self, reaction: cobra.Reaction) -> QTreeWidgetItem:
         ''' create a new item in the reaction list'''
+        self.reaction_list.clearSelection()
         item = QTreeWidgetItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
@@ -176,6 +178,7 @@ class ReactionList(QWidget):
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.data(3, 0)
 
+            self.last_selected = reaction.id
             self.reaction_mask.reaction = reaction
 
             self.reaction_mask.id.setText(reaction.id)
@@ -227,6 +230,7 @@ class ReactionList(QWidget):
         for i in range(child_count):
             item = root.child(i)
             if item.data(3, 0) == reaction:
+                # remove item
                 self.reaction_list.takeTopLevelItem(
                     self.reaction_list.indexOfTopLevelItem(item))
                 break
@@ -517,9 +521,13 @@ class ReactionMask(QWidget):
             model.add_reaction(test_reaction)
 
             try:
-                test_reaction.build_reaction_from_string(self.equation.text())
-                turn_white(self.equation)
-                ok = True
+                eqtxt = self.equation.text().rstrip()
+                if len(eqtxt) > 0 and eqtxt[-1] == '+':
+                    turn_red(self.equation)
+                else:
+                    test_reaction.build_reaction_from_string(eqtxt)
+                    turn_white(self.equation)
+                    ok = True
             except ValueError:
                 turn_red(self.equation)
 

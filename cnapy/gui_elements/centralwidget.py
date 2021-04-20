@@ -137,10 +137,10 @@ class CentralWidget(QWidget):
         self.reaction_list.set_current_item(reaction)
 
     def minimize_reaction(self, reaction: str):
-        self.parent.fba_optimize_reaction(reaction, min=True)
+        self.parent.fba_optimize_reaction(reaction, mmin=True)
 
     def maximize_reaction(self, reaction: str):
-        self.parent.fba_optimize_reaction(reaction, min=False)
+        self.parent.fba_optimize_reaction(reaction, mmin=False)
 
     def update_reaction_value(self, reaction: str, value: str):
         if value == "":
@@ -192,7 +192,6 @@ class CentralWidget(QWidget):
         self.map_tabs.addTab(mmap, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
-        self.reaction_list.reaction_mask.update_state()
         self.parent.unsaved_changes()
 
     def delete_map(self, idx: int):
