@@ -8,7 +8,7 @@ from cobra.util.array import create_stoichiometric_matrix
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
-
+from cnapy.flux_vector_container import FluxVectorMemmap
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool):
     stdf = create_stoichiometric_matrix(
@@ -24,8 +24,7 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
             (vl, vu) = scen_values[r]
             if vl == vu and vl == 0:
                 r_idx = stdf.columns.get_loc(r)
-                del reversible[r_idx]
-                # delete the column with this reaction id from the data frame
+                reversible = numpy.delete(reversible, r_idx)
                 del stdf[r]
                 if len(irrev_backwards_idx) > 0:
                     irrev_back = numpy.delete(irrev_back, r_idx)
@@ -36,5 +35,12 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
     work_dir = efmtool_extern.calculate_flux_modes(
         stdf.values, reversible, return_work_dir_only=True)
     reac_id = stdf.columns.tolist()
+    if work_dir is None:
+        ems = None
+    else:
+        ems = FluxVectorMemmap('efms.bin', reac_id,
+                                containing_temp_dir=work_dir)
+        if len(irrev_backwards_idx) > 0:
+            ems.fv_mat[:, irrev_backwards_idx] *= -1
 
-    return (work_dir, reac_id, scenario, irrev_backwards_idx)
+    return (ems, scenario)
