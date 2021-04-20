@@ -3,8 +3,8 @@ import configparser
 import os
 import appdirs
 
+import cobra
 from cobra.util.solver import interface_to_str, solvers
-from cobra import Configuration
 from multiprocessing import cpu_count
 
 from qtpy.QtGui import QDoubleValidator, QIntValidator
@@ -32,7 +32,7 @@ class ConfigCobrapyDialog(QDialog):
         h2.addWidget(label)
         self.default_solver = QComboBox()
         self.default_solver.addItems(avail_solvers)
-        self.default_solver.setCurrentIndex(avail_solvers.index(interface_to_str(Configuration().solver)))
+        self.default_solver.setCurrentIndex(avail_solvers.index(interface_to_str(cobra.Configuration().solver)))
         h2.addWidget(self.default_solver)
         self.layout.addItem(h2)
 
@@ -51,7 +51,7 @@ class ConfigCobrapyDialog(QDialog):
         h7.addWidget(label)
         self.num_processes = QLineEdit()
         self.num_processes.setFixedWidth(100)
-        self.num_processes.setText(str(Configuration().processes))
+        self.num_processes.setText(str(cobra.Configuration().processes))
         validator = QIntValidator(1, cpu_count(), self)
         self.num_processes.setValidator(validator)
         h7.addWidget(self.num_processes)
@@ -63,7 +63,7 @@ class ConfigCobrapyDialog(QDialog):
         h8.addWidget(label)
         self.default_tolerance = QLineEdit()
         self.default_tolerance.setFixedWidth(100)
-        self.default_tolerance.setText(str(Configuration().tolerance))
+        self.default_tolerance.setText(str(cobra.Configuration().tolerance))
         validator = QDoubleValidator(self)
         validator.setBottom(1e-9) # probably a reasonable consensus value
         self.default_tolerance.setValidator(validator)
@@ -96,12 +96,12 @@ class ConfigCobrapyDialog(QDialog):
 
 
     def apply(self):
-        Configuration().solver = self.default_solver.currentText()
-        Configuration().processes = int(self.num_processes.text())
+        cobra.Configuration().solver = self.default_solver.currentText()
+        cobra.Configuration().processes = int(self.num_processes.text())
         try:
             val = float(self.default_tolerance.text())
             if 1e-9 <= val <= 0.1:
-                Configuration().tolerance = val
+                cobra.Configuration().tolerance = val
             else:
                 raise ValueError
         except:
@@ -116,9 +116,9 @@ class ConfigCobrapyDialog(QDialog):
 
         parser = configparser.ConfigParser()
         parser.add_section('cobrapy-config')
-        parser.set('cobrapy-config', 'solver', interface_to_str(Configuration().solver))
-        parser.set('cobrapy-config', 'processes', str(Configuration().processes))
-        parser.set('cobrapy-config', 'tolerance', str(Configuration().tolerance))
+        parser.set('cobrapy-config', 'solver', interface_to_str(cobra.Configuration().solver))
+        parser.set('cobrapy-config', 'processes', str(cobra.Configuration().processes))
+        parser.set('cobrapy-config', 'tolerance', str(cobra.Configuration().tolerance))
         
         try:
             fp = open(self.appdata.cobrapy_conf_path, "w")

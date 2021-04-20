@@ -19,7 +19,6 @@ from configparser import NoOptionError, NoSectionError
 import sys
 
 import cobra
-from cobra import Configuration
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication
 
@@ -165,19 +164,19 @@ class CellNetAnalyzer:
         try:
             config_parser.read(self.appdata.cobrapy_conf_path)
             try:
-                Configuration().solver = config_parser.get('cobrapy-config', 'solver')
+                cobra.Configuration().solver = config_parser.get('cobrapy-config', 'solver')
             except Exception as e:
                 print("Cannot set solver from cobrapy-config.txt file because:", e, 
                         "\nReverting solver to COBRApy base setting.")
             try:
-                Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
+                cobra.Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
             except Exception as e:
                 print("Cannot set number of processes from cobrapy-config.txt file because:", e, 
                         "\nReverting number of processes to COBRApy base setting.")
             try:
                 val = float(config_parser.get('cobrapy-config', 'tolerance'))
                 if 1e-9 <= val <= 0.1:
-                    Configuration().tolerance = val
+                    cobra.Configuration().tolerance = val
                 else:
                     raise ValueError
             except Exception as e:
