@@ -106,7 +106,8 @@ class PhasePlaneDialog(QDialog):
             with model as ppmodel:
                 ppmodel.objective = ppmodel.reactions[y_reac_idx]
                 for i in range(points):
-                    with ppmodel as ppmodel2: # without second context the original reaction bounds are not restored (?)
+                    # without second context the original reaction bounds are not restored (?)
+                    with ppmodel as ppmodel2:
                         ppmodel2.reactions[x_reac_idx].lower_bound = result2[i, 0]
                         ppmodel2.reactions[x_reac_idx].upper_bound = result2[i, 0]
                         ppmodel2.objective.direction = 'min'
@@ -125,5 +126,7 @@ class PhasePlaneDialog(QDialog):
 
             plt.plot(x, y)
             plt.show()
-        self.appdata.window.centralWidget(
-        ).scroll_down()
+
+        (_, r) = self.appdata.window.centralWidget().splitter2.getRange(1)
+        self.appdata.window.centralWidget().splitter2.moveSplitter(r*0.5, 1)
+        self.appdata.window.centralWidget().scroll_down()

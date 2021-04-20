@@ -70,12 +70,14 @@ class MapView(QGraphicsView):
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
+            self.appdata.project.maps[self.name]["boxes"][r_id] = (
+                point_item.x(), point_item.y())
             self.mapChanged.emit(r_id)
         else:
+            self.appdata.project.maps[self.name]["boxes"][r_id] = (
+                point_item.x(), point_item.y())
             self.reactionAdded.emit(r_id)
 
-        self.appdata.project.maps[self.name]["boxes"][r_id] = (
-            point_item.x(), point_item.y())
         self.update()
 
     def dragLeaveEvent(self, _event):
@@ -432,7 +434,7 @@ def validate_value(value):
             (vl, vh) = make_tuple(value)
             if not isinstance(vl, int) and not isinstance(vl, float):
                 return False
-            if not isinstance(vl, int) and not isinstance(vh, float):
+            if not isinstance(vh, int) and not isinstance(vh, float):
                 return False
         except (ValueError, SyntaxError, TypeError):
             return False
