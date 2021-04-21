@@ -1199,6 +1199,7 @@ class MainWindow(QMainWindow):
             return QColor.fromRgb(255, 0, 0)
 
     def set_heaton(self):
+        (low, high) = self.high_and_low()
         idx = self.centralWidget().tabs.currentIndex()
         if idx == 0:
             view = self.centralWidget().reaction_list
@@ -1209,11 +1210,11 @@ class MainWindow(QMainWindow):
                 key = item.text(0)
                 if key in self.appdata.project.scen_values:
                     value = self.appdata.project.scen_values[key]
-                    color = self.compute_color_heat(value)
+                    color = self.compute_color_heat(value, low, high)
                     item.setBackground(2, color)
                 elif key in self.appdata.project.comp_values:
                     value = self.appdata.project.comp_values[key]
-                    color = self.compute_color_heat(value)
+                    color = self.compute_color_heat(value, low, high)
                     item.setBackground(2, color)
 
         idx = self.centralWidget().map_tabs.currentIndex()
@@ -1224,15 +1225,14 @@ class MainWindow(QMainWindow):
         for key in self.appdata.project.maps[name]["boxes"]:
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
-                color = self.compute_color_heat(value)
+                color = self.compute_color_heat(value, low, high)
                 view.reaction_boxes[key].set_color(color)
             elif key in self.appdata.project.comp_values:
                 value = self.appdata.project.comp_values[key]
-                color = self.compute_color_heat(value)
+                color = self.compute_color_heat(value, low, high)
                 view.reaction_boxes[key].set_color(color)
 
-    def compute_color_heat(self, value: Tuple[float, float]):
-        (low, high) = self.high_and_low()
+    def compute_color_heat(self, value: Tuple[float, float], low, high):
         (vl, vh) = value
         vl = round(vl, self.appdata.rounding)
         vh = round(vh, self.appdata.rounding)
