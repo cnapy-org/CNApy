@@ -22,6 +22,7 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
+from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.description_dialog import DescriptionDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
@@ -279,6 +280,10 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
+        config_action = QAction("Configure COBRApy ...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_cobrapy_dialog)
+
         about_action = QAction("About cnapy...", self)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
@@ -382,6 +387,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_config_cobrapy_dialog(self):
+        dialog = ConfigCobrapyDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
