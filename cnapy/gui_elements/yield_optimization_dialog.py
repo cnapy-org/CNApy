@@ -52,6 +52,7 @@ class YieldOptimizationDialog(QDialog):
     def __init__(self, appdata: CnaData, centralwidget: CentralWidget):
         QDialog.__init__(self)
         self.setWindowTitle("Yield optimization")
+
         self.appdata = appdata
         self.centralwidget = centralwidget
         self.eng = appdata.engine

@@ -20,11 +20,11 @@ class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
     def __init__(self, appdata: CnaData):
-        cross_icon = QIcon(":/icons/cross.png")
-        cross = cross_icon.pixmap(QSize(32, 32))
-
         QDialog.__init__(self)
         self.setWindowTitle("Configure CNApy")
+
+        cross_icon = QIcon(":/icons/cross.png")
+        cross = cross_icon.pixmap(QSize(32, 32))
 
         self.appdata = appdata
         self.oeng = appdata.octave_engine

@@ -12,6 +12,8 @@ class EFMtoolDialog(QDialog):
 
     def __init__(self, appdata: CnaData, centralwidget):
         QDialog.__init__(self)
+        self.setWindowTitle("Elementary Flux Mode Computation")
+
         self.appdata = appdata
         self.centralwidget = centralwidget
 

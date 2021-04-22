@@ -8,10 +8,11 @@ class AboutDialog(QDialog):
 
     def __init__(self):
         QDialog.__init__(self)
+        self.setWindowTitle("About CNApy")
 
         self.button = QPushButton("Ok!")
         self.text = QLabel(
-            "An integrated environment for metabolic model analysis.")
+            "CNApy is an integrated environment for metabolic model analysis.")
         self.text.setAlignment(Qt.AlignCenter)
 
         self.layout = QVBoxLayout()
