@@ -1,13 +1,14 @@
 """The metabolite list"""
 
 import cobra
-from cnapy.cnadata import CnaData
-from cnapy.utils import turn_red, turn_white
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+
+from cnapy.cnadata import CnaData
+from cnapy.utils import SignalThrottler, turn_red, turn_white
 
 
 class MetaboliteList(QWidget):
@@ -72,7 +73,7 @@ class MetaboliteList(QWidget):
     def update_annotations(self, annotation):
 
         self.metabolite_mask.annotation.itemChanged.disconnect(
-            self.metabolite_mask.metabolites_data_changed)
+            self.metabolite_mask.throttler.throttle)
         c = self.metabolite_mask.annotation.rowCount()
         for i in range(0, c):
             self.metabolite_mask.annotation.removeRow(0)
@@ -86,7 +87,7 @@ class MetaboliteList(QWidget):
             i += 1
 
         self.metabolite_mask.annotation.itemChanged.connect(
-            self.metabolite_mask.metabolites_data_changed)
+            self.metabolite_mask.throttler.throttle)
 
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite):
         # Update metabolite item in list
@@ -251,12 +252,15 @@ class MetabolitesMask(QWidget):
 
         self.setLayout(layout)
 
-        self.id.textEdited.connect(self.metabolites_data_changed)
-        self.name.textEdited.connect(self.metabolites_data_changed)
-        self.formula.textEdited.connect(self.metabolites_data_changed)
-        self.charge.textEdited.connect(self.metabolites_data_changed)
-        self.compartment.textEdited.connect(self.metabolites_data_changed)
-        self.annotation.itemChanged.connect(self.metabolites_data_changed)
+        self.throttler = SignalThrottler(500)
+        self.throttler.triggered.connect(self.metabolites_data_changed)
+
+        self.id.textEdited.connect(self.throttler.throttle)
+        self.name.textEdited.connect(self.throttler.throttle)
+        self.formula.textEdited.connect(self.throttler.throttle)
+        self.charge.textEdited.connect(self.throttler.throttle)
+        self.compartment.textEdited.connect(self.throttler.throttle)
+        self.annotation.itemChanged.connect(self.throttler.throttle)
         self.validate_mask()
 
     def add_anno_row(self):
