@@ -53,7 +53,7 @@ class Worker(QRunnable):
     '''
 
     def __init__(self, fn, *args, **kwargs):
-        super(Worker, self).__init__()
+        QRunnable.__init__(self)
         # Store constructor arguments (re-used for processing)
         self.fn = fn
         self.args = args
@@ -67,18 +67,20 @@ class Worker(QRunnable):
         '''
         # Retrieve args/kwargs here; and fire processing using them
         try:
+            QMessageBox.information(
+                None, 'Worker running', 'Computing ... Please wait!')
             result = self.fn(
                 *self.args, **self.kwargs
             )
         except cobra.exceptions.Infeasible:
             QMessageBox.information(
-                self, 'No solution', 'The scenario is infeasible')
+                None, 'No solution', 'The scenario is infeasible')
         except:
             output = io.StringIO()
             traceback.print_exc(file=output)
             exstr = output.getvalue()
             print(exstr)
-            QMessageBox.warning(self, 'Unknown exception occured!',
+            QMessageBox.warning(None, 'Unknown exception occured!',
                                 exstr+'\nPlease report the problem to:\n\
                                         \nhttps://github.com/cnapy-org/CNApy/issues')
 
