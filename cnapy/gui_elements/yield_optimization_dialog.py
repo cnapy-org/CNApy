@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.centralwidget import CentralWidget
+from cnapy.cnadata import load_values_into_model
 
 
 class CompleterLineEdit(QLineEdit):
@@ -125,7 +126,7 @@ class YieldOptimizationDialog(QDialog):
     def compute(self):
 
         with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.load_scenario_into_model(model)
+            load_values_into_model(self.appdata.project.scen_values,  model)
             # create CobraModel for matlab
             self.appdata.create_cobra_model()
 

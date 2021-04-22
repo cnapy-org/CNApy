@@ -126,19 +126,7 @@ class ProjectData:
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.modes: Dict[str, Tuple[float, float]] = []
-        self.compute_color_type = 1
         self.meta_data = {}
-
-    def load_scenario_into_model(self, model):
-        for x in self.scen_values:
-            try:
-                y = model.reactions.get_by_id(x)
-            except KeyError:
-                print('reaction', x, 'not found!')
-            else:
-                (vl, vu) = self.scen_values[x]
-                y.lower_bound = vl
-                y.upper_bound = vu
 
 
 def CnaMap(name):
@@ -151,3 +139,15 @@ def CnaMap(name):
             "pos": (0, 0),
             "boxes": {}
             }
+
+
+def load_values_into_model(values, model):
+    for x in values:
+        try:
+            y = model.reactions.get_by_id(x)
+        except KeyError:
+            print('reaction', x, 'not found!')
+        else:
+            (vl, vu) = values[x]
+            y.lower_bound = vl
+            y.upper_bound = vu

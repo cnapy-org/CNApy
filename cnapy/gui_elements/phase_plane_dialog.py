@@ -6,6 +6,8 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QPushButton, QVBoxLayout)
 import numpy
 
+from cnapy.cnadata import load_values_into_model
+
 
 class CompleterLineEdit(QLineEdit):
     '''# does new completion after COMMA ,'''
@@ -83,7 +85,7 @@ class PhasePlaneDialog(QDialog):
 
     def compute(self):
         with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.load_scenario_into_model(model)
+            load_values_into_model(self.appdata.project.scen_values,  model)
             x_axis = self.x_axis.text()
             y_axis = self.y_axis.text()
             try:
