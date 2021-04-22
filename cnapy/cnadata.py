@@ -139,15 +139,3 @@ def CnaMap(name):
             "pos": (0, 0),
             "boxes": {}
             }
-
-
-def load_values_into_model(values, model):
-    for x in values:
-        try:
-            y = model.reactions.get_by_id(x)
-        except KeyError:
-            print('reaction', x, 'not found!')
-        else:
-            (vl, vu) = values[x]
-            y.lower_bound = vl
-            y.upper_bound = vu

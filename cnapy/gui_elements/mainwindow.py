@@ -10,7 +10,6 @@ from cnapy.flux_vector_container import FluxVectorContainer
 import cobra
 import numpy as np
 
-from cobra.flux_analysis import flux_variability_analysis
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot, QRunnable, QObject, Signal
 from qtpy.QtGui import QColor, QIcon, QPalette
@@ -34,7 +33,7 @@ from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
 from cnapy.legacy import try_cna
-from cnapy.cnadata import load_values_into_model
+from cnapy.core import load_values_into_model, fva_computation
 
 
 class MainWindow(QMainWindow):
@@ -1276,8 +1275,7 @@ class MainWindow(QMainWindow):
 
     def run_fva(self):
         with self.appdata.project.cobra_py_model as model:
-            solution = compute_fva(
-                model, self.appdata.project.scen_values)
+            solution = fva_computation(model, self.appdata.project.scen_values)
             return solution
 
     def set_fva_solution(self, solution):
@@ -1288,18 +1286,6 @@ class MainWindow(QMainWindow):
             self.appdata.project.comp_values[i] = (
                 minimum[i], maximum[i])
         self.centralWidget().update()
-
-
-def compute_fva(model: cobra.Model, scen_values, fraction_of_optimum=0.0):
-    ''' throws cobra.exceptions.Infeasible:'''
-    load_values_into_model(scen_values,  model)
-    for r in model.reactions:
-        r.objective_coefficient = 0
-
-    solution = flux_variability_analysis(
-        model, fraction_of_optimum=fraction_of_optimum)
-
-    return solution
 
 
 def my_mean(value):
@@ -1344,7 +1330,7 @@ class Worker(QRunnable):
         self.kwargs = kwargs
         self.signals = WorkerSignals()
 
-    @Slot()  # QtCore.Slot
+    @Slot()
     def run(self):
         '''
         Initialise the runner function with passed args, kwargs.

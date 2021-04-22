@@ -6,7 +6,7 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QPushButton, QVBoxLayout)
 import numpy
 
-from cnapy.cnadata import load_values_into_model
+from cnapy.core import load_values_into_model
 
 
 class CompleterLineEdit(QLineEdit):

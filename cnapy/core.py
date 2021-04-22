@@ -5,10 +5,12 @@ from typing import Dict, Tuple
 import cobra
 import numpy
 from cobra.util.array import create_stoichiometric_matrix
+from cobra.flux_analysis import flux_variability_analysis
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap
+
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool):
     stdf = create_stoichiometric_matrix(
@@ -39,8 +41,33 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
         ems = None
     else:
         ems = FluxVectorMemmap('efms.bin', reac_id,
-                                containing_temp_dir=work_dir)
+                               containing_temp_dir=work_dir)
         if len(irrev_backwards_idx) > 0:
             ems.fv_mat[:, irrev_backwards_idx] *= -1
 
     return (ems, scenario)
+
+
+def fva_computation(model: cobra.Model, scen_values, fraction_of_optimum=0.0):
+    ''' throws cobra.exceptions.Infeasible:'''
+    load_values_into_model(scen_values,  model)
+    for r in model.reactions:
+        r.objective_coefficient = 0
+
+    solution = flux_variability_analysis(
+        model, fraction_of_optimum=fraction_of_optimum)
+
+    return solution
+
+
+def load_values_into_model(values: Dict[str, Tuple[float, float]], model: cobra.Model):
+    ''' load the values into the model'''
+    for x in values:
+        try:
+            y = model.reactions.get_by_id(x)
+        except KeyError:
+            print('reaction', x, 'not found!')
+        else:
+            (vl, vu) = values[x]
+            y.lower_bound = vl
+            y.upper_bound = vu

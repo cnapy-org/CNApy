@@ -10,7 +10,7 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
 
 from cnapy.cnadata import CnaData
 from cnapy.gui_elements.centralwidget import CentralWidget
-from cnapy.cnadata import load_values_into_model
+from cnapy.core import load_values_into_model
 
 
 class CompleterLineEdit(QLineEdit):
