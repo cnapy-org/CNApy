@@ -4,7 +4,7 @@ import sys
 import traceback
 
 import cobra
-from qtpy.QtCore import QObject, QRunnable, Qt, Signal, Slot
+from qtpy.QtCore import QObject, QRunnable, Qt, Signal, Slot, QTimer
 from qtpy.QtWidgets import QMessageBox
 
 
@@ -92,3 +92,31 @@ class Worker(QRunnable):
             self.signals.result.emit(result)
         finally:
             self.signals.finished.emit()  # Done
+
+
+class SignalThrottler(QObject):
+    def __init__(self, interval):
+        QObject.__init__(self)
+        self.timer = QTimer()
+        self.timer.setInterval(interval)
+        self.hasPendingEmission = False
+        self.timer.timeout.connect(self.maybeEmitTriggered)
+
+    def maybeEmitTriggered(self):
+        if self.hasPendingEmission:
+            self.emit_triggered()
+
+    @Slot()
+    def throttle(self):
+        self.hasPendingEmission = True
+
+        if not self.timer.isActive():
+            self.timer.start()
+
+    def emit_triggered(self):
+        self.hasPendingEmission = False
+        self.triggered.emit()
+
+    triggered = Signal()
+    timeoutChanged = Signal(int)
+    timerTypeChanged = Signal(Qt.TimerType)
