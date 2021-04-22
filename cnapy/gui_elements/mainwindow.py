@@ -407,6 +407,7 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0:
             return
 
+        self.setCursor(Qt.BusyCursor)
         try:
             self.save_sbml(filename)
         except ValueError:
@@ -417,7 +418,7 @@ class MainWindow(QMainWindow):
                                  exstr+'\nPlease report the problem to:\n\
                                     \nhttps://github.com/cnapy-org/CNApy/issues')
 
-            return
+        self.setCursor(Qt.ArrowCursor)
 
     @Slot()
     def load_box_positions(self):
@@ -631,6 +632,8 @@ class MainWindow(QMainWindow):
             directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
+
+        self.setCursor(Qt.BusyCursor)
         try:
             cobra_py_model = cobra.io.read_sbml_model(filename)
         except cobra.io.sbml.CobraSBMLError:
@@ -644,6 +647,8 @@ class MainWindow(QMainWindow):
         self.appdata.project.cobra_py_model = cobra_py_model
         self.centralWidget().update()
 
+        self.setCursor(Qt.ArrowCursor)
+
     @Slot()
     def open_project(self):
         dialog = QFileDialog(self)
@@ -654,6 +659,7 @@ class MainWindow(QMainWindow):
 
         temp_dir = TemporaryDirectory()
 
+        self.setCursor(Qt.BusyCursor)
         try:
             with ZipFile(filename, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir.name)
@@ -708,7 +714,8 @@ class MainWindow(QMainWindow):
             traceback.print_exc(file=output)
             exstr = output.getvalue()
             QMessageBox.warning(self, 'Could not open project.', exstr)
-            return
+
+        self.setCursor(Qt.ArrowCursor)
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -746,6 +753,7 @@ class MainWindow(QMainWindow):
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
 
+        self.setCursor(Qt.BusyCursor)
         try:
             self.save_sbml(tmp_dir + "model.sbml")
         except ValueError:
@@ -793,6 +801,7 @@ class MainWindow(QMainWindow):
                 count += 1
 
         self.nounsaved_changes()
+        self.setCursor(Qt.ArrowCursor)
 
     @Slot()
     def save_project_as(self):
@@ -1108,6 +1117,8 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
+
+        self.setCursor(Qt.BusyCursor)
         from cobra.flux_analysis import flux_variability_analysis
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
@@ -1137,6 +1148,7 @@ class MainWindow(QMainWindow):
                 self.appdata.project.compute_color_type = 3
 
         self.centralWidget().update()
+        self.setCursor(Qt.ArrowCursor)
 
     def efm(self):
         self.efm_dialog = EFMDialog(
