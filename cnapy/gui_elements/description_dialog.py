@@ -10,6 +10,8 @@ class DescriptionDialog(QDialog):
 
     def __init__(self, appdata: CnaData):
         QDialog.__init__(self)
+        self.setWindowTitle("Project description")
+
         self.appdata = appdata
         self.layout = QVBoxLayout()
         h1 = QHBoxLayout()
@@ -26,7 +28,6 @@ class DescriptionDialog(QDialog):
         self.layout.addItem(l2)
         self.setLayout(self.layout)
 
-        self.setWindowTitle("Project description")
         if "description" in self.appdata.project.meta_data:
             self.description.append(
                 self.appdata.project.meta_data["description"])

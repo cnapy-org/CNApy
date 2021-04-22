@@ -17,6 +17,8 @@ class MCSDialog(QDialog):
 
     def __init__(self, appdata: CnaData, centralwidget):
         QDialog.__init__(self)
+        self.setWindowTitle("Minimal Cut Sets Computation")
+
         self.appdata = appdata
         self.centralwidget = centralwidget
         self.eng = appdata.engine

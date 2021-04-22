@@ -45,6 +45,7 @@ class PhasePlaneDialog(QDialog):
     def __init__(self, appdata):
         QDialog.__init__(self)
         self.setWindowTitle("Phase plane plotting")
+
         self.appdata = appdata
 
         completer = QCompleter(

@@ -11,6 +11,8 @@ class ClipboardCalculator(QDialog):
 
     def __init__(self, appdata: CnaData):
         QDialog.__init__(self)
+        self.setWindowTitle("Clipboard calculator")
+
         self.appdata = appdata
         self.layout = QVBoxLayout()
         l1 = QHBoxLayout()

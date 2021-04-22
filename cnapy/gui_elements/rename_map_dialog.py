@@ -9,6 +9,8 @@ class RenameMapDialog(QDialog):
 
     def __init__(self, appdata: CnaData, central_widget):
         QDialog.__init__(self)
+        self.setWindowTitle("Rename map")
+
         self.appdata = appdata
         self.central_widget = central_widget
         self.layout = QVBoxLayout()
