@@ -434,16 +434,15 @@ class MainWindow(QMainWindow):
         name = self.centralWidget().map_tabs.tabText(idx)
 
         with open(filename, 'r') as fp:
-            print(fp)
             self.appdata.project.maps[name]["boxes"] = json.load(fp)
 
         to_remove = []
-        for r in self.appdata.project.maps[name]["boxes"].keys():
-            if not self.appdata.project.cobra_py_model.reactions.has_id(r):
-                to_remove.append(r)
+        for r_id in self.appdata.project.maps[name]["boxes"].keys():
+            if not self.appdata.project.cobra_py_model.reactions.has_id(r_id):
+                to_remove.append(r_id)
 
-        for r in to_remove:
-            self.appdata.project.maps[name]["boxes"].pop(r)
+        for r_id in to_remove:
+            self.appdata.project.maps[name]["boxes"].pop(r_id)
 
         self.recreate_maps()
         self.unsaved_changes()

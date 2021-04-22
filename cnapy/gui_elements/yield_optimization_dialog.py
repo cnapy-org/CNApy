@@ -182,7 +182,7 @@ class YieldOptimizationDialog(QDialog):
                         break
                 idx = idx+1
             code = "c =" + str(res)+";"
-            a = self.eng.eval(code, nargout=0)
+            self.eng.eval(code, nargout=0)
 
             d = []
             d_elements = self.d.text().split('+')
@@ -238,8 +238,9 @@ class YieldOptimizationDialog(QDialog):
             self.eng.eval("verbose = 0;", nargout=0)
             if self.appdata.is_matlab_set():
                 try:
-                    a = self.eng.eval(
-                        "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);", nargout=0)
+                    self.eng.eval(
+                        "[maxyield,flux_vec,success, status]= CNAoptimizeYield(cnap, c, d, fixedFluxes, c_macro, solver, verbose);",
+                        nargout=0)
 
                 except Exception:
                     output = io.StringIO()
