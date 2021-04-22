@@ -7,11 +7,10 @@ from qtpy.QtGui import QDrag, QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
-                            QTreeWidgetItem,
-                            QVBoxLayout, QWidget)
+                            QTreeWidgetItem, QVBoxLayout, QWidget)
+
 from cnapy.cnadata import CnaData
-from cnapy.utils import turn_red, turn_white
-from cnapy.utils import SignalThrottler
+from cnapy.utils import SignalThrottler, turn_red, turn_white
 
 
 class DragableTreeWidget(QTreeWidget):
