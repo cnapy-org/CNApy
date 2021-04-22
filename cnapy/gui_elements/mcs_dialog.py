@@ -285,6 +285,7 @@ class MCSDialog(QDialog):
             self.compute_legacy()
 
     def compute_legacy(self):
+        self.setCursor(Qt.BusyCursor)
         # create CobraModel for matlab
         self.appdata.create_cobra_model()
         self.eng.eval("load('cobra_model.mat')",
@@ -449,7 +450,11 @@ class MCSDialog(QDialog):
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
 
+        self.setCursor(Qt.ArrowCursor)
+
     def compute_optlang(self):
+
+        self.setCursor(Qt.BusyCursor)
         max_mcs_num = float(self.max_solu.text())
         max_mcs_size = int(self.max_size.text())
         timeout = float(self.time_limit.text())
@@ -539,3 +544,5 @@ class MCSDialog(QDialog):
 
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
+
+        self.setCursor(Qt.ArrowCursor)

@@ -124,6 +124,7 @@ class YieldOptimizationDialog(QDialog):
 
     def compute(self):
 
+        self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             # create CobraModel for matlab
@@ -297,3 +298,5 @@ class YieldOptimizationDialog(QDialog):
                             float(val), float(val))
                         idx = idx+1
                     self.centralwidget.update()
+
+        self.setCursor(Qt.ArrowCursor)

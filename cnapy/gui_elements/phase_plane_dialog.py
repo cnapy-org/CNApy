@@ -82,6 +82,7 @@ class PhasePlaneDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
+        self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             x_axis = self.x_axis.text()
@@ -130,3 +131,5 @@ class PhasePlaneDialog(QDialog):
         (_, r) = self.appdata.window.centralWidget().splitter2.getRange(1)
         self.appdata.window.centralWidget().splitter2.moveSplitter(r*0.5, 1)
         self.appdata.window.centralWidget().scroll_down()
+
+        self.setCursor(Qt.ArrowCursor)

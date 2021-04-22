@@ -37,10 +37,12 @@ class EFMtoolDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
+        self.setCursor(Qt.BusyCursor)
         (ems, scenario) = cnapy.core.efm_computation(
             self.appdata.project.cobra_py_model, self.appdata.project.scen_values,
             self.constraints.checkState() == Qt.Checked)
 
+        self.setCursor(Qt.ArrowCursor)
         if ems is None:
             QMessageBox.information(self, 'No modes',
                                     'An error occured and modes have not been calculated.')
