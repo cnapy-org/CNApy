@@ -14,6 +14,7 @@ from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.modenavigator import ModeNavigator
 from cnapy.gui_elements.reactions_list import ReactionList
+from cnapy.utils import SignalThrottler
 
 
 class CentralWidget(QWidget):
@@ -26,7 +27,10 @@ class CentralWidget(QWidget):
         self.map_counter = 0
         self.searchbar = QLineEdit()
         self.searchbar.setPlaceholderText("Enter search term")
-        self.searchbar.textChanged.connect(self.update_selected)
+
+        self.throttler = SignalThrottler(300)
+        self.searchbar.textChanged.connect(self.throttler.throttle)
+        self.throttler.triggered.connect(self.update_selected)
 
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
@@ -262,7 +266,6 @@ class CentralWidget(QWidget):
                 self.map_tabs.setCurrentIndex(idx)
 
                 m.update()
-                # self.searchbar.setText(reaction)
                 m.focus_reaction(reaction)
                 m.highlight_reaction(reaction)
                 break
