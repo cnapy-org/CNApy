@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QVBoxLayout, QWidget)
 from cnapy.cnadata import CnaData
 from cnapy.utils import turn_red, turn_white
+from cnapy.utils import SignalThrottler
 
 
 class DragableTreeWidget(QTreeWidget):
@@ -154,7 +155,7 @@ class ReactionList(QWidget):
     def update_annotations(self, annotation):
 
         self.reaction_mask.annotation.itemChanged.disconnect(
-            self.reaction_mask.reaction_data_changed)
+            self.reaction_mask.throttler.throttle)
         c = self.reaction_mask.annotation.rowCount()
         for i in range(0, c):
             self.reaction_mask.annotation.removeRow(0)
@@ -168,7 +169,7 @@ class ReactionList(QWidget):
             i += 1
 
         self.reaction_mask.annotation.itemChanged.connect(
-            self.reaction_mask.reaction_data_changed)
+            self.reaction_mask.throttler.throttle)
 
     def reaction_selected(self, item: QTreeWidgetItem, _column):
         if item is None:
@@ -439,14 +440,18 @@ class ReactionMask(QWidget):
         self.setLayout(layout)
 
         self.delete_button.clicked.connect(self.delete_reaction)
-        self.id.textEdited.connect(self.reaction_data_changed)
-        self.name.textEdited.connect(self.reaction_data_changed)
-        self.equation.textEdited.connect(self.reaction_data_changed)
-        self.lower_bound.textEdited.connect(self.reaction_data_changed)
-        self.upper_bound.textEdited.connect(self.reaction_data_changed)
-        self.coefficent.textEdited.connect(self.reaction_data_changed)
-        self.gene_reaction_rule.textEdited.connect(self.reaction_data_changed)
-        self.annotation.itemChanged.connect(self.reaction_data_changed)
+
+        self.throttler = SignalThrottler(500)
+        self.throttler.triggered.connect(self.reaction_data_changed)
+
+        self.id.textEdited.connect(self.throttler.throttle)
+        self.name.textEdited.connect(self.throttler.throttle)
+        self.equation.textEdited.connect(self.throttler.throttle)
+        self.lower_bound.textEdited.connect(self.throttler.throttle)
+        self.upper_bound.textEdited.connect(self.throttler.throttle)
+        self.coefficent.textEdited.connect(self.throttler.throttle)
+        self.gene_reaction_rule.textEdited.connect(self.throttler.throttle)
+        self.annotation.itemChanged.connect(self.throttler.throttle)
 
         self.validate_mask()
 
