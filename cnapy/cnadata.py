@@ -7,7 +7,7 @@ from typing import Dict, Tuple
 import appdirs
 import cobra
 import pkg_resources
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QThreadPool
 from qtpy.QtGui import QColor
 
 
@@ -15,6 +15,11 @@ class CnaData:
     ''' The application data '''
 
     def __init__(self):
+
+        self.threadpool = QThreadPool()
+        print("Multithreading with maximum %d threads" %
+              self.threadpool.maxThreadCount())
+
         self.version = "cnapy-dev-0.1"
         self.format_version = 1
         self.unsaved = False
