@@ -315,6 +315,32 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
+    def closeEvent(self, event):
+        if self.checked_unsaved():
+            event.accept()
+        else:
+            event.ignore()
+
+    def checked_unsaved(self) -> bool:
+        if self.appdata.unsaved:
+            msgBox = QMessageBox()
+            msgBox.setText("The project has been modified.")
+            msgBox.setInformativeText("Do you want to save your changes?")
+            msgBox.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setDefaultButton(QMessageBox.Save)
+            ret = msgBox.exec_()
+            if ret == QMessageBox.Save:
+                # Save was clicked
+                self.save_project_as()
+                return True
+            if ret == QMessageBox.Discard:
+                # Don't save was clicked
+                return True
+            if ret == QMessageBox.Cancel:
+                return False
+        return True
+
     def unsaved_changes(self):
         if not self.appdata.unsaved:
             self.appdata.unsaved = True
@@ -357,7 +383,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def exit_app(self):
-        QApplication.quit()
+        if self.checked_unsaved():
+            QApplication.quit()
 
     def set_current_filename(self, filename):
         self.appdata.project.name = filename
@@ -611,111 +638,114 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def new_project(self):
-        self.appdata.project = ProjectData()
-        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
-        self.centralWidget().map_tabs.clear()
-        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+        if self.checked_unsaved():
+            self.appdata.project = ProjectData()
+            self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
+            self.centralWidget().map_tabs.clear()
+            self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
-        self.centralWidget().mode_navigator.clear()
+            self.centralWidget().mode_navigator.clear()
 
-        self.appdata.project.scen_values.clear()
-        self.appdata.scenario_past.clear()
-        self.appdata.scenario_future.clear()
+            self.appdata.project.scen_values.clear()
+            self.appdata.scenario_past.clear()
+            self.appdata.scenario_future.clear()
 
-        self.set_current_filename("Untitled project")
-        self.nounsaved_changes()
+            self.set_current_filename("Untitled project")
+            self.nounsaved_changes()
 
     @Slot()
     def new_project_from_sbml(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
+        if self.checked_unsaved():
+            dialog = QFileDialog(self)
+            filename: str = dialog.getOpenFileName(
+                directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
+            if not filename or len(filename) == 0 or not os.path.exists(filename):
+                return
 
-        self.setCursor(Qt.BusyCursor)
-        try:
-            cobra_py_model = cobra.io.read_sbml_model(filename)
-        except cobra.io.sbml.CobraSBMLError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
-            QMessageBox.warning(
-                self, 'Could not read sbml.', exstr)
-            return
-        self.new_project()
-        self.appdata.project.cobra_py_model = cobra_py_model
-        self.centralWidget().update()
+            self.setCursor(Qt.BusyCursor)
+            try:
+                cobra_py_model = cobra.io.read_sbml_model(filename)
+            except cobra.io.sbml.CobraSBMLError:
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                QMessageBox.warning(
+                    self, 'Could not read sbml.', exstr)
+                return
+            self.new_project()
+            self.appdata.project.cobra_py_model = cobra_py_model
+            self.centralWidget().update()
 
-        self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.ArrowCursor)
 
     @Slot()
     def open_project(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.cna")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
+        if self.checked_unsaved():
+            dialog = QFileDialog(self)
+            filename: str = dialog.getOpenFileName(
+                directory=self.appdata.work_directory, filter="*.cna")[0]
+            if not filename or len(filename) == 0 or not os.path.exists(filename):
+                return
 
-        temp_dir = TemporaryDirectory()
+            temp_dir = TemporaryDirectory()
 
-        self.setCursor(Qt.BusyCursor)
-        try:
-            with ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir.name)
+            self.setCursor(Qt.BusyCursor)
+            try:
+                with ZipFile(filename, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir.name)
 
-                with open(temp_dir.name+"/box_positions.json", 'r') as fp:
-                    maps = json.load(fp)
+                    with open(temp_dir.name+"/box_positions.json", 'r') as fp:
+                        maps = json.load(fp)
 
-                    count = 1
-                    for _name, m in maps.items():
-                        m["background"] = temp_dir.name + \
-                            "/map" + str(count) + ".svg"
-                        count += 1
-                # load meta_data
-                with open(temp_dir.name+"/meta.json", 'r') as fp:
-                    meta_data = json.load(fp)
+                        count = 1
+                        for _name, m in maps.items():
+                            m["background"] = temp_dir.name + \
+                                "/map" + str(count) + ".svg"
+                            count += 1
+                    # load meta_data
+                    with open(temp_dir.name+"/meta.json", 'r') as fp:
+                        meta_data = json.load(fp)
 
-                try:
-                    cobra_py_model = cobra.io.read_sbml_model(
-                        temp_dir.name + "/model.sbml")
-                except cobra.io.sbml.CobraSBMLError:
-                    output = io.StringIO()
-                    traceback.print_exc(file=output)
-                    exstr = output.getvalue()
-                    QMessageBox.warning(
-                        self, 'Could not open project.', exstr)
-                    return
-                self.appdata.temp_dir = temp_dir
-                self.appdata.project.maps = maps
-                self.appdata.project.meta_data = meta_data
-                self.appdata.project.cobra_py_model = cobra_py_model
-                self.set_current_filename(filename)
-                self.recreate_maps()
-                self.centralWidget().mode_navigator.clear()
-                self.appdata.project.scen_values.clear()
-                self.appdata.scenario_past.clear()
-                self.appdata.scenario_future.clear()
-                for r in self.appdata.project.cobra_py_model.reactions:
-                    if 'cnapy-default' in r.annotation.keys():
-                        self.centralWidget().update_reaction_value(
-                            r.id, r.annotation['cnapy-default'])
-                self.nounsaved_changes()
+                    try:
+                        cobra_py_model = cobra.io.read_sbml_model(
+                            temp_dir.name + "/model.sbml")
+                    except cobra.io.sbml.CobraSBMLError:
+                        output = io.StringIO()
+                        traceback.print_exc(file=output)
+                        exstr = output.getvalue()
+                        QMessageBox.warning(
+                            self, 'Could not open project.', exstr)
+                        return
+                    self.appdata.temp_dir = temp_dir
+                    self.appdata.project.maps = maps
+                    self.appdata.project.meta_data = meta_data
+                    self.appdata.project.cobra_py_model = cobra_py_model
+                    self.set_current_filename(filename)
+                    self.recreate_maps()
+                    self.centralWidget().mode_navigator.clear()
+                    self.appdata.project.scen_values.clear()
+                    self.appdata.scenario_past.clear()
+                    self.appdata.scenario_future.clear()
+                    for r in self.appdata.project.cobra_py_model.reactions:
+                        if 'cnapy-default' in r.annotation.keys():
+                            self.centralWidget().update_reaction_value(
+                                r.id, r.annotation['cnapy-default'])
+                    self.nounsaved_changes()
 
-                # if project contains maps move splitter and fit mapview
-                if len(self.appdata.project.maps) > 0:
-                    (_, r) = self.centralWidget().splitter2.getRange(1)
-                    self.centralWidget().splitter2.moveSplitter(r*0.8, 1)
-                    self.centralWidget().fit_mapview()
+                    # if project contains maps move splitter and fit mapview
+                    if len(self.appdata.project.maps) > 0:
+                        (_, r) = self.centralWidget().splitter2.getRange(1)
+                        self.centralWidget().splitter2.moveSplitter(r*0.8, 1)
+                        self.centralWidget().fit_mapview()
 
-                self.centralWidget().update()
-        except FileNotFoundError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
-            QMessageBox.warning(self, 'Could not open project.', exstr)
+                    self.centralWidget().update()
+            except FileNotFoundError:
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                QMessageBox.warning(self, 'Could not open project.', exstr)
 
-        self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.ArrowCursor)
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
