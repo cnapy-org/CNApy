@@ -41,7 +41,6 @@ class ModelInfo(QWidget):
         self.update()
 
     def update(self):
-        print("update model info")
         if "description" in self.appdata.project.meta_data:
             description = self.appdata.project.meta_data["description"]
         else:
