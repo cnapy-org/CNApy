@@ -23,7 +23,6 @@ from cnapy.gui_elements.centralwidget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
-from cnapy.gui_elements.description_dialog import DescriptionDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
@@ -78,10 +77,6 @@ class MainWindow(QMainWindow):
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
-
-        description_action = QAction("Project description ...", self)
-        self.file_menu.addAction(description_action)
-        description_action.triggered.connect(self.show_description_dialog)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -419,11 +414,6 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
-        dialog.exec_()
-
-    @Slot()
-    def show_description_dialog(self):
-        dialog = DescriptionDialog(self.appdata)
         dialog.exec_()
 
     @Slot()

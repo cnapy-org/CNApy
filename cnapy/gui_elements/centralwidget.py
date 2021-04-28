@@ -182,6 +182,8 @@ class CentralWidget(QWidget):
                 self.appdata.project.cobra_py_model)
             self.appdata.project.cobra_py_model = clean_model
             self.metabolite_list.update()
+        elif idx == 2:
+            self.model_info.update()
 
     def add_map(self):
         while True:
