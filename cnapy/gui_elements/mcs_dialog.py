@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
 import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
+from cobra.util.solver import interface_to_str
 from cnapy.cnadata import CnaData
 
 
@@ -137,7 +138,8 @@ class MCSDialog(QDialog):
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
         self.bg1 = QButtonGroup()
-        self.solver_optlang = QRadioButton("optlang")
+        optlang_solver_name = interface_to_str(appdata.project.cobra_py_model.problem)
+        self.solver_optlang = QRadioButton(f"{optlang_solver_name} (optlang)")
         self.solver_optlang.setToolTip(
             "Uses the solver specified by the current model.")
         s33.addWidget(self.solver_optlang)
@@ -147,15 +149,15 @@ class MCSDialog(QDialog):
             "Only enabled with MATLAB and CPLEX")
         s33.addWidget(self.solver_cplex_matlab)
         self.bg1.addButton(self.solver_cplex_matlab)
-        self.solver_cplex_java = QRadioButton("CPLEX (Java)")
+        self.solver_cplex_java = QRadioButton("CPLEX (Octave)")
         self.solver_cplex_java.setToolTip("Only enabled with Octave and CPLEX")
         s33.addWidget(self.solver_cplex_java)
         self.bg1.addButton(self.solver_cplex_java)
-        self.solver_intlinprog = QRadioButton("intlinprog")
+        self.solver_intlinprog = QRadioButton("intlinprog (MATLAB)")
         self.solver_intlinprog.setToolTip("Only enabled with MATLAB")
         s33.addWidget(self.solver_intlinprog)
         self.bg1.addButton(self.solver_intlinprog)
-        self.solver_glpk = QRadioButton("GLPK")
+        self.solver_glpk = QRadioButton("GLPK (Octave/MATLAB)")
         s33.addWidget(self.solver_glpk)
         self.bg1.addButton(self.solver_glpk)
         g3.setLayout(s33)
@@ -171,17 +173,6 @@ class MCSDialog(QDialog):
         s34.addWidget(self.any_mcs)
         self.bg2.addButton(self.any_mcs)
 
-        # Disable incompatible combinations
-        if not self.eng.is_cplex_matlab_ready():
-            self.solver_cplex_matlab.setEnabled(False)
-        if not self.eng.is_cplex_java_ready():
-            self.solver_cplex_java.setEnabled(False)
-        if self.appdata.is_matlab_set():
-            self.solver_cplex_java.setEnabled(False)
-        if not self.appdata.is_matlab_set():
-            self.solver_cplex_matlab.setEnabled(False)
-            self.solver_intlinprog.setEnabled(False)
-
         # Search type: by cardinality only with CPLEX possible
         self.mcs_by_cardinality = QRadioButton("by cardinality")
         s34.addWidget(self.mcs_by_cardinality)
@@ -194,12 +185,35 @@ class MCSDialog(QDialog):
 
         s3.addWidget(g4)
 
+        # Disable incompatible combinations
+        if appdata.selected_engine == 'None':
+            self.solver_optlang.setChecked(True)
+            self.solver_cplex_matlab.setEnabled(False)
+            self.solver_cplex_java.setEnabled(False)
+            self.solver_glpk.setEnabled(False)
+            self.solver_intlinprog.setEnabled(False)
+            self.gen_kos.setEnabled(False)
+            if optlang_solver_name != 'cplex':
+                self.mcs_by_cardinality.setEnabled(False)
+        else:
+            if not self.eng.is_cplex_matlab_ready():
+                self.solver_cplex_matlab.setEnabled(False)
+            if not self.eng.is_cplex_java_ready():
+                self.solver_cplex_java.setEnabled(False)
+            if self.appdata.is_matlab_set():
+                self.solver_cplex_java.setEnabled(False)
+            if not self.appdata.is_matlab_set():
+                self.solver_cplex_matlab.setEnabled(False)
+                self.solver_intlinprog.setEnabled(False)
+
         self.layout.addItem(s3)
 
         s4 = QVBoxLayout()
         self.consider_scenario = QCheckBox(
             "Consider constraint given by scenario")
         s4.addWidget(self.consider_scenario)
+        if appdata.selected_engine == 'None':
+            self.consider_scenario.setEnabled(False) # needs to be implemented...
         self.advanced = QCheckBox(
             "Advanced: Define knockout/addition costs for genes/reactions")
         self.advanced.setEnabled(False)
