@@ -287,6 +287,18 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
+        show_console_action = QAction("Show Console", self)
+        self.config_menu.addAction(show_console_action)
+        show_console_action.triggered.connect(self.show_console)
+
+        show_map_view = QAction("Show map view", self)
+        self.config_menu.addAction(show_map_view)
+        show_map_view.triggered.connect(self.show_map_view)
+
+        show_model_view_action = QAction("Show model view", self)
+        self.config_menu.addAction(show_model_view_action)
+        show_model_view_action.triggered.connect(self.show_model_view)
+
         about_action = QAction("About cnapy...", self)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
@@ -1341,6 +1353,21 @@ class MainWindow(QMainWindow):
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
             plt.show()
+
+    def show_console(self):
+        print("show model view")
+        (x, _) = self.centralWidget().splitter.sizes()
+        if x < 50:
+            self.show_model_view()
+        (_, r) = self.centralWidget().splitter2.getRange(1)
+        self.centralWidget().splitter2.moveSplitter(r*0.5, 1)
+
+    def show_map_view(self):
+        self.show_console()
+
+    def show_model_view(self):
+        (_, r) = self.centralWidget().splitter.getRange(1)
+        self.centralWidget().splitter.moveSplitter(r*0.5, 1)
 
 
 def my_mean(value):
