@@ -28,6 +28,7 @@ from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
@@ -215,6 +216,13 @@ class MainWindow(QMainWindow):
         fva_action = QAction("Flux Variability Analysis (FVA)", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        self.analysis_menu.addSeparator()
+
+        in_out_flux_action = QAction(
+            "Compute in/out fluxes at metabolite ...", self)
+        in_out_flux_action.triggered.connect(self.in_out_flux)
+        self.analysis_menu.addAction(in_out_flux_action)
 
         self.analysis_menu.addSeparator()
 
@@ -996,11 +1004,11 @@ class MainWindow(QMainWindow):
         else:
             self.centralWidget().kernel_client.execute("print('\\nEmpty matrix!')")
 
-        self.centralWidget().scroll_down()
+        self.centralWidget().show_bottom_of_console()
 
     def show_net_conversion(self):
         self.centralWidget().kernel_client.execute("cna.net_conversion()")
-        self.centralWidget().scroll_down()
+        self.centralWidget().show_bottom_of_console()
 
     def net_conversion(self):
         with self.appdata.project.cobra_py_model as model:
@@ -1059,7 +1067,7 @@ class MainWindow(QMainWindow):
 
     def show_optimization_function(self):
         self.centralWidget().kernel_client.execute("cna.optimization_function()")
-        self.centralWidget().scroll_down()
+        self.centralWidget().show_bottom_of_console()
 
     def optimization_function(self):
         print('\x1b[1;04;34m'+"Optimization function:\x1b[0m\n")
@@ -1174,6 +1182,11 @@ class MainWindow(QMainWindow):
         self.efm_dialog = EFMDialog(
             self.appdata, self.centralWidget())
         self.efm_dialog.open()
+
+    def in_out_flux(self):
+        in_out_flux_dialog = InOutFluxDialog(
+            self.appdata)
+        in_out_flux_dialog.exec_()
 
     def efmtool(self):
         self.efmtool_dialog = EFMtoolDialog(

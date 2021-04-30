@@ -129,8 +129,6 @@ class PhasePlaneDialog(QDialog):
             plt.plot(x, y)
             plt.show()
 
-        (_, r) = self.appdata.window.centralWidget().splitter2.getRange(1)
-        self.appdata.window.centralWidget().splitter2.moveSplitter(r*0.5, 1)
-        self.appdata.window.centralWidget().scroll_down()
+        self.appdata.window.centralWidget().show_bottom_of_console()
 
         self.setCursor(Qt.ArrowCursor)

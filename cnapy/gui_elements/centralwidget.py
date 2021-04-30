@@ -105,7 +105,10 @@ class CentralWidget(QWidget):
     def fit_mapview(self):
         self.map_tabs.currentWidget().fit()
 
-    def scroll_down(self):
+    def show_bottom_of_console(self):
+        (_, r) = self.splitter2.getRange(1)
+        self.splitter2.moveSplitter(r*0.5, 1)
+
         vSB = self.console.children()[2].verticalScrollBar()
         max_scroll = vSB.maximum()
         vSB.setValue(max_scroll-100)
@@ -295,7 +298,7 @@ class CentralWidget(QWidget):
 
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
-        self.scroll_down()
+        self.show_bottom_of_console()
 
 
 class ConfirmMapDeleteDialog(QDialog):
