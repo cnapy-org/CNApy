@@ -1,6 +1,7 @@
 """The dialog for calculating minimal cut sets"""
 
 import io
+import os
 import traceback
 
 from qtpy.QtCore import Qt
@@ -9,6 +10,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
 import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
+import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.cnadata import CnaData
 
@@ -303,7 +305,11 @@ class MCSDialog(QDialog):
     def compute_legacy(self):
         self.setCursor(Qt.BusyCursor)
         # create CobraModel for matlab
-        self.appdata.create_cobra_model()
+        with self.appdata.project.cobra_py_model as model:
+            if self.consider_scenario.isChecked(): # integrate scenario into model bounds
+                for r in self.appdata.project.scen_values.keys():
+                    model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
+            cobra.io.save_matlab_model(model, os.path.join(self.appdata.cna_path, "cobra_model.mat"), varname="cbmodel")
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
 
@@ -356,11 +362,6 @@ class MCSDialog(QDialog):
         elif self.smalles_mcs_first.isChecked():
             self.eng.eval("mcs_search_mode = 'search_3';", nargout=0)
 
-        if self.consider_scenario.isChecked():
-            self.eng.eval("reac_box_vals = 1;", nargout=0)
-        else:
-            self.eng.eval("reac_box_vals = 0;", nargout=0)
-
         rows = self.target_list.rowCount()
         for i in range(0, rows):
             p1 = self.target_list.cellWidget(i, 0).text()
@@ -399,7 +400,7 @@ class MCSDialog(QDialog):
         if self.appdata.is_matlab_set():
             reac_id = self.eng.workspace['reac_id']
             try:
-                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
                               nargout=0)
             except Exception:
                 output = io.StringIO()
@@ -420,7 +421,7 @@ class MCSDialog(QDialog):
             reac_id = self.eng.pull('reac_id')
             reac_id = reac_id[0]
             try:
-                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, reac_box_vals, dg_T,dg_D);",
+                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
                               nargout=0)
             except Exception:
                 output = io.StringIO()
