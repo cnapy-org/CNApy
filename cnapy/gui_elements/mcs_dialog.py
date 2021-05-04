@@ -4,7 +4,7 @@ import io
 import os
 import traceback
 
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
@@ -162,10 +162,9 @@ class MCSDialog(QDialog):
         self.solver_glpk = QRadioButton("GLPK (Octave/MATLAB)")
         s33.addWidget(self.solver_glpk)
         self.bg1.addButton(self.solver_glpk)
+        self.bg1.buttonClicked.connect(self.configure_solver_options)
         g3.setLayout(s33)
         s3.addWidget(g3)
-
-        self.solver_glpk.setChecked(True)
 
         g4 = QGroupBox("MCS search")
         s34 = QVBoxLayout()
@@ -186,6 +185,7 @@ class MCSDialog(QDialog):
         g4.setLayout(s34)
 
         s3.addWidget(g4)
+        self.layout.addItem(s3)
 
         # Disable incompatible combinations
         if appdata.selected_engine == 'None':
@@ -194,10 +194,10 @@ class MCSDialog(QDialog):
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
-            self.gen_kos.setEnabled(False)
             if optlang_solver_name != 'cplex':
                 self.mcs_by_cardinality.setEnabled(False)
         else:
+            self.solver_glpk.setChecked(True)
             if not self.eng.is_cplex_matlab_ready():
                 self.solver_cplex_matlab.setEnabled(False)
             if not self.eng.is_cplex_java_ready():
@@ -207,15 +207,12 @@ class MCSDialog(QDialog):
             if not self.appdata.is_matlab_set():
                 self.solver_cplex_matlab.setEnabled(False)
                 self.solver_intlinprog.setEnabled(False)
-
-        self.layout.addItem(s3)
+        self.configure_solver_options()
 
         s4 = QVBoxLayout()
         self.consider_scenario = QCheckBox(
             "Consider constraint given by scenario")
         s4.addWidget(self.consider_scenario)
-        if appdata.selected_engine == 'None':
-            self.consider_scenario.setEnabled(False) # needs to be implemented...
         self.advanced = QCheckBox(
             "Advanced: Define knockout/addition costs for genes/reactions")
         self.advanced.setEnabled(False)
@@ -246,7 +243,17 @@ class MCSDialog(QDialog):
         # Connecting the signal
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
-        # self.compute_mcs2.clicked.connect(self.compute2)
+
+    @Slot()
+    def configure_solver_options(self):
+        if self.solver_optlang.isChecked():
+            self.gen_kos.setChecked(False)
+            self.gen_kos.setEnabled(False)
+            self.exclude_boundary.setEnabled(True)
+        else:
+            self.gen_kos.setEnabled(True)
+            self.exclude_boundary.setChecked(False)
+            self.exclude_boundary.setEnabled(False)
 
     def add_target_region(self):
         i = self.target_list.rowCount()
@@ -487,15 +494,6 @@ class MCSDialog(QDialog):
         # else:
         #     self.eng.eval("advanced_on = 0;", nargout=0)
 
-        # if self.solver_intlinprog.isChecked():
-        #     self.eng.eval("solver = 'intlinprog';", nargout=0)
-        # if self.solver_cplex_java.isChecked():
-        #     self.eng.eval("solver = 'java_cplex_new';", nargout=0)
-        # if self.solver_cplex_matlab.isChecked():
-        #     self.eng.eval("solver = 'matlab_cplex';", nargout=0)
-        # if self.solver_glpk.isChecked():
-        #     self.eng.eval("solver = 'glpk';", nargout=0)
-
         if self.smalles_mcs_first.isChecked():
             enum_method = 1
         elif self.mcs_by_cardinality.isChecked():
@@ -503,50 +501,62 @@ class MCSDialog(QDialog):
         elif self.any_mcs.isChecked():
             enum_method = 3
 
-        # if self.consider_scenario.isChecked():
-        #     self.eng.eval("reac_box_vals = 1;", nargout=0)
-        # else:
-        #     self.eng.eval("reac_box_vals = 0;", nargout=0)
+        with self.appdata.project.cobra_py_model as model:
+            if self.consider_scenario.isChecked(): # integrate scenario into model bounds
+                for r in self.appdata.project.scen_values.keys():
+                    model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
+            reac_id = model.reactions.list_attr("id")
+            reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
+            rows = self.target_list.rowCount()
+            targets = dict()
+            for i in range(0, rows):
+                p1 = self.target_list.cellWidget(i, 0).text()
+                p2 = self.target_list.cellWidget(i, 1).text()
+                if len(p1) > 0 and len(p2) > 0:
+                    if self.target_list.cellWidget(i, 2).currentText() == '≤':
+                        p3 = "<="
+                    else:
+                        p3 = ">="
+                    p4 = float(self.target_list.cellWidget(i, 3).text())
+                    targets.setdefault(p1, []).append((p2, p3, p4))
+            targets = list(targets.values())
+            targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
+                t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
 
-        model = self.appdata.project.cobra_py_model
-        reac_id = model.reactions.list_attr("id")
-        reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
-        rows = self.target_list.rowCount()
-        targets = dict()
-        for i in range(0, rows):
-            p1 = self.target_list.cellWidget(i, 0).text()
-            p2 = self.target_list.cellWidget(i, 1).text()
-            if len(p1) > 0 and len(p2) > 0:
-                if self.target_list.cellWidget(i, 2).currentText() == '≤':
-                    p3 = "<="
-                else:
-                    p3 = ">="
-                p4 = float(self.target_list.cellWidget(i, 3).text())
-                targets.setdefault(p1, []).append((p2, p3, p4))
-        targets = list(targets.values())
-        targets = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
-            t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
+            rows = self.desired_list.rowCount()
+            desired = dict()
+            for i in range(0, rows):
+                p1 = self.desired_list.cellWidget(i, 0).text()
+                p2 = self.desired_list.cellWidget(i, 1).text()
+                if len(p1) > 0 and len(p2) > 0:
+                    if self.desired_list.cellWidget(i, 2).currentText() == '≤':
+                        p3 = "<="
+                    else:
+                        p3 = ">="
+                    p4 = float(self.desired_list.cellWidget(i, 3).text())
+                    desired.setdefault(p1, []).append((p2, p3, p4))
 
-        rows = self.desired_list.rowCount()
-        desired = dict()
-        for i in range(0, rows):
-            p1 = self.desired_list.cellWidget(i, 0).text()
-            p2 = self.desired_list.cellWidget(i, 1).text()
-            if len(p1) > 0 and len(p2) > 0:
-                if self.desired_list.cellWidget(i, 2).currentText() == '≤':
-                    p3 = "<="
-                else:
-                    p3 = ">="
-                p4 = float(self.desired_list.cellWidget(i, 3).text())
-                desired.setdefault(p1, []).append((p2, p3, p4))
+            desired = list(desired.values())
+            desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
+                d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
 
-        desired = list(desired.values())
-        desired = [cMCS_enumerator.relations2leq_matrix(cMCS_enumerator.parse_relations(
-            d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
-
-        mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
-                                          max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
-        print(mcs)
+            try:
+                mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
+                                max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+            except cMCS_enumerator.InfeasibleRegion as e:
+                QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
+                return targets, desired
+            except Exception:
+                output = io.StringIO()
+                traceback.print_exc(file=output)
+                exstr = output.getvalue()
+                print(exstr)
+                QMessageBox.warning(self, 'An exception has occured!',
+                                    exstr+'\nPlease report the problem to:\n\
+                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                return targets, desired
+            finally:
+                self.setCursor(Qt.ArrowCursor)
 
         if len(mcs) == 0:
             QMessageBox.information(self, 'No cut sets',
@@ -561,5 +571,3 @@ class MCSDialog(QDialog):
 
         self.centralwidget.update_mode()
         self.centralwidget.mode_navigator.title.setText("MCS Navigation")
-
-        self.setCursor(Qt.ArrowCursor)
