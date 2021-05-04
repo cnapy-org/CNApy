@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(self.save_modes_action)
         self.save_modes_action.triggered.connect(self.save_modes)
 
-        self.mcs_action = QAction("Minimal Cut Sets via CNA ...", self)
+        self.mcs_action = QAction("Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.analysis_menu.addAction(self.mcs_action)
 
@@ -381,7 +381,6 @@ class MainWindow(QMainWindow):
     def disable_enable_dependent_actions(self):
 
         self.efm_action.setEnabled(False)
-        self.mcs_action.setEnabled(False)
         self.yield_optimization_action.setEnabled(False)
 
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
