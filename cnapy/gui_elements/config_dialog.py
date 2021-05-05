@@ -235,6 +235,16 @@ class ConfigDialog(QDialog):
         self.button.clicked.connect(self.apply)
 
         self.check_all()
+
+        if self.meng is not None:
+            self.selected_engine.insertItem(1, "Matlab")
+            if self.appdata.selected_engine == "matlab":
+                self.selected_engine.setCurrentIndex(1)
+        if self.oeng is not None:
+            self.selected_engine.insertItem(1, "Octave")
+            if self.appdata.selected_engine == "octave":
+                self.selected_engine.setCurrentIndex(1)
+
         self.update()
 
     def update(self):
