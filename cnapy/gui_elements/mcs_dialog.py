@@ -140,7 +140,8 @@ class MCSDialog(QDialog):
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
         self.bg1 = QButtonGroup()
-        optlang_solver_name = interface_to_str(appdata.project.cobra_py_model.problem)
+        optlang_solver_name = interface_to_str(
+            appdata.project.cobra_py_model.problem)
         self.solver_optlang = QRadioButton(f"{optlang_solver_name} (optlang)")
         self.solver_optlang.setToolTip(
             "Uses the solver specified by the current model.")
@@ -246,14 +247,24 @@ class MCSDialog(QDialog):
 
     @Slot()
     def configure_solver_options(self):
+        optlang_solver_name = interface_to_str(
+            self.appdata.project.cobra_py_model.problem)
         if self.solver_optlang.isChecked():
             self.gen_kos.setChecked(False)
             self.gen_kos.setEnabled(False)
             self.exclude_boundary.setEnabled(True)
+            if optlang_solver_name != 'cplex':
+                if self.mcs_by_cardinality.isChecked():
+                    self.mcs_by_cardinality.setChecked(False)
+                    self.any_mcs.setChecked(True)
+                self.mcs_by_cardinality.setEnabled(False)
+                self.mcs_by_cardinality.setChecked(False)
+
         else:
             self.gen_kos.setEnabled(True)
             self.exclude_boundary.setChecked(False)
             self.exclude_boundary.setEnabled(False)
+            self.mcs_by_cardinality.setEnabled(True)
 
     def add_target_region(self):
         i = self.target_list.rowCount()
@@ -313,10 +324,12 @@ class MCSDialog(QDialog):
         self.setCursor(Qt.BusyCursor)
         # create CobraModel for matlab
         with self.appdata.project.cobra_py_model as model:
-            if self.consider_scenario.isChecked(): # integrate scenario into model bounds
+            if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 for r in self.appdata.project.scen_values.keys():
-                    model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
-            cobra.io.save_matlab_model(model, os.path.join(self.appdata.cna_path, "cobra_model.mat"), varname="cbmodel")
+                    model.reactions.get_by_id(
+                        r).bounds = self.appdata.project.scen_values[r]
+            cobra.io.save_matlab_model(model, os.path.join(
+                self.appdata.cna_path, "cobra_model.mat"), varname="cbmodel")
         self.eng.eval("load('cobra_model.mat')",
                       nargout=0)
 
@@ -502,9 +515,10 @@ class MCSDialog(QDialog):
             enum_method = 3
 
         with self.appdata.project.cobra_py_model as model:
-            if self.consider_scenario.isChecked(): # integrate scenario into model bounds
+            if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 for r in self.appdata.project.scen_values.keys():
-                    model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
+                    model.reactions.get_by_id(
+                        r).bounds = self.appdata.project.scen_values[r]
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = cMCS_enumerator.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
@@ -541,8 +555,14 @@ class MCSDialog(QDialog):
                 d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
 
             try:
-                mcs = cMCS_enumerator.compute_mcs(model, targets=targets, desired=desired, enum_method=enum_method, max_mcs_size=max_mcs_size,
-                                max_mcs_num=max_mcs_num, timeout=timeout, exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+                mcs = cMCS_enumerator.compute_mcs(model,
+                                                  targets=targets,
+                                                  desired=desired,
+                                                  enum_method=enum_method,
+                                                  max_mcs_size=max_mcs_size,
+                                                  max_mcs_num=max_mcs_num,
+                                                  timeout=timeout,
+                                                  exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
             except cMCS_enumerator.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return targets, desired
