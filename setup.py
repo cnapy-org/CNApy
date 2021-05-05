@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='0.0.4',
+    version='0.0.5',
     url='https://github.com/cnapy-org/CNApy/',
     license='GPLv3+',
     description='A CellNetAnalyzer GUI in Python.',
