@@ -1,13 +1,32 @@
-= CNApy - A CellNetAnalyzer GUI in Python
+= CNApy - An integrated environment for metabolic model analysis
 
-image::cnapy/data/cnapylogo.svg[cnapy logo]
+image::cnapy/data/cnapylogo.svg[cnapy logo,width=320,height=240]
 
 
 == Install CNApy with conda
 
 . Create a conda environment with all dependencies
 
-   ❯ conda create -n cnapy-0.0.5 -c conda-forge -c cnapy/label/test cnapy
+   conda create -n cnapy-0.0.5 -c conda-forge -c cnapy/label/test cnapy
+
+. Activate the cnapy conda environment
+
+  conda activate cnapy-0.0.5
+
+. Run CNApy
+      
+  cnapy
+
+
+IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the Python API for the MATLAB engine installed and of course CNA. Alternatively you can also use Octave.
+
+
+== How to run a script in the CNApy terminal
+
+----
+import testscript
+testscript.work(cna)
+----
 
 
 == Setup the CNApy development environment with conda
@@ -15,41 +34,26 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 We use conda as package manager to install all dependencies. You can use https://docs.conda.io/en/latest/miniconda.html[miniconda].
 If you have conda installed you can:
 
-  ❯ conda env create -n cnapy -f environment.yml
+  conda env create -n cnapy -f environment.yml
 
 
 . Activate the cnapy conda environment
 
-  ❯ conda activate cnapy
+  conda activate cnapy
 
-. Download cnapy
-
-.. either use `git`
+. Checkout the latest cnapy development version using git
       
-  ❯ git clone https://github.com/cnapy-org/CNApy.git
+  git clone https://github.com/cnapy-org/CNApy.git
 
-.. or click on the big green button above, download and unpack zip archive. The folder is then `CNApy-master` not `CNApy`.
 
 . Change into the source directory and install CNApy
   
   ❯ cd CNApy
-  ❯ python setup.py install
 
 . Run CNApy
       
-  ❯ cnapy
+  python cnapy.py
 
-
-IMPORTANT: To use the CNA MATLAB functions you need atleast MATLAB 2019b and the Python API for the MATLAB engine installed and of course CNA
-
-
-
-== How to run a script in the CNApy terminal
-
-----
-❯ import testscript
-❯ testscript.work(cna)
-----
 
 
 
