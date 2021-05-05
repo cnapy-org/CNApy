@@ -7,8 +7,7 @@ image::cnapy/data/cnapylogo.svg[cnapy logo]
 
 . Create a conda environment with all dependencies
 
-   ❯ conda create -n cnapy-0.0.5 -c conda-forge -c bioconda -c cnapy/label/test cnapy
-
+   ❯ conda create -n cnapy-0.0.5 -c conda-forge -c cnapy/label/test cnapy
 
 
 == Setup the CNApy development environment with conda
