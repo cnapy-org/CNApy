@@ -12,10 +12,10 @@ import numpy as np
 
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette
+from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar)
+                            QMainWindow, QMessageBox, QToolBar, QShortcut)
 
 from cnapy.cnadata import CnaData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -328,6 +328,10 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(zoom_out_action)
         self.addToolBar(self.tool_bar)
 
+        self.focus_search_action = QShortcut(
+            QKeySequence('Ctrl+f'), self)
+        self.focus_search_action.activated.connect(self.focus_search_box)
+
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
     def closeEvent(self, event):
@@ -578,6 +582,10 @@ class MainWindow(QMainWindow):
         mv: MapView = self.centralWidget().map_tabs.currentWidget()
         if mv is not None:
             mv.zoom_out()
+
+    @Slot()
+    def focus_search_box(self):
+        self.centralWidget().searchbar.setFocus()
 
     @Slot()
     def save_box_positions(self):
