@@ -15,7 +15,7 @@ class CnaData:
     ''' The application data '''
 
     def __init__(self):
-        self.version = "cnapy-dev-0.1"
+        self.version = "cnapy-dev-0.5"
         self.format_version = 1
         self.unsaved = False
         self.project = ProjectData()
