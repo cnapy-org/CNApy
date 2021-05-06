@@ -4,10 +4,10 @@
 cd recipes/linux
 conda-build . -c conda-forge -c cnapy
 anaconda login
-anaconda upload -u cnapy -l test FILENAME
+anaconda upload -u cnapy FILENAME
 ```
 
-# Create an installer with constructor
+# Create an windows installer with constructor
 
 ```sh
 cd constructor/win
