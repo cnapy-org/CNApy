@@ -2,7 +2,7 @@
 
 ```sh
 cd recipes/linux
-conda-build . -c conda-forge -c bioconda
+conda-build . -c conda-forge
 anaconda login
 anaconda upload -u cnapy -l test FILENAME
 ```
