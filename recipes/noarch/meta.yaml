@@ -1,0 +1,49 @@
+{% set version = '0.0.5' %}
+
+package:
+  name: cnapy
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/cnapy-org/CNApy.git
+  git_rev: v{{ version }}
+
+requirements:
+  build:
+    - setuptools
+    - pip
+    - python=3.7
+  run:
+    - oct2py=5.2
+    - openjdk=8
+    - matplotlib-base
+    - pip
+    - python=3.7
+    - qtpy=1.9
+    - pyside2
+    - appdirs
+    - cobra=0.21
+    - qtconsole=5.0
+    - efmtool_link=0.0.2
+    - optlang_enumerator=0.0.2
+
+build:
+  noarch: python
+  number: 0  # NOTE: increment for new build/set to zero for new version
+  script:
+    - python setup.py install --single-version-externally-managed --record record.txt
+  entry_points:
+    - cnapy = cnapy.__main__:main_cnapy
+    - project_downloader = cnapy.project_downloader:main
+test:
+  imports:
+    - cnapy
+
+about:
+  home:  https://github.com/cnapy-org/CNApy
+  license: Apache 2
+  license_family: MIT
+  license_file: LICENSE
+  summary: A CellNetAnalyzer GUI in Python
+  doc_url: https://github.com/cnapy-org/CNApy
+  dev_url: https://github.com/cnapy-org/CNApy
