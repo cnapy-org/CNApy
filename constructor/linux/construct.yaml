@@ -5,9 +5,8 @@ ignore_duplicate_files: True
 
 channels:
   - http://repo.anaconda.com/pkgs/main/
-  - cnapy/label/test
+  - cnapy
   - conda-forge
-  - bioconda
 
 specs:
   - conda
