@@ -105,40 +105,27 @@ class EFMDialog(QDialog):
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
         scenario = {}
-        if self.constraints.checkState() == Qt.Checked:
+        if self.constraints.checkState() == Qt.Checked or self.flux_bounds.isChecked():
             onoff_str = ""
-            first = True
             for r in reac_id:
                 if r in self.appdata.project.scen_values.keys():
                     (vl, vu) = self.appdata.project.scen_values[r]
                     if vl == vu:
                         if vl > 0:
-                            if first:
-                                onoff_str = "NaN"  # efmtool does not support 1
-                                first = False
-                            else:
-                                onoff_str = onoff_str+", NaN"  # efmtool does not support 1
+                            onoff_str = onoff_str+" NaN"  # efmtool does not support 1
                         elif vl == 0:
-                            if first:
-                                scenario[r] = (0, 0)
-                                onoff_str = "0"
-                                first = False
-                            else:
-                                scenario[r] = (0, 0)
-                                onoff_str = onoff_str+", 0"
+                            scenario[r] = (0, 0)
+                            onoff_str = onoff_str+" 0"
                         else:
+                            onoff_str = onoff_str+" NaN"
                             print("WARN: negative value in scenario")
                     else:
+                        onoff_str = onoff_str+" NaN"
                         print("WARN: not fixed value in scenario")
                 else:
-                    if first:
-                        onoff_str = "NaN"
-                        first = False
-                    else:
-                        onoff_str = onoff_str+", NaN"
+                    onoff_str = onoff_str+" NaN"
 
             onoff_str = "reaconoff = ["+onoff_str+"];"
-            print(onoff_str)
             a = self.eng.eval(onoff_str,
                               nargout=0, stdout=self.out, stderr=self.err)
 
@@ -146,28 +133,26 @@ class EFMDialog(QDialog):
                               nargout=0, stdout=self.out, stderr=self.err)
 
         if self.flux_bounds.isChecked():
-            threshold = int(self.threshold.text())
-            print("TH", threshold)
+            threshold = float(self.threshold.text())
             lb_str = ""
             ub_str = ""
-            first = True
             for r in reac_id:
                 c_reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(
                     r)
-
-                vl = c_reaction.lower_bound
-                vu = c_reaction.upper_bound
+                if r in self.appdata.project.scen_values:
+                    (vl, vu) = self.appdata.project.scen_values[r]
+                else:
+                    vl = c_reaction.lower_bound
+                    vu = c_reaction.upper_bound
                 if vl <= -threshold:
                     vl = "NaN"
                 if vu >= threshold:
                     vu = "NaN"
-                if first:
-                    lb_str = str(vl)
-                    ub_str = str(vu)
-                    first = False
-                else:
-                    lb_str = lb_str+","+str(vl)
-                    ub_str = ub_str+","+str(vu)
+                if vl == 0 and vu == 0: # already in reaconoff, can be skipped here
+                    vl = "NaN"
+                    vu = "NaN"
+                lb_str = lb_str+" "+str(vl)
+                ub_str = ub_str+" "+str(vu)
 
             lb_str = "lb = ["+lb_str+"];"
             a = self.eng.eval(lb_str, nargout=0,
@@ -221,7 +206,7 @@ class EFMDialog(QDialog):
         if self.appdata.is_matlab_set():
             try:
                 a = self.eng.eval(
-                    "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
+                    "[ems, irrev_ems, ems_idx, ray] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
 
             except Exception:
                 output = io.StringIO()
@@ -235,26 +220,30 @@ class EFMDialog(QDialog):
             else:
                 ems = self.eng.workspace['ems']
                 idx = self.eng.workspace['ems_idx']
+                irreversible = numpy.squeeze(self.eng.workspace['irrev_ems'])
+                unbounded = numpy.squeeze(self.eng.workspace['ray'])
                 ems = numpy.array(ems)
-                self.result2ui(ems, idx, reac_id, scenario)
+                self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
 
                 self.accept()
         elif self.appdata.is_octave_ready():
             a = self.eng.eval(
-                "[ems, irrev_ems, ems_idx] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
+                "[ems, irrev_ems, ems_idx, ray] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
 
             ems = self.eng.pull('ems')
             idx = self.eng.pull('ems_idx')
+            irreversible = numpy.squeeze(self.eng.pull('irrev_ems'))
+            unbounded = numpy.squeeze(self.eng.pull('ray'))
 
-            self.result2ui(ems, idx, reac_id, scenario)
+            self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
 
-    def result2ui(self, ems, idx, reac_id, scenario):
+    def result2ui(self, ems, idx, reac_id, irreversible, unbounded, scenario):
         if len(ems) == 0:
             QMessageBox.information(self, 'No modes',
                                     'Modes have not been calculated or do not exist.')
         else:
             self.appdata.project.modes = FluxVectorContainer(
-                ems, [reac_id[int(i)-1] for i in idx[0]])
+                ems, [reac_id[int(i)-1] for i in idx[0]], irreversible, unbounded)
             self.centralwidget.mode_navigator.current = 0
             self.centralwidget.mode_navigator.scenario = scenario
             self.centralwidget.mode_navigator.title.setText("Mode Navigation")

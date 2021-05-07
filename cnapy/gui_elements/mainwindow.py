@@ -228,7 +228,7 @@ class MainWindow(QMainWindow):
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
         self.efm_action = QAction(
-            "Compute Elementary Flux Modes via CNA ...", self)
+            "Compute Elementary Flux Modes/Vectors via CNA ...", self)
         self.efm_action.triggered.connect(self.efm)
         self.efm_menu.addAction(self.efm_action)
 
