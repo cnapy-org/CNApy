@@ -45,11 +45,19 @@ class ModeNavigator(QWidget):
         self.next_button.clicked.connect(self.next)
         self.clear_button.clicked.connect(self.clear)
 
-        self.update()
-
     def update(self):
-        self.label.setText(str(self.current + 1) + "/" +
-                           str(len(self.appdata.project.modes)))
+        txt = str(self.current + 1) + "/" + str(len(self.appdata.project.modes))
+        if self.appdata.project.modes.irreversible.shape != ():
+            if self.appdata.project.modes.irreversible[self.current]:
+                txt = txt + " irreversible"
+            else:
+                txt = txt + " reversible"
+        if self.appdata.project.modes.unbounded.shape != ():
+            if self.appdata.project.modes.unbounded[self.current]:
+                txt = txt + " unbounded"
+            else:
+                txt = txt + " bounded"
+        self.label.setText(txt)
 
     def clear(self):
         self.appdata.project.modes.clear()

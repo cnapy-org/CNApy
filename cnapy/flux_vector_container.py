@@ -1,17 +1,28 @@
-# %%
 import os
 import numpy
 
 
 class FluxVectorContainer:
-    def __init__(self, matORfname, reac_id=None):
+    def __init__(self, matORfname, reac_id=None, irreversible=None, unbounded=None):
         if type(matORfname) is str:
             l = numpy.load(matORfname)  # actually has got a memmap option
             self.fv_mat = l['fv_mat']
             self.reac_id = l['reac_id']
+            self.irreversible = l['irreversible']
+            self.unbounded = l['unbounded']
         else:
-            self.fv_mat = matORfname  # each flux vector is a column in fv_mat
-            self.reac_id = reac_id  # corresponds to the rows of fv_mat
+            if reac_id is None:
+                raise TypeError('reac_id must be provided')
+            self.fv_mat = matORfname  # each flux vector is a row in fv_mat
+            self.reac_id = reac_id  # corresponds to the columns of fv_mat
+            if irreversible is None:
+                self.irreversible = numpy.array(0)
+            else:
+                self.irreversible = irreversible
+            if unbounded is None:
+                self.unbounded = numpy.array(0)
+            else:
+                self.unbounded = unbounded
 
     def __len__(self):
         return self.fv_mat.shape[0]
@@ -20,7 +31,8 @@ class FluxVectorContainer:
         return{self.reac_id[i]: float(self.fv_mat[idx, i]) for i in range(len(self.reac_id)) if self.fv_mat[idx, i] != 0}
 
     def save(self, fname):
-        numpy.savez_compressed(fname, fv_mat=self.fv_mat, reac_id=self.reac_id)
+        numpy.savez_compressed(fname, fv_mat=self.fv_mat, reac_id=self.reac_id, irreversible=self.irreversible,
+                               unbounded=self.unbounded)
 
     def clear(self):
         self.fv_mat = numpy.zeros((0, 0))
