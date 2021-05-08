@@ -3,6 +3,7 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
                             QWidget)
 
+from cnapy.flux_vector_container import FluxVectorContainer
 
 class ModeNavigator(QWidget):
     """A navigator widget"""
@@ -47,16 +48,17 @@ class ModeNavigator(QWidget):
 
     def update(self):
         txt = str(self.current + 1) + "/" + str(len(self.appdata.project.modes))
-        if self.appdata.project.modes.irreversible.shape != ():
-            if self.appdata.project.modes.irreversible[self.current]:
-                txt = txt + " irreversible"
-            else:
-                txt = txt + " reversible"
-        if self.appdata.project.modes.unbounded.shape != ():
-            if self.appdata.project.modes.unbounded[self.current]:
-                txt = txt + " unbounded"
-            else:
-                txt = txt + " bounded"
+        if isinstance(self.appdata.project.modes, FluxVectorContainer):
+            if self.appdata.project.modes.irreversible.shape != ():
+                if self.appdata.project.modes.irreversible[self.current]:
+                    txt = txt + " irreversible"
+                else:
+                    txt = txt + " reversible"
+            if self.appdata.project.modes.unbounded.shape != ():
+                if self.appdata.project.modes.unbounded[self.current]:
+                    txt = txt + " unbounded"
+                else:
+                    txt = txt + " bounded"
         self.label.setText(txt)
 
     def clear(self):
