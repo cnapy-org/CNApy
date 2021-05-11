@@ -337,6 +337,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self.checked_unsaved():
             event.accept()
+            del self.appdata.project.modes # releases the memory map file if this is a FluxVectorMemmap
         else:
             event.ignore()
 
@@ -402,6 +403,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def exit_app(self):
         if self.checked_unsaved():
+            del self.appdata.project.modes # releases the memory map file if this is a FluxVectorMemmap
             QApplication.quit()
 
     def set_current_filename(self, filename):

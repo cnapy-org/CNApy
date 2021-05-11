@@ -8,7 +8,7 @@ from cobra.util.array import create_stoichiometric_matrix
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
-from cnapy.flux_vector_container import FluxVectorMemmap
+from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool):
     stdf = create_stoichiometric_matrix(
@@ -40,6 +40,15 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
     else:
         ems = FluxVectorMemmap('efms.bin', reac_id,
                                 containing_temp_dir=work_dir)
+        del work_dir # lose this reference to the temporary directory to facilitate garbage collection
+        is_irrev_efm = numpy.any(ems.fv_mat[:, reversible == 0], axis=1)
+        rev_emfs_idx = numpy.nonzero(is_irrev_efm == False)[0]
+        if len(rev_emfs_idx) > 0: # reversible modes come in forward/backward pairs; delete one from each pair
+            del_idx = rev_emfs_idx[numpy.unique(ems.fv_mat[rev_emfs_idx, :] != 0., axis = 0, return_index=True)[1]]
+            is_irrev_efm = numpy.delete(is_irrev_efm, del_idx)
+            ems = FluxVectorContainer(numpy.delete(ems.fv_mat, del_idx, axis=0), reac_id=ems.reac_id, irreversible=is_irrev_efm)
+        else:
+            ems.irreversible = is_irrev_efm
         if len(irrev_backwards_idx) > 0:
             ems.fv_mat[:, irrev_backwards_idx] *= -1
 
