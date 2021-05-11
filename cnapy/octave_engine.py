@@ -1,11 +1,13 @@
+import tempfile
 
 try:
-    from oct2py import Oct2Py
+    from oct2py import Oct2Py # calls Oct2Py() in __init__ which creates a temporary directory that is not deleted
     from oct2py.utils import Oct2PyError
 
     class CNAoctaveEngine(Oct2Py):
         def __init__(self):
-            Oct2Py.__init__(self)
+            self.temp_dir_obj = tempfile.TemporaryDirectory() # for automatic cleanup
+            Oct2Py.__init__(self, temp_dir=self.temp_dir_obj.name)
 
         def start_cna(self, cna_path):
             self.cd(cna_path)
