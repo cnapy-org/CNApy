@@ -1,7 +1,7 @@
 # Create and upload a conda package
 
 ```sh
-cd recipes/linux
+cd recipes/noarch
 conda-build . -c conda-forge -c cnapy
 anaconda login
 anaconda upload -u cnapy FILENAME
