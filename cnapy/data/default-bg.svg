@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:osb="http://www.openswatchbook.org/uri/2009/osb"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="136.22037mm"
+   height="114.11849mm"
+   viewBox="0 0 482.67059 404.35686"
+   id="svg2"
+   version="1.1"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15, custom)"
+   sodipodi:docname="default-bg.svg">
+  <defs
+     id="defs4">
+    <rect
+       x="304.81447"
+       y="390.29669"
+       width="333.22512"
+       height="63.932724"
+       id="rect944" />
+    <rect
+       x="255.34653"
+       y="192.81126"
+       width="260.34973"
+       height="301.25251"
+       id="rect938" />
+    <linearGradient
+       id="linearGradient9673"
+       osb:paint="gradient">
+      <stop
+         style="stop-color:#b3ff80;stop-opacity:0.98032784;"
+         offset="0"
+         id="stop9675" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0;"
+         offset="1"
+         id="stop9677" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient9625"
+       osb:paint="solid">
+      <stop
+         style="stop-color:#b3ff80;stop-opacity:1;"
+         offset="0"
+         id="stop9627" />
+    </linearGradient>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.3232521"
+     inkscape:cx="185.54684"
+     inkscape:cy="143.2066"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="2560"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:document-rotation="0" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-209.61353,-138.6935)">
+    <g
+       aria-label="The map is not the territory."
+       transform="translate(-1.875)"
+       id="text936"
+       style="font-style:normal;font-weight:normal;font-size:37.5px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect938);opacity:0.4;fill:#000000;fill-opacity:1;stroke:none">
+      <path
+         d="m 264.8916,237.04883 v -2.58789 h 4.66309 v -30.95703 h -10.71778 v 5.68847 h -3.00293 v -8.59375 h 32.37305 v 8.59375 h -3.00293 v -5.68847 h -10.71777 v 30.95703 h 4.66308 v 2.58789 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path886" />
+      <path
+         d="m 290.74609,237.04883 v -2.58789 h 4.05274 v -32.8125 h -4.29688 v -2.58789 h 8.78907 v 16.65039 q 1.24511,-2.63672 3.22265,-3.97949 2.00195,-1.34278 4.63867,-1.34278 4.29688,0 6.32325,2.46582 2.02636,2.46582 2.02636,7.69043 v 13.91602 h 4.00391 v 2.58789 h -12.40234 v -2.58789 h 3.88183 v -12.5 q 0,-4.76074 -1.17187,-6.49414 -1.14746,-1.75782 -4.12598,-1.75782 -3.125,0 -4.76074,2.27051 -1.63574,2.27051 -1.63574,6.61621 v 11.86524 h 3.90625 v 2.58789 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path888" />
+      <path
+         d="m 347.99707,224.54883 h -19.36035 v 0.19531 q 0,5.24902 1.97754,7.93457 1.97754,2.66113 5.83496,2.66113 2.9541,0 4.83398,-1.53808 1.9043,-1.5625 2.66114,-4.61426 h 3.61328 q -1.07422,4.27246 -3.9795,6.4209 -2.88085,2.14844 -7.59277,2.14844 -5.68848,0 -9.15527,-3.73536 -3.44238,-3.75976 -3.44238,-9.96093 0,-6.15235 3.39355,-9.91211 3.39355,-3.75977 8.91113,-3.75977 5.88379,0 9.03321,3.6377 3.14941,3.61328 3.27148,10.52246 z m -5.29785,-2.58789 q -0.14649,-4.54102 -1.92871,-6.83594 -1.75781,-2.31934 -5.07813,-2.31934 -3.10058,0 -4.88281,2.31934 -1.78223,2.31934 -2.17285,6.83594 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path890" />
+      <path
+         d="m 392.28418,216.15039 q 1.29394,-2.85644 3.2959,-4.29687 2.02637,-1.46485 4.71191,-1.46485 4.07715,0 6.0791,2.53906 2.00196,2.51465 2.00196,7.61719 v 13.91602 h 4.05273 v 2.58789 h -12.45117 v -2.58789 h 3.90625 v -13.40332 q 0,-3.9795 -1.17188,-5.66407 -1.17187,-1.68457 -3.88183,-1.68457 -3.00293,0 -4.58985,2.27051 -1.5625,2.27051 -1.5625,6.61621 v 11.86524 h 3.90625 v 2.58789 h -12.30468 v -2.58789 h 3.90625 v -13.57422 q 0,-3.88184 -1.17188,-5.51758 -1.17187,-1.66016 -3.88183,-1.66016 -3.00293,0 -4.58985,2.27051 -1.5625,2.27051 -1.5625,6.61621 v 11.86524 h 3.90625 v 2.58789 h -12.45117 v -2.58789 h 4.05273 v -20.80078 h -4.29687 v -2.56348 h 8.78906 v 4.61426 q 1.24512,-2.58789 3.17383,-3.95508 1.92871,-1.36719 4.37012,-1.36719 3.02734,0 5.05371,1.51367 2.02637,1.48926 2.70996,4.24805 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path892" />
+      <path
+         d="m 433.69043,228.89453 v -5.49316 h -5.78613 q -3.34473,0 -4.98047,1.44043 -1.63574,1.44043 -1.63574,4.41894 0,2.70996 1.66015,4.29688 1.66016,1.58691 4.49219,1.58691 2.80762,0 4.5166,-1.7334 1.7334,-1.7334 1.7334,-4.5166 z m 4.49219,-8.05664 v 13.62305 h 4.0039 v 2.58789 h -8.49609 v -2.80762 q -1.48926,1.80664 -3.44238,2.66113 -1.95313,0.8545 -4.56543,0.8545 -4.32129,0 -6.86035,-2.29493 -2.53907,-2.29492 -2.53907,-6.20117 0,-4.02832 2.90528,-6.25 2.90527,-2.22168 8.20312,-2.22168 h 6.29883 v -1.78222 q 0,-2.95411 -1.80664,-4.56543 -1.78223,-1.63575 -5.0293,-1.63575 -2.68554,0 -4.27246,1.22071 -1.58691,1.2207 -1.97754,3.61328 h -2.31933 v -5.24903 q 2.34375,-1.00097 4.54101,-1.48925 2.22168,-0.5127 4.32129,-0.5127 5.39551,0 8.20313,2.68555 2.83203,2.66113 2.83203,7.76367 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path894" />
+      <path
+         d="m 453.85645,222.79102 v 2.56347 q 0,4.6875 1.78222,7.15332 1.80664,2.44141 5.22461,2.44141 3.44238,0 5.2002,-2.75879 1.78222,-2.75879 1.78222,-8.12988 0,-5.39551 -1.78222,-8.12989 -1.75782,-2.73437 -5.2002,-2.73437 -3.41797,0 -5.22461,2.46582 -1.78222,2.46582 -1.78222,7.12891 z m -4.49219,-9.08204 h -4.32129 v -2.6123 h 8.81348 v 4.05273 q 1.31835,-2.4414 3.34472,-3.58886 2.05078,-1.17188 5.05371,-1.17188 4.78516,0 7.8125,3.78418 3.02735,3.78418 3.02735,9.8877 0,6.10351 -3.02735,9.91211 -3.02734,3.78418 -7.8125,3.78418 -3.00293,0 -5.05371,-1.14747 -2.02637,-1.17187 -3.34472,-3.61328 v 11.84082 h 4.24804 v 2.61231 h -13.06152 v -2.61231 h 4.32129 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path896" />
+      <path
+         d="m 260.2041,265.54004 q 0,-1.12305 0.80567,-1.95313 0.83007,-0.83007 1.97753,-0.83007 1.12305,0 1.92872,0.83007 0.83007,0.83008 0.83007,1.95313 0,1.14746 -0.80566,1.95312 -0.80566,0.80567 -1.95313,0.80567 -1.14746,0 -1.97753,-0.80567 -0.80567,-0.80566 -0.80567,-1.95312 z m 5.73731,31.4209 h 4.24804 v 2.58789 h -13.03711 v -2.58789 h 4.29688 v -20.75196 h -4.29688 v -2.6123 h 8.78907 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path898" />
+      <path
+         d="m 274.14453,298.1084 v -6.05469 h 2.58789 q 0.0977,2.90527 1.80664,4.3457 1.7334,1.44043 5.10254,1.44043 3.02735,0 4.61426,-1.12304 1.58691,-1.14746 1.58691,-3.32032 0,-1.70898 -1.17187,-2.75878 -1.14746,-1.04981 -4.88281,-2.2461 l -3.24707,-1.09863 q -3.34473,-1.07422 -4.8584,-2.68555 -1.48926,-1.61133 -1.48926,-4.10156 0,-3.56445 2.6123,-5.59082 2.61231,-2.02637 7.22657,-2.02637 2.05078,0 4.32129,0.53711 2.2705,0.53711 4.6875,1.5625 v 5.66406 h -2.5879 q -0.0976,-2.51464 -1.75781,-3.93066 -1.66015,-1.41602 -4.5166,-1.41602 -2.83203,0 -4.29687,1.00098 -1.44043,1.00098 -1.44043,3.00293 0,1.63574 1.09863,2.63672 1.09863,0.97656 4.39453,2.00195 l 3.56445,1.09863 q 3.68653,1.14747 5.29785,2.88086 1.63575,1.70899 1.63575,4.41895 0,3.68652 -2.83203,5.81055 -2.80762,2.09961 -7.76368,2.09961 -2.51464,0 -4.90722,-0.53711 -2.39258,-0.53711 -4.78516,-1.61133 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path900" />
+      <path
+         d="m 314.94043,299.54883 v -2.58789 h 4.05273 v -20.75196 h -4.29687 v -2.6123 h 8.78906 v 4.61426 q 1.24512,-2.63672 3.22266,-3.97949 2.00195,-1.34278 4.63867,-1.34278 4.29687,0 6.32324,2.46582 2.02637,2.46582 2.02637,7.69043 v 13.91602 h 4.00391 v 2.58789 h -12.40235 v -2.58789 h 3.88184 v -12.5 q 0,-4.76074 -1.17188,-6.51856 -1.17187,-1.78222 -4.12597,-1.78222 -3.125,0 -4.76075,2.29492 -1.63574,2.27051 -1.63574,6.64062 v 11.86524 h 3.90625 v 2.58789 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path902" />
+      <path
+         d="m 360.13086,297.83984 q 3.61328,0 5.44434,-2.85644 1.85546,-2.85645 1.85546,-8.42285 0,-5.56641 -1.85546,-8.39844 -1.83106,-2.85645 -5.44434,-2.85645 -3.61328,0 -5.46875,2.85645 -1.83106,2.83203 -1.83106,8.39844 0,5.5664 1.85547,8.42285 1.85547,2.85644 5.44434,2.85644 z m 0,2.417 q -5.66406,0 -9.10645,-3.73536 -3.44238,-3.75976 -3.44238,-9.96093 0,-6.20118 3.41797,-9.93653 3.44238,-3.73535 9.13086,-3.73535 5.68848,0 9.10644,3.73535 3.44239,3.73535 3.44239,9.93653 0,6.20117 -3.44239,9.96093 -3.41796,3.73536 -9.10644,3.73536 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path904" />
+      <path
+         d="m 380.58984,276.20898 h -3.95507 v -2.6123 h 3.95507 v -8.05664 h 4.51661 v 8.05664 h 8.44726 v 2.6123 h -8.44726 v 16.4795 q 0,3.29589 0.63476,4.22363 0.63477,0.92773 2.34375,0.92773 1.75781,0 2.56348,-1.02539 0.80566,-1.0498 0.85449,-3.36914 h 3.39355 q -0.19531,3.54004 -1.92871,5.17578 -1.7334,1.63575 -5.27343,1.63575 -3.88184,0 -5.49317,-1.70899 -1.61133,-1.7334 -1.61133,-5.85937 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path906" />
+      <path
+         d="m 416.57617,276.20898 h -3.95508 v -2.6123 h 3.95508 v -8.05664 h 4.5166 v 8.05664 h 8.44727 v 2.6123 h -8.44727 v 16.4795 q 0,3.29589 0.63477,4.22363 0.63476,0.92773 2.34375,0.92773 1.75781,0 2.56348,-1.02539 0.80566,-1.0498 0.85449,-3.36914 h 3.39355 q -0.19531,3.54004 -1.92871,5.17578 -1.7334,1.63575 -5.27344,1.63575 -3.88183,0 -5.49316,-1.70899 -1.61133,-1.7334 -1.61133,-5.85937 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path908" />
+      <path
+         d="m 433.32422,299.54883 v -2.58789 h 4.05273 v -32.8125 h -4.29687 v -2.58789 h 8.78906 v 16.65039 q 1.24512,-2.63672 3.22266,-3.97949 2.00195,-1.34278 4.63867,-1.34278 4.29687,0 6.32324,2.46582 2.02637,2.46582 2.02637,7.69043 v 13.91602 h 4.0039 v 2.58789 h -12.40234 v -2.58789 h 3.88184 v -12.5 q 0,-4.76074 -1.17188,-6.49414 -1.14746,-1.75782 -4.12598,-1.75782 -3.125,0 -4.76074,2.27051 -1.63574,2.27051 -1.63574,6.61621 v 11.86524 h 3.90625 v 2.58789 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path910" />
+      <path
+         d="m 490.5752,287.04883 h -19.36036 v 0.19531 q 0,5.24902 1.97754,7.93457 1.97754,2.66113 5.83496,2.66113 2.95411,0 4.83399,-1.53808 1.90429,-1.5625 2.66113,-4.61426 h 3.61328 q -1.07422,4.27246 -3.97949,6.4209 -2.88086,2.14844 -7.59277,2.14844 -5.68848,0 -9.15528,-3.73536 -3.44238,-3.75976 -3.44238,-9.96093 0,-6.15235 3.39355,-9.91211 3.39356,-3.75977 8.91114,-3.75977 5.88379,0 9.0332,3.6377 3.14941,3.61328 3.27149,10.52246 z m -5.29786,-2.58789 q -0.14648,-4.54102 -1.92871,-6.83594 -1.75781,-2.31934 -5.07812,-2.31934 -3.10059,0 -4.88281,2.31934 -1.78223,2.31934 -2.17286,6.83594 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path912" />
+      <path
+         d="m 260.74121,338.70898 h -3.95508 v -2.6123 h 3.95508 v -8.05664 h 4.5166 v 8.05664 h 8.44727 v 2.6123 h -8.44727 v 16.4795 q 0,3.29589 0.63477,4.22363 0.63476,0.92773 2.34375,0.92773 1.75781,0 2.56347,-1.02539 0.80567,-1.0498 0.8545,-3.36914 h 3.39355 q -0.19531,3.54004 -1.92871,5.17578 -1.7334,1.63575 -5.27344,1.63575 -3.88183,0 -5.49316,-1.70899 -1.61133,-1.7334 -1.61133,-5.85937 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path914" />
+      <path
+         d="m 302.53809,349.54883 h -19.36036 v 0.19531 q 0,5.24902 1.97754,7.93457 1.97754,2.66113 5.83496,2.66113 2.95411,0 4.83399,-1.53808 1.9043,-1.5625 2.66113,-4.61426 h 3.61328 q -1.07422,4.27246 -3.97949,6.4209 -2.88086,2.14844 -7.59277,2.14844 -5.68848,0 -9.15528,-3.73536 -3.44238,-3.75976 -3.44238,-9.96093 0,-6.15235 3.39356,-9.91211 3.39355,-3.75977 8.91113,-3.75977 5.88379,0 9.0332,3.6377 3.14942,3.61328 3.27149,10.52246 z m -5.29786,-2.58789 q -0.14648,-4.54102 -1.92871,-6.83594 -1.75781,-2.31934 -5.07812,-2.31934 -3.10059,0 -4.88281,2.31934 -1.78223,2.31934 -2.17286,6.83594 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path916" />
+      <path
+         d="m 328.92969,336.04785 v 6.49414 h -2.58789 q -0.12207,-1.92871 -1.07422,-2.88086 -0.95215,-0.95215 -2.78321,-0.95215 -3.32031,0 -5.10253,2.29493 -1.75782,2.29492 -1.75782,6.59179 v 11.86524 h 5.2002 v 2.58789 H 307.0791 v -2.58789 h 4.05274 v -20.80078 h -4.29688 v -2.56348 h 8.78906 v 4.61426 q 1.31836,-2.70996 3.39356,-4.00391 2.07519,-1.31836 5.05371,-1.31836 1.09863,0 2.29492,0.1709 1.2207,0.1709 2.56348,0.48828 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path918" />
+      <path
+         d="m 352.83105,336.04785 v 6.49414 h -2.58789 q -0.12207,-1.92871 -1.07421,-2.88086 -0.95215,-0.95215 -2.78321,-0.95215 -3.32031,0 -5.10254,2.29493 -1.75781,2.29492 -1.75781,6.59179 v 11.86524 h 5.2002 v 2.58789 h -13.74512 v -2.58789 h 4.05273 v -20.80078 h -4.29687 v -2.56348 h 8.78906 v 4.61426 q 1.31836,-2.70996 3.39356,-4.00391 2.07519,-1.31836 5.05371,-1.31836 1.09863,0 2.29492,0.1709 1.2207,0.1709 2.56347,0.48828 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path920" />
+      <path
+         d="m 357.68945,328.04004 q 0,-1.12305 0.80567,-1.95313 0.83008,-0.83007 1.97754,-0.83007 1.12304,0 1.92871,0.83007 0.83008,0.83008 0.83008,1.95313 0,1.14746 -0.80567,1.95312 -0.80566,0.80567 -1.95312,0.80567 -1.14746,0 -1.97754,-0.80567 -0.80567,-0.80566 -0.80567,-1.95312 z m 5.73731,31.4209 h 4.24804 v 2.58789 h -13.0371 v -2.58789 h 4.29687 v -20.75196 h -4.29687 v -2.6123 h 8.78906 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path922" />
+      <path
+         d="m 374.21777,338.70898 h -3.95507 v -2.6123 h 3.95507 v -8.05664 h 4.5166 v 8.05664 h 8.44727 v 2.6123 h -8.44727 v 16.4795 q 0,3.29589 0.63477,4.22363 0.63477,0.92773 2.34375,0.92773 1.75781,0 2.56348,-1.02539 0.80566,-1.0498 0.85449,-3.36914 h 3.39355 q -0.19531,3.54004 -1.92871,5.17578 -1.7334,1.63575 -5.27343,1.63575 -3.88184,0 -5.49317,-1.70899 -1.61133,-1.7334 -1.61133,-5.85937 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path924" />
+      <path
+         d="m 403.9541,360.33984 q 3.61328,0 5.44434,-2.85644 1.85547,-2.85645 1.85547,-8.42285 0,-5.56641 -1.85547,-8.39844 -1.83106,-2.85645 -5.44434,-2.85645 -3.61328,0 -5.46875,2.85645 -1.83105,2.83203 -1.83105,8.39844 0,5.5664 1.85547,8.42285 1.85546,2.85644 5.44433,2.85644 z m 0,2.417 q -5.66406,0 -9.10644,-3.73536 -3.44239,-3.75976 -3.44239,-9.96093 0,-6.20118 3.41797,-9.93653 3.44238,-3.73535 9.13086,-3.73535 5.68848,0 9.10645,3.73535 3.44238,3.73535 3.44238,9.93653 0,6.20117 -3.44238,9.96093 -3.41797,3.73536 -9.10645,3.73536 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path926" />
+      <path
+         d="m 442.91895,336.04785 v 6.49414 h -2.5879 q -0.12207,-1.92871 -1.07421,-2.88086 -0.95215,-0.95215 -2.78321,-0.95215 -3.32031,0 -5.10254,2.29493 -1.75781,2.29492 -1.75781,6.59179 v 11.86524 h 5.2002 v 2.58789 h -13.74512 v -2.58789 h 4.05273 v -20.80078 h -4.29687 v -2.56348 h 8.78906 v 4.61426 q 1.31836,-2.70996 3.39356,-4.00391 2.07519,-1.31836 5.05371,-1.31836 1.09863,0 2.29492,0.1709 1.2207,0.1709 2.56348,0.48828 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path928" />
+      <path
+         d="m 453.70996,366.80957 1.70899,-4.32129 -9.69239,-23.7793 h -2.9541 v -2.6123 h 11.93848 v 2.6123 h -4.15039 l 7.2998,17.84668 7.29981,-17.84668 h -3.88184 v -2.6123 h 9.74121 v 2.6123 h -2.90527 l -11.88965,29.19922 q -1.2207,3.02735 -2.70996,4.12598 -1.48926,1.12305 -4.19922,1.12305 -1.14746,0 -2.36816,-0.19532 -1.19629,-0.19531 -2.417,-0.56152 v -4.95605 h 2.29493 q 0.14648,1.66015 0.83007,2.36816 0.70801,0.73242 2.17285,0.73242 1.34278,0 2.14844,-0.75683 0.83008,-0.73243 1.7334,-2.97852 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path930" />
+      <path
+         d="m 469.2373,359.50977 q 0,-1.36719 0.92774,-2.31934 0.92773,-0.95215 2.31933,-0.95215 1.34278,0 2.29493,0.95215 0.95215,0.95215 0.95215,2.31934 0,1.34277 -0.95215,2.29492 -0.95215,0.95215 -2.29493,0.95215 -1.3916,0 -2.31933,-0.92774 -0.92774,-0.95215 -0.92774,-2.31933 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:50px;font-family:'DejaVu Serif';-inkscape-font-specification:'DejaVu Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path932" />
+    </g>
+    <g
+       aria-label="Alfred Korzybski"
+       transform="translate(80.009854,11.578804)"
+       id="text942"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;line-height:1.25;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect944);opacity:0.4;fill:#000000;fill-opacity:1;stroke:none">
+      <path
+         d="m 330.43445,422.39188 h -9.275 v -1.82 h 2.835 l -2.135,-5.60001 h -10.745 l -2.135,5.60001 h 2.8 v 1.82 h -7.175 v -1.82 h 2.24 l 9.1,-23.695 h 2.87 l 9.1,23.695 h 2.52 z m -9.24,-9.24 -4.69,-12.145 -4.69,12.145 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path855" />
+      <path
+         d="m 340.23439,422.39188 h -9.135 v -1.82 h 3.01 v -22.96 h -3.01 v -1.82001 h 6.16 v 24.78001 h 2.975 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path857" />
+      <path
+         d="m 356.29933,400.09687 h -1.645 q 0,-1.29499 -0.735,-1.95999 -0.665,-0.66501 -2.065,-0.66501 -1.75,0 -2.485,0.98001 -0.7,0.98 -0.7,3.43 v 2.34499 h 5.075 v 1.82 h -5.075 v 14.52501 h 4.025 v 1.82 h -10.185 v -1.82 h 3.01 v -14.52501 h -3.01 v -1.82 h 3.01 v -2.27499 q 0,-3.045 1.575,-4.62 1.61,-1.54001 4.655,-1.54001 1.155,0 2.31,0.21001 1.19,0.21 2.24,0.63 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path859" />
+      <path
+         d="m 370.9293,408.74188 h -1.82 q -0.035,-1.33001 -0.735,-2.03 -0.665,-0.66501 -1.96,-0.66501 -2.345,0 -3.535,1.61001 -1.26,1.645 -1.26,4.62 v 8.295 h 3.64 v 1.82 h -9.625 v -1.82 h 2.835 v -14.56 h -3.01 v -1.78501 h 6.16 v 3.22001 q 0.91,-1.89 2.38,-2.8 1.435,-0.91 3.535,-0.91 0.77,0 1.61,0.105 l 1.785,0.35 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path861" />
+      <path
+         d="m 386.18925,411.82188 q -0.105,-3.15001 -1.33,-4.795 -1.26,-1.61001 -3.57,-1.61001 -2.205,0 -3.43,1.64501 -1.26,1.60999 -1.505,4.76 z m 3.71,1.82 h -13.545 v 0.14 q 0,3.71 1.365,5.53 1.4,1.89 4.095,1.89 2.1,0 3.395,-1.085 1.33,-1.12 1.855,-3.22 h 2.52 q -0.735,2.975 -2.765,4.48 -2.03,1.505 -5.32,1.505 -3.99,0 -6.405,-2.625 -2.415,-2.625 -2.415,-6.96501 0,-4.26999 2.38,-6.92999 2.345,-2.625 6.23,-2.625 4.13,0 6.335,2.55499 2.24,2.555 2.275,7.35001 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path863" />
+      <path
+         d="m 406.83923,414.20188 v -1.78501 q 0,-3.21999 -1.26,-5.005 -1.295,-1.71499 -3.64,-1.71499 -2.415,0 -3.675,1.925 -1.225,1.92499 -1.225,5.66999 0,3.71001 1.225,5.67001 1.225,1.95999 3.675,1.95999 2.38,0 3.64,-1.71499 1.26,-1.715 1.26,-5.005 z m 6.16,8.19 h -6.16 v -2.835 q -0.875,1.715 -2.345,2.52 -1.435,0.805 -3.535,0.805 -3.36,0 -5.495,-2.66001 -2.1,-2.65999 -2.1,-6.93 0,-4.26999 2.1,-6.92999 2.17,-2.625 5.495,-2.625 2.1,0 3.535,0.80499 1.47,0.805 2.345,2.52001 v -9.45 h -2.975 v -1.82001 h 6.125 v 24.78001 h 3.01 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path865" />
+      <path
+         d="m 451.77919,422.39188 h -5.915 l -12.11,-12.11 v 10.29 h 3.255 v 1.82 h -9.975 v -1.82 h 3.255 v -21.875 h -3.255 v -1.82 h 9.975 v 1.82 h -3.255 v 9.65999 l 10.99,-9.65999 h -2.765 v -1.82 h 8.47 v 1.82 h -2.87 l -10.955,9.625 12.25,12.25 h 2.905 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path867" />
+      <path
+         d="m 470.57418,413.29187 q 0,4.305 -2.38,6.96501 -2.415,2.625 -6.405,2.625 -3.955,0 -6.37,-2.625 -2.415,-2.625 -2.415,-6.96501 0,-4.33999 2.38,-6.92999 2.415,-2.625 6.405,-2.625 3.99,0 6.405,2.625 2.38,2.59 2.38,6.92999 z m -3.675,0 q 0,-3.91999 -1.295,-5.88 -1.33,-1.995 -3.815,-1.995 -2.485,0 -3.815,1.995 -1.295,1.96001 -1.295,5.88 0,3.92001 1.295,5.88 1.295,2.03001 3.815,2.03001 2.485,0 3.815,-1.995 1.295,-1.96 1.295,-5.91501 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path869" />
+      <path
+         d="m 489.05416,408.74188 h -1.82 q -0.035,-1.33001 -0.735,-2.03 -0.665,-0.66501 -1.96,-0.66501 -2.345,0 -3.535,1.61001 -1.26,1.645 -1.26,4.62 v 8.295 h 3.64 v 1.82 h -9.625 v -1.82 h 2.835 v -14.56 h -3.01 v -1.78501 h 6.16 v 3.22001 q 0.91,-1.89 2.38,-2.8 1.435,-0.91 3.535,-0.91 0.77,0 1.61,0.105 l 1.785,0.35 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path871" />
+      <path
+         d="m 506.20412,422.39188 h -15.75 v -1.47001 l 11.375,-14.875 h -8.995 v 3.15001 h -1.82 v -4.97001 h 14.875 v 1.47001 l -11.375,14.875 h 9.87 v -3.29 h 1.82 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path873" />
+      <path
+         d="m 527.13408,406.04687 h -2.03 l -8.33,20.44001 q -0.805,2.1 -1.89,2.905 -1.015,0.76999 -2.94,0.76999 -0.91,0 -1.645,-0.13999 -1.12,-0.21 -1.715,-0.385 v -3.46501 h 1.61 q 0.105,1.12 0.595,1.68 0.49,0.49001 1.505,0.49001 0.91,0 1.54,-0.525 0.595,-0.59501 1.19,-2.1 l 1.19,-3.01 -6.79,-16.66001 h -2.065 v -1.82 h 8.365 v 1.82 h -2.905 l 5.11,12.495 5.11,-12.495 h -2.73 v -1.82 h 6.825 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path875" />
+      <path
+         d="m 542.95406,418.99688 q 1.225,-1.96001 1.225,-5.70501 0,-3.745 -1.225,-5.66999 -1.26,-1.925 -3.675,-1.925 -2.345,0 -3.64,1.71499 -1.26,1.78501 -1.26,5.005 v 1.78501 q 0,3.29 1.26,5.005 1.26,1.71499 3.64,1.71499 2.415,0 3.675,-1.92499 z m 2.8,-12.635 q 2.1,2.66 2.1,6.92999 0,4.27001 -2.1,6.93 -2.135,2.66001 -5.495,2.66001 -2.1,0 -3.535,-0.805 -1.47,-0.805 -2.345,-2.52 v 2.835 h -6.16 v -1.82 h 3.01 v -22.96 h -3.01 v -1.82001 h 6.16 v 11.27001 q 0.875,-1.71501 2.345,-2.52001 1.435,-0.80499 3.535,-0.80499 3.36,0 5.495,2.625 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path877" />
+      <path
+         d="m 565.77403,417.35187 q 0,2.59001 -1.96,4.06 -1.995,1.47001 -5.46,1.47001 -1.68,0 -3.43,-0.385 -1.61,-0.35 -3.36,-1.12 v -4.235 h 1.82 q 0.035,1.995 1.26,3.045 1.295,1.015 3.57,1.015 2.135,0 3.22,-0.805 1.12,-0.77 1.12,-2.31 0,-1.19 -0.805,-1.92501 -0.77,-0.73499 -3.43,-1.57499 l -2.275,-0.77 q -2.31,-0.735 -3.395,-1.855 -1.05,-1.155 -1.05,-2.905 0,-2.555 1.855,-3.88501 1.75,-1.43499 5.04,-1.43499 1.575,0 3.01,0.385 1.47,0.28 3.29,1.085 v 3.95499 h -1.82 q -0.07,-1.78499 -1.225,-2.72999 -1.12,-1.01501 -3.15,-1.01501 -1.995,0 -3.01,0.70001 -1.015,0.7 -1.015,2.1 0,1.12 0.77,1.855 0.875,0.7 3.08,1.39999 l 2.485,0.77001 q 2.625,0.80499 3.745,2.03 1.12,1.19 1.12,3.07999 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path879" />
+      <path
+         d="m 589.01399,422.39188 h -8.96 v -1.82 h 2.59 l -5.425,-7.455 -2.485,2.31 v 5.145 h 2.835 v 1.82 h -8.82 v -1.82 h 2.835 v -22.96 h -3.01 v -1.82001 h 6.16 v 17.32501 l 7.665,-7.07001 h -2.625 v -1.82 h 8.225 v 1.82 h -3.115 l -5.39,5.00501 6.895,9.52 h 2.625 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path881" />
+      <path
+         d="m 599.12898,422.39188 h -9.135 v -1.82 h 3.01 v -14.52501 h -3.01 v -1.82 h 6.16 v 16.34501 h 2.975 z m -3.115,-23.8 q 0,0.805 -0.56,1.365 -0.56,0.56 -1.365,0.56 -0.84,0 -1.365,-0.56 -0.595,-0.56 -0.595,-1.365 0,-0.80501 0.595,-1.36501 0.525,-0.59499 1.365,-0.59499 0.735,0 1.365,0.56 0.56,0.66499 0.56,1.4 z"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal"
+         id="path883" />
+    </g>
+  </g>
+</svg>
