@@ -44,6 +44,6 @@ about:
   license: Apache 2
   license_family: MIT
   license_file: LICENSE
-  summary: A CellNetAnalyzer GUI in Python
+  summary: An integrated environment for metabolic model analysis
   doc_url: https://github.com/cnapy-org/CNApy
   dev_url: https://github.com/cnapy-org/CNApy
