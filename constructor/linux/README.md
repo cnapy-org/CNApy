@@ -1,4 +1,4 @@
-# CNApy - A CellNetAnalyzer GUI in Python
+# CNApy - An integrated environment for metabolic model analysis
 
 ## How to run a script in the CNApy terminal
 
