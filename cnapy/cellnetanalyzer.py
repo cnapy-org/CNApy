@@ -26,6 +26,7 @@ from cnapy.cnadata import CnaData
 from cnapy.gui_elements.mainwindow import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
 
+
 class CellNetAnalyzer:
     '''The CellNetAnalyzer class'''
 
@@ -166,13 +167,14 @@ class CellNetAnalyzer:
             try:
                 cobra.Configuration().solver = config_parser.get('cobrapy-config', 'solver')
             except Exception as e:
-                print("Cannot set solver from cobrapy-config.txt file because:", e, 
-                        "\nReverting solver to COBRApy base setting.")
+                print("Cannot set solver from cobrapy-config.txt file because:", e,
+                      "\nReverting solver to COBRApy base setting.")
             try:
-                cobra.Configuration().processes = int(config_parser.get('cobrapy-config', 'processes'))
+                cobra.Configuration().processes = int(
+                    config_parser.get('cobrapy-config', 'processes'))
             except Exception as e:
-                print("Cannot set number of processes from cobrapy-config.txt file because:", e, 
-                        "\nReverting number of processes to COBRApy base setting.")
+                print("Cannot set number of processes from cobrapy-config.txt file because:", e,
+                      "\nReverting number of processes to COBRApy base setting.")
             try:
                 val = float(config_parser.get('cobrapy-config', 'tolerance'))
                 if 1e-9 <= val <= 0.1:

@@ -1,4 +1,6 @@
-# CNApy - An integrated environment for metabolic model analysis
+# CNApy 
+
+## An integrated environment for metabolic model analysis
 
 ![CNApy screenshot](screenshot.png)
 
