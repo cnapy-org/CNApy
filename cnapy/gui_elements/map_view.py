@@ -25,7 +25,7 @@ class MapView(QGraphicsView):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
-        palette.setColor(QPalette.Base, Qt.white)
+        # palette.setColor(QPalette.Base, Qt.white)
         self.setPalette(palette)
 
         self.appdata = appdata
