@@ -1,4 +1,5 @@
 """The PyNetAnalyzer map view"""
+import time
 import math
 from ast import literal_eval as make_tuple
 from math import isclose
@@ -169,16 +170,24 @@ class MapView(QGraphicsView):
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
         y = self.appdata.project.maps[self.name]["boxes"][reaction][1]
         self.centerOn(x, y)
+        self.zoom_in_reaction()
+
+    def zoom_in_reaction(self):
+
+        bg_size = self.appdata.project.maps[self.name]["bg-size"]
+        print("zoom:", self._zoom, "bg-size:", bg_size)
+        x = (INCREASE_FACTOR ** self._zoom)/bg_size
+        while x < 1:
+            x = (INCREASE_FACTOR ** self._zoom)/bg_size
+            self._zoom += 1
+            self.appdata.project.maps[self.name]["zoom"] = self._zoom
+            self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
 
     def highlight_reaction(self, string):
-        # hide other boxes
-        # for id in self.reaction_boxes:
-        #     self.reaction_boxes[id].item.setHidden(True)
-
         treffer = self.reaction_boxes[string]
         treffer.item.setHidden(False)
-
         treffer.set_color(Qt.magenta)
+        treffer.item.setFocus()
 
     def update(self):
         self.scene.clear()
@@ -375,7 +384,8 @@ class ReactionBox(QGraphicsItem):
 
     def set_color(self, color: QColor):
         palette = self.item.palette()
-        palette.setColor(QPalette.Base, color)
+        role = self.item.backgroundRole()
+        palette.setColor(role, color)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
