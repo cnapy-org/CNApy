@@ -331,7 +331,7 @@ class ReactionBox(QGraphicsItem):
             else:
                 self.set_color(self.map.appdata.comp_color)
         else:
-            self.set_color(Qt.magenta)
+            self.set_color(self.map.appdata.scen_color_bad)
 
         # TODO: actually I want to repaint
         # self.map.update()
@@ -379,7 +379,7 @@ class ReactionBox(QGraphicsItem):
                     else:
                         self.set_color(self.map.appdata.special_color_2)
         else:
-            self.set_color(Qt.magenta)
+            self.set_color(self.map.appdata.scen_color_bad)
 
     def set_color(self, color: QColor):
         palette = self.item.palette()
@@ -399,7 +399,7 @@ class ReactionBox(QGraphicsItem):
             painter.setPen(pen)
             pen.setWidth(4)
             painter.setPen(pen)
-            painter.drawRect(0, 0, 80, 33)
+            painter.drawRect(0-2, 0-2, 80+4, 33+5)
             painter.setBrush(self.map.appdata.scen_color_good)
         else:
             painter.setPen(Qt.darkGray)
