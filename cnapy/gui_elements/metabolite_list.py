@@ -7,14 +7,14 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 
 
 class MetaboliteList(QWidget):
     """A list of metabolites"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QWidget.__init__(self)
         self.appdata = appdata
         self.last_selected = None

@@ -1,13 +1,13 @@
 """The in out flux dialog"""
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel,
                             QPushButton, QVBoxLayout, QComboBox)
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 
 class InOutFluxDialog(QDialog):
     """A dialog to plot in out fluxes on a metabolite"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QDialog.__init__(self)
         self.setWindowTitle("Compute in/out fluxes")
 

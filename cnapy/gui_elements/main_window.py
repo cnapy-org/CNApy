@@ -17,9 +17,9 @@ from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
                             QMainWindow, QMessageBox, QToolBar, QShortcut)
 
-from cnapy.cnadata import CnaData, ProjectData
+from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
-from cnapy.gui_elements.centralwidget import CentralWidget
+from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
@@ -38,7 +38,7 @@ from cnapy.legacy import try_cna
 class MainWindow(QMainWindow):
     """The cnapy main window"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
@@ -337,7 +337,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self.checked_unsaved():
             event.accept()
-            del self.appdata.project.modes # releases the memory map file if this is a FluxVectorMemmap
+            # releases the memory map file if this is a FluxVectorMemmap
+            del self.appdata.project.modes
         else:
             event.ignore()
 
@@ -403,7 +404,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def exit_app(self):
         if self.checked_unsaved():
-            del self.appdata.project.modes # releases the memory map file if this is a FluxVectorMemmap
+            # releases the memory map file if this is a FluxVectorMemmap
+            del self.appdata.project.modes
             QApplication.quit()
 
     def set_current_filename(self, filename):

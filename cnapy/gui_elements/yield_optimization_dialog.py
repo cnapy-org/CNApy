@@ -8,8 +8,8 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
-from cnapy.cnadata import CnaData
-from cnapy.gui_elements.centralwidget import CentralWidget
+from cnapy.appdata import AppData
+from cnapy.gui_elements.central_widget import CentralWidget
 
 
 class CompleterLineEdit(QLineEdit):
@@ -49,12 +49,12 @@ class CompleterLineEdit(QLineEdit):
 class YieldOptimizationDialog(QDialog):
     """A dialog to perform yield optimization"""
 
-    def __init__(self, appdata: CnaData, centralwidget: CentralWidget):
+    def __init__(self, appdata: AppData, central_widget: CentralWidget):
         QDialog.__init__(self)
         self.setWindowTitle("Yield optimization")
 
         self.appdata = appdata
-        self.centralwidget = centralwidget
+        self.central_widget = central_widget
         self.eng = appdata.engine
 
         self.linear_re = re.compile(
@@ -273,7 +273,7 @@ class YieldOptimizationDialog(QDialog):
                                 float(val), float(val))
                             idx = idx+1
 
-                        self.centralwidget.update()
+                        self.central_widget.update()
 
             elif self.appdata.is_octave_ready():
                 a = self.eng.eval(
@@ -298,6 +298,6 @@ class YieldOptimizationDialog(QDialog):
                         self.appdata.project.comp_values[r] = (
                             float(val), float(val))
                         idx = idx+1
-                    self.centralwidget.update()
+                    self.central_widget.update()
 
         self.setCursor(Qt.ArrowCursor)

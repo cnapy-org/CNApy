@@ -12,18 +12,18 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
 import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 import cobra
 from cobra.util.solver import interface_to_str
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 
 class MCSDialog(QDialog):
     """A dialog to perform minimal cut set computation"""
 
-    def __init__(self, appdata: CnaData, centralwidget):
+    def __init__(self, appdata: AppData, central_widget):
         QDialog.__init__(self)
         self.setWindowTitle("Minimal Cut Sets Computation")
 
         self.appdata = appdata
-        self.centralwidget = centralwidget
+        self.central_widget = central_widget
         self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
@@ -480,12 +480,12 @@ class MCSDialog(QDialog):
                 current_mcs[reaction] = c_value
             omcs.append(current_mcs)
             self.appdata.project.modes = omcs
-            self.centralwidget.mode_navigator.current = 0
+            self.central_widget.mode_navigator.current = 0
             QMessageBox.information(self, 'Cut sets found',
                                           str(len(omcs))+' Cut sets have been calculated.')
 
-        self.centralwidget.update_mode()
-        self.centralwidget.mode_navigator.title.setText("MCS Navigation")
+        self.central_widget.update_mode()
+        self.central_widget.mode_navigator.title.setText("MCS Navigation")
 
         self.setCursor(Qt.ArrowCursor)
 
@@ -585,9 +585,9 @@ class MCSDialog(QDialog):
 
         omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
         self.appdata.project.modes = omcs
-        self.centralwidget.mode_navigator.current = 0
+        self.central_widget.mode_navigator.current = 0
         QMessageBox.information(self, 'Cut sets found',
                                       str(len(omcs))+' Cut sets have been calculated.')
 
-        self.centralwidget.update_mode()
-        self.centralwidget.mode_navigator.title.setText("MCS Navigation")
+        self.central_widget.update_mode()
+        self.central_widget.mode_navigator.title.setText("MCS Navigation")

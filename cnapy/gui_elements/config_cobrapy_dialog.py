@@ -12,12 +12,13 @@ from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
 import cnapy.resources
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
+
 
 class ConfigCobrapyDialog(QDialog):
     """A dialog to set values in cobrapy-config.txt"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QDialog.__init__(self)
         self.setWindowTitle("Configure COBRApy")
 
@@ -25,14 +26,16 @@ class ConfigCobrapyDialog(QDialog):
         self.layout = QVBoxLayout()
 
         # allow MILP solvers only?
-        avail_solvers = list(set(solvers.keys()) - {'scipy'}) # SCIPY currently not even usable for FBA
+        # SCIPY currently not even usable for FBA
+        avail_solvers = list(set(solvers.keys()) - {'scipy'})
 
         h2 = QHBoxLayout()
         label = QLabel("Default solver:\n(set when loading a model)")
         h2.addWidget(label)
         self.default_solver = QComboBox()
         self.default_solver.addItems(avail_solvers)
-        self.default_solver.setCurrentIndex(avail_solvers.index(interface_to_str(cobra.Configuration().solver)))
+        self.default_solver.setCurrentIndex(avail_solvers.index(
+            interface_to_str(cobra.Configuration().solver)))
         h2.addWidget(self.default_solver)
         self.layout.addItem(h2)
 
@@ -41,7 +44,8 @@ class ConfigCobrapyDialog(QDialog):
         h9.addWidget(label)
         self.current_solver = QComboBox()
         self.current_solver.addItems(avail_solvers)
-        self.current_solver.setCurrentIndex(avail_solvers.index(interface_to_str(appdata.project.cobra_py_model.problem)))
+        self.current_solver.setCurrentIndex(avail_solvers.index(
+            interface_to_str(appdata.project.cobra_py_model.problem)))
         h9.addWidget(self.current_solver)
         self.layout.addItem(h9)
 
@@ -65,7 +69,7 @@ class ConfigCobrapyDialog(QDialog):
         self.default_tolerance.setFixedWidth(100)
         self.default_tolerance.setText(str(cobra.Configuration().tolerance))
         validator = QDoubleValidator(self)
-        validator.setBottom(1e-9) # probably a reasonable consensus value
+        validator.setBottom(1e-9)  # probably a reasonable consensus value
         self.default_tolerance.setValidator(validator)
         h8.addWidget(self.default_tolerance)
         self.layout.addItem(h8)
@@ -76,7 +80,8 @@ class ConfigCobrapyDialog(QDialog):
         h10.addWidget(label)
         self.current_tolerance = QLineEdit()
         self.current_tolerance.setFixedWidth(100)
-        self.current_tolerance.setText(str(self.appdata.project.cobra_py_model.tolerance))
+        self.current_tolerance.setText(
+            str(self.appdata.project.cobra_py_model.tolerance))
         validator = QDoubleValidator(self)
         validator.setBottom(0)
         self.current_tolerance.setValidator(validator)
@@ -94,7 +99,6 @@ class ConfigCobrapyDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.apply)
 
-
     def apply(self):
         cobra.Configuration().solver = self.default_solver.currentText()
         cobra.Configuration().processes = int(self.num_processes.text())
@@ -105,21 +109,27 @@ class ConfigCobrapyDialog(QDialog):
             else:
                 raise ValueError
         except:
-            QMessageBox.critical(self, "Cannot set default tolerance", "Choose a value between 0.1 and 1e-9 as default tolerance.")
+            QMessageBox.critical(self, "Cannot set default tolerance",
+                                 "Choose a value between 0.1 and 1e-9 as default tolerance.")
             return
         try:
             self.appdata.project.cobra_py_model.solver = self.current_solver.currentText()
-            self.appdata.project.cobra_py_model.tolerance = float(self.current_tolerance.text())
+            self.appdata.project.cobra_py_model.tolerance = float(
+                self.current_tolerance.text())
         except Exception as e:
-            QMessageBox.critical(self, "Cannot set current solver/tolerance", str(e))
+            QMessageBox.critical(
+                self, "Cannot set current solver/tolerance", str(e))
             return
 
         parser = configparser.ConfigParser()
         parser.add_section('cobrapy-config')
-        parser.set('cobrapy-config', 'solver', interface_to_str(cobra.Configuration().solver))
-        parser.set('cobrapy-config', 'processes', str(cobra.Configuration().processes))
-        parser.set('cobrapy-config', 'tolerance', str(cobra.Configuration().tolerance))
-        
+        parser.set('cobrapy-config', 'solver',
+                   interface_to_str(cobra.Configuration().solver))
+        parser.set('cobrapy-config', 'processes',
+                   str(cobra.Configuration().processes))
+        parser.set('cobrapy-config', 'tolerance',
+                   str(cobra.Configuration().tolerance))
+
         try:
             fp = open(self.appdata.cobrapy_conf_path, "w")
         except FileNotFoundError:

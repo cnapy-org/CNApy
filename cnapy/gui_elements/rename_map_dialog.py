@@ -1,13 +1,13 @@
 """The rename map dialog"""
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit,
                             QPushButton, QVBoxLayout)
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 
 class RenameMapDialog(QDialog):
     """A dialog to rename maps"""
 
-    def __init__(self, appdata: CnaData, central_widget):
+    def __init__(self, appdata: AppData, central_widget):
         QDialog.__init__(self)
         self.setWindowTitle("Rename map")
 

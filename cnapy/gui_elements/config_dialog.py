@@ -12,14 +12,14 @@ from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
 import cnapy.resources
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 
 
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QDialog.__init__(self)
         self.setWindowTitle("Configure CNApy")
 

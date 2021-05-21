@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget)
 
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1/INCREASE_FACTOR
@@ -21,7 +21,7 @@ DECREASE_FACTOR = 1/INCREASE_FACTOR
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, appdata: CnaData, name: str):
+    def __init__(self, appdata: AppData, name: str):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()

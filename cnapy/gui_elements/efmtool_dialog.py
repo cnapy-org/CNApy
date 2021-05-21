@@ -4,18 +4,18 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QMessageBox,
                             QPushButton, QVBoxLayout)
 
 import cnapy.core
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 
 class EFMtoolDialog(QDialog):
     """A dialog to set up EFM calculation"""
 
-    def __init__(self, appdata: CnaData, centralwidget):
+    def __init__(self, appdata: AppData, central_widget):
         QDialog.__init__(self)
         self.setWindowTitle("Elementary Flux Mode Computation")
 
         self.appdata = appdata
-        self.centralwidget = centralwidget
+        self.central_widget = central_widget
 
         self.layout = QVBoxLayout()
 
@@ -55,8 +55,8 @@ class EFMtoolDialog(QDialog):
             else:
                 print(scenario)
                 self.appdata.project.modes = ems
-                self.centralwidget.mode_navigator.current = 0
-                self.centralwidget.mode_navigator.scenario = scenario
-                self.centralwidget.mode_navigator.title.setText(
+                self.central_widget.mode_navigator.current = 0
+                self.central_widget.mode_navigator.scenario = scenario
+                self.central_widget.mode_navigator.title.setText(
                     "Mode Navigation")
-                self.centralwidget.update_mode()
+                self.central_widget.update_mode()

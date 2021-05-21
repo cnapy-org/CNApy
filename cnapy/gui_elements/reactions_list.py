@@ -9,7 +9,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
                             QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 
 
@@ -30,7 +30,7 @@ class DragableTreeWidget(QTreeWidget):
 class ReactionList(QWidget):
     """A list of reaction"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QWidget.__init__(self)
         self.appdata = appdata
         self.last_selected = None
