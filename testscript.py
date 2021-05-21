@@ -1,53 +1,43 @@
 #!/usr/bin/python
 import json
 import os
-import time
 from random import randint
-from shutil import copyfile
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import cobra
 from qtpy.QtGui import QColor
+from cnapy.cellnetanalyzer import CellNetAnalyzer
 
 
-def work(cna):
-    cna.centralWidget().tabs.setCurrentIndex(0)
-    time.sleep(.5)
-    cna.fba()
-    time.sleep(.5)
-    cna.centralWidget().tabs.setCurrentIndex(3)
-    time.sleep(.5)
-    cna.set_onoff()
-    cna.centralWidget().update()
-    time.sleep(.5)
-    cna.set_heaton()
-    cna.centralWidget().update()
-    time.sleep(1)
-
-    disco(cna)
-
-
-def disco(cna):
-    print("hello DISCO")
+def work(cna: CellNetAnalyzer):
+    print("Hello")
     open_project(cna, str(os.path.join(
         cna.appdata.work_directory, 'ECC2comp.cna')))
+    disco(cna)
+    print("I like all colors.")
 
-    view = cna.centralWidget().map_tabs.widget(1)
-    for _ in range(1, 100):
-        for key in cna.appdata.project.maps["Core Metabolism"]["boxes"]:
-            r = randint(1, 255)
-            g = randint(1, 255)
-            b = randint(1, 255)
-            color = QColor(r, g, b)
-            view.reaction_boxes[key].set_color(color)
-            # cna.centralWidget().update()
 
-        time.sleep(.05)
-        cna.centralWidget().update()
+def disco(cna: CellNetAnalyzer):
+    view = cna.centralWidget().map_tabs.widget(0)
+    for key in cna.appdata.project.maps["Core Metabolism"]["boxes"]:
+        r = randint(1, 255)
+        g = randint(1, 255)
+        b = randint(1, 255)
+        color = QColor(r, g, b)
+        view.reaction_boxes[key].set_color(color)
+    view = cna.centralWidget().reaction_list
+    root = view.reaction_list.invisibleRootItem()
+    child_count = root.childCount()
+    for i in range(child_count):
+        r = randint(1, 255)
+        g = randint(1, 255)
+        b = randint(1, 255)
+        color = QColor(r, g, b)
+        item = root.child(i)
+        item.setBackground(2, QColor(r, g, b))
 
-    cna.centralWidget().tabs.setCurrentIndex(2)
-    print("DISCO is over")
+    cna.centralWidget().tabs.setCurrentIndex(0)
 
 
 def open_project(cna, filename):
