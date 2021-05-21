@@ -1,12 +1,11 @@
 """The PyNetAnalyzer map view"""
-import time
 import math
 from ast import literal_eval as make_tuple
 from math import isclose
 from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
-from qtpy.QtGui import QColor, QDrag, QMouseEvent, QPainter, QPalette
+from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QPainter
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent,
@@ -395,13 +394,17 @@ class ReactionBox(QGraphicsItem):
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
+        pen = QPen(self.map.appdata.scen_color_good)
         if self.id in self.map.appdata.project.scen_values.keys():
-            painter.setPen(Qt.magenta)
-            painter.setBrush(Qt.magenta)
+            painter.setPen(pen)
+            pen.setWidth(4)
+            painter.setPen(pen)
+            painter.drawRect(0, 0, 80, 33)
+            painter.setBrush(self.map.appdata.scen_color_good)
         else:
             painter.setPen(Qt.darkGray)
 
-        painter.drawRect(-15, -15, 20, 20)
+        painter.drawEllipse(-15, -15, 20, 20)
         painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
