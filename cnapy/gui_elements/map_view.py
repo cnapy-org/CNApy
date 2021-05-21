@@ -251,6 +251,13 @@ class ReactionBox(QGraphicsItem):
         self.name = name
 
         self.item = QLineEdit()
+        self.item.setTextMargins(1, -13, 0, -10)  # l t r b
+        font = self.item.font()
+        point_size = font.pointSize()
+        font.setPointSize(point_size+13)
+        self.item.setFont(font)
+        self.item.setAttribute(Qt.WA_TranslucentBackground)
+
         self.item.setMaximumWidth(80)
         r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(r_id)
         text = "Id: " + r.id + "\nName: " + r.name \
@@ -264,7 +271,10 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
         palette = self.item.palette()
-        palette.setColor(QPalette.Base, self.map.appdata.default_color)
+        role = self.item.backgroundRole()
+        color = self.map.appdata.default_color
+        color.setAlphaF(0.4)
+        palette.setColor(role, self.map.appdata.default_color)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
