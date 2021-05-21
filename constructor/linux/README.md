@@ -4,5 +4,5 @@
 
 ```python
 import testscript
-testscript.work(cna)
+testscript.run(cna)
 ```

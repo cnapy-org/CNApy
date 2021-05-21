@@ -7,18 +7,18 @@ from zipfile import ZipFile
 
 import cobra
 from qtpy.QtGui import QColor
-from cnapy.cellnetanalyzer import CellNetAnalyzer
+from cnapy.application import Application
 
 
-def work(cna: CellNetAnalyzer):
-    print("Hello")
+def run(cna: Application):
+    print("Hello!")
     open_project(cna, str(os.path.join(
         cna.appdata.work_directory, 'ECC2comp.cna')))
     disco(cna)
     print("I like all colors.")
 
 
-def disco(cna: CellNetAnalyzer):
+def disco(cna: Application):
     view = cna.centralWidget().map_tabs.widget(0)
     for key in cna.appdata.project.maps["Core Metabolism"]["boxes"]:
         r = randint(1, 255)
