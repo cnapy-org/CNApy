@@ -4,13 +4,13 @@ from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
     QHBoxLayout,  QLabel, QTextEdit, QComboBox, QVBoxLayout, QWidget)
 
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 
 
 class ModelInfo(QWidget):
     """A widget that shows infos about the model"""
 
-    def __init__(self, appdata: CnaData):
+    def __init__(self, appdata: AppData):
         QWidget.__init__(self)
         self.appdata = appdata
 

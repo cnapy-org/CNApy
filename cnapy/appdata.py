@@ -11,7 +11,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 
 
-class CnaData:
+class AppData:
     ''' The application data '''
 
     def __init__(self):

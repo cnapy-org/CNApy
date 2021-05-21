@@ -1,7 +1,4 @@
-import io
 import os
-import traceback
-
 from importlib import reload
 import cnapy.CNA_MEngine
 import cnapy.octave_engine

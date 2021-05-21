@@ -28,12 +28,12 @@ except (JVMNotFoundException, JVMNotSupportedException):
         except (JVMNotFoundException, JVMNotSupportedException):
             pass
 
-from cnapy.cellnetanalyzer import CellNetAnalyzer
+from cnapy.application import Application
 
 
 def main_cnapy():
 
-    CellNetAnalyzer()
+    Application()
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The CellNetAnalyzer class"""
+"""The Application class"""
 import configparser
 from configparser import NoOptionError, NoSectionError
 import sys
@@ -22,17 +22,17 @@ import cobra
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication
 
-from cnapy.cnadata import CnaData
-from cnapy.gui_elements.mainwindow import MainWindow
+from cnapy.appdata import AppData
+from cnapy.gui_elements.main_window import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
 
 
-class CellNetAnalyzer:
-    '''The CellNetAnalyzer class'''
+class Application:
+    '''The Application class'''
 
     def __init__(self):
         self.qapp = QApplication(sys.argv)
-        self.appdata = CnaData()
+        self.appdata = AppData()
         self.qapp.setStyle("fusion")
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window

@@ -8,7 +8,7 @@ from qtpy.QtGui import QIntValidator
 from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
-from cnapy.cnadata import CnaData
+from cnapy.appdata import AppData
 import cnapy.legacy as legacy
 from cnapy.flux_vector_container import FluxVectorContainer
 
@@ -16,12 +16,12 @@ from cnapy.flux_vector_container import FluxVectorContainer
 class EFMDialog(QDialog):
     """A dialog to set up EFM calculation"""
 
-    def __init__(self, appdata: CnaData, centralwidget):
+    def __init__(self, appdata: AppData, central_widget):
         QDialog.__init__(self)
         self.setWindowTitle("Elementary Flux Mode Computation")
 
         self.appdata = appdata
-        self.centralwidget = centralwidget
+        self.central_widget = central_widget
         self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
@@ -148,7 +148,7 @@ class EFMDialog(QDialog):
                     vl = "NaN"
                 if vu >= threshold:
                     vu = "NaN"
-                if vl == 0 and vu == 0: # already in reaconoff, can be skipped here
+                if vl == 0 and vu == 0:  # already in reaconoff, can be skipped here
                     vl = "NaN"
                     vu = "NaN"
                 lb_str = lb_str+" "+str(vl)
@@ -223,7 +223,8 @@ class EFMDialog(QDialog):
                 irreversible = numpy.squeeze(self.eng.workspace['irrev_ems'])
                 unbounded = numpy.squeeze(self.eng.workspace['ray'])
                 ems = numpy.array(ems)
-                self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
+                self.result2ui(ems, idx, reac_id, irreversible,
+                               unbounded, scenario)
 
                 self.accept()
         elif self.appdata.is_octave_ready():
@@ -235,7 +236,8 @@ class EFMDialog(QDialog):
             irreversible = numpy.squeeze(self.eng.pull('irrev_ems'))
             unbounded = numpy.squeeze(self.eng.pull('ray'))
 
-            self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
+            self.result2ui(ems, idx, reac_id, irreversible,
+                           unbounded, scenario)
 
     def result2ui(self, ems, idx, reac_id, irreversible, unbounded, scenario):
         if len(ems) == 0:
@@ -244,7 +246,7 @@ class EFMDialog(QDialog):
         else:
             self.appdata.project.modes = FluxVectorContainer(
                 ems, [reac_id[int(i)-1] for i in idx[0]], irreversible, unbounded)
-            self.centralwidget.mode_navigator.current = 0
-            self.centralwidget.mode_navigator.scenario = scenario
-            self.centralwidget.mode_navigator.title.setText("Mode Navigation")
-            self.centralwidget.update_mode()
+            self.central_widget.mode_navigator.current = 0
+            self.central_widget.mode_navigator.scenario = scenario
+            self.central_widget.mode_navigator.title.setText("Mode Navigation")
+            self.central_widget.update_mode()

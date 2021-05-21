@@ -9,10 +9,10 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget)
 
-from cnapy.cnadata import CnaData, CnaMap
+from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
-from cnapy.gui_elements.modenavigator import ModeNavigator
+from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
 from cnapy.gui_elements.reactions_list import ReactionList
 from cnapy.utils import SignalThrottler
@@ -24,7 +24,7 @@ class CentralWidget(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self)
         self.parent = parent
-        self.appdata: CnaData = parent.appdata
+        self.appdata: AppData = parent.appdata
         self.map_counter = 0
         self.searchbar = QLineEdit()
         self.searchbar.setPlaceholderText("Enter search term")
