@@ -25,10 +25,14 @@ class AppData:
         self.matlab_engine = None
         self.octave_engine = None
         self.modes_coloring = False
-        self.scen_color = QColor(255, 170, 255)
-        self.comp_color = QColor(170, 170, 255)
-        self.special_color_1 = Qt.yellow
-        self.special_color_2 = QColor(170, 255, 0)  # for bounds excluding 0
+        self.scen_color = QColor(255, 0, 127)
+        # more scencolors
+        self.scen_color_good = QColor(130, 190, 0)
+        self.scen_color_bad = Qt.red
+
+        self.comp_color = QColor(0, 170, 255)
+        self.special_color_1 = QColor(255, 215, 0)
+        self.special_color_2 = QColor(150, 220, 0)  # for bounds excluding 0
         self.default_color = Qt.gray
         self.abs_tol = 0.0001
         self.rounding = 3
