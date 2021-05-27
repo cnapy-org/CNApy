@@ -1202,7 +1202,7 @@ class MainWindow(QMainWindow):
     def efm(self):
         self.efm_dialog = EFMDialog(
             self.appdata, self.centralWidget())
-        self.efm_dialog.open()
+        self.efm_dialog.exec_()
 
     def in_out_flux(self):
         in_out_flux_dialog = InOutFluxDialog(
@@ -1212,12 +1212,12 @@ class MainWindow(QMainWindow):
     def efmtool(self):
         self.efmtool_dialog = EFMtoolDialog(
             self.appdata, self.centralWidget())
-        self.efmtool_dialog.open()
+        self.efmtool_dialog.exec_()
 
     def mcs(self):
         self.mcs_dialog = MCSDialog(
             self.appdata, self.centralWidget())
-        self.mcs_dialog.open()
+        self.mcs_dialog.exec_()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
