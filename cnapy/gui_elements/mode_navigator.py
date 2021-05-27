@@ -5,6 +5,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
 
 from cnapy.flux_vector_container import FluxVectorContainer
 
+
 class ModeNavigator(QWidget):
     """A navigator widget"""
 
@@ -18,7 +19,7 @@ class ModeNavigator(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.clear_button = QPushButton()
-        self.clear_button.setIcon(QIcon.fromTheme("edit-delete"))
+        self.clear_button.setIcon(QIcon(":/icons/clear.png"))
         self.clear_button.setToolTip("clear modes")
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
@@ -47,7 +48,8 @@ class ModeNavigator(QWidget):
         self.clear_button.clicked.connect(self.clear)
 
     def update(self):
-        txt = str(self.current + 1) + "/" + str(len(self.appdata.project.modes))
+        txt = str(self.current + 1) + "/" + \
+            str(len(self.appdata.project.modes))
         if isinstance(self.appdata.project.modes, FluxVectorContainer):
             if self.appdata.project.modes.irreversible.shape != ():
                 if self.appdata.project.modes.irreversible[self.current]:
