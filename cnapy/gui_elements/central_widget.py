@@ -149,6 +149,9 @@ class CentralWidget(QWidget):
 
     def switch_to_reaction(self, reaction: str):
         self.tabs.setCurrentIndex(0)
+        if self.tabs.width() == 0:
+            (left, _) = self.splitter.sizes()
+            self.splitter.setSizes([left, 1])
         self.reaction_list.set_current_item(reaction)
 
     def minimize_reaction(self, reaction: str):
