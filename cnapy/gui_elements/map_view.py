@@ -275,6 +275,9 @@ class ReactionBox(QGraphicsItem):
             + "\nObjective coefficient: " + str(r.objective_coefficient)
 
         self.item.setToolTip(text)
+
+        self.item.focusOutEvent = self.focusOut
+
         self.proxy = self.map.scene.addWidget(self.item)
         self.proxy.show()
 
@@ -311,6 +314,9 @@ class ReactionBox(QGraphicsItem):
         remove_action.triggered.connect(self.remove)
 
         self.pop_menu.addSeparator()
+
+    def focusOut(self, _event):
+        self.recolor()
 
     def returnPressed(self):
         if validate_value(self.item.text()):
