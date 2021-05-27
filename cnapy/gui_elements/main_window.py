@@ -219,13 +219,6 @@ class MainWindow(QMainWindow):
 
         self.analysis_menu.addSeparator()
 
-        in_out_flux_action = QAction(
-            "Compute in/out fluxes at metabolite ...", self)
-        in_out_flux_action.triggered.connect(self.in_out_flux)
-        self.analysis_menu.addAction(in_out_flux_action)
-
-        self.analysis_menu.addSeparator()
-
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
         self.efm_action = QAction(
             "Compute Elementary Flux Modes/Vectors via CNA ...", self)
@@ -270,6 +263,11 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addAction(net_conversion_action)
         net_conversion_action.triggered.connect(
             self.show_net_conversion)
+
+        in_out_flux_action = QAction(
+            "Compute in/out fluxes at metabolite ...", self)
+        in_out_flux_action.triggered.connect(self.in_out_flux)
+        self.analysis_menu.addAction(in_out_flux_action)
 
         show_optimization_function_action = QAction(
             "Show optimization function", self)
