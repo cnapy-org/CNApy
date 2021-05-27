@@ -25,7 +25,6 @@ class MapView(QGraphicsView):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
-        # palette.setColor(QPalette.Base, Qt.white)
         self.setPalette(palette)
 
         self.appdata = appdata
@@ -231,10 +230,6 @@ class MapView(QGraphicsView):
         self.update()
         self.reactionRemoved.emit(reaction)
 
-    # def emit_doubleClickedReaction(self, reaction: str):
-    #     print("emit_doubleClickedReaction")
-    #     self.doubleClickedReaction.emit(reaction)
-
     def value_changed(self, reaction: str, value: str):
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
@@ -248,6 +243,22 @@ class MapView(QGraphicsView):
     mapChanged = Signal(str)
 
 
+class CLineEdit(QLineEdit):
+    """A special line edit implementation for the use in ReactionBox"""
+
+    def __init__(self, parent):
+        self.parent = parent
+        super().__init__()
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self.parent.recolor()
+
+    def mouseDoubleClickEvent(self, event):
+        super().mouseDoubleClickEvent(event)
+        self.parent.switch_to_reaction_mask()
+
+
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
@@ -258,7 +269,7 @@ class ReactionBox(QGraphicsItem):
         self.id = r_id
         self.name = name
 
-        self.item = QLineEdit()
+        self.item = CLineEdit(self)
         self.item.setTextMargins(1, -13, 0, -10)  # l t r b
         font = self.item.font()
         point_size = font.pointSize()
@@ -275,8 +286,6 @@ class ReactionBox(QGraphicsItem):
             + "\nObjective coefficient: " + str(r.objective_coefficient)
 
         self.item.setToolTip(text)
-
-        self.item.focusOutEvent = self.focusOut
 
         self.proxy = self.map.scene.addWidget(self.item)
         self.proxy.show()
@@ -314,9 +323,6 @@ class ReactionBox(QGraphicsItem):
         remove_action.triggered.connect(self.remove)
 
         self.pop_menu.addSeparator()
-
-    def focusOut(self, _event):
-        self.recolor()
 
     def returnPressed(self):
         if validate_value(self.item.text()):
