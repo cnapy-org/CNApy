@@ -36,7 +36,9 @@ class FluxVectorContainer:
 
     def clear(self):
         self.fv_mat = numpy.zeros((0, 0))
-        self.reac_id.clear()
+        self.reac_id = []
+        self.irreversible = numpy.array(0)
+        self.unbounded = numpy.array(0)
 
 
 class FluxVectorMemmap(FluxVectorContainer):
@@ -61,10 +63,9 @@ class FluxVectorMemmap(FluxVectorContainer):
     def clear(self):
         # lose the reference to the memmap (does not have a close() method)
         del self.fv_mat
-        self.fv_mat = None
+        super().clear()
         # if this was the last reference to the temporary directory it is now deleted
         self._containing_temp_dir = None
-        super().clear()
 
     def __del__(self):
         del self.fv_mat  # lose the reference to the memmap so that the later implicit deletion of the temporary directory can proceed without problems
