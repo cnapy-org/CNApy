@@ -5,7 +5,7 @@ from math import isclose
 from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
-from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QPainter
+from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent,
@@ -252,6 +252,8 @@ class CLineEdit(QLineEdit):
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
+        if not validate_value(self.text()):
+            self.setText("")
         self.parent.recolor()
 
     def mouseDoubleClickEvent(self, event):
@@ -328,9 +330,6 @@ class ReactionBox(QGraphicsItem):
         if validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
 
-        # TODO: actually I want to repaint
-        # self.map.update()
-
     def value_changed(self):
         test = self.item.text().replace(" ", "")
         if test == "":
@@ -339,14 +338,32 @@ class ReactionBox(QGraphicsItem):
         elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
-                self.set_color(self.map.appdata.scen_color)
+                self.set_scen_style()
             else:
-                self.set_color(self.map.appdata.comp_color)
+                self.set_comp_style()
         else:
-            self.set_color(self.map.appdata.scen_color_bad)
+            self.set_error_style()
 
-        # TODO: actually I want to repaint
-        # self.map.update()
+    def set_error_style(self):
+        ''' set the reaction box to error style'''
+        self.set_color(Qt.white)
+        self.set_fg_color(self.map.appdata.scen_color_bad)
+
+        font = self.item.font()
+        font.setStyle(QFont.StyleOblique)
+        self.item.setFont(font)
+
+    def set_comp_style(self):
+        self.set_color(self.map.appdata.comp_color)
+        font = self.item.font()
+        font.setStyle(QFont.StyleNormal)
+        self.item.setFont(font)
+
+    def set_scen_style(self):
+        self.set_color(self.map.appdata.scen_color)
+        font = self.item.font()
+        font.setStyle(QFont.StyleNormal)
+        self.item.setFont(font)
 
     def set_val_and_color(self, value: Tuple[float, float]):
         self.set_value(value)
@@ -380,7 +397,7 @@ class ReactionBox(QGraphicsItem):
                         else:
                             self.set_color(Qt.green)
                     else:
-                        self.set_color(self.map.appdata.comp_color)
+                        self.set_comp_style()
                 else:
                     if math.isclose(vl, 0.0, abs_tol=self.map.appdata.abs_tol):
                         self.set_color(self.map.appdata.special_color_1)
@@ -391,7 +408,7 @@ class ReactionBox(QGraphicsItem):
                     else:
                         self.set_color(self.map.appdata.special_color_2)
         else:
-            self.set_color(self.map.appdata.scen_color_bad)
+            self.set_error_style()
 
     def set_color(self, color: QColor):
         palette = self.item.palette()
@@ -399,6 +416,16 @@ class ReactionBox(QGraphicsItem):
         palette.setColor(role, color)
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
+        self.item.setPalette(palette)
+        font = self.item.font()
+        font.setStyle(QFont.StyleNormal)
+        self.item.setFont(font)
+
+    def set_fg_color(self, color: QColor):
+        ''' set foreground color of the reaction box'''
+        palette = self.item.palette()
+        role = self.item.foregroundRole()
+        palette.setColor(role, color)
         self.item.setPalette(palette)
 
     def boundingRect(self):
