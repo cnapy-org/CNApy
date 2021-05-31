@@ -200,6 +200,10 @@ class MapView(QGraphicsView):
                 name = self.appdata.project.cobra_py_model.reactions.get_by_id(
                     r_id).name
                 box = ReactionBox(self, r_id, name)
+
+                box.setScale(self.appdata.project.maps[self.name]["box-size"])
+                box.proxy.setScale(
+                    self.appdata.project.maps[self.name]["box-size"])
                 box.setPos(self.appdata.project.maps[self.name]["boxes"][r_id]
                            [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
                 self.scene.addItem(box)
