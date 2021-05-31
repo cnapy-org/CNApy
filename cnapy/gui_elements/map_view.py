@@ -208,6 +208,7 @@ class MapView(QGraphicsView):
                 print("failed to add reaction box for", r_id)
 
         self.set_values()
+        self.recolor_all()
 
         # set scrollbars
         self.horizontalScrollBar().setValue(
@@ -215,13 +216,20 @@ class MapView(QGraphicsView):
         self.verticalScrollBar().setValue(
             self.appdata.project.maps[self.name]["pos"][1])
 
+    def recolor_all(self):
+        for r_id in self.appdata.project.maps[self.name]["boxes"]:
+            if r_id in self.appdata.project.scen_values.keys():
+                self.reaction_boxes[r_id].recolor()
+            elif r_id in self.appdata.project.comp_values.keys():
+                self.reaction_boxes[r_id].recolor()
+
     def set_values(self):
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
             if r_id in self.appdata.project.scen_values.keys():
-                self.reaction_boxes[r_id].set_val_and_color(
+                self.reaction_boxes[r_id].set_value(
                     self.appdata.project.scen_values[r_id])
             elif r_id in self.appdata.project.comp_values.keys():
-                self.reaction_boxes[r_id].set_val_and_color(
+                self.reaction_boxes[r_id].set_value(
                     self.appdata.project.comp_values[r_id])
 
     def remove_box(self, reaction: str):
@@ -253,7 +261,15 @@ class CLineEdit(QLineEdit):
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
         if not validate_value(self.text()):
-            self.setText("")
+            self.parent.map.set_values()
+            if self.parent.id in self.parent.map.appdata.project.scen_values.keys():
+                self.parent.map.reaction_boxes[self.parent.id].set_value(
+                    self.parent.map.appdata.project.scen_values[self.parent.id])
+            elif self.parent.id in self.parent.map.appdata.project.comp_values.keys():
+                self.parent.map.reaction_boxes[self.parent.id].set_value(
+                    self.parent.map.appdata.project.comp_values[self.parent.id])
+            else:
+                self.parent.map.reaction_boxes[self.parent.id].item.setText("")
         self.parent.recolor()
 
     def mouseDoubleClickEvent(self, event):
@@ -292,14 +308,7 @@ class ReactionBox(QGraphicsItem):
         self.proxy = self.map.scene.addWidget(self.item)
         self.proxy.show()
 
-        palette = self.item.palette()
-        role = self.item.backgroundRole()
-        color = self.map.appdata.default_color
-        color.setAlphaF(0.4)
-        palette.setColor(role, self.map.appdata.default_color)
-        role = self.item.foregroundRole()
-        palette.setColor(role, Qt.black)
-        self.item.setPalette(palette)
+        self.set_default_style()
 
         self.setCursor(Qt.OpenHandCursor)
         self.setAcceptedMouseButtons(Qt.LeftButton)
@@ -334,7 +343,7 @@ class ReactionBox(QGraphicsItem):
         test = self.item.text().replace(" ", "")
         if test == "":
             self.map.value_changed(self.id, test)
-            self.set_color(self.map.appdata.default_color)
+            self.set_default_style()
         elif validate_value(self.item.text()):
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
@@ -344,32 +353,36 @@ class ReactionBox(QGraphicsItem):
         else:
             self.set_error_style()
 
+    def set_default_style(self):
+        ''' set the reaction box to error style'''
+
+        palette = self.item.palette()
+        role = self.item.backgroundRole()
+        color = self.map.appdata.default_color
+        color.setAlphaF(0.4)
+        palette.setColor(role, color)
+        role = self.item.foregroundRole()
+        palette.setColor(role, Qt.black)
+        self.item.setPalette(palette)
+
+        self.set_font_style(QFont.StyleNormal)
+
     def set_error_style(self):
         ''' set the reaction box to error style'''
         self.set_color(Qt.white)
         self.set_fg_color(self.map.appdata.scen_color_bad)
-
-        font = self.item.font()
-        font.setStyle(QFont.StyleOblique)
-        self.item.setFont(font)
+        self.set_font_style(QFont.StyleOblique)
 
     def set_comp_style(self):
         self.set_color(self.map.appdata.comp_color)
-        font = self.item.font()
-        font.setStyle(QFont.StyleNormal)
-        self.item.setFont(font)
+        self.set_font_style(QFont.StyleNormal)
 
     def set_scen_style(self):
         self.set_color(self.map.appdata.scen_color)
-        font = self.item.font()
-        font.setStyle(QFont.StyleNormal)
-        self.item.setFont(font)
-
-    def set_val_and_color(self, value: Tuple[float, float]):
-        self.set_value(value)
-        self.recolor()
+        self.set_font_style(QFont.StyleNormal)
 
     def set_value(self, value: Tuple[float, float]):
+        ''' Sets the text of and reaction box according to the given value'''
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
             self.item.setText(str(round(vl, self.map.appdata.rounding)))
@@ -382,11 +395,10 @@ class ReactionBox(QGraphicsItem):
         value = self.item.text()
         test = value.replace(" ", "")
         if test == "":
-            self.set_color(self.map.appdata.default_color)
+            self.set_default_style()
         elif validate_value(value):
             if self.id in self.map.appdata.project.scen_values.keys():
-                value = self.map.appdata.project.scen_values[self.id]
-                self.set_color(self.map.appdata.scen_color)
+                self.set_scen_style()
             else:
                 value = self.map.appdata.project.comp_values[self.id]
                 (vl, vu) = value
@@ -417,8 +429,10 @@ class ReactionBox(QGraphicsItem):
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
+
+    def set_font_style(self, style: QFont.Style):
         font = self.item.font()
-        font.setStyle(QFont.StyleNormal)
+        font.setStyle(style)
         self.item.setFont(font)
 
     def set_fg_color(self, color: QColor):
