@@ -22,11 +22,12 @@ from configparser import NoOptionError, NoSectionError
 
 import cobra
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import (QApplication, QMessageBox)
+from qtpy.QtWidgets import QApplication
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.main_window import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
+import cnapy.utils as utils
 
 
 def excepthook(cls, exception, tb):
@@ -34,12 +35,7 @@ def excepthook(cls, exception, tb):
     traceback.print_exception(cls, exception, tb, file=output)
     traceback.print_tb(tb, file=output)
     exstr = output.getvalue()
-
-    msgBox = QMessageBox()
-    msgBox.setWindowTitle("Unknown Error!")
-    msgBox.setText(exstr+'\nPlease report the problem to:\n\
-    \nhttps://github.com/cnapy-org/CNApy/issues')
-    msgBox.exec()
+    utils.show_unknown_error_box(exstr)
     excepthook2(cls, exception, tb)
 
 

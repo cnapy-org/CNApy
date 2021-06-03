@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
 from cnapy.appdata import AppData
 import cnapy.legacy as legacy
 from cnapy.flux_vector_container import FluxVectorContainer
+import cnapy.utils as utils
 
 
 class EFMDialog(QDialog):
@@ -213,9 +214,8 @@ class EFMDialog(QDialog):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
+
                 return
             else:
                 ems = self.eng.workspace['ems']
@@ -223,7 +223,8 @@ class EFMDialog(QDialog):
                 irreversible = numpy.squeeze(self.eng.workspace['irrev_ems'])
                 unbounded = numpy.squeeze(self.eng.workspace['ray'])
                 ems = numpy.array(ems)
-                self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
+                self.result2ui(ems, idx, reac_id, irreversible,
+                               unbounded, scenario)
                 self.accept()
         elif self.appdata.is_octave_ready():
             try:
@@ -234,16 +235,15 @@ class EFMDialog(QDialog):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
                 return
             else:
                 ems = self.eng.pull('ems')
                 idx = self.eng.pull('ems_idx')
                 irreversible = numpy.squeeze(self.eng.pull('irrev_ems'))
                 unbounded = numpy.squeeze(self.eng.pull('ray'))
-                self.result2ui(ems, idx, reac_id, irreversible, unbounded, scenario)
+                self.result2ui(ems, idx, reac_id, irreversible,
+                               unbounded, scenario)
                 self.accept()
 
     def result2ui(self, ems, idx, reac_id, irreversible, unbounded, scenario):

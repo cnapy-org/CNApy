@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (QCompleter, QDialog, QHBoxLayout, QLabel,
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
+import cnapy.utils as utils
 
 
 class CompleterLineEdit(QLineEdit):
@@ -74,14 +75,14 @@ class YieldOptimizationDialog(QDialog):
         self.c = CompleterLineEdit(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
         self.c.setCompleter(completer)
-        self.c.setPlaceholderText("")
+        self.c.setPlaceholderText("EX_etoh")
         self.layout.addWidget(self.c)
         t2 = QLabel(
             "Define d")
         self.layout.addWidget(t2)
         self.d = CompleterLineEdit(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), "")
-        self.d.setPlaceholderText("")
+        self.d.setPlaceholderText("- EX_glc")
         self.d.setCompleter(completer)
         self.layout.addWidget(self.d)
 
@@ -249,9 +250,7 @@ class YieldOptimizationDialog(QDialog):
                     traceback.print_exc(file=output)
                     exstr = output.getvalue()
                     print(exstr)
-                    QMessageBox.warning(self, 'Unknown exception occured!',
-                                        exstr+'\nPlease report the problem to:\n\
-                                        \nhttps://github.com/cnapy-org/CNApy/issues')
+                    utils.show_unknown_error_box(exstr)
                     return
                 else:
                     success = self.eng.workspace['success']
