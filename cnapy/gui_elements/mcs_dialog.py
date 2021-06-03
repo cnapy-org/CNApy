@@ -200,24 +200,11 @@ class MCSDialog(QDialog):
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
-            # if self.optlang_solver_name != 'cplex':
-            #     self.mcs_by_cardinality.setEnabled(False)
-            #     self.mcs_continuous_search.setEnabled(False)
         else:
             self.solver_glpk.setChecked(True)
             self.solver_cplex_matlab.setEnabled(self.eng.is_cplex_matlab_ready())
             self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
             self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
-           # if not self.eng.is_cplex_matlab_ready():
-            #     self.solver_cplex_matlab.setEnabled(False)
-            # if not self.eng.is_cplex_java_ready():
-            #     self.solver_cplex_java.setEnabled(False)
-            # if self.appdata.is_matlab_set():
-            #     self.solver_cplex_java.setEnabled(False)
-            # if not self.appdata.is_matlab_set():
-            #     self.solver_cplex_matlab.setEnabled(False)
-            #     self.solver_intlinprog.setEnabled(False)
-            # self.mcs_continuous_search.setEnabled(False)
         self.configure_solver_options()
 
         s4 = QVBoxLayout()
@@ -237,8 +224,6 @@ class MCSDialog(QDialog):
         # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
         buttons.addWidget(self.compute_mcs)
-        # self.compute_mcs2 = QPushButton("Compute MCS2")
-        # buttons.addWidget(self.compute_mcs2)
         self.cancel = QPushButton("Close")
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
@@ -507,22 +492,11 @@ class MCSDialog(QDialog):
         self.setCursor(Qt.ArrowCursor)
 
     def compute_optlang(self):
-
-        self.setCursor(Qt.BusyCursor)
         max_mcs_num = float(self.max_solu.text())
         max_mcs_size = int(self.max_size.text())
         timeout = float(self.time_limit.text())
         if timeout is float('inf'):
             timeout = None
-
-        # if self.gen_kos.isChecked():
-        #     self.eng.eval("gKOs = 1;", nargout=0)
-        # else:
-        #     self.eng.eval("gKOs = 0;", nargout=0)
-        # if self.advanced.isChecked():
-        #     self.eng.eval("advanced_on = 1;", nargout=0)
-        # else:
-        #     self.eng.eval("advanced_on = 0;", nargout=0)
 
         if self.smalles_mcs_first.isChecked():
             enum_method = 1
@@ -535,9 +509,12 @@ class MCSDialog(QDialog):
 
         with self.appdata.project.cobra_py_model as model:
             if self.consider_scenario.isChecked():  # integrate scenario into model bounds
-                for r in self.appdata.project.scen_values.keys():
-                    model.reactions.get_by_id(
-                        r).bounds = self.appdata.project.scen_values[r]
+                self.appdata.project.load_scenario_into_model(model)
+            for r in model.reactions: # make all reactions bounded for COBRApy FVA
+                if r.lower_bound == -float('inf'):
+                    r.lower_bound = cobra.Configuration().lower_bound
+                if r.upper_bound == float('inf'):
+                    r.upper_bound = cobra.Configuration().upper_bound
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
@@ -553,8 +530,13 @@ class MCSDialog(QDialog):
                     p4 = float(self.target_list.cellWidget(i, 3).text())
                     targets.setdefault(p1, []).append((p2, p3, p4))
             targets = list(targets.values())
-            targets = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
-                t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
+            try:
+                targets = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
+                    t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
+            except ValueError:
+                QMessageBox.warning(self, "Failed to parse the target region(s)",
+                                    "Check that the equations are correct.")
+                return
 
             rows = self.desired_list.rowCount()
             desired = dict()
@@ -568,11 +550,16 @@ class MCSDialog(QDialog):
                         p3 = ">="
                     p4 = float(self.desired_list.cellWidget(i, 3).text())
                     desired.setdefault(p1, []).append((p2, p3, p4))
-
             desired = list(desired.values())
-            desired = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
-                d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
+            try:
+                desired = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
+                    d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
+            except ValueError:
+                QMessageBox.warning(self, "Failed to parse the desired region(s)",
+                                    "Check that the equations are correct.")
+                return
 
+            self.setCursor(Qt.BusyCursor)
             try:
                 mcs, err_val = mcs_computation.compute_mcs(model,
                                                   targets=targets,
