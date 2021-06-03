@@ -96,17 +96,17 @@ class MapView(QGraphicsView):
         modifiers = QApplication.queryKeyboardModifiers()
         if modifiers == Qt.ControlModifier:
             if event.angleDelta().y() > 0:
-                self.appdata.project.maps[self.name]["bg-size"] *= INCREASE_FACTOR
+                self.appdata.project.maps[self.name]["box-size"] *= INCREASE_FACTOR
             else:
-                self.appdata.project.maps[self.name]["bg-size"] *= DECREASE_FACTOR
+                self.appdata.project.maps[self.name]["box-size"] *= DECREASE_FACTOR
 
             self.mapChanged.emit("dummy")
             self.update()
-
-        if event.angleDelta().y() > 0:
-            self.zoom_in()
         else:
-            self.zoom_out()
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
 
     def fit(self):
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
@@ -359,7 +359,6 @@ class ReactionBox(QGraphicsItem):
 
     def set_default_style(self):
         ''' set the reaction box to error style'''
-
         palette = self.item.palette()
         role = self.item.backgroundRole()
         color = self.map.appdata.default_color

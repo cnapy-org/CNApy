@@ -192,6 +192,16 @@ class MainWindow(QMainWindow):
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
 
+        self.inc_box_size_action = QAction("Increase box size", self)
+        self.map_menu.addAction(self.inc_box_size_action)
+        self.inc_box_size_action.triggered.connect(self.inc_box_size)
+        self.inc_box_size_action.setEnabled(False)
+
+        self.dec_box_size_action = QAction("Decrease box size", self)
+        self.map_menu.addAction(self.dec_box_size_action)
+        self.dec_box_size_action.triggered.connect(self.dec_box_size)
+        self.dec_box_size_action.setEnabled(False)
+
         self.inc_bg_size_action = QAction("Increase background size", self)
         self.map_menu.addAction(self.inc_bg_size_action)
         self.inc_bg_size_action.triggered.connect(self.inc_bg_size)
@@ -558,6 +568,22 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
+    def inc_box_size(self):
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        self.appdata.project.maps[name]["box-size"] *= 1.1
+        self.unsaved_changes()
+        self.centralWidget().update()
+
+    @Slot()
+    def dec_box_size(self):
+        idx = self.centralWidget().map_tabs.currentIndex()
+        name = self.centralWidget().map_tabs.tabText(idx)
+        self.appdata.project.maps[name]["box-size"] *= (1/1.1)
+        self.unsaved_changes()
+        self.centralWidget().update()
+
+    @Slot()
     def inc_bg_size(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
@@ -894,6 +920,8 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             self.change_map_name_action.setEnabled(True)
             self.change_background_action.setEnabled(True)
+            self.inc_box_size_action.setEnabled(True)
+            self.dec_box_size_action.setEnabled(True)
             self.inc_bg_size_action.setEnabled(True)
             self.dec_bg_size_action.setEnabled(True)
             self.save_box_positions_action.setEnabled(True)
@@ -901,6 +929,8 @@ class MainWindow(QMainWindow):
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
+            self.inc_box_size_action.setEnabled(False)
+            self.dec_box_size_action.setEnabled(False)
             self.inc_bg_size_action.setEnabled(False)
             self.dec_bg_size_action.setEnabled(False)
             self.save_box_positions_action.setEnabled(False)
