@@ -146,6 +146,7 @@ def CnaMap(name):
     return {"name": name,
             "background": background_svg,
             "bg-size": 1,
+            "box-size": 1,
             "zoom": 0,
             "pos": (0, 0),
             "boxes": {}
