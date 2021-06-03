@@ -15,16 +15,36 @@
 # limitations under the License.
 """The Application class"""
 import configparser
-from configparser import NoOptionError, NoSectionError
+import io
 import sys
+import traceback
+from configparser import NoOptionError, NoSectionError
 
 import cobra
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import (QApplication, QMessageBox)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.main_window import MainWindow
 from cnapy.legacy import try_matlab_engine, try_octave_engine
+
+
+def excepthook(cls, exception, tb):
+    output = io.StringIO()
+    traceback.print_exception(cls, exception, tb, file=output)
+    traceback.print_tb(tb, file=output)
+    exstr = output.getvalue()
+
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("Unknown Error!")
+    msgBox.setText(exstr+'\nPlease report the problem to:\n\
+    \nhttps://github.com/cnapy-org/CNApy/issues')
+    msgBox.exec()
+    excepthook2(cls, exception, tb)
+
+
+excepthook2 = sys.excepthook
+sys.excepthook = excepthook
 
 
 class Application:
@@ -38,7 +58,7 @@ class Application:
         self.appdata.window = self.window
 
         self.read_config()
-        if sys.platform == "win32": # CNApy running on Windows
+        if sys.platform == "win32":  # CNApy running on Windows
             # on Windows disable multiprocessing in COBRApy because of performance issues
             cobra.Configuration().processes = 1
         self.read_cobrapy_config()
