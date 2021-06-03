@@ -13,6 +13,7 @@ import optlang_enumerator.cMCS_enumerator as cMCS_enumerator
 import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
+import cnapy.utils as utils
 
 
 class MCSDialog(QDialog):
@@ -342,9 +343,7 @@ class MCSDialog(QDialog):
             traceback.print_exc(file=output)
             exstr = output.getvalue()
             print(exstr)
-            QMessageBox.warning(self, 'Unknown exception occured!',
-                                exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+            utils.show_unknown_error_box(exstr)
             return
 
         self.eng.eval("genes = [];", nargout=0,
@@ -427,9 +426,7 @@ class MCSDialog(QDialog):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
                 return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
@@ -448,9 +445,7 @@ class MCSDialog(QDialog):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
                 return
             else:
                 self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
@@ -571,9 +566,7 @@ class MCSDialog(QDialog):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'An exception has occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
                 return targets, desired
             finally:
                 self.setCursor(Qt.ArrowCursor)

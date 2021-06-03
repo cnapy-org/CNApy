@@ -1,5 +1,17 @@
 ''' CNApy utilities '''
 from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer
+from qtpy.QtWidgets import QMessageBox
+
+
+def show_unknown_error_box(exstr):
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("Unknown Error!")
+    msgBox.setTextFormat(Qt.RichText)
+
+    msgBox.setText("<p>"+exstr+"</p><p><b> Please report the problem to:</b></p>\
+    <p><a href='https://github.com/cnapy-org/CNApy/issues/new?assignees=&labels=bug&template=bug_report.md&title='>https://github.com/cnapy-org/CNApy/issues</a></p>")
+    msgBox.setIcon(QMessageBox.Warning)
+    msgBox.exec()
 
 
 def turn_red(item):

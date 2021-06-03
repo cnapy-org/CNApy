@@ -33,6 +33,7 @@ from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
 from cnapy.legacy import try_cna
+import cnapy.utils as utils
 
 
 class MainWindow(QMainWindow):
@@ -307,7 +308,7 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(show_model_view_action)
         show_model_view_action.triggered.connect(self.show_model_view)
 
-        about_action = QAction("About cnapy...", self)
+        about_action = QAction("About CNApy...", self)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
@@ -428,7 +429,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_about(self):
-        dialog = AboutDialog()
+        dialog = AboutDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
@@ -466,9 +467,7 @@ class MainWindow(QMainWindow):
             output = io.StringIO()
             traceback.print_exc(file=output)
             exstr = output.getvalue()
-            QMessageBox.critical(self, 'ValueError: Could not save project!',
-                                 exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+            utils.show_unknown_error_box(exstr)
 
         self.setCursor(Qt.ArrowCursor)
 
@@ -835,9 +834,7 @@ class MainWindow(QMainWindow):
             output = io.StringIO()
             traceback.print_exc(file=output)
             exstr = output.getvalue()
-            QMessageBox.critical(self, 'ValueError: Could not save project!',
-                                 exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+            utils.show_unknown_error_box(exstr)
 
             return
 
@@ -1033,9 +1030,7 @@ class MainWindow(QMainWindow):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
             else:
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
@@ -1214,9 +1209,7 @@ class MainWindow(QMainWindow):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 print(exstr)
-                QMessageBox.warning(self, 'Unknown exception occured!',
-                                    exstr+'\nPlease report the problem to:\n\
-                                    \nhttps://github.com/cnapy-org/CNApy/issues')
+                utils.show_unknown_error_box(exstr)
             else:
                 minimum = solution.minimum.to_dict()
                 maximum = solution.maximum.to_dict()
