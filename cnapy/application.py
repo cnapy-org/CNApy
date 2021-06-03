@@ -38,6 +38,9 @@ class Application:
         self.appdata.window = self.window
 
         self.read_config()
+        if sys.platform == "win32": # CNApy running on Windows
+            # on Windows disable multiprocessing in COBRApy because of performance issues
+            cobra.Configuration().processes = 1
         self.read_cobrapy_config()
 
         config_parser = configparser.RawConfigParser()
