@@ -1198,6 +1198,10 @@ class MainWindow(QMainWindow):
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
                 r.objective_coefficient = 0
+                if r.lower_bound == -float('inf'):
+                    r.lower_bound = cobra.Configuration().lower_bound
+                if r.upper_bound == float('inf'):
+                    r.upper_bound = cobra.Configuration().upper_bound
             try:
                 solution = flux_variability_analysis(
                     model, fraction_of_optimum=fraction_of_optimum)
