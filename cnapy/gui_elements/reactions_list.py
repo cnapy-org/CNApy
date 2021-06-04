@@ -27,6 +27,27 @@ class DragableTreeWidget(QTreeWidget):
             drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
 
 
+class ReactionListItem(QTreeWidgetItem):
+    """ For custom sorting of columns """
+    def __init__(self, parent=None):
+        QTreeWidgetItem.__init__(self, parent)
+        self.flux_sort_val = -float('inf')
+
+    def setFluxData(self, column, role, text, value):
+        self.setData(column, role, text)
+        if isinstance(value, (int, float)):
+            self.flux_sort_val = abs(value)
+        else: # assumes value is a pair of numbers
+            self.flux_sort_val = value[1] - value[0]
+
+    def __lt__(self, other):
+        """ overrides QTreeWidgetItem::operator< """
+        column = self.treeWidget().sortColumn()
+        if column == 2: # 2 is the flux column
+            return self.flux_sort_val < other.flux_sort_val
+        else: # use Qt default comparison for the other columns
+            return super().__lt__(other)
+
 class ReactionList(QWidget):
     """A list of reaction"""
 
@@ -81,10 +102,10 @@ class ReactionList(QWidget):
         self.reaction_list.clear()
         self.reaction_mask.hide()
 
-    def add_reaction(self, reaction: cobra.Reaction) -> QTreeWidgetItem:
+    def add_reaction(self, reaction: cobra.Reaction) -> ReactionListItem:
         ''' create a new item in the reaction list'''
         self.reaction_list.clearSelection()
-        item = QTreeWidgetItem(self.reaction_list)
+        item = ReactionListItem(self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
         self.set_flux_value(item, reaction.id)
@@ -104,10 +125,11 @@ class ReactionList(QWidget):
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
-                item.setData(2, 0, round(vl, self.appdata.rounding))
+                item.setFluxData(2, 0, round(vl, self.appdata.rounding), vl)
             else:
-                item.setData(
-                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
+                item.setFluxData(
+                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))),
+                    (vl, vu))
             item.setBackground(2, self.appdata.scen_color)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
@@ -123,7 +145,7 @@ class ReactionList(QWidget):
                 else:
                     item.setBackground(2, self.appdata.comp_color)
 
-                item.setData(2, 0, round(vl, self.appdata.rounding))
+                item.setFluxData(2, 0, round(vl, self.appdata.rounding), vl)
             else:
                 if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
                     item.setBackground(2, self.appdata.special_color_1)
@@ -133,8 +155,9 @@ class ReactionList(QWidget):
                     item.setBackground(2, self.appdata.special_color_1)
                 else:
                     item.setBackground(2, self.appdata.special_color_2)
-                item.setData(
-                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))))
+                item.setFluxData(
+                    2, 0, str((round(vl, self.appdata.rounding), round(vu, self.appdata.rounding))),
+                    (vl, vu))
 
             item.setForeground(2, Qt.black)
 
