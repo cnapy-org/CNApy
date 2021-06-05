@@ -124,7 +124,7 @@ class ProjectData:
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}
-        self.modes: Dict[str, Tuple[float, float]] = []
+        self.modes = []
         self.compute_color_type = 1
         self.meta_data = {}
 

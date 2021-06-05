@@ -245,10 +245,6 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(load_modes_action)
         load_modes_action.triggered.connect(self.load_modes)
 
-        self.save_modes_action = QAction("Save modes...", self)
-        self.efm_menu.addAction(self.save_modes_action)
-        self.save_modes_action.triggered.connect(self.save_modes)
-
         self.mcs_action = QAction("Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.analysis_menu.addAction(self.mcs_action)
@@ -638,15 +634,6 @@ class MainWindow(QMainWindow):
 
         with open(filename, 'w') as fp:
             json.dump(self.appdata.project.scen_values, fp)
-
-    @Slot()
-    def save_modes(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.npz")[0]
-        if not filename or len(filename) == 0:
-            return
-        self.appdata.project.modes.save(filename)
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
