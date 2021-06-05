@@ -255,5 +255,5 @@ class EFMDialog(QDialog):
                 ems, [reac_id[int(i)-1] for i in idx[0]], irreversible, unbounded)
             self.central_widget.mode_navigator.current = 0
             self.central_widget.mode_navigator.scenario = scenario
-            self.central_widget.mode_navigator.title.setText("Mode Navigation")
+            self.central_widget.mode_navigator.set_to_efm()
             self.central_widget.update_mode()

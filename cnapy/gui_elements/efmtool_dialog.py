@@ -57,6 +57,5 @@ class EFMtoolDialog(QDialog):
                 self.appdata.project.modes = ems
                 self.central_widget.mode_navigator.current = 0
                 self.central_widget.mode_navigator.scenario = scenario
-                self.central_widget.mode_navigator.title.setText(
-                    "Mode Navigation")
+                self.central_widget.mode_navigator.set_to_efm()
                 self.central_widget.update_mode()

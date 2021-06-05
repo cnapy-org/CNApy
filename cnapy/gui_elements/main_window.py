@@ -245,9 +245,14 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(load_modes_action)
         load_modes_action.triggered.connect(self.load_modes)
 
-        self.mcs_action = QAction("Minimal Cut Sets ...", self)
+        self.mcs_menu = self.analysis_menu.addMenu("Minimal Cut Sets")
+        self.mcs_action = QAction("Compute Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
-        self.analysis_menu.addAction(self.mcs_action)
+        self.mcs_menu.addAction(self.mcs_action)
+
+        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
+        self.mcs_menu.addAction(load_mcs_action)
+        load_mcs_action.triggered.connect(self.load_mcs)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -530,7 +535,29 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         for i in values:
             self.appdata.project.comp_values[i] = (values[i], values[i])
+        self.appdata.modes_coloring = True
         self.centralWidget().update()
+        self.appdata.modes_coloring = False
+
+    @Slot()
+    def load_mcs(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.work_directory, filter="*.mcs")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+
+        with open(filename, 'r') as fp:
+            self.appdata.project.modes = json.load(fp)
+            self.centralWidget().mode_navigator.current = 0
+            values = self.appdata.project.modes[0].copy()
+            self.appdata.project.scen_values.clear()
+            self.appdata.project.comp_values.clear()
+            for i in values:
+                self.appdata.project.comp_values[i] = (values[i], values[i])
+        self.appdata.modes_coloring = True
+        self.centralWidget().update()
+        self.appdata.modes_coloring = False
 
     @Slot()
     def change_background(self):
