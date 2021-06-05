@@ -143,7 +143,8 @@ class MCSDialog(QDialog):
         self.bg1 = QButtonGroup()
         self.optlang_solver_name = interface_to_str(
             appdata.project.cobra_py_model.problem)
-        self.solver_optlang = QRadioButton(f"{self.optlang_solver_name} (optlang)")
+        self.solver_optlang = QRadioButton(
+            f"{self.optlang_solver_name} (optlang)")
         self.solver_optlang.setToolTip(
             "Uses the solver specified by the current model.")
         s33.addWidget(self.solver_optlang)
@@ -203,7 +204,8 @@ class MCSDialog(QDialog):
             self.solver_intlinprog.setEnabled(False)
         else:
             self.solver_glpk.setChecked(True)
-            self.solver_cplex_matlab.setEnabled(self.eng.is_cplex_matlab_ready())
+            self.solver_cplex_matlab.setEnabled(
+                self.eng.is_cplex_matlab_ready())
             self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
             self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
         self.configure_solver_options()
@@ -242,7 +244,7 @@ class MCSDialog(QDialog):
         self.compute_mcs.clicked.connect(self.compute)
 
     @Slot()
-    def configure_solver_options(self): # called when switching solver
+    def configure_solver_options(self):  # called when switching solver
         if self.solver_optlang.isChecked():
             self.gen_kos.setChecked(False)
             self.gen_kos.setEnabled(False)
@@ -482,7 +484,7 @@ class MCSDialog(QDialog):
                                           str(len(omcs))+' Cut sets have been calculated.')
 
         self.central_widget.update_mode()
-        self.central_widget.mode_navigator.title.setText("MCS Navigation")
+        self.central_widget.mode_navigator.set_to_mcs()
 
         self.setCursor(Qt.ArrowCursor)
 
@@ -505,7 +507,7 @@ class MCSDialog(QDialog):
         with self.appdata.project.cobra_py_model as model:
             if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 self.appdata.project.load_scenario_into_model(model)
-            for r in model.reactions: # make all reactions bounded for COBRApy FVA
+            for r in model.reactions:  # make all reactions bounded for COBRApy FVA
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
                 if r.upper_bound == float('inf'):
@@ -557,13 +559,13 @@ class MCSDialog(QDialog):
             self.setCursor(Qt.BusyCursor)
             try:
                 mcs, err_val = mcs_computation.compute_mcs(model,
-                                                  targets=targets,
-                                                  desired=desired,
-                                                  enum_method=enum_method,
-                                                  max_mcs_size=max_mcs_size,
-                                                  max_mcs_num=max_mcs_num,
-                                                  timeout=timeout,
-                                                  exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+                                                           targets=targets,
+                                                           desired=desired,
+                                                           enum_method=enum_method,
+                                                           max_mcs_size=max_mcs_size,
+                                                           max_mcs_num=max_mcs_num,
+                                                           timeout=timeout,
+                                                           exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
             except mcs_computation.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return targets, desired
@@ -598,5 +600,5 @@ class MCSDialog(QDialog):
                                       str(len(omcs))+' Cut sets have been calculated.')
 
         self.central_widget.update_mode()
-        self.central_widget.mode_navigator.title.setText("MCS Navigation")
+        self.central_widget.mode_navigator.set_to_mcs()
         self.accept()

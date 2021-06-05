@@ -1,7 +1,10 @@
+import json
+
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget)
+
 from cnapy.flux_vector_container import FluxVectorContainer
 
 
@@ -23,7 +26,6 @@ class ModeNavigator(QWidget):
 
         self.clear_button = QPushButton()
         self.clear_button.setIcon(QIcon(":/icons/clear.png"))
-        self.clear_button.setToolTip("clear")
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
@@ -49,7 +51,6 @@ class ModeNavigator(QWidget):
 
         self.prev_button.clicked.connect(self.prev)
         self.next_button.clicked.connect(self.next)
-        self.save_button.clicked.connect(self.save)
         self.clear_button.clicked.connect(self.clear)
 
     def update(self):
@@ -68,13 +69,41 @@ class ModeNavigator(QWidget):
                     txt = txt + " bounded"
         self.label.setText(txt)
 
-    def save(self):
+    def save_mcs(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.mcs")[0]
+        if not filename or len(filename) == 0:
+            return
+
+        with open(filename, 'w') as fp:
+            json.dump(self.appdata.project.modes, fp)
+
+    def save_efm(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.npz")[0]
         if not filename or len(filename) == 0:
             return
         self.appdata.project.modes.save(filename)
+
+    def set_to_mcs(self):
+        self.title.setText("MCS Navigation")
+        try:
+            self.save_button.clicked.disconnect(self.save_efm)
+        except TypeError:
+            pass
+        self.save_button.clicked.connect(self.save_mcs)
+        self.clear_button.setToolTip("clear minimal cut sets")
+
+    def set_to_efm(self):
+        self.title.setText("Mode Navigation")
+        try:
+            self.save_button.clicked.disconnect(self.save_mcs)
+        except TypeError:
+            pass
+        self.save_button.clicked.connect(self.save_efm)
+        self.clear_button.setToolTip("clear modes")
 
     def clear(self):
         self.appdata.project.modes.clear()
