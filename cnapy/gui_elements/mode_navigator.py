@@ -1,8 +1,7 @@
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QVBoxLayout,
-                            QWidget)
-
+from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
+                            QVBoxLayout, QWidget)
 from cnapy.flux_vector_container import FluxVectorContainer
 
 
@@ -18,9 +17,13 @@ class ModeNavigator(QWidget):
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
 
+        self.save_button = QPushButton()
+        self.save_button.setIcon(QIcon(":/icons/clear.png"))
+        self.save_button.setToolTip("save")
+
         self.clear_button = QPushButton()
         self.clear_button.setIcon(QIcon(":/icons/clear.png"))
-        self.clear_button.setToolTip("clear modes")
+        self.clear_button.setToolTip("clear")
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
@@ -30,6 +33,7 @@ class ModeNavigator(QWidget):
 
         l12 = QHBoxLayout()
         l12.setAlignment(Qt.AlignRight)
+        l12.addWidget(self.save_button)
         l12.addWidget(self.clear_button)
         l1.addWidget(self.title)
         l1.addLayout(l12)
@@ -45,6 +49,7 @@ class ModeNavigator(QWidget):
 
         self.prev_button.clicked.connect(self.prev)
         self.next_button.clicked.connect(self.next)
+        self.save_button.clicked.connect(self.save)
         self.clear_button.clicked.connect(self.clear)
 
     def update(self):
@@ -62,6 +67,14 @@ class ModeNavigator(QWidget):
                 else:
                     txt = txt + " bounded"
         self.label.setText(txt)
+
+    def save(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.npz")[0]
+        if not filename or len(filename) == 0:
+            return
+        self.appdata.project.modes.save(filename)
 
     def clear(self):
         self.appdata.project.modes.clear()
