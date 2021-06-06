@@ -535,6 +535,8 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         for i in values:
             self.appdata.project.comp_values[i] = (values[i], values[i])
+
+        self.centralWidget().mode_navigator.set_to_efm()
         self.appdata.modes_coloring = True
         self.centralWidget().update()
         self.appdata.modes_coloring = False
@@ -555,6 +557,7 @@ class MainWindow(QMainWindow):
             self.appdata.project.comp_values.clear()
             for i in values:
                 self.appdata.project.comp_values[i] = (values[i], values[i])
+        self.centralWidget().mode_navigator.set_to_mcs()
         self.appdata.modes_coloring = True
         self.centralWidget().update()
         self.appdata.modes_coloring = False
