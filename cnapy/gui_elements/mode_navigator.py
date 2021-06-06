@@ -5,6 +5,8 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget)
 
+
+import cnapy.resources
 from cnapy.flux_vector_container import FluxVectorContainer
 
 
@@ -21,8 +23,7 @@ class ModeNavigator(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.save_button = QPushButton()
-        self.save_button.setIcon(QIcon(":/icons/clear.png"))
-        self.save_button.setToolTip("save")
+        self.save_button.setIcon(QIcon(":/icons/save.png"))
 
         self.clear_button = QPushButton()
         self.clear_button.setIcon(QIcon(":/icons/clear.png"))
@@ -94,6 +95,7 @@ class ModeNavigator(QWidget):
         except TypeError:
             pass
         self.save_button.clicked.connect(self.save_mcs)
+        self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
 
     def set_to_efm(self):
@@ -103,6 +105,7 @@ class ModeNavigator(QWidget):
         except TypeError:
             pass
         self.save_button.clicked.connect(self.save_efm)
+        self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
 
     def clear(self):
