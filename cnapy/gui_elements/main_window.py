@@ -194,11 +194,13 @@ class MainWindow(QMainWindow):
         self.change_background_action.setEnabled(False)
 
         self.inc_box_size_action = QAction("Increase box size", self)
+        self.inc_box_size_action.setShortcut("Ctrl++")
         self.map_menu.addAction(self.inc_box_size_action)
         self.inc_box_size_action.triggered.connect(self.inc_box_size)
         self.inc_box_size_action.setEnabled(False)
 
         self.dec_box_size_action = QAction("Decrease box size", self)
+        self.dec_box_size_action.setShortcut("Ctrl+-")
         self.map_menu.addAction(self.dec_box_size_action)
         self.dec_box_size_action.triggered.connect(self.dec_box_size)
         self.dec_box_size_action.setEnabled(False)
