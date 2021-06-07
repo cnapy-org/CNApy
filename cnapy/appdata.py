@@ -30,6 +30,8 @@ class AppData:
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_bad = Qt.red
 
+        self.box_width = 80
+        self.box_height = 40
         self.comp_color = QColor(0, 170, 255)
         self.special_color_1 = QColor(255, 215, 0)
         self.special_color_2 = QColor(150, 220, 0)  # for bounds excluding 0

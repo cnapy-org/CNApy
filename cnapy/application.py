@@ -164,6 +164,12 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find default_color in cnapy-config.txt")
             try:
+                box_width = config_parser.get(
+                    'cnapy-config', 'box_width')
+                self.appdata.box_width = int(box_width)
+            except (KeyError, NoOptionError):
+                print("Could not find box_width in cnapy-config.txt")
+            try:
                 rounding = config_parser.get(
                     'cnapy-config', 'rounding')
                 self.appdata.rounding = int(rounding)

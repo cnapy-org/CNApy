@@ -299,7 +299,9 @@ class ReactionBox(QGraphicsItem):
         self.item.setFont(font)
         self.item.setAttribute(Qt.WA_TranslucentBackground)
 
-        self.item.setMaximumWidth(80)
+        self.item.setMaximumWidth(self.map.appdata.box_width)
+        self.item.setMaximumHeight(self.map.appdata.box_height)
+        self.item.setMinimumHeight(self.map.appdata.box_height)
         r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(r_id)
         text = "Id: " + r.id + "\nName: " + r.name \
             + "\nEquation: " + r.build_reaction_string()\
@@ -388,10 +390,11 @@ class ReactionBox(QGraphicsItem):
         ''' Sets the text of and reaction box according to the given value'''
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
-            self.item.setText(str(round(vl, self.map.appdata.rounding)))
+            self.item.setText(
+                str(round(vl, self.map.appdata.rounding)).rstrip("0"))
         else:
             self.item.setText(
-                str((round(vl, self.map.appdata.rounding), round(vu, self.map.appdata.rounding))))
+                str(round(vl, self.map.appdata.rounding)).rstrip("0")+", "+str(round(vu, self.map.appdata.rounding)).rstrip("0"))
         self.item.setCursorPosition(0)
 
     def recolor(self):
@@ -455,7 +458,8 @@ class ReactionBox(QGraphicsItem):
             painter.setPen(pen)
             pen.setWidth(4)
             painter.setPen(pen)
-            painter.drawRect(0-2, 0-2, 80+4, 33+5)
+            painter.drawRect(0-2, 0-2, self.map.appdata.box_width +
+                             4, self.map.appdata.box_height+4)
             painter.setBrush(self.map.appdata.scen_color_good)
         else:
             painter.setPen(Qt.darkGray)

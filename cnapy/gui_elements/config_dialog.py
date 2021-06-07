@@ -1,8 +1,6 @@
 """The cnapy configuration dialog"""
 import configparser
-import io
 import os
-import traceback
 from tempfile import TemporaryDirectory
 
 import appdirs
@@ -119,6 +117,16 @@ class ConfigDialog(QDialog):
         self.cna_path.setText(self.appdata.cna_path)
         cna_l.addWidget(self.cna_path)
         self.layout.addItem(cna_l)
+
+        bw = QHBoxLayout()
+        label = QLabel("box width:")
+        bw.addWidget(label)
+
+        self.box_width = QLineEdit()
+        self.box_width.setFixedWidth(100)
+        self.box_width.setText(str(self.appdata.box_width))
+        bw.addWidget(self.box_width)
+        self.layout.addItem(bw)
 
         h2 = QHBoxLayout()
         label = QLabel("Default color for values in a scenario:")
@@ -437,6 +445,7 @@ class ConfigDialog(QDialog):
             self.default_color_btn.setPalette(palette)
 
     def apply(self):
+        self.appdata.box_width = int(self.box_width.text())
         self.appdata.matlab_path = self.matlab_path.text()
         self.appdata.octave_executable = self.oc_exe.text()
         self.appdata.cna_path = self.cna_path.text()
@@ -471,6 +480,7 @@ class ConfigDialog(QDialog):
         palette = self.default_color_btn.palette()
         self.appdata.default_color = palette.color(QPalette.Button)
 
+        self.appdata.box_width = int(self.box_width.text())
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
 
@@ -493,6 +503,8 @@ class ConfigDialog(QDialog):
                    str(self.appdata.special_color_2.rgb()))
         parser.set('cnapy-config', 'default_color',
                    str(self.appdata.default_color.rgb()))
+        parser.set('cnapy-config', 'box_width',
+                   str(self.appdata.box_width))
         parser.set('cnapy-config', 'rounding',
                    str(self.appdata.rounding))
         parser.set('cnapy-config', 'abs_tol',
