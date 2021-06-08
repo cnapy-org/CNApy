@@ -28,6 +28,7 @@ class AppData:
         self.scen_color = QColor(255, 0, 127)
         # more scencolors
         self.scen_color_good = QColor(130, 190, 0)
+        self.scen_color_warn = QColor(255, 200, 0)
         self.scen_color_bad = Qt.red
 
         self.box_width = 80

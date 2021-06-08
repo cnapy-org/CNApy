@@ -453,13 +453,21 @@ class ReactionBox(QGraphicsItem):
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
-        pen = QPen(self.map.appdata.scen_color_good)
         if self.id in self.map.appdata.project.scen_values.keys():
+            (vl, vu) = self.map.appdata.project.scen_values[self.id]
+            ml = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
+                self.id).lower_bound
+            mu = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
+                self.id).upper_bound
+            if vu < ml or vl > mu:
+                pen = QPen(self.map.appdata.scen_color_warn)
+            else:
+                pen = QPen(self.map.appdata.scen_color_good)
             painter.setPen(pen)
-            pen.setWidth(4)
+            pen.setWidth(6)
             painter.setPen(pen)
-            painter.drawRect(0-2, 0-2, self.map.appdata.box_width +
-                             4, self.map.appdata.box_height+4)
+            painter.drawRect(0-3, 0-3, self.map.appdata.box_width +
+                             6, self.map.appdata.box_height+6)
             painter.setBrush(self.map.appdata.scen_color_good)
         else:
             painter.setPen(Qt.darkGray)
