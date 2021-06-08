@@ -391,10 +391,10 @@ class ReactionBox(QGraphicsItem):
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
             self.item.setText(
-                str(round(vl, self.map.appdata.rounding)).rstrip("0"))
+                str(round(vl, self.map.appdata.rounding)).rstrip("0").rstrip("."))
         else:
             self.item.setText(
-                str(round(vl, self.map.appdata.rounding)).rstrip("0")+", "+str(round(vu, self.map.appdata.rounding)).rstrip("0"))
+                str(round(vl, self.map.appdata.rounding)).rstrip("0").rstrip(".")+", "+str(round(vu, self.map.appdata.rounding)).rstrip("0").rstrip("."))
         self.item.setCursorPosition(0)
 
     def recolor(self):
