@@ -177,7 +177,7 @@ class MCSDialog(QDialog):
         s34.addWidget(self.any_mcs)
         self.bg2.addButton(self.any_mcs)
 
-        # Search type: by cardinality only with CPLEX possible
+        # Search type: by cardinality only with CPLEX/Gurobi possible
         self.mcs_by_cardinality = QRadioButton("by cardinality")
         s34.addWidget(self.mcs_by_cardinality)
         self.bg2.addButton(self.mcs_by_cardinality)
@@ -186,7 +186,7 @@ class MCSDialog(QDialog):
         s34.addWidget(self.smalles_mcs_first)
         self.bg2.addButton(self.smalles_mcs_first)
 
-        # Search type: continuous search only with optlang/CPLEX possible
+        # Search type: continuous search only with optlang + CPLEX/Gurobi possible
         self.mcs_continuous_search = QRadioButton("continuous search")
         s34.addWidget(self.mcs_continuous_search)
         self.bg2.addButton(self.mcs_continuous_search)
@@ -249,7 +249,7 @@ class MCSDialog(QDialog):
             self.gen_kos.setChecked(False)
             self.gen_kos.setEnabled(False)
             self.exclude_boundary.setEnabled(True)
-            if self.optlang_solver_name != 'cplex':
+            if self.optlang_solver_name != 'cplex' and self.optlang_solver_name != 'gurobi':
                 if self.mcs_by_cardinality.isChecked() or self.mcs_continuous_search.isChecked():
                     self.any_mcs.setChecked(True)
                 self.mcs_by_cardinality.setEnabled(False)
@@ -593,7 +593,7 @@ class MCSDialog(QDialog):
                                           'Cut sets have not been calculated or do not exist.')
             return targets, desired
 
-        omcs = [{reac_id[i]: 0 for i in m} for m in mcs]
+        omcs = [{reac_id[i]: 0.0 for i in m} for m in mcs]
         self.appdata.project.modes = omcs
         self.central_widget.mode_navigator.current = 0
         QMessageBox.information(self, 'Cut sets found',
