@@ -128,11 +128,11 @@ class ReactionList(QWidget):
             (vl, vu) = self.appdata.project.scen_values[key]
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 item.setFluxData(
-                    2, 0, str(round(vl, self.appdata.rounding)).rstrip("0").rstrip("."), vl)
+                    2, 0, str(round(float(vl), self.appdata.rounding)).rstrip("0").rstrip("."), vl)
             else:
                 item.setFluxData(
-                    2, 0, str(round(vl, self.appdata.rounding)).rstrip("0").rstrip(".")+", " +
-                    str(round(vu, self.appdata.rounding)).rstrip("0").rstrip("."), (vl, vu))
+                    2, 0, str(round(float(vl), self.appdata.rounding)).rstrip("0").rstrip(".")+", " +
+                    str(round(float(vu), self.appdata.rounding)).rstrip("0").rstrip("."), (vl, vu))
             item.setBackground(2, self.appdata.scen_color)
             item.setForeground(2, Qt.black)
         elif key in self.appdata.project.comp_values.keys():
@@ -149,7 +149,7 @@ class ReactionList(QWidget):
                     item.setBackground(2, self.appdata.comp_color)
 
                 item.setFluxData(
-                    2, 0, str(round(vl, self.appdata.rounding)).rstrip("0").rstrip("."), vl)
+                    2, 0, str(round(float(vl), self.appdata.rounding)).rstrip("0").rstrip("."), vl)
             else:
                 if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
                     item.setBackground(2, self.appdata.special_color_1)
@@ -159,8 +159,8 @@ class ReactionList(QWidget):
                     item.setBackground(2, self.appdata.special_color_1)
                 else:
                     item.setBackground(2, self.appdata.special_color_2)
-                item.setFluxData(2, 0, str(round(vl, self.appdata.rounding)).rstrip(
-                    "0").rstrip(".") + ", " + str(round(vu, self.appdata.rounding)).rstrip("0").rstrip("."),   (vl, vu))
+                item.setFluxData(2, 0, str(round(float(vl), self.appdata.rounding)).rstrip(
+                    "0").rstrip(".") + ", " + str(round(float(vu), self.appdata.rounding)).rstrip("0").rstrip("."),   (vl, vu))
 
             item.setForeground(2, Qt.black)
 
