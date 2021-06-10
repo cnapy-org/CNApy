@@ -1,4 +1,6 @@
 import os
+import io
+import traceback
 from importlib import reload
 import cnapy.CNA_MEngine
 import cnapy.octave_engine
@@ -15,7 +17,13 @@ def try_matlab_engine():
     except ImportError:
         print("Matlab engine not available ... continue with Matlab disabled.")
         return None
-
+    except Exception:
+        output = io.StringIO()
+        traceback.print_exc(file=output)
+        exstr = output.getvalue()
+        print(exstr)
+        print("Matlab engine error ... continue with Matlab disabled.")
+        return None
 
 def try_octave_engine(octave_executable: str):
     if os.path.isfile(octave_executable):
