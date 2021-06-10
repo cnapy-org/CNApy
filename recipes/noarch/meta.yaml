@@ -22,7 +22,7 @@ requirements:
     - qtpy=1.9
     - pyside2
     - appdirs
-    - cobra=0.21
+    - cobra=0.22
     - qtconsole=5.0
     - efmtool_link=0.0.2
     - optlang_enumerator=0.0.4
