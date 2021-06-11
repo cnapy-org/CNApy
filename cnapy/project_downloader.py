@@ -63,7 +63,7 @@ def main():
                 'cnapy', 'data/Ecoli-flux-analysis.scen')
             target = os.path.join(
                 work_directory, 'Ecoli-flux-analysis.scen')
-            shutil.copyfile(scen_file, target")
+            shutil.copyfile(scen_file, target)
 
 
 if __name__ == "__main__":
