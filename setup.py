@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='0.0.5',
+    version='0.0.6',
     url='https://github.com/cnapy-org/CNApy/',
     license='GPLv3+',
     description='An integrated environment for metabolic model analysis.',
