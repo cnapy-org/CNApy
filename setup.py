@@ -28,7 +28,8 @@ setup(
     author_email='sthiele78@gmail.com',
     packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
-    package_data={'cnapy': ['data/*.svg']},
+    package_data={'cnapy': [
+        'data/*.svg', 'data/Ecoli-glucose-standard.scen', 'data/Ecoli-flux-analysis.scen']},
     entry_points={'console_scripts': [
         'cnapy = cnapy.__main__:main_cnapy', 'project_downloader = cnapy.project_downloader:main']},
 )

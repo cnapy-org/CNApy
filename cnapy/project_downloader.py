@@ -16,10 +16,12 @@
 import configparser
 import os
 import pathlib
+import shutil
 import urllib.request
 from configparser import NoOptionError, NoSectionError
 
 import appdirs
+import pkg_resources
 
 
 def main():
@@ -49,8 +51,19 @@ def main():
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
                 print("Download:", target)
-                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.2/'+t
+                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.3/'+t
                 urllib.request.urlretrieve(url, target)
+
+            scen_file = pkg_resources.resource_filename(
+                'cnapy', 'data/Ecoli-glucose-standard.scen')
+            target = os.path.join(
+                work_directory, 'Ecoli-glucose-standard.scen')
+            shutil.copyfile(scen_file, target)
+            scen_file = pkg_resources.resource_filename(
+                'cnapy', 'data/Ecoli-flux-analysis.scen')
+            target = os.path.join(
+                work_directory, 'Ecoli-flux-analysis.scen')
+            shutil.copyfile(scen_file, target")
 
 
 if __name__ == "__main__":
