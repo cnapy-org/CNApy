@@ -492,7 +492,7 @@ class MCSDialog(QDialog):
         max_mcs_num = float(self.max_solu.text())
         max_mcs_size = int(self.max_size.text())
         timeout = float(self.time_limit.text())
-        if timeout is float('inf'):
+        if timeout == float('inf'):
             timeout = None
 
         if self.smalles_mcs_first.isChecked():
