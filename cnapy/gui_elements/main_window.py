@@ -206,11 +206,13 @@ class MainWindow(QMainWindow):
         self.dec_box_size_action.setEnabled(False)
 
         self.inc_bg_size_action = QAction("Increase background size", self)
+        self.inc_bg_size_action.setShortcut("Ctrl+Shift++")
         self.map_menu.addAction(self.inc_bg_size_action)
         self.inc_bg_size_action.triggered.connect(self.inc_bg_size)
         self.inc_bg_size_action.setEnabled(False)
 
         self.dec_bg_size_action = QAction("Decrease background size", self)
+        self.dec_bg_size_action.setShortcut("Ctrl+Shift+-")
         self.map_menu.addAction(self.dec_bg_size_action)
         self.dec_bg_size_action.triggered.connect(self.dec_bg_size)
         self.dec_bg_size_action.setEnabled(False)
@@ -702,19 +704,22 @@ class MainWindow(QMainWindow):
     @Slot()
     def new_project(self):
         if self.checked_unsaved():
-            self.appdata.project = ProjectData()
-            self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
-            self.centralWidget().map_tabs.clear()
-            self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+            self.new_project_unchecked()
 
-            self.centralWidget().mode_navigator.clear()
+    def new_project_unchecked(self):
+        self.appdata.project = ProjectData()
+        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
+        self.centralWidget().map_tabs.clear()
+        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
-            self.appdata.project.scen_values.clear()
-            self.appdata.scenario_past.clear()
-            self.appdata.scenario_future.clear()
+        self.centralWidget().mode_navigator.clear()
 
-            self.set_current_filename("Untitled project")
-            self.nounsaved_changes()
+        self.appdata.project.scen_values.clear()
+        self.appdata.scenario_past.clear()
+        self.appdata.scenario_future.clear()
+
+        self.set_current_filename("Untitled project")
+        self.nounsaved_changes()
 
     @Slot()
     def new_project_from_sbml(self):
@@ -735,7 +740,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(
                     self, 'Could not read sbml.', exstr)
                 return
-            self.new_project()
+            self.new_project_unchecked()
             self.appdata.project.cobra_py_model = cobra_py_model
             self.centralWidget().update()
 
