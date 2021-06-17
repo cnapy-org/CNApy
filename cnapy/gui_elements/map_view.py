@@ -391,7 +391,7 @@ class ReactionBox(QGraphicsItem):
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
             self.item.setText(
-                str(round(vl, self.map.appdata.rounding)).rstrip("0").rstrip("."))
+                str(round(float(vl), self.map.appdata.rounding)).rstrip("0").rstrip("."))
         else:
             self.item.setText(
                 str(round(float(vl), self.map.appdata.rounding)).rstrip("0").rstrip(".")+", "+str(round(float(vu), self.map.appdata.rounding)).rstrip("0").rstrip("."))
