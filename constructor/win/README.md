@@ -1,4 +1,4 @@
-# CNApy - An integrated environment for metabolic model analysis
+# CNApy - An integrated environment for metabolic network analysis
 
 ## How to run a script in the cnapy terminal
 

@@ -14,7 +14,7 @@ class AboutDialog(QDialog):
         self.button = QPushButton("Close")
         self.text = QLabel(
             "Version: {version}\
-            \n\nCNApy is an integrated environment for metabolic model analysis.\
+            \n\nCNApy is an integrated environment for metabolic network analysis.\
             \nFor more information visit us at:".format(version=appdata.version))
 
         self.text.setAlignment(Qt.AlignCenter)

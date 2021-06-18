@@ -21,7 +21,7 @@ setup(
     version='0.0.6',
     url='https://github.com/cnapy-org/CNApy/',
     license='GPLv3+',
-    description='An integrated environment for metabolic model analysis.',
+    description='An integrated environment for metabolic network analysis.',
     long_description=open('README.md', encoding="utf8").read(),
     long_description_content_type="text/asciidoc",
     author='Sven Thiele',
