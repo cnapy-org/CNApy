@@ -123,7 +123,8 @@ class ProjectData:
     def __init__(self):
         self.name = "Unnamed project"
         self.cobra_py_model = cobra.Model()
-        self.maps = {}
+        default_map = CnaMap("Map")
+        self.maps = {"Map": default_map}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}

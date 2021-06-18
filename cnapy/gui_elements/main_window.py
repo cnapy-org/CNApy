@@ -705,6 +705,7 @@ class MainWindow(QMainWindow):
     def new_project(self):
         if self.checked_unsaved():
             self.new_project_unchecked()
+            self.recreate_maps()
 
     def new_project_unchecked(self):
         self.appdata.project = ProjectData()
@@ -742,6 +743,8 @@ class MainWindow(QMainWindow):
                 return
             self.new_project_unchecked()
             self.appdata.project.cobra_py_model = cobra_py_model
+
+            self.recreate_maps()
             self.centralWidget().update()
 
             self.setCursor(Qt.ArrowCursor)
