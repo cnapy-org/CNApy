@@ -52,6 +52,7 @@ class Application:
         self.qapp.setStyle("fusion")
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
+        self.window.recreate_maps()
 
         self.read_config()
         if sys.platform == "win32":  # CNApy running on Windows
