@@ -65,45 +65,66 @@ class ClipboardCalculator(QDialog):
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Compute")
-        self.cancel = QPushButton("Cancel")
+        self.close = QPushButton("Close")
         l2.addWidget(self.button)
-        l2.addWidget(self.cancel)
+        l2.addWidget(self.close)
         self.layout.addItem(l2)
         self.setLayout(self.layout)
 
         # Connecting the signal
-        self.cancel.clicked.connect(self.reject)
+        self.close.clicked.connect(self.accept)
         self.button.clicked.connect(self.compute)
 
     def compute(self):
-        l = {}
-        r = {}
+        l_comp = {}
+        l_scen = {}
+        r_comp = {}
+        r_scen = {}
         if self.l1.isChecked():
-            l = self.appdata.comp_values
+            l_comp = self.appdata.project.comp_values
+            l_scen = self.appdata.project.scen_values
         elif self.l2.isChecked():
-            l = self.appdata.clipboard
+            l_comp = self.appdata.clipboard_comp_values
+            l_scen = self.appdata.clipboard_scen_values
 
         if self.r1.isChecked():
-            r = self.appdata.comp_values
+            r_comp = self.appdata.project.comp_values
+            r_scen = self.appdata.project.scen_values
         elif self.r2.isChecked():
-            r = self.appdata.clipboard
+            r_comp = self.appdata.clipboard_comp_values
+            r_scen = self.appdata.clipboard_scen_values
 
-        for key in self.appdata.comp_values:
+        for key in self.appdata.project.comp_values:
             if self.l3.isChecked():
-                lv = (float(self.left_value.text()),
-                      float(self.left_value.text()))
+                lv_comp = (float(self.left_value.text()),
+                           float(self.left_value.text()))
             else:
-                lv = l[key]
+                lv_comp = l_comp[key]
             if self.r3.isChecked():
-                rv = (float(self.right_value.text()),
-                      float(self.right_value.text()))
+                rv_comp = (float(self.right_value.text()),
+                           float(self.right_value.text()))
             else:
-                rv = r[key]
+                rv_comp = r_comp[key]
 
-            res = self.combine(lv, rv)
-            self.appdata.comp_values[key] = res
+            res = self.combine(lv_comp, rv_comp)
+            self.appdata.project.comp_values[key] = res
 
-        self.accept()
+        for key in self.appdata.project.scen_values:
+            if self.l3.isChecked():
+                lv_scen = (float(self.left_value.text()),
+                           float(self.left_value.text()))
+            else:
+                lv_scen = l_scen[key]
+            if self.r3.isChecked():
+                rv_scen = (float(self.right_value.text()),
+                           float(self.right_value.text()))
+            else:
+                rv_scen = r_scen[key]
+
+            res = self.combine(lv_scen, rv_scen)
+            self.appdata.project.scen_values[key] = res
+
+        self.appdata.window.centralWidget().update()
 
     def combine(self, lv, rv):
         (llb, lub) = lv
