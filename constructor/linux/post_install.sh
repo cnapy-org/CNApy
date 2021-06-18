@@ -4,4 +4,3 @@ conda activate $PREFIX
 
 conda install -v -c cnapy -c conda-forge --yes
 conda clean --all --yes
-project_downloader

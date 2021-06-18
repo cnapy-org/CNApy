@@ -31,5 +31,5 @@ setup(
     package_data={'cnapy': [
         'data/*.svg', 'data/Ecoli-glucose-standard.scen', 'data/Ecoli-flux-analysis.scen']},
     entry_points={'console_scripts': [
-        'cnapy = cnapy.__main__:main_cnapy', 'project_downloader = cnapy.project_downloader:main']},
+        'cnapy = cnapy.__main__:main_cnapy']},
 )
