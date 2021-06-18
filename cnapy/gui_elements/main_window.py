@@ -1170,7 +1170,7 @@ class MainWindow(QMainWindow):
         rank = np.linalg.matrix_rank(m)
         print('\nRank of stoichiometric matrix: ' + str(rank))
         print('Degrees of freedom: ' + str(reactions-rank))
-        print('Conservation relations: ' + str(metabolites-rank))
+        print('Independent conservation relations: ' + str(metabolites-rank))
 
         has_non_zero = False
         mmin = None
