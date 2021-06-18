@@ -1010,6 +1010,8 @@ class MainWindow(QMainWindow):
             self.appdata.project.load_scenario_into_model(model)
             solution = model.optimize()
             if solution.status == 'optimal':
+                self.centralWidget().kernel_client.execute(
+                    "print('\\nObjective value: "+str(solution.objective_value)+"')")
                 soldict = solution.fluxes.to_dict()
                 for i in soldict:
                     self.appdata.project.comp_values[i] = (
