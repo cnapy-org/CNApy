@@ -503,11 +503,14 @@ class ReactionMask(QWidget):
             self.reaction.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
-                key = self.annotation.item(i, 0).text()
-                if self.annotation.item(i, 1) is None:
-                    value = ""
+                if self.annotation.item(i, 0) is not None:
+                    key = self.annotation.item(i, 0).text()
                 else:
+                    key = ""
+                if self.annotation.item(i, 1) is not None:
                     value = self.annotation.item(i, 1).text()
+                else:
+                    value = ""
 
                 self.reaction.annotation[key] = value
 
