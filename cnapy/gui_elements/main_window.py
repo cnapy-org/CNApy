@@ -285,11 +285,11 @@ class MainWindow(QMainWindow):
         in_out_flux_action.triggered.connect(self.in_out_flux)
         self.analysis_menu.addAction(in_out_flux_action)
 
-        show_optimization_function_action = QAction(
-            "Show optimization function", self)
-        self.analysis_menu.addAction(show_optimization_function_action)
-        show_optimization_function_action.triggered.connect(
-            self.show_optimization_function)
+        show_objective_function_action = QAction(
+            "Show objective function", self)
+        self.analysis_menu.addAction(show_objective_function_action)
+        show_objective_function_action.triggered.connect(
+            self.show_objective_function)
 
         self.config_menu = self.menu.addMenu("Config")
 
@@ -1135,12 +1135,12 @@ class MainWindow(QMainWindow):
             else:
                 print('No solution!', solution.status)
 
-    def show_optimization_function(self):
-        self.centralWidget().kernel_client.execute("cna.optimization_function()")
+    def show_objective_function(self):
+        self.centralWidget().kernel_client.execute("cna.objective_function()")
         self.centralWidget().show_bottom_of_console()
 
-    def optimization_function(self):
-        print('\x1b[1;04;30m'+"Optimization function:\x1b[0m\n")
+    def objective_function(self):
+        print('\x1b[1;04;30m'+"Objective function:\x1b[0m\n")
         first = True
         res = ""
         model = self.appdata.project.cobra_py_model
