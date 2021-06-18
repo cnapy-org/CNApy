@@ -16,6 +16,7 @@
 """The Application class"""
 import configparser
 import io
+import os
 import sys
 import traceback
 from configparser import NoOptionError, NoSectionError
@@ -72,6 +73,8 @@ class Application:
             print("Could not find section cnapy-config in cnapy-config.txt")
 
         if version != self.appdata.version:
+            if not os.path.exists(self.appdata.work_directory):
+                self.window.show_download_dialog()
             self.window.show_config_dialog()
         else:
             if self.appdata.selected_engine == "matlab":
