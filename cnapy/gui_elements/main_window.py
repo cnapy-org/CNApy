@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
 
         set_model_bounds_to_scenario_action = QAction(
-            "Set the model bounds as scenario values", self)
+            "Use scenario values as model bounds", self)
         self.scenario_menu.addAction(set_model_bounds_to_scenario_action)
         set_model_bounds_to_scenario_action.triggered.connect(
             self.set_model_bounds_to_scenario)
