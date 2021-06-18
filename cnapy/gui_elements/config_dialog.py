@@ -222,9 +222,9 @@ class ConfigDialog(QDialog):
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
-        self.cancel = QPushButton("Close")
+        self.close = QPushButton("Close")
         l2.addWidget(self.button)
-        l2.addWidget(self.cancel)
+        l2.addWidget(self.close)
         self.layout.addItem(l2)
         self.setLayout(self.layout)
 
@@ -239,7 +239,7 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn.clicked.connect(self.choose_spec2_color)
         self.default_color_btn.clicked.connect(self.choose_default_color)
         self.selected_engine.currentTextChanged.connect(self.update)
-        self.cancel.clicked.connect(self.reject)
+        self.close.clicked.connect(self.accept)
         self.button.clicked.connect(self.apply)
 
         self.check_all()
@@ -522,4 +522,5 @@ class ConfigDialog(QDialog):
         parser.write(fp)
         fp.close()
 
-        self.accept()
+        self.appdata.window.centralWidget().update()
+        # self.accept()
