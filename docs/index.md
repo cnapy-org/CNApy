@@ -1,3 +1,5 @@
+![CNApy main window](https://raw.githubusercontent.com/cnapy-org/CNApy/master/screenshot.png)
+
 ## CNApy installation with conda
 
 1. Create a conda environment with all dependencies:
@@ -14,6 +16,13 @@
 
 IMPORTANT: To use the CNA Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course CNA. Alternatively to Matlab you can also use Octave.
 
+## Documentation
+
+[CNApy manual](https://raw.githubusercontent.com/cnapy-org/CNApy/gh-pages/docs/CNApyUsersGuide.html)
+
+Video tutorials
+
+Delete stuff below later
 --------------------
 
 ## Welcome to GitHub Pages
@@ -21,7 +30,6 @@ IMPORTANT: To use the CNA Matlab functions you need atleast Matlab 2019b and the
 You can use the [editor on GitHub](https://github.com/cnapy-org/CNApy/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
 Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-![CNApy main window](https://raw.githubusercontent.com/cnapy-org/CNApy/master/screenshot.png)
 ### Markdown
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
