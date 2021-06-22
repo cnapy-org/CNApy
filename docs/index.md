@@ -1,4 +1,5 @@
 under construction
+{:toc}
 ![CNApy main window](https://raw.githubusercontent.com/cnapy-org/CNApy/master/screenshot.png)
 
 ## CNApy installation with conda
