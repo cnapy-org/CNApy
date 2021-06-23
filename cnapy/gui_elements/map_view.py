@@ -144,13 +144,11 @@ class MapView(QGraphicsView):
         else:
             if self.drag:
                 self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-                self.translate(1, 1)
             super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-            self.translate(1, 1)
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
