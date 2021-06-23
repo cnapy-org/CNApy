@@ -25,7 +25,7 @@ requirements:
     - cobra=0.22
     - qtconsole=5.0  
     - efmtool_link=0.0.2
-    - optlang_enumerator=0.0.4
+    - optlang_enumerator=0.0.5
 
 build:
   number: 0  # NOTE: increment for new build/set to zero for new version
