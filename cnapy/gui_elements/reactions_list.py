@@ -554,8 +554,25 @@ class ReactionMask(QWidget):
             model.add_reaction(test_reaction)
 
             try:
+                # This is a work around for a bug in COBRApy build_reaction_from_string.
+                # Reproduce example reaction.build_reaction_from_string(" a + -> b + + c")
                 eqtxt = self.equation.text().rstrip()
+                parts = eqtxt.split('+')
+                invalid = False
+                for e in parts:
+                    e2 = e.strip()
+                    if e2 == '':
+                        invalid = True
+                    if e2[0:1] == '=':
+                        invalid = True
+                    if len(e2) >= 2:
+                        if e2[0:2] == '--' or e2[0:2] == '<-' or e2[0:2] == '<=' or e2[0:2] == '->':
+                            invalid = True
+
                 if len(eqtxt) > 0 and eqtxt[-1] == '+':
+                    invalid = True
+
+                if invalid:
                     turn_red(self.equation)
                 else:
                     test_reaction.build_reaction_from_string(eqtxt)
