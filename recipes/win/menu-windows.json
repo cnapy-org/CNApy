@@ -3,7 +3,7 @@
     "menu_items": [
         {
             "script": "${PREFIX}/Scripts/cnapy.exe",
-            "name": "CNApy-pywscript",
+            "name": "CNApy",
             "workdir": "${PERSONALDIR}",
             "icon": "${MENU_DIR}/app.ico",
             "desktop": true,
