@@ -26,6 +26,8 @@ class MapView(QGraphicsView):
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
         self.setPalette(palette)
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setInteractive(True)
 
         self.appdata = appdata
         self.name = name
@@ -144,11 +146,19 @@ class MapView(QGraphicsView):
         else:
             if self.drag:
                 self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-            super(MapView, self).mouseMoveEvent(event)
+
+        painter = QPainter()
+        self.render(painter)
+
+        super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+
+        painter = QPainter()
+        self.render(painter)
+
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
