@@ -15,9 +15,8 @@
   
 ## Video tutorials
 
-[![Create a new CNApy project.](https://img.youtube.com/vi/bsNXZBmtyWw/0.jpg)](http://www.youtube.com/watch?v=bsNXZBmtyWw)
-
-[![Perform FBA and FVA with CNApy.](https://img.youtube.com/vi/I5RJjXRBRaQ/0.jpg)](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
+- [Create a new CNApy project](http://www.youtube.com/watch?v=bsNXZBmtyWw)
+- [Perform FBA and FVA with CNApy](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
 
 ## Install CNApy with conda
 
