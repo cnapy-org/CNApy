@@ -15,7 +15,7 @@
   
 ## Video
 
-[![Alt text for your video](https://img.youtube.com/vi/VIDEO-ID/0.jpg)](http://www.youtube.com/watch?v=VIDEO-ID)
+[![Alt text for your video](https://img.youtube.com/vi/bsNXZBmtyWw/0.jpg)](http://www.youtube.com/watch?v=bsNXZBmtyWw)
 
 ## Install CNApy with conda
 
