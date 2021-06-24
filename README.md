@@ -8,12 +8,12 @@
 
 1. Create a conda environment with all dependencies
     ```sh
-    conda create -n cnapy-0.0.6 -c conda-forge -c cnapy cnapy
+    conda create -n cnapy-1.0.0 -c conda-forge -c cnapy cnapy=1.0.0
     ```
 
 2. Activate the cnapy conda environment
     ```
-    conda activate cnapy-0.0.6
+    conda activate cnapy-1.0.0
     ```
 
 3. Run CNApy
