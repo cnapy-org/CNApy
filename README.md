@@ -4,6 +4,15 @@
 
 ![CNApy screenshot](screenshot.png)
 
+
+## Downloads
+
+- The latest release can be found on the [release page](https://github.com/cnapy-org/CNApy/releases/latest)
+
+- The [CNApy user guide](https://cnapy-org.github.io/CNApy/CNApyUsersGuide.html)
+
+- Example projects [CNApy projects](https://github.com/cnapy-org/CNApy-projects/releases/latest)
+  
 ## Install CNApy with conda
 
 We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
