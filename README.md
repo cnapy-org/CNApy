@@ -13,6 +13,10 @@
 
 - Example projects [CNApy projects](https://github.com/cnapy-org/CNApy-projects/releases/latest)
   
+## Video
+
+[![Alt text for your video](https://img.youtube.com/vi/VIDEO-ID/0.jpg)](http://www.youtube.com/watch?v=VIDEO-ID)
+
 ## Install CNApy with conda
 
 We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
