@@ -36,7 +36,7 @@ class AppData:
         self.comp_color = QColor(0, 170, 255)
         self.special_color_1 = QColor(255, 215, 0)
         self.special_color_2 = QColor(150, 220, 0)  # for bounds excluding 0
-        self.default_color = Qt.gray
+        self.default_color = QColor(200, 200, 200)
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
