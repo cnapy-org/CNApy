@@ -13,9 +13,11 @@
 
 - Example projects [CNApy projects](https://github.com/cnapy-org/CNApy-projects/releases/latest)
   
-## Video
+## Video tutorials
 
-[![Alt text for your video](https://img.youtube.com/vi/bsNXZBmtyWw/0.jpg)](http://www.youtube.com/watch?v=bsNXZBmtyWw)
+[![Create a new CNApy project.](https://img.youtube.com/vi/bsNXZBmtyWw/0.jpg)](http://www.youtube.com/watch?v=bsNXZBmtyWw)
+
+[![Perform FBA and FVA with CNApy.](https://img.youtube.com/vi/I5RJjXRBRaQ/0.jpg)](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
 
 ## Install CNApy with conda
 
