@@ -18,7 +18,7 @@ IMPORTANT: To use the CNA Matlab functions you need at least [Matlab](https://ww
 
 ## Documentation
 
-[CNApy manual](CNApyUsersGuide.html)
+[CNApy manual](https://cnapy-org.github.io/users-guide/)
 
 Video tutorials
 
