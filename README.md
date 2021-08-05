@@ -9,7 +9,7 @@
 
 - The latest release can be found on the [release page](https://github.com/cnapy-org/CNApy/releases/latest)
 
-- The [CNApy user guide](https://cnapy-org.github.io/CNApy/CNApyUsersGuide.html)
+- The [CNApy user guide](https://cnapy-org.github.io/users-guide/)
 
 - Example projects [CNApy projects](https://github.com/cnapy-org/CNApy-projects/releases/latest)
   
