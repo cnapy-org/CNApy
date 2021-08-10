@@ -17,6 +17,7 @@ class ModeNavigator(QWidget):
         QWidget.__init__(self)
         self.appdata = appdata
         self.current = 0
+        self.mode_type = 0 # EFM or some sort of flux vector
         self.scenario = {}
         self.setFixedHeight(70)
         self.layout = QVBoxLayout()
@@ -73,12 +74,13 @@ class ModeNavigator(QWidget):
     def save_mcs(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.mcs")[0]
+            directory=self.appdata.work_directory, filter="*.npz")[0]
         if not filename or len(filename) == 0:
             return
+        self.appdata.project.modes.save(filename)
 
-        with open(filename, 'w') as fp:
-            json.dump(self.appdata.project.modes, fp)
+        # with open(filename, 'w') as fp:
+        #     json.dump(self.appdata.project.modes, fp)
 
     def save_efm(self):
         dialog = QFileDialog(self)
@@ -89,6 +91,7 @@ class ModeNavigator(QWidget):
         self.appdata.project.modes.save(filename)
 
     def set_to_mcs(self):
+        self.mode_type = 1
         self.title.setText("MCS Navigation")
         try:
             self.save_button.clicked.disconnect(self.save_efm)
@@ -99,6 +102,7 @@ class ModeNavigator(QWidget):
         self.clear_button.setToolTip("clear minimal cut sets")
 
     def set_to_efm(self):
+        self.mode_type = 0 # EFM or some sort of flux vector
         self.title.setText("Mode Navigation")
         try:
             self.save_button.clicked.disconnect(self.save_mcs)
@@ -109,6 +113,7 @@ class ModeNavigator(QWidget):
         self.clear_button.setToolTip("clear modes")
 
     def clear(self):
+        self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
         self.appdata.recreate_scenario_from_history()
         self.hide()
@@ -136,5 +141,8 @@ class ModeNavigator(QWidget):
         self.changedCurrentMode.emit(self.current)
         self.appdata.modes_coloring = False
 
+    def __del__(self):
+        self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
+    
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()

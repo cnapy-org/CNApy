@@ -5,8 +5,10 @@ import numpy
 class FluxVectorContainer:
     def __init__(self, matORfname, reac_id=None, irreversible=None, unbounded=None):
         if type(matORfname) is str:
-            l = numpy.load(matORfname)  # actually has got a memmap option
+            l = numpy.load(matORfname, allow_pickle=True)  # allow_pickle to read back sparse matrices saved as fv_mat
             self.fv_mat = l['fv_mat']
+            if self.fv_mat.dtype == numpy.object: # in this case assume fv_mat is scipy.sparse
+                self.fv_mat = self.fv_mat.tolist() # not sure why this works...
             self.reac_id = l['reac_id']
             self.irreversible = l['irreversible']
             self.unbounded = l['unbounded']

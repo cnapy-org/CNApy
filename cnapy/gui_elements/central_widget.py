@@ -240,6 +240,8 @@ class CentralWidget(QWidget):
             self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
             for i in values:
+                if self.mode_navigator.mode_type == 1 and values[i] == -1:
+                    values[i] = 0.0 # display cuts as zero flux
                 self.appdata.project.comp_values[i] = (values[i], values[i])
 
         self.appdata.modes_coloring = True
