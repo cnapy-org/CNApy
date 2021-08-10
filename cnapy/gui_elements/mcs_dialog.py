@@ -442,7 +442,7 @@ class MCSDialog(QDialog):
                 values = self.eng.workspace['value']
         elif self.appdata.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
-            reac_id = reac_id[0]
+            reac_id = reac_id[0].tolist()
             try:
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
                               nargout=0)
@@ -466,13 +466,14 @@ class MCSDialog(QDialog):
         else:
             last_mcs = 1
             # omcs = []
-            # print(mcs[-1])
-            num_mcs = int(mcs[-1])
+            # print(mcs, type(mcs), type(reac_id))
+            # print(mcs[-1][0])
+            num_mcs = int(mcs[-1][0])
             omcs = scipy.sparse.lil_matrix((num_mcs, len(reac_id)))
             # current_mcs = {}
             for i in range(0, len(reactions)):
-                print(mcs[i], reactions[i], values[i])
-                omcs[mcs[i]-1, reactions[i]-1] = values[i]
+                # print(mcs[i][0], reactions[i][0], values[i][0])
+                omcs[mcs[i][0]-1, reactions[i][0]-1] = values[i][0]
             #     reacid = int(reactions[i][0])
             #     reaction = reac_id[reacid-1]
             #     c_mcs = int(mcs[i][0])

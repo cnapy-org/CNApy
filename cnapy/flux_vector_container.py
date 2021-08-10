@@ -9,7 +9,7 @@ class FluxVectorContainer:
             self.fv_mat = l['fv_mat']
             if self.fv_mat.dtype == numpy.object: # in this case assume fv_mat is scipy.sparse
                 self.fv_mat = self.fv_mat.tolist() # not sure why this works...
-            self.reac_id = l['reac_id']
+            self.reac_id = l['reac_id'].tolist()
             self.irreversible = l['irreversible']
             self.unbounded = l['unbounded']
         else:
