@@ -1209,16 +1209,8 @@ class MainWindow(QMainWindow):
         print('Largest (absolute) value:', max(c))
 
     def print_in_out_fluxes(self, metabolite):
-        with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.load_scenario_into_model(model)
-            solution = model.optimize()
-            if solution.status == 'optimal':
-                soldict = solution.fluxes.to_dict()
-                self.in_out_fluxes(metabolite, soldict)
-            elif solution.status == 'infeasible':
-                print('No solution the scenario is infeasible!')
-            else:
-                print('No solution!', solution.status)
+        soldict = {id: val[0] for (id, val) in self.appdata.project.comp_values.items()}
+        self.in_out_fluxes(metabolite, soldict)
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
@@ -1408,18 +1400,18 @@ class MainWindow(QMainWindow):
             sum_cons = 0
             sum_prod = 0
             for rxn in met.reactions:
-                flux = rxn.get_coefficient(metabolite_id) * soldict[rxn.id]
+                flux = rxn.get_coefficient(metabolite_id) * soldict.get(rxn.id, 0.0)
                 if flux < 0:
-                    cons.append((rxn.id, -flux))
+                    cons.append((rxn, -flux))
                 elif flux > 0:
-                    prod.append((rxn.id, flux))
+                    prod.append((rxn, flux))
             cons = sorted(cons, key=lambda x: x[1], reverse=True)
             prod = sorted(prod, key=lambda x: x[1], reverse=True)
-            for rxn_id, flux in prod:
-                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn_id)
+            for rxn, flux in prod:
+                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn.id+": "+rxn.build_reaction_string())
                 sum_prod += flux
-            for rxn_id, flux in cons:
-                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn_id)
+            for rxn, flux in cons:
+                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn.id+": "+rxn.build_reaction_string())
                 sum_cons += flux
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
