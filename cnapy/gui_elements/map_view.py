@@ -10,7 +10,7 @@ from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent,
                             QGraphicsSceneMouseEvent, QGraphicsView,
-                            QLineEdit, QMenu, QWidget)
+                            QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
 from cnapy.appdata import AppData
 
@@ -26,9 +26,8 @@ class MapView(QGraphicsView):
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
         self.setPalette(palette)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.setInteractive(True)
-
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.appdata = appdata
         self.name = name
         self.setAcceptDrops(True)
@@ -37,6 +36,8 @@ class MapView(QGraphicsView):
         self._zoom = 0
         self.drag = False
         self.drag_start = None
+        self.select = False
+        self.select_start = None
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -50,6 +51,9 @@ class MapView(QGraphicsView):
         # connect events to methods
         self.horizontalScrollBar().valueChanged.connect(self.on_hbar_change)
         self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
+
+        self.rebuild_scene()
+        self.update()
 
     def on_hbar_change(self, x):
         self.appdata.project.maps[self.name]["pos"] = (
@@ -71,13 +75,23 @@ class MapView(QGraphicsView):
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
-            self.appdata.project.maps[self.name]["boxes"][r_id] = (
-                point_item.x(), point_item.y())
-            self.mapChanged.emit(r_id)
+            old = self.appdata.project.maps[self.name]["boxes"][r_id]
+            move_x = point_item.x() - old[0]
+            move_y = point_item.y() - old[1]
+
+            selected = self.scene.selectedItems()
+            for item in selected:
+                pos = self.appdata.project.maps[self.name]["boxes"][item.id]
+
+                self.appdata.project.maps[self.name]["boxes"][item.id] = (
+                    pos[0]+move_x, pos[1]+move_y)
+                self.mapChanged.emit(item.id)
+
         else:
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(), point_item.y())
             self.reactionAdded.emit(r_id)
+            self.rebuild_scene()  # TODO don't rebuild the whole scene only add one item
 
         self.update()
 
@@ -126,29 +140,23 @@ class MapView(QGraphicsView):
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def mousePressEvent(self, event: QMouseEvent):
-        self.drag = True
-        self.drag_start = event.pos()
+        modifiers = QApplication.queryKeyboardModifiers()
+        if modifiers == Qt.ShiftModifier:
+            self.setDragMode(QGraphicsView.RubberBandDrag)
+            self.select = True
+            self.select_start = self.mapToScene(event.pos())
+
+        else:
+            self.setDragMode(QGraphicsView.ScrollHandDrag)
+            self.drag = True
+            self.drag_start = event.pos()
+
+        self.setCursor(Qt.ClosedHandCursor)
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        modifiers = QApplication.queryKeyboardModifiers()
-        if modifiers == Qt.ControlModifier:
-            if self.drag:
-                point = event.pos()
-                move_x = self.drag_start.x() - point.x()
-                move_y = self.drag_start.y() - point.y()
-                self.drag_start = point
-                for key, val in self.appdata.project.maps[self.name]["boxes"].items():
-                    self.appdata.project.maps[self.name]["boxes"][key] = (
-                        val[0]-move_x, val[1]-move_y)
-                self.mapChanged.emit("dummy")
-                self.update()
-        else:
-            if self.drag:
-                self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-
-        painter = QPainter()
-        self.render(painter)
+        if self.drag:
+            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
         super(MapView, self).mouseMoveEvent(event)
 
@@ -156,10 +164,24 @@ class MapView(QGraphicsView):
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
+        if self.select:
+            point = self.mapToScene(event.pos())
+
+            width = point.x() - self.select_start.x()
+            height = point.y() - self.select_start.y()
+            selected = self.scene.items(
+                QRectF(self.select_start.x(), self.select_start.y(), width, height))
+
+            for item in selected:
+                if isinstance(item, QGraphicsProxyWidget):
+                    item.widget().parent.setSelected(True)
+
         painter = QPainter()
         self.render(painter)
 
+        self.select = False
         self.drag = False
+        self.setCursor(Qt.OpenHandCursor)
         super(MapView, self).mouseReleaseEvent(event)
 
     def update_selected(self, string):
@@ -195,12 +217,13 @@ class MapView(QGraphicsView):
         treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
 
-    def update(self):
+    def rebuild_scene(self):
         self.scene.clear()
         background = QGraphicsSvgItem(
             self.appdata.project.maps[self.name]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
         background.setScale(self.appdata.project.maps[self.name]["bg-size"])
+
         self.scene.addItem(background)
 
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
@@ -209,15 +232,25 @@ class MapView(QGraphicsView):
                     r_id).name
                 box = ReactionBox(self, r_id, name)
 
-                box.setScale(self.appdata.project.maps[self.name]["box-size"])
-                box.proxy.setScale(
-                    self.appdata.project.maps[self.name]["box-size"])
-                box.setPos(self.appdata.project.maps[self.name]["boxes"][r_id]
-                           [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
                 self.scene.addItem(box)
+                box.add_line_widget()
                 self.reaction_boxes[r_id] = box
             except KeyError:
                 print("failed to add reaction box for", r_id)
+
+    def update(self):
+        for item in self.scene.items():
+            if isinstance(item, QGraphicsSvgItem):
+                item.setScale(
+                    self.appdata.project.maps[self.name]["bg-size"])
+            elif isinstance(item, ReactionBox):
+                item.setScale(self.appdata.project.maps[self.name]["box-size"])
+                item.proxy.setScale(
+                    self.appdata.project.maps[self.name]["box-size"])
+                item.setPos(self.appdata.project.maps[self.name]["boxes"][item.id]
+                            [0], self.appdata.project.maps[self.name]["boxes"][item.id][1])
+            else:
+                pass
 
         self.set_values()
         self.recolor_all()
@@ -245,6 +278,10 @@ class MapView(QGraphicsView):
                     self.appdata.project.comp_values[r_id])
 
     def remove_box(self, reaction: str):
+        box = self.reaction_boxes[reaction]
+        lineedit = box.proxy
+        self.scene.removeItem(lineedit)
+        self.scene.removeItem(box)
         del self.appdata.project.maps[self.name]["boxes"][reaction]
         del self.reaction_boxes[reaction]
         self.update()
@@ -281,13 +318,21 @@ class CLineEdit(QLineEdit):
                 self.parent.map.reaction_boxes[self.parent.id].set_value(
                     self.parent.map.appdata.project.comp_values[self.parent.id])
             else:
-                self.parent.map.reaction_boxes[self.parent.id].item.setText("")
+                self.setText("")
         self.parent.recolor()
+        self.parent.update()
 
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
         self.parent.switch_to_reaction_mask()
 
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        if (event.button() == Qt.MouseButton.LeftButton):
+            self.parent.setSelected(True)
+            
+        self.setCursor(Qt.ClosedHandCursor)
+
+        super().mousePressEvent(event)
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
@@ -299,6 +344,7 @@ class ReactionBox(QGraphicsItem):
         self.id = r_id
         self.name = name
 
+        self.setFlags(QGraphicsItem.ItemIsSelectable)
         self.item = CLineEdit(self)
         self.item.setTextMargins(1, -13, 0, -10)  # l t r b
         font = self.item.font()
@@ -319,8 +365,7 @@ class ReactionBox(QGraphicsItem):
 
         self.item.setToolTip(text)
 
-        self.proxy = self.map.scene.addWidget(self.item)
-        self.proxy.show()
+        self.proxy = None  # proxy is set in add_line_widget after the item has been added
 
         self.set_default_style()
 
@@ -348,6 +393,32 @@ class ReactionBox(QGraphicsItem):
         remove_action.triggered.connect(self.remove)
 
         self.pop_menu.addSeparator()
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        if (event.button() == Qt.MouseButton.LeftButton):
+            self.setSelected(True)
+            
+
+        self.setCursor(Qt.ClosedHandCursor)
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        super().mouseDoubleClickEvent(event)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        self.setCursor(Qt.OpenHandCursor)
+        super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        drag = QDrag(event.widget())
+        mime = QMimeData()
+        mime.setText(str(self.id))
+        drag.setMimeData(mime)
+        drag.exec_()
+
+    def add_line_widget(self):
+        self.proxy = self.map.scene.addWidget(self.item)
+        self.proxy.show()
 
     def returnPressed(self):
         if validate_value(self.item.text()):
@@ -457,48 +528,50 @@ class ReactionBox(QGraphicsItem):
         self.item.setPalette(palette)
 
     def boundingRect(self):
-        return QRectF(-15, -15, 20, 20)
+        return QRectF(-15, -15, self.map.appdata.box_width +
+                      15+8, self.map.appdata.box_height+15+8)
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
+
+        if self.isSelected():
+            light_blue = QColor(100, 100, 200)
+            pen = QPen(light_blue)
+            pen.setWidth(6)
+            painter.setPen(pen)
+            painter.drawRect(0-6, 0-6, self.map.appdata.box_width +
+                             12, self.map.appdata.box_height+12)
+
         if self.id in self.map.appdata.project.scen_values.keys():
             (vl, vu) = self.map.appdata.project.scen_values[self.id]
             ml = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
                 self.id).lower_bound
             mu = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
                 self.id).upper_bound
+
             if vu < ml or vl > mu:
                 pen = QPen(self.map.appdata.scen_color_warn)
+                painter.setBrush(self.map.appdata.scen_color_warn)
             else:
                 pen = QPen(self.map.appdata.scen_color_good)
-            painter.setPen(pen)
+                painter.setBrush(self.map.appdata.scen_color_good)
+
             pen.setWidth(6)
             painter.setPen(pen)
             painter.drawRect(0-3, 0-3, self.map.appdata.box_width +
                              6, self.map.appdata.box_height+6)
-            painter.setBrush(self.map.appdata.scen_color_good)
+
+            pen.setWidth(1)
+            painter.setPen(pen)
+            painter.drawEllipse(-15, -15, 20, 20)
+
         else:
             painter.setPen(Qt.darkGray)
+            painter.drawEllipse(-15, -15, 20, 20)
 
-        painter.drawEllipse(-15, -15, 20, 20)
         painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
-
-    def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
-        pass
-
-    def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
-        pass
-
-    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        drag = QDrag(event.widget())
-        mime = QMimeData()
-        mime.setText(str(self.id))
-        drag.setMimeData(mime)
-        # self.setCursor(Qt.ClosedHandCursor)
-        drag.exec_()
-        # self.setCursor(Qt.OpenHandCursor)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
