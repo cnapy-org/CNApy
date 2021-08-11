@@ -489,6 +489,7 @@ class MCSDialog(QDialog):
             # self.appdata.project.modes = omcs
             self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
             self.central_widget.mode_navigator.current = 0
+            self.central_widget.mode_navigator.select_all()
             QMessageBox.information(self, 'Cut sets found',
                                           str(num_mcs)+' Cut sets have been calculated.')
                                         #   str(len(omcs))+' Cut sets have been calculated.')
