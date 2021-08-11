@@ -28,7 +28,6 @@ class MapView(QGraphicsView):
         self.setPalette(palette)
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
-
         self.appdata = appdata
         self.name = name
         self.setAcceptDrops(True)
@@ -132,7 +131,7 @@ class MapView(QGraphicsView):
         if modifiers == Qt.ShiftModifier:
             self.setDragMode(QGraphicsView.RubberBandDrag)
             self.select = True
-            self.select_start = event.pos()
+            self.select_start = self.mapToScene(event.pos())
 
         else:
             self.setDragMode(QGraphicsView.ScrollHandDrag)
@@ -168,9 +167,10 @@ class MapView(QGraphicsView):
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
         if self.select:
-            point = event.pos()
-            width = point.y() - self.select_start.y()
-            height = point.x() - self.select_start.x()
+            point = self.mapToScene(event.pos())
+
+            width = point.x() - self.select_start.x()
+            height = point.y() - self.select_start.y()
             selected = self.scene.items(
                 QRectF(self.select_start.x(), self.select_start.y(), width, height))
 
@@ -178,6 +178,7 @@ class MapView(QGraphicsView):
             for item in selected:
                 if isinstance(item, QGraphicsProxyWidget):
                     print("yeah")
+                    item.widget().parent.setSelected(True)
 
         painter = QPainter()
         self.render(painter)
@@ -323,6 +324,7 @@ class ReactionBox(QGraphicsItem):
         self.id = r_id
         self.name = name
 
+        self.setFlags(QGraphicsItem.ItemIsSelectable)
         self.item = CLineEdit(self)
         self.item.setTextMargins(1, -13, 0, -10)  # l t r b
         font = self.item.font()
@@ -490,6 +492,15 @@ class ReactionBox(QGraphicsItem):
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
+        print("is selected:", self.isSelected())
+        light_blue = QColor(100, 100, 200)
+        pen = QPen(light_blue)
+        pen.setWidth(6)
+        painter.setPen(pen)
+        if self.isSelected():
+            painter.drawRect(0-6, 0-6, self.map.appdata.box_width +
+                             12, self.map.appdata.box_height+12)
+
         if self.id in self.map.appdata.project.scen_values.keys():
             (vl, vu) = self.map.appdata.project.scen_values[self.id]
             ml = self.map.appdata.project.cobra_py_model.reactions.get_by_id(
@@ -513,9 +524,6 @@ class ReactionBox(QGraphicsItem):
         painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
-
-    def mousePressEvent(self, _event: QGraphicsSceneMouseEvent):
-        pass
 
     def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
         pass
