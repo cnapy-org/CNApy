@@ -26,8 +26,9 @@ class MapView(QGraphicsView):
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
         self.setPalette(palette)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.setInteractive(True)
+        # self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setDragMode(QGraphicsView.RubberBandDrag)
 
         self.appdata = appdata
         self.name = name
