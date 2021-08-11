@@ -161,7 +161,6 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        print("mouse release event")
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
@@ -328,7 +327,6 @@ class CLineEdit(QLineEdit):
         self.parent.switch_to_reaction_mask()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
-        print("LE mouse press event")
         if (event.button() == Qt.MouseButton.LeftButton):
             self.parent.setSelected(True)
             
@@ -397,7 +395,6 @@ class ReactionBox(QGraphicsItem):
         self.pop_menu.addSeparator()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
-        print("RB mouse press event")
         if (event.button() == Qt.MouseButton.LeftButton):
             self.setSelected(True)
             
@@ -406,11 +403,9 @@ class ReactionBox(QGraphicsItem):
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
-        print("mouse double click event")
         super().mouseDoubleClickEvent(event)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
-        print("mouse release event item")
         self.setCursor(Qt.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
