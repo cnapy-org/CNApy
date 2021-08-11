@@ -327,6 +327,14 @@ class CLineEdit(QLineEdit):
         super().mouseDoubleClickEvent(event)
         self.parent.switch_to_reaction_mask()
 
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        print("LE mouse press event")
+        if (event.button() == Qt.MouseButton.LeftButton):
+            self.parent.setSelected(True)
+            
+        self.setCursor(Qt.ClosedHandCursor)
+
+        super().mousePressEvent(event)
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
@@ -389,12 +397,12 @@ class ReactionBox(QGraphicsItem):
         self.pop_menu.addSeparator()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        print("RB mouse press event")
         if (event.button() == Qt.MouseButton.LeftButton):
             self.setSelected(True)
+            
 
         self.setCursor(Qt.ClosedHandCursor)
-        print("mouse press event")
-
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
