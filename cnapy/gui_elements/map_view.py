@@ -488,9 +488,9 @@ class ReactionBox(QGraphicsItem):
         self.item.setPalette(palette)
 
     def boundingRect(self):
-        return QRectF(-15, -15, 20, 20)
+        return QRectF(-15, -15, self.map.appdata.box_width+15+12, self.map.appdata.box_height+15+12)
 
-    def paint(self, painter: QPainter, _option, _widget: QWidget):
+    def paint(self, painter: QPainter, option, widget: QWidget):
         # set color depending on wether the value belongs to the scenario
         print("is selected:", self.isSelected())
         light_blue = QColor(100, 100, 200)
