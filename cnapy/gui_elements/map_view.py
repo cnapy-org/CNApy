@@ -91,7 +91,7 @@ class MapView(QGraphicsView):
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(), point_item.y())
             self.reactionAdded.emit(r_id)
-            self.rebuild_scene()  # TDOO don't rebuild the whole scene only add one item
+            self.rebuild_scene()  # TODO don't rebuild the whole scene only add one item
 
         self.update()
 
