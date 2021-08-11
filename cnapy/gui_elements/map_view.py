@@ -10,7 +10,7 @@ from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent,
                             QGraphicsSceneMouseEvent, QGraphicsView,
-                            QLineEdit, QMenu, QWidget)
+                            QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
 from cnapy.appdata import AppData
 
@@ -27,8 +27,7 @@ class MapView(QGraphicsView):
         palette = self.palette()
         self.setPalette(palette)
         self.setInteractive(True)
-        # self.setDragMode(QGraphicsView.ScrollHandDrag)
-        self.setDragMode(QGraphicsView.RubberBandDrag)
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
 
         self.appdata = appdata
         self.name = name
@@ -38,6 +37,8 @@ class MapView(QGraphicsView):
         self._zoom = 0
         self.drag = False
         self.drag_start = None
+        self.select = False
+        self.select_start = None
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -127,8 +128,17 @@ class MapView(QGraphicsView):
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def mousePressEvent(self, event: QMouseEvent):
-        self.drag = True
-        self.drag_start = event.pos()
+        modifiers = QApplication.queryKeyboardModifiers()
+        if modifiers == Qt.ShiftModifier:
+            self.setDragMode(QGraphicsView.RubberBandDrag)
+            self.select = True
+            self.select_start = event.pos()
+
+        else:
+            self.setDragMode(QGraphicsView.ScrollHandDrag)
+            self.drag = True
+            self.drag_start = event.pos()
+
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
@@ -144,22 +154,35 @@ class MapView(QGraphicsView):
                         val[0]-move_x, val[1]-move_y)
                 self.mapChanged.emit("dummy")
                 self.update()
+                painter = QPainter()
+                self.render(painter)
         else:
             if self.drag:
                 self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
-        painter = QPainter()
-        self.render(painter)
-
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
+        print("mouse release event")
         if self.drag:
             self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+
+        if self.select:
+            point = event.pos()
+            width = point.y() - self.select_start.y()
+            height = point.x() - self.select_start.x()
+            selected = self.scene.items(
+                QRectF(self.select_start.x(), self.select_start.y(), width, height))
+
+            print("selected Items", selected)
+            for item in selected:
+                if isinstance(item, QGraphicsProxyWidget):
+                    print("yeah")
 
         painter = QPainter()
         self.render(painter)
 
+        self.select = False
         self.drag = False
         super(MapView, self).mouseReleaseEvent(event)
 
@@ -349,6 +372,11 @@ class ReactionBox(QGraphicsItem):
         remove_action.triggered.connect(self.remove)
 
         self.pop_menu.addSeparator()
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        if (event.button() == Qt.MouseButton.LeftButton):
+            self.setSelected(True)
+        print("mouse press event")
 
     def returnPressed(self):
         if validate_value(self.item.text()):
