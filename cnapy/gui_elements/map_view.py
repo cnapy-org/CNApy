@@ -75,9 +75,18 @@ class MapView(QGraphicsView):
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
-            self.appdata.project.maps[self.name]["boxes"][r_id] = (
-                point_item.x(), point_item.y())
-            self.mapChanged.emit(r_id)
+            old = self.appdata.project.maps[self.name]["boxes"][r_id]
+            move_x = point_item.x() - old[0]
+            move_y = point_item.y() - old[1]
+
+            selected = self.scene.selectedItems()
+            for item in selected:
+                pos = self.appdata.project.maps[self.name]["boxes"][item.id]
+
+                self.appdata.project.maps[self.name]["boxes"][item.id] = (
+                    pos[0]+move_x, pos[1]+move_y)
+                self.mapChanged.emit(item.id)
+
         else:
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(), point_item.y())
@@ -146,25 +155,8 @@ class MapView(QGraphicsView):
         super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        modifiers = QApplication.queryKeyboardModifiers()
-        if modifiers == Qt.ControlModifier:
-            if self.drag:
-                point = event.pos()
-                move_x = self.drag_start.x() - point.x()
-                move_y = self.drag_start.y() - point.y()
-                self.drag_start = point
-                selected = self.scene.selectedItems()
-                print("selected", selected)
-                for key, val in self.appdata.project.maps[self.name]["boxes"].items():
-                    self.appdata.project.maps[self.name]["boxes"][key] = (
-                        val[0]-move_x, val[1]-move_y)
-                self.mapChanged.emit("dummy")
-                self.update()
-                painter = QPainter()
-                self.render(painter)
-        else:
-            if self.drag:
-                self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        if self.drag:
+            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
         super(MapView, self).mouseMoveEvent(event)
 
@@ -415,15 +407,11 @@ class ReactionBox(QGraphicsItem):
         super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        pos = event.pos()
-        if pos.x() < 20 and pos.y() < 20:
-            drag = QDrag(event.widget())
-            mime = QMimeData()
-            mime.setText(str(self.id))
-            drag.setMimeData(mime)
-            drag.exec_()
-        else:
-            super().mouseMoveEvent(event)
+        drag = QDrag(event.widget())
+        mime = QMimeData()
+        mime.setText(str(self.id))
+        drag.setMimeData(mime)
+        drag.exec_()
 
     def add_line_widget(self):
         self.proxy = self.map.scene.addWidget(self.item)
