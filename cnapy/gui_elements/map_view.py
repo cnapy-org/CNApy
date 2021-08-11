@@ -234,13 +234,15 @@ class MapView(QGraphicsView):
                     r_id).name
                 box = ReactionBox(self, r_id, name)
 
+                self.scene.addItem(box)
+                box.add_line_widget()
+                self.reaction_boxes[r_id] = box
+
                 box.setScale(self.appdata.project.maps[self.name]["box-size"])
                 box.proxy.setScale(
                     self.appdata.project.maps[self.name]["box-size"])
                 box.setPos(self.appdata.project.maps[self.name]["boxes"][r_id]
                            [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
-                self.scene.addItem(box)
-                self.reaction_boxes[r_id] = box
             except KeyError:
                 print("failed to add reaction box for", r_id)
 
@@ -308,6 +310,7 @@ class CLineEdit(QLineEdit):
             else:
                 self.parent.map.reaction_boxes[self.parent.id].item.setText("")
         self.parent.recolor()
+        self.parent.update()
 
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
@@ -345,8 +348,7 @@ class ReactionBox(QGraphicsItem):
 
         self.item.setToolTip(text)
 
-        self.proxy = self.map.scene.addWidget(self.item)
-        self.proxy.show()
+        self.proxy = None  # proxy is set in add_line_widget after the item has been added
 
         self.set_default_style()
 
@@ -379,6 +381,16 @@ class ReactionBox(QGraphicsItem):
         if (event.button() == Qt.MouseButton.LeftButton):
             self.setSelected(True)
         print("mouse press event")
+
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        print("mouse double click event")
+        super().mouseDoubleClickEvent(event)
+
+    def add_line_widget(self):
+        self.proxy = self.map.scene.addWidget(self.item)
+        self.proxy.show()
 
     def returnPressed(self):
         if validate_value(self.item.text()):
@@ -488,11 +500,11 @@ class ReactionBox(QGraphicsItem):
         self.item.setPalette(palette)
 
     def boundingRect(self):
-        return QRectF(-15, -15, self.map.appdata.box_width+15+12, self.map.appdata.box_height+15+12)
+        return QRectF(-15, -15, self.map.appdata.box_width +
+                      16+6, self.map.appdata.box_height+16+6)
 
-    def paint(self, painter: QPainter, option, widget: QWidget):
+    def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
-        print("is selected:", self.isSelected())
         light_blue = QColor(100, 100, 200)
         pen = QPen(light_blue)
         pen.setWidth(6)
@@ -525,17 +537,21 @@ class ReactionBox(QGraphicsItem):
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
-    def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
-        pass
+    # def mouseReleaseEvent(self, _event: QGraphicsSceneMouseEvent):
+    #     pass
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        drag = QDrag(event.widget())
-        mime = QMimeData()
-        mime.setText(str(self.id))
-        drag.setMimeData(mime)
-        # self.setCursor(Qt.ClosedHandCursor)
-        drag.exec_()
-        # self.setCursor(Qt.OpenHandCursor)
+        pos = event.pos()
+        if pos.x() < 20 and pos.y() < 20:
+            drag = QDrag(event.widget())
+            mime = QMimeData()
+            mime.setText(str(self.id))
+            drag.setMimeData(mime)
+            # self.setCursor(Qt.ClosedHandCursor)
+            drag.exec_()
+            # self.setCursor(Qt.OpenHandCursor)
+        else:
+            super().mouseMoveEvent(event)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
