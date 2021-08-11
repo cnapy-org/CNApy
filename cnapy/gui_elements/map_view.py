@@ -52,6 +52,9 @@ class MapView(QGraphicsView):
         self.horizontalScrollBar().valueChanged.connect(self.on_hbar_change)
         self.verticalScrollBar().valueChanged.connect(self.on_vbar_change)
 
+        self.rebuild_scene()
+        self.update()
+
     def on_hbar_change(self, x):
         self.appdata.project.maps[self.name]["pos"] = (
             x, self.verticalScrollBar().value())
@@ -79,6 +82,7 @@ class MapView(QGraphicsView):
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(), point_item.y())
             self.reactionAdded.emit(r_id)
+            self.rebuild_scene()  # TDOO don't rebuild the whole scene only add one item
 
         self.update()
 
@@ -149,6 +153,8 @@ class MapView(QGraphicsView):
                 move_x = self.drag_start.x() - point.x()
                 move_y = self.drag_start.y() - point.y()
                 self.drag_start = point
+                selected = self.scene.selectedItems()
+                print("selected", selected)
                 for key, val in self.appdata.project.maps[self.name]["boxes"].items():
                     self.appdata.project.maps[self.name]["boxes"][key] = (
                         val[0]-move_x, val[1]-move_y)
@@ -220,12 +226,13 @@ class MapView(QGraphicsView):
         treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
 
-    def update(self):
+    def rebuild_scene(self):
         self.scene.clear()
         background = QGraphicsSvgItem(
             self.appdata.project.maps[self.name]["background"])
         background.setFlags(QGraphicsItem.ItemClipsToShape)
         background.setScale(self.appdata.project.maps[self.name]["bg-size"])
+
         self.scene.addItem(background)
 
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
@@ -237,14 +244,22 @@ class MapView(QGraphicsView):
                 self.scene.addItem(box)
                 box.add_line_widget()
                 self.reaction_boxes[r_id] = box
-
-                box.setScale(self.appdata.project.maps[self.name]["box-size"])
-                box.proxy.setScale(
-                    self.appdata.project.maps[self.name]["box-size"])
-                box.setPos(self.appdata.project.maps[self.name]["boxes"][r_id]
-                           [0], self.appdata.project.maps[self.name]["boxes"][r_id][1])
             except KeyError:
                 print("failed to add reaction box for", r_id)
+
+    def update(self):
+        for item in self.scene.items():
+            if isinstance(item, QGraphicsSvgItem):
+                item.setScale(
+                    self.appdata.project.maps[self.name]["bg-size"])
+            elif isinstance(item, ReactionBox):
+                item.setScale(self.appdata.project.maps[self.name]["box-size"])
+                item.proxy.setScale(
+                    self.appdata.project.maps[self.name]["box-size"])
+                item.setPos(self.appdata.project.maps[self.name]["boxes"][item.id]
+                            [0], self.appdata.project.maps[self.name]["boxes"][item.id][1])
+            else:
+                pass
 
         self.set_values()
         self.recolor_all()
@@ -272,6 +287,10 @@ class MapView(QGraphicsView):
                     self.appdata.project.comp_values[r_id])
 
     def remove_box(self, reaction: str):
+        box = self.reaction_boxes[reaction]
+        lineedit = box.proxy
+        self.scene.removeItem(lineedit)
+        self.scene.removeItem(box)
         del self.appdata.project.maps[self.name]["boxes"][reaction]
         del self.reaction_boxes[reaction]
         self.update()
@@ -308,7 +327,7 @@ class CLineEdit(QLineEdit):
                 self.parent.map.reaction_boxes[self.parent.id].set_value(
                     self.parent.map.appdata.project.comp_values[self.parent.id])
             else:
-                self.parent.map.reaction_boxes[self.parent.id].item.setText("")
+                self.setText("")
         self.parent.recolor()
         self.parent.update()
 
