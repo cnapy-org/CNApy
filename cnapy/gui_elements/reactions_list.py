@@ -1,5 +1,7 @@
 """The reactions list"""
 from math import isclose
+import io
+import traceback
 
 import cobra
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot
@@ -496,8 +498,16 @@ class ReactionMask(QWidget):
         else:
             self.reaction.name = self.name.text()
             self.reaction.build_reaction_from_string(self.equation.text())
+        try:
             self.reaction.lower_bound = float(self.lower_bound.text())
             self.reaction.upper_bound = float(self.upper_bound.text())
+        except ValueError as exception:
+            turn_red(self.lower_bound)
+            turn_red(self.upper_bound)
+            QMessageBox.warning(self, 'ValueError', str(exception))
+        else:
+            self.reaction.name = self.name.text()
+            self.reaction.build_reaction_from_string(self.equation.text())
             self.reaction.objective_coefficient = float(self.coefficent.text())
             self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
             self.reaction.annotation = {}
