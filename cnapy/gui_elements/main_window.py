@@ -539,7 +539,6 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.modes = FluxVectorContainer(filename)
         self.centralWidget().mode_navigator.current = 0
-        self.centralWidget().mode_navigator.select_all()
         # values = self.appdata.project.modes[0]
         # self.appdata.project.scen_values.clear()
         # self.appdata.project.comp_values.clear()
@@ -562,7 +561,6 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.modes = FluxVectorContainer(filename)
         self.centralWidget().mode_navigator.current = 0
-        self.centralWidget().mode_navigator.select_all()
         self.centralWidget().mode_navigator.set_to_mcs()
         self.centralWidget().update_mode()
         # dialog = QFileDialog(self)

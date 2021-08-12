@@ -53,9 +53,9 @@ class EFMtoolDialog(QDialog):
                 QMessageBox.information(self, 'No modes',
                                         'No elementary modes exist.')
             else:
-                print(scenario)
                 self.appdata.project.modes = ems
                 self.central_widget.mode_navigator.current = 0
                 self.central_widget.mode_navigator.scenario = scenario
                 self.central_widget.mode_navigator.set_to_efm()
                 self.central_widget.update_mode()
+        self.accept()

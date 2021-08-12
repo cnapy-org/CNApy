@@ -32,6 +32,7 @@ class ModeNavigator(QWidget):
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
+        self.reaction_participation_button = QPushButton("Reaction participation")
 
         l1 = QHBoxLayout()
         self.title = QLabel("Mode Navigation")
@@ -56,6 +57,7 @@ class ModeNavigator(QWidget):
         l2.addWidget(self.prev_button)
         l2.addWidget(self.label)
         l2.addWidget(self.next_button)
+        l2.addWidget(self.reaction_participation_button)
 
         self.layout.addLayout(l1)
         self.layout.addLayout(l2)
@@ -117,6 +119,7 @@ class ModeNavigator(QWidget):
         self.save_button.clicked.connect(self.save_mcs)
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
+        self.select_all()
         self.update_completion_list()
 
     def set_to_efm(self):
@@ -129,6 +132,7 @@ class ModeNavigator(QWidget):
         self.save_button.clicked.connect(self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
+        self.select_all()
         self.update_completion_list()
 
     def clear(self):
@@ -138,6 +142,12 @@ class ModeNavigator(QWidget):
         self.hide()
         self.modeNavigatorClosed.emit()
 
+    def display_mode(self):
+        self.appdata.modes_coloring = True
+        self.update()
+        self.changedCurrentMode.emit(self.current)
+        self.appdata.modes_coloring = False
+
     def prev(self):
         while True:
             if self.current == 0:
@@ -146,11 +156,7 @@ class ModeNavigator(QWidget):
                 self.current -= 1
             if self.selection[self.current]:
                 break
-
-        self.appdata.modes_coloring = True
-        self.update()
-        self.changedCurrentMode.emit(self.current)
-        self.appdata.modes_coloring = False
+        self.display_mode()
 
     def next(self):
         while True:
@@ -160,15 +166,12 @@ class ModeNavigator(QWidget):
                 self.current += 1
             if self.selection[self.current]:
                 break
-
-        self.appdata.modes_coloring = True
-        self.update()
-        self.changedCurrentMode.emit(self.current)
-        self.appdata.modes_coloring = False
+        self.display_mode()
 
     def select_all(self):
         self.selection = numpy.ones(len(self.appdata.project.modes), dtype=numpy.bool)
         self.num_selected = len(self.appdata.project.modes)
+        self.selector.setText("")
 
     def reset_selection(self):
         self.selection[:] = True # select all
@@ -176,7 +179,6 @@ class ModeNavigator(QWidget):
         self.update()
 
     def apply_selection(self):
-        print(self.selector.text())
         must_occur =  []
         must_not_occur = []
         selector_text = self.selector.text().strip()
@@ -197,7 +199,9 @@ class ModeNavigator(QWidget):
                 self.reset_selection()
             else:
                 self.current = 0
-                if not self.selection[self.current]:
+                if self.selection[self.current]:
+                    self.display_mode()
+                else:
                     self.next()
 
     def select(self, must_occur=None, must_not_occur=None):
