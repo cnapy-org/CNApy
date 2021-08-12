@@ -356,6 +356,22 @@ class MetabolitesMask(QWidget):
             turn_red(self.compartment)
             return False
         else:
+
+            if self.compartment.text() != "" and self.compartment.text() not in self.appdata.project.cobra_py_model.compartments:
+                message_box = QMessageBox()
+                message_box.setText(
+                    "The compartment "+self.compartment.text() + " does not yet exist")
+                message_box.setInformativeText(
+                    "Do you want to create the compartment?")
+                message_box.setStandardButtons(
+                    QMessageBox.Ok | QMessageBox.Cancel)
+                message_box.setDefaultButton(QMessageBox.Ok)
+                ret = message_box.exec()
+
+                if ret == QMessageBox.Cancel:
+                    turn_red(self.compartment)
+                    return False
+
             turn_white(self.compartment)
             return True
 
