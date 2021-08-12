@@ -1,5 +1,6 @@
 import json
 import numpy
+import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, Signal, QStringListModel
 from qtpy.QtGui import QIcon
@@ -33,6 +34,7 @@ class ModeNavigator(QWidget):
         self.next_button = QPushButton(">")
         self.label = QLabel()
         self.reaction_participation_button = QPushButton("Reaction participation")
+        self.size_histogram_button = QPushButton("Size histogram")
 
         l1 = QHBoxLayout()
         self.title = QLabel("Mode Navigation")
@@ -58,6 +60,7 @@ class ModeNavigator(QWidget):
         l2.addWidget(self.label)
         l2.addWidget(self.next_button)
         l2.addWidget(self.reaction_participation_button)
+        l2.addWidget(self.size_histogram_button)
 
         self.layout.addLayout(l1)
         self.layout.addLayout(l2)
@@ -67,6 +70,7 @@ class ModeNavigator(QWidget):
         self.next_button.clicked.connect(self.next)
         self.clear_button.clicked.connect(self.clear)
         self.selector.returnPressed.connect(self.apply_selection)
+        self.size_histogram_button.clicked.connect(self.size_histogram)
 
     def update(self):
         txt = str(self.current + 1) + "/" + \
@@ -219,6 +223,13 @@ class ModeNavigator(QWidget):
                     if self.selection[i] and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
                         self.selection[i] = False
         self.num_selected = numpy.sum(self.selection)
+
+    def size_histogram(self):
+        sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
+        if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+            sizes = sizes.A1 # flatten into 1D array
+        plt.hist(sizes, bins="auto")
+        plt.show()
 
     def __del__(self):
         self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
