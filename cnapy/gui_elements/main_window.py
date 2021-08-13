@@ -837,7 +837,7 @@ class MainWindow(QMainWindow):
     def save_sbml(self, filename):
         '''Save model as SBML'''
 
-        # cleanup to work around cobrapy not setting a default compartement
+        # cleanup to work around cobrapy not setting a default compartment
         # remove unused species
         (clean_model, unused_mets) = prune_unused_metabolites(
             self.appdata.project.cobra_py_model)
