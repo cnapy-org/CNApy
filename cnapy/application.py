@@ -134,6 +134,7 @@ class Application:
             try:
                 self.appdata.work_directory = config_parser.get(
                     'cnapy-config', 'work_directory')
+                self.appdata.last_scen_directory = self.appdata.work_directory
             except (KeyError, NoOptionError):
                 print("Could not find work_directory in cnapy-config.txt")
 

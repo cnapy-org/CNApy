@@ -464,6 +464,7 @@ class ConfigDialog(QDialog):
         self.appdata.window.disable_enable_dependent_actions()
 
         self.appdata.work_directory = self.work_directory.text()
+        self.appdata.last_scen_directory = self.work_directory.text()
 
         palette = self.scen_color_btn.palette()
         self.appdata.scen_color = palette.color(QPalette.Button)
