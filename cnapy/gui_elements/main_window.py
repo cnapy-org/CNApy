@@ -514,7 +514,7 @@ class MainWindow(QMainWindow):
     def load_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.scen")[0]
+            directory=self.appdata.last_scen_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -528,6 +528,8 @@ class MainWindow(QMainWindow):
 
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
+
+        self.appdata.last_scen_directory = os.path.dirname(filename)
 
     @Slot()
     def load_modes(self):
@@ -667,12 +669,14 @@ class MainWindow(QMainWindow):
     def save_scenario(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.scen")[0]
+            directory=self.appdata.last_scen_directory, filter="*.scen")[0]
         if not filename or len(filename) == 0:
             return
 
         with open(filename, 'w') as fp:
             json.dump(self.appdata.project.scen_values, fp)
+
+        self.appdata.last_scen_directory = os.path.dirname(filename)
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
