@@ -2,6 +2,8 @@
 
 ## CNApy installation with conda
 
+We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
+
 1. Create a conda environment with all dependencies:
 ```
 conda create -n cnapy-1.0.0 -c conda-forge -c cnapy cnapy=1.0.0
