@@ -238,6 +238,33 @@ class MapView(QGraphicsView):
             except KeyError:
                 print("failed to add reaction box for", r_id)
 
+    def delete_box(self, reaction_id: str):
+        box = self.reaction_boxes[reaction_id]
+        lineedit = box.proxy
+        self.scene.removeItem(lineedit)
+        self.scene.removeItem(box)
+
+    def update_reaction(self, old_reaction_id: str, new_reaction_id: str):
+        self.delete_box(old_reaction_id)
+        try:
+            name = self.appdata.project.cobra_py_model.reactions.get_by_id(
+                new_reaction_id).name
+            box = ReactionBox(self, new_reaction_id, name)
+
+            self.scene.addItem(box)
+            box.add_line_widget()
+            self.reaction_boxes[new_reaction_id] = box
+
+            box.setScale(
+                self.appdata.project.maps[self.name]["box-size"])
+            box.proxy.setScale(
+                self.appdata.project.maps[self.name]["box-size"])
+            box.setPos(self.appdata.project.maps[self.name]["boxes"][box.id]
+                       [0], self.appdata.project.maps[self.name]["boxes"][box.id][1])
+
+        except KeyError:
+            print("failed to add reaction box for", new_reaction_id)
+
     def update(self):
         for item in self.scene.items():
             if isinstance(item, QGraphicsSvgItem):
@@ -278,10 +305,7 @@ class MapView(QGraphicsView):
                     self.appdata.project.comp_values[r_id])
 
     def remove_box(self, reaction: str):
-        box = self.reaction_boxes[reaction]
-        lineedit = box.proxy
-        self.scene.removeItem(lineedit)
-        self.scene.removeItem(box)
+        self.delete_box(reaction)
         del self.appdata.project.maps[self.name]["boxes"][reaction]
         del self.reaction_boxes[reaction]
         self.update()
@@ -329,10 +353,10 @@ class CLineEdit(QLineEdit):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         if (event.button() == Qt.MouseButton.LeftButton):
             self.parent.setSelected(True)
-            
         self.setCursor(Qt.ClosedHandCursor)
 
         super().mousePressEvent(event)
+
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
@@ -397,7 +421,6 @@ class ReactionBox(QGraphicsItem):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         if (event.button() == Qt.MouseButton.LeftButton):
             self.setSelected(True)
-            
 
         self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)

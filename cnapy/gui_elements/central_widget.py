@@ -2,6 +2,7 @@
 from ast import literal_eval as make_tuple
 
 import cobra
+from cobra.core import reaction
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
@@ -120,8 +121,7 @@ class CentralWidget(QWidget):
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     old_id)
 
-        # TODO update only relevant reaction boxes on maps
-        self.update_maps()
+        self.update_reaction_on_maps(old_id, reaction.id)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
@@ -132,8 +132,7 @@ class CentralWidget(QWidget):
             if reaction.id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"].pop(reaction.id)
 
-        # TODO update only relevant reaction boxes on maps
-        self.update_maps()
+        self.delete_reaction_on_maps(reaction.id)
 
     def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
         self.parent.unsaved_changes()
@@ -271,6 +270,16 @@ class CentralWidget(QWidget):
         m = self.map_tabs.widget(idx)
         if m is not None:
             m.update()
+
+    def update_reaction_on_maps(self, old_reaction_id: str, new_reaction_id: str):
+        for idx in range(0, self.map_tabs.count()):
+            m = self.map_tabs.widget(idx)
+            m.update_reaction(old_reaction_id, new_reaction_id)
+
+    def delete_reaction_on_maps(self, reation_id: str):
+        for idx in range(0, self.map_tabs.count()):
+            m = self.map_tabs.widget(idx)
+            m.delete_box(reation_id)
 
     def update_maps(self):
         for idx in range(0, self.map_tabs.count()):
