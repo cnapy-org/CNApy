@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtCore import Qt, Signal, QStringListModel
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
-                            QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox)
+                            QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
 
 
 import cnapy.resources
@@ -27,6 +27,7 @@ class ModeNavigator(QWidget):
 
         self.save_button = QPushButton()
         self.save_button.setIcon(QIcon(":/icons/save.png"))
+        self.save_button_connection = None
 
         self.clear_button = QPushButton()
         self.clear_button.setIcon(QIcon(":/icons/clear.png"))
@@ -40,6 +41,7 @@ class ModeNavigator(QWidget):
         self.title = QLabel("Mode Navigation")
         self.selector = QLineEdit()
         self.selector.setPlaceholderText("Select...")
+        self.selector.setClearButtonEnabled(True)
 
         self.completion_list = QStringListModel()
         self.completer = CustomCompleter(self)
@@ -70,6 +72,7 @@ class ModeNavigator(QWidget):
         self.next_button.clicked.connect(self.next)
         self.clear_button.clicked.connect(self.clear)
         self.selector.returnPressed.connect(self.apply_selection)
+        self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
         self.size_histogram_button.clicked.connect(self.size_histogram)
 
     def update(self):
@@ -116,11 +119,9 @@ class ModeNavigator(QWidget):
     def set_to_mcs(self):
         self.mode_type = 1
         self.title.setText("MCS Navigation")
-        try:
-            self.save_button.clicked.disconnect(self.save_efm)
-        except TypeError:
-            pass
-        self.save_button.clicked.connect(self.save_mcs)
+        if self.save_button_connection is not None:
+            self.save_button.clicked.disconnect(self.save_button_connection)
+        self.save_button_connection = self.save_button.clicked.connect(self.save_mcs)
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
         self.select_all()
@@ -129,11 +130,9 @@ class ModeNavigator(QWidget):
     def set_to_efm(self):
         self.mode_type = 0 # EFM or some sort of flux vector
         self.title.setText("Mode Navigation")
-        try:
-            self.save_button.clicked.disconnect(self.save_mcs)
-        except TypeError:
-            pass
-        self.save_button.clicked.connect(self.save_efm)
+        if self.save_button_connection is not None:
+            self.save_button.clicked.disconnect(self.save_button_connection)
+        self.save_button_connection = self.save_button.clicked.connect(self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
         self.select_all()
