@@ -53,7 +53,7 @@ class AppData:
         self.scenario_past = []
         self.scenario_future = []
 
-    def scen_values_set(self, reaction: str, values: (float, float)):
+    def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         self.project.scen_values[reaction] = values
         self.scenario_past.append(("set", reaction, values))
         self.scenario_future.clear()
