@@ -232,6 +232,7 @@ class ReactionList(QWidget):
             self.reaction_mask.is_valid = True
         (_, r) = self.splitter.getRange(1)
         self.splitter.moveSplitter(r/2, 1)
+        self.reaction_list.scrollToItem(item)
         self.reaction_mask.update_state()
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
