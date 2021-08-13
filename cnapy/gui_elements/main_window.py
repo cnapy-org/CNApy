@@ -523,8 +523,15 @@ class MainWindow(QMainWindow):
             self.appdata.project.scen_values.clear()
             self.appdata.scenario_past.clear()
             self.appdata.scenario_future.clear()
+            missing_reactions = []
             for i in values:
                 self.appdata.scen_values_set(i, values[i])
+                if i not in  self.appdata.project.cobra_py_model.reactions:
+                    missing_reactions.append(i)
+
+            if len(missing_reactions) > 0 :
+                QMessageBox.warning(
+                            self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
