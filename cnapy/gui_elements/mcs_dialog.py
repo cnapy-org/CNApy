@@ -3,6 +3,7 @@
 import io
 import os
 import traceback
+import scipy
 
 from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
@@ -14,6 +15,7 @@ import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
+from cnapy.flux_vector_container import FluxVectorContainer
 
 
 class MCSDialog(QDialog):
@@ -440,7 +442,7 @@ class MCSDialog(QDialog):
                 values = self.eng.workspace['value']
         elif self.appdata.is_octave_ready():
             reac_id = self.eng.pull('reac_id')
-            reac_id = reac_id[0]
+            reac_id = reac_id[0].tolist()
             try:
                 self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
                               nargout=0)
@@ -463,28 +465,36 @@ class MCSDialog(QDialog):
                                           'Cut sets have not been calculated or do not exist.')
         else:
             last_mcs = 1
-            omcs = []
-            current_mcs = {}
+            # omcs = []
+            # print(mcs, type(mcs), type(reac_id))
+            # print(mcs[-1][0])
+            num_mcs = int(mcs[-1][0])
+            omcs = scipy.sparse.lil_matrix((num_mcs, len(reac_id)))
+            # current_mcs = {}
             for i in range(0, len(reactions)):
-                reacid = int(reactions[i][0])
-                reaction = reac_id[reacid-1]
-                c_mcs = int(mcs[i][0])
-                c_value = int(values[i][0])
-                if c_value == -1:  # -1 stands for removed which is 0 in the ui
-                    c_value = 0
-                if c_mcs > last_mcs:
-                    omcs.append(current_mcs)
-                    last_mcs = c_mcs
-                    current_mcs = {}
-                current_mcs[reaction] = c_value
-            omcs.append(current_mcs)
-            self.appdata.project.modes = omcs
+                # print(mcs[i][0], reactions[i][0], values[i][0])
+                omcs[mcs[i][0]-1, reactions[i][0]-1] = values[i][0]
+            #     reacid = int(reactions[i][0])
+            #     reaction = reac_id[reacid-1]
+            #     c_mcs = int(mcs[i][0])
+            #     c_value = int(values[i][0])
+            #     if c_value == -1:  # -1 stands for removed which is 0 in the ui
+            #         c_value = -1.0
+            #     if c_mcs > last_mcs:
+            #         omcs.append(current_mcs)
+            #         last_mcs = c_mcs
+            #         current_mcs = {}
+            #     current_mcs[reaction] = c_value
+            # omcs.append(current_mcs)
+            # self.appdata.project.modes = omcs
+            self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
             self.central_widget.mode_navigator.current = 0
             QMessageBox.information(self, 'Cut sets found',
-                                          str(len(omcs))+' Cut sets have been calculated.')
+                                          str(num_mcs)+' Cut sets have been calculated.')
+                                        #   str(len(omcs))+' Cut sets have been calculated.')
 
-        self.central_widget.update_mode()
         self.central_widget.mode_navigator.set_to_mcs()
+        self.central_widget.update_mode()
 
         self.setCursor(Qt.ArrowCursor)
 
@@ -593,12 +603,17 @@ class MCSDialog(QDialog):
                                           'Cut sets have not been calculated or do not exist.')
             return targets, desired
 
-        omcs = [{reac_id[i]: 0.0 for i in m} for m in mcs]
-        self.appdata.project.modes = omcs
+        # omcs = [{reac_id[i]: -1.0 for i in m} for m in mcs]
+        omcs = scipy.sparse.lil_matrix((len(mcs), len(reac_id)))
+        for i,m in enumerate(mcs):
+            for j in m:
+                omcs[i, j] = -1.0
+        # self.appdata.project.modes = omcs
+        self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
         self.central_widget.mode_navigator.current = 0
         QMessageBox.information(self, 'Cut sets found',
-                                      str(len(omcs))+' Cut sets have been calculated.')
+                                      str(len(mcs))+' Cut sets have been calculated.')
 
-        self.central_widget.update_mode()
         self.central_widget.mode_navigator.set_to_mcs()
+        self.central_widget.update_mode()
         self.accept()
