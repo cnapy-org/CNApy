@@ -10,7 +10,8 @@ import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
 
-def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool):
+def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool,
+                    print_progress_function=print, abort_callback=None):
     stdf = create_stoichiometric_matrix(
         model, array_type='DataFrame')
     reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(
@@ -33,7 +34,7 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
         irrev_backwards_idx = numpy.where(irrev_back)[0]
         stdf.values[:, irrev_backwards_idx] *= -1
     work_dir = efmtool_extern.calculate_flux_modes(
-        stdf.values, reversible, return_work_dir_only=True)
+        stdf.values, reversible, return_work_dir_only=True, print_progress_function=print_progress_function, abort_callback=abort_callback)
     reac_id = stdf.columns.tolist()
     if work_dir is None:
         ems = None
