@@ -1,3 +1,13 @@
+# Packaging
+
+# Prerequisites
+
+```sh
+conda install conda-build
+conda install anaconda-client
+conda install constructor
+````
+
 # Create and upload a conda package
 
 ```sh
