@@ -290,10 +290,7 @@ class MapView(QGraphicsView):
 
     def recolor_all(self):
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
-            if r_id in self.appdata.project.scen_values.keys():
-                self.reaction_boxes[r_id].recolor()
-            elif r_id in self.appdata.project.comp_values.keys():
-                self.reaction_boxes[r_id].recolor()
+            self.reaction_boxes[r_id].recolor()
 
     def set_values(self):
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
@@ -303,6 +300,8 @@ class MapView(QGraphicsView):
             elif r_id in self.appdata.project.comp_values.keys():
                 self.reaction_boxes[r_id].set_value(
                     self.appdata.project.comp_values[r_id])
+            else:
+                self.reaction_boxes[r_id].item.setText("")
 
     def remove_box(self, reaction: str):
         self.delete_box(reaction)
