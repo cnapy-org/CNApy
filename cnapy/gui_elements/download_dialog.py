@@ -31,7 +31,7 @@ class DownloadDialog(QDialog):
 
         button_line = QHBoxLayout()
         self.download_btn = QPushButton("Yes, create directory")
-        self.close = QPushButton("No ,skip")
+        self.close = QPushButton("No, skip")
         button_line.addWidget(self.download_btn)
         button_line.addWidget(self.close)
         self.layout.addItem(button_line)
@@ -46,13 +46,13 @@ class DownloadDialog(QDialog):
         print("Create work directory:", work_directory)
         os.mkdir(work_directory)
 
-        targets = ["ECC2.cna", "ECC2comp.cna", "SmallExample.cna",
-                   "iJO1366.cna", "iJOcore.cna", "iML1515.cna", "iMLcore.cna"]
+        targets = ["ECC2.cna", "ECC2comp.cna", "e_coli_core.cna", "SmallExample.cna",
+                   "iJO1366.cna", "iJO1366core.cna", "iML1515.cna", "iML1515core.cna"]
         for t in targets:
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
                 print("Download:", target)
-                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.3/'+t
+                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.4/'+t
                 urllib.request.urlretrieve(url, target)
 
         scen_file = pkg_resources.resource_filename(
