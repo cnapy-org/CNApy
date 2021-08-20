@@ -1,5 +1,12 @@
 # Packaging
 
+# First: Change the version number
+
+An easy way to do this in VS Code is to replace the current version number
+(which you can deduce from the current release) by replacing the version
+number globally with your desired new value. If there are any now undesired
+additions such as beta, rc1 etc. you should remove them now.
+
 # Prerequisites
 
 ```sh

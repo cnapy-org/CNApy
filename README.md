@@ -1,4 +1,4 @@
-# CNApy 
+# CNApy
 
 ## *An integrated environment for metabolic network analysis*
 
@@ -12,7 +12,7 @@
 - The [CNApy guide](https://cnapy-org.github.io/CNApy-guide/)
 
 - Example projects [CNApy projects](https://github.com/cnapy-org/CNApy-projects/releases/latest)
-  
+
 ## Video tutorials
 
 - [Create a new CNApy project](http://www.youtube.com/watch?v=bsNXZBmtyWw)
@@ -24,12 +24,12 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
 
 1. Create a conda environment with all dependencies
     ```sh
-    conda create -n cnapy-1.0.0 -c conda-forge -c cnapy cnapy=1.0.0
+    conda create -n cnapy-1.0.1 -c conda-forge -c cnapy cnapy=1.0.1
     ```
 
 2. Activate the cnapy conda environment
     ```
-    conda activate cnapy-1.0.0
+    conda activate cnapy-1.0.1
     ```
 
 3. Run CNApy
@@ -72,12 +72,12 @@ If you have conda installed you can:
     ```
 
 2. Checkout the latest cnapy development version using git
-    ```   
+    ```
     git clone https://github.com/cnapy-org/CNApy.git
     ```
 
 3. Change into the source directory and run CNApy
-    ```  
+    ```
     cd CNApy
     python cnapy.py
     ```
