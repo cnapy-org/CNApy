@@ -239,10 +239,13 @@ class MapView(QGraphicsView):
                 print("failed to add reaction box for", r_id)
 
     def delete_box(self, reaction_id: str):
-        box = self.reaction_boxes[reaction_id]
-        lineedit = box.proxy
-        self.scene.removeItem(lineedit)
-        self.scene.removeItem(box)
+        try:
+            box = self.reaction_boxes[reaction_id]
+            lineedit = box.proxy
+            self.scene.removeItem(lineedit)
+            self.scene.removeItem(box)
+        except KeyError:
+            print(f"Reaction {reaction_id} does not occur in any map")
 
     def update_reaction(self, old_reaction_id: str, new_reaction_id: str):
         self.delete_box(old_reaction_id)
