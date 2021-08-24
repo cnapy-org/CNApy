@@ -277,8 +277,11 @@ class MapView(QGraphicsView):
                 item.setScale(self.appdata.project.maps[self.name]["box-size"])
                 item.proxy.setScale(
                     self.appdata.project.maps[self.name]["box-size"])
-                item.setPos(self.appdata.project.maps[self.name]["boxes"][item.id]
-                            [0], self.appdata.project.maps[self.name]["boxes"][item.id][1])
+                try:
+                    item.setPos(self.appdata.project.maps[self.name]["boxes"][item.id]
+                                [0], self.appdata.project.maps[self.name]["boxes"][item.id][1])
+                except KeyError:
+                    print(f"{item.id} not found as box")
             else:
                 pass
 
