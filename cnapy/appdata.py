@@ -79,17 +79,17 @@ class AppData:
                 self.project.scen_values.clear()
 
     def create_cobra_model(self):
-        if self.engine is not None:  # matlab or octave:
+        if self.engine != "None":  # matlab or octave:
             cobra.io.save_matlab_model(
                 self.project.cobra_py_model, os.path.join(self.cna_path+"/cobra_model.mat"), varname="cbmodel")
         else:
             print("Could not create a CobraModel because no engine is selected")
 
     def is_matlab_ready(self):
-        return self.matlab_engine is not None
+        return self.matlab_engine != "None"
 
     def is_octave_ready(self):
-        return self.octave_engine is not None
+        return self.octave_engine != "None"
 
     def is_matlab_set(self):
         return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
@@ -102,18 +102,18 @@ class AppData:
         select Engine
         """
         if self.selected_engine == "matlab":
-            if self.matlab_engine is not None:
+            if self.matlab_engine != "None":
                 self.engine = self.matlab_engine
                 print("Using Matlab engine!")
             else:
-                self.selected_engine = None
+                self.selected_engine = "None"
                 print("No engine selected!")
         elif self.selected_engine == "octave":
-            if self.octave_engine is not None:
+            if self.octave_engine != "None":
                 self.engine = self.octave_engine
                 print("Using Octave engine!")
             else:
-                self.selected_engine = None
+                self.selected_engine = "None"
                 print("No engine selected!")
         else:
             print("No engine selected!")
