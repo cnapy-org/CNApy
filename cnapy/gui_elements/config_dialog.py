@@ -244,11 +244,11 @@ class ConfigDialog(QDialog):
 
         self.check_all()
 
-        if self.meng is not None:
+        if self.meng == "None":
             self.selected_engine.insertItem(1, "Matlab")
             if self.appdata.selected_engine == "matlab":
                 self.selected_engine.setCurrentIndex(1)
-        if self.oeng is not None:
+        if self.oeng == "None":
             self.selected_engine.insertItem(1, "Octave")
             if self.appdata.selected_engine == "octave":
                 self.selected_engine.setCurrentIndex(1)
@@ -272,13 +272,13 @@ class ConfigDialog(QDialog):
                 self.cna_label.setPixmap(check)
             else:
                 self.cna_label.setPixmap(cross)
-        if self.oeng is not None:
+        if self.oeng == "None":
             # disable button if octave is already working
             self.oc_label.setPixmap(check)
         else:
             self.oc_label.setPixmap(cross)
 
-        if self.meng is not None:
+        if self.meng == "None":
             self.ml_label.setPixmap(check)
         else:
             self.ml_label.setPixmap(cross)
@@ -286,9 +286,9 @@ class ConfigDialog(QDialog):
         self.selected_engine.currentTextChanged.disconnect(self.update)
         self.selected_engine.clear()
         self.selected_engine.addItem("None")
-        if self.meng is not None:
+        if self.meng == "None":
             self.selected_engine.addItem("Matlab")
-        if self.oeng is not None:
+        if self.oeng == "None":
             self.selected_engine.addItem("Octave")
 #
         if selected_engine is "None":
@@ -389,9 +389,9 @@ class ConfigDialog(QDialog):
 
     def check_cna(self):
 
-        if self.oeng is not None:
+        if self.oeng == "None":
             self.cna_ok = try_cna(self.oeng, self.cna_path.text())
-        elif self.meng is not None:
+        elif self.meng == "None":
             self.cna_ok = try_cna(self.meng, self.cna_path.text())
 
     def choose_scen_color(self):

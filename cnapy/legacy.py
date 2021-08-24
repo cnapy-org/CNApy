@@ -44,7 +44,7 @@ def try_octave_engine(octave_executable: str):
 
 
 def try_cna(eng, cna_path: str) -> bool:
-    if eng is None:
+    if eng == "None":
         print("Can't try CNA because no engine (matlab/octave) selected.")
         return False
 
