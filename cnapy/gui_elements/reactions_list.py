@@ -511,6 +511,8 @@ class ReactionMask(QWidget):
             self.reaction.build_reaction_from_string(self.equation.text())
             self.reaction.objective_coefficient = float(self.coefficent.text())
             self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
+            self.reaction.lower_bound = float(self.lower_bound.text())
+            self.reaction.upper_bound = float(self.upper_bound.text())
             self.reaction.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
