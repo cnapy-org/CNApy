@@ -206,9 +206,13 @@ class MCSDialog(QDialog):
             self.solver_intlinprog.setEnabled(False)
         else:
             self.solver_glpk.setChecked(True)
-            self.solver_cplex_matlab.setEnabled(
-                self.eng.is_cplex_matlab_ready())
-            self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
+            if self.eng is not None:
+                self.solver_cplex_matlab.setEnabled(
+                    self.eng.is_cplex_matlab_ready())
+                self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
+            else:
+                self.solver_cplex_matlab.setEnabled(False)
+                self.solver_cplex_java.setEnabled(False)
             self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
         self.configure_solver_options()
 
