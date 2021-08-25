@@ -474,14 +474,13 @@ class ReactionMask(QWidget):
 
         self.id.textEdited.connect(self.throttler.throttle)
         self.name.textEdited.connect(self.throttler.throttle)
-        self.equation.textEdited.connect(self.throttler.throttle)
+        self.equation.editingFinished.connect(self.reaction_data_changed)
         self.lower_bound.textEdited.connect(self.throttler.throttle)
         self.upper_bound.textEdited.connect(self.throttler.throttle)
         self.coefficent.textEdited.connect(self.throttler.throttle)
         self.gene_reaction_rule.textEdited.connect(self.throttler.throttle)
         self.annotation.itemChanged.connect(self.throttler.throttle)
 
-        self.validate_mask()
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
@@ -490,16 +489,6 @@ class ReactionMask(QWidget):
 
     def apply(self):
         try:
-            self.reaction.id = self.id.text()
-        except ValueError:
-            turn_red(self.id)
-            QMessageBox.information(
-                self, 'Invalid id', 'Could not apply changes identifier ' +
-                self.id.text() + ' already used.')
-        else:
-            self.reaction.name = self.name.text()
-            self.reaction.build_reaction_from_string(self.equation.text())
-        try:
             self.reaction.lower_bound = float(self.lower_bound.text())
             self.reaction.upper_bound = float(self.upper_bound.text())
         except ValueError as exception:
@@ -507,8 +496,12 @@ class ReactionMask(QWidget):
             turn_red(self.upper_bound)
             QMessageBox.warning(self, 'ValueError', str(exception))
         else:
+            if self.reaction.id != self.id.text():
+                self.reaction.id = self.id.text()
             self.reaction.name = self.name.text()
             self.reaction.build_reaction_from_string(self.equation.text())
+            self.reaction.lower_bound = float(self.lower_bound.text())
+            self.reaction.upper_bound = float(self.upper_bound.text())
             self.reaction.objective_coefficient = float(self.coefficent.text())
             self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
             self.reaction.lower_bound = float(self.lower_bound.text())
@@ -535,17 +528,14 @@ class ReactionMask(QWidget):
         self.reactionDeleted.emit(self.reaction)
 
     def validate_id(self):
-
-        with self.parent.appdata.project.cobra_py_model as model:
-            try:
-                r = cobra.Reaction(id=self.id.text())
-                model.add_reaction(r)
-            except ValueError:
-                turn_red(self.id)
-                return False
-            else:
-                turn_white(self.id)
-                return True
+        if self.reaction.id != self.id.text() and \
+            self.id.text() in self.parent.appdata.project.cobra_py_model.reactions:
+            turn_red(self.id)
+            QMessageBox.information(
+                self, 'Invalid id', 'Please change identifier ' +
+                self.id.text() + ' because it is already in use.')
+            return False
+        return True
 
     def validate_name(self):
         with self.parent.appdata.project.cobra_py_model as model:
@@ -567,25 +557,8 @@ class ReactionMask(QWidget):
             model.add_reaction(test_reaction)
 
             try:
-                # This is a work around for a bug in COBRApy build_reaction_from_string.
-                # Reproduce example reaction.build_reaction_from_string(" a + -> b + + c")
                 eqtxt = self.equation.text().rstrip()
-                parts = eqtxt.split('+')
-                invalid = False
-                for e in parts:
-                    e2 = e.strip()
-                    if e2 == '':
-                        invalid = True
-                    if e2[0:1] == '=':
-                        invalid = True
-                    if len(e2) >= 2:
-                        if e2[0:2] == '--' or e2[0:2] == '<-' or e2[0:2] == '<=' or e2[0:2] == '->':
-                            invalid = True
-
                 if len(eqtxt) > 0 and eqtxt[-1] == '+':
-                    invalid = True
-
-                if invalid:
                     turn_red(self.equation)
                 else:
                     test_reaction.build_reaction_from_string(eqtxt)
@@ -645,7 +618,6 @@ class ReactionMask(QWidget):
             return True
 
     def validate_mask(self):
-
         valid_id = self.validate_id()
         valid_name = self.validate_name()
         valid_equation = self.validate_equation()
