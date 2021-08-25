@@ -453,7 +453,7 @@ class ConfigDialog(QDialog):
         self.appdata.octave_engine = self.oeng
 
         if self.selected_engine.currentText() == "None":
-            self.appdata.selected_engine = None
+            self.appdata.selected_engine = "None"
         elif self.selected_engine.currentText() == "Matlab":
             self.appdata.selected_engine = "matlab"
         elif self.selected_engine.currentText() == "Octave":

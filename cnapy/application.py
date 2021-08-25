@@ -123,7 +123,7 @@ class Application:
                 self.appdata.selected_engine = selected_engine
             except (KeyError, NoOptionError):
                 print("Could not find selected_engine in cnapy-config.txt")
-                self.appdata.selected_engine = None
+                self.appdata.selected_engine = "None"
 
             try:
                 self.appdata.cna_path = config_parser.get(

@@ -40,7 +40,7 @@ class AppData:
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
-        self.selected_engine = None
+        self.selected_engine = "None"
         self.work_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
         self.last_scen_directory = str(os.path.join(
@@ -106,14 +106,14 @@ class AppData:
                 self.engine = self.matlab_engine
                 print("Using Matlab engine!")
             else:
-                self.selected_engine = None
+                self.selected_engine = "None"
                 print("No engine selected!")
         elif self.selected_engine == "octave":
             if self.octave_engine is not None:
                 self.engine = self.octave_engine
                 print("Using Octave engine!")
             else:
-                self.selected_engine = None
+                self.selected_engine = "None"
                 print("No engine selected!")
         else:
             print("No engine selected!")
