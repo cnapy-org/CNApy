@@ -3,6 +3,7 @@
 import io
 import os
 import traceback
+from PyQt5.QtCore import left
 import scipy
 
 from qtpy.QtCore import Qt, Slot
@@ -322,10 +323,20 @@ class MCSDialog(QDialog):
         self.desired_list.removeRow(i-1)
 
     def compute(self):
-        if self.solver_optlang.isChecked():
-            self.compute_optlang()
+        mcs_equation_errors = self.check_for_mcs_equation_errors()
+        if mcs_equation_errors == "":
+            if self.solver_optlang.isChecked():
+                self.compute_optlang()
+            else:
+                self.compute_legacy()
         else:
-            self.compute_legacy()
+            QMessageBox.warning(
+                self,
+                "MCS target/desired region error",
+                f"Cannot perform MCS calculation due to the following error(s) "
+                f"in the given target and/or desired regions:\n"
+                f"{mcs_equation_errors}"
+            )
 
     def compute_legacy(self):
         self.setCursor(Qt.BusyCursor)
@@ -617,3 +628,136 @@ class MCSDialog(QDialog):
         self.central_widget.mode_navigator.set_to_mcs()
         self.central_widget.update_mode()
         self.accept()
+
+    def check_left_mcs_equation(self, equation: str) -> str:
+        errors = ""
+        equation = equation.replace(" ", "")
+
+        semantics = []
+        reaction_ids = []
+        last_part = ""
+        counter = 1
+        for char in equation+" ":
+            if (char in ("*", "/", "+", "-")) or (counter == len(equation+" ")):
+                if last_part != "":
+                    try:
+                        float(last_part)
+                    except ValueError:
+                        reaction_ids.append(last_part)
+                        semantics.append("reaction")
+                    else:
+                        semantics.append("number")
+                    last_part = ""
+
+                if counter == len(equation+" "):
+                    break
+
+            if char in "*":
+                semantics.append("multiplication")
+            elif char in "/":
+                semantics.append("division")
+            elif char in ("+", "-"):
+                print("///")
+                semantics.append("dash")
+            else:
+                last_part += char
+            counter += 1
+
+        if len(reaction_ids) == 0:
+            errors += f"EQUATION ERROR in {equation}:\nNo reaction ID is given in the equation\n"
+
+        last_is_multiplication = False
+        last_is_division = False
+        last_is_dash = False
+        last_is_reaction = False
+        prelast_is_reaction = False
+        last_is_number = False
+        is_start = True
+        for semantic in semantics:
+            if is_start:
+                if semantic in ("multiplication", "division"):
+                    errors += f"ERROR in {equation}:\nAn equation must not start with * or /"
+                elif semantic == "reaction":
+                    last_is_reaction = True
+                elif semantics == "number":
+                    last_is_number = True
+                elif semantic == "dash":
+                    last_is_dash = True
+
+                is_start = False
+                continue
+
+            if (last_is_multiplication or last_is_division) and (semantic in ("multiplication", "division")):
+                errors += f"ERROR in {equation}:\n* or / must not follow on * or /\n"
+            if (last_is_multiplication or last_is_division) and (semantic == "number"):
+                errors += f"ERROR in {equation}:\n* or / must not follow on a number\n"
+            if last_is_dash and (semantic in ("multiplication", "division")):
+                errors += f"ERROR in {equation}:\n* or / must not follow on + or -\n"
+            if last_is_number and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nA number must not follow on a reaction ID\n"
+
+            if prelast_is_reaction and last_is_multiplication and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nTwo reactions must not be multiplied together\n"
+
+            if last_is_reaction:
+                prelast_is_reaction = True
+            else:
+                prelast_is_reaction = False
+
+            last_is_multiplication = False
+            last_is_division = False
+            last_is_dash = False
+            last_is_reaction = False
+            last_is_number = False
+            if semantic == "multiplication":
+                last_is_multiplication = True
+            elif semantics == "division":
+                last_is_division = True
+            elif semantic == "reaction":
+                last_is_reaction = True
+            elif semantic == "dash":
+                last_is_dash = True
+
+        if not last_is_reaction:
+            errors += (f"ERROR in {equation}:\nA reaction must not end "
+                       f"with any other part than a reaction ID")
+
+        with self.appdata.project.cobra_py_model as model:
+            model_reaction_ids = [x.id for x in model.reactions]
+            for reaction_id in reaction_ids:
+                if reaction_id not in model_reaction_ids:
+                    errors += (f"ERROR in {equation}:\nA reaction with "
+                               f"the ID {reaction_id} does not exist in the model\n")
+
+        return errors
+
+
+    def check_right_mcs_equation(self, equation: str) -> str:
+        try:
+            float(equation)
+        except ValueError:
+            error = f"ERROR in {equation}:\nRight equation must be a number\n"
+            return error
+        else:
+            return ""
+
+    def check_for_mcs_equation_errors(self) -> str:
+        errors = ""
+        rows = self.target_list.rowCount()
+        for i in range(0, rows):
+            target_left = self.target_list.cellWidget(i, 1).text()
+            errors += self.check_left_mcs_equation(target_left)
+            target_right = self.target_list.cellWidget(i, 3).text()
+            errors += self.check_right_mcs_equation(target_right)
+
+        rows = self.desired_list.rowCount()
+        for i in range(0, rows):
+            desired_left = self.desired_list.cellWidget(i, 1).text()
+            if len(desired_left) > 0:
+                errors += self.check_left_mcs_equation(desired_left)
+
+            desired_right = self.desired_list.cellWidget(i, 3).text()
+            if len(desired_right) > 0:
+                errors += self.check_right_mcs_equation(desired_right)
+
+        return errors
