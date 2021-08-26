@@ -489,8 +489,26 @@ class ReactionMask(QWidget):
 
     def apply(self):
         try:
-            self.reaction.lower_bound = float(self.lower_bound.text())
-            self.reaction.upper_bound = float(self.upper_bound.text())
+            user_lower_bound = float(self.lower_bound.text())
+            user_upper_bound = float(self.upper_bound.text())
+
+            self.reaction.lower_bound = user_lower_bound
+            self.reaction.upper_bound = user_upper_bound
+
+            if user_lower_bound > user_upper_bound:
+                msg_box = QMessageBox()
+                msg_box.setWindowTitle("Lower bound greater than upper bound!")
+                msg_box.setTextFormat(Qt.RichText)
+
+                msg_box.setText(f"Your set lower flux bound of {user_lower_bound} is "
+                                f"higher than your set upper flux bound of {user_upper_bound}! "
+                                f"In order to resolve this conflict, both bounds will be set to the "
+                                f"higher bound value.")
+                msg_box.setIcon(QMessageBox.Warning)
+                msg_box.exec()
+
+                self.lower_bound.setText(str(user_upper_bound))
+                self.upper_bound.setText(str(user_upper_bound))
         except ValueError as exception:
             turn_red(self.lower_bound)
             turn_red(self.upper_bound)
