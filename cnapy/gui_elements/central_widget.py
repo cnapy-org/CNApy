@@ -118,12 +118,14 @@ class CentralWidget(QWidget):
 
     def handle_changed_reaction(self, old_id: str, reaction: cobra.Reaction):
         self.parent.unsaved_changes()
+        reaction_has_box = False
         for mmap in self.appdata.project.maps:
             if old_id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     old_id)
-
-        self.update_reaction_on_maps(old_id, reaction.id)
+                reaction_has_box = True
+        if reaction_has_box:
+            self.update_reaction_on_maps(old_id, reaction.id)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
