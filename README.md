@@ -18,7 +18,7 @@
 - [Create a new CNApy project](http://www.youtube.com/watch?v=bsNXZBmtyWw)
 - [Perform FBA and FVA with CNApy](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
 - [Calculate Elementary Modes with CNApy](https://www.youtube.com/watch?v=AHyMk14_DxI)
-- [Calculate Minimal Cut Sets with CNApy](https://www.youtube.com/watch?v=vFRdYI1ZQQM)
+- [Calculate Minimal Cut Sets with CNApy](https://www.youtube.com/watch?v=NfRLdTfHSEY)
 
 ## Install CNApy with conda
 
@@ -39,7 +39,7 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
     cnapy
     ```
 
-**IMPORTANT**: To use the CNA Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course CNA. Alternatively to Matlab you can also use Octave.
+**IMPORTANT**: To use the CellNetAnalyzer (CNA) Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course [CellNetAnalyzer itself](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html). Alternatively to Matlab you can also use the free and open-source [GNU Octave](https://www.gnu.org/software/octave/index).
 
 ## How to run a script in the CNApy terminal
 
