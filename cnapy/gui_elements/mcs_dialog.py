@@ -631,14 +631,13 @@ class MCSDialog(QDialog):
 
     def check_left_mcs_equation(self, equation: str) -> str:
         errors = ""
-        equation = equation.replace(" ", "")
 
         semantics = []
         reaction_ids = []
         last_part = ""
         counter = 1
         for char in equation+" ":
-            if (char in ("*", "/", "+", "-")) or (counter == len(equation+" ")):
+            if (char == " ") or (char in ("*", "/", "+", "-")) or (counter == len(equation+" ")):
                 if last_part != "":
                     try:
                         float(last_part)
@@ -657,44 +656,41 @@ class MCSDialog(QDialog):
             elif char in "/":
                 semantics.append("division")
             elif char in ("+", "-"):
-                print("///")
                 semantics.append("dash")
-            else:
+            elif char not in " ":
                 last_part += char
             counter += 1
 
         if len(reaction_ids) == 0:
             errors += f"EQUATION ERROR in {equation}:\nNo reaction ID is given in the equation\n"
 
+        if semantics.count("division") > 1:
+            errors += f"ERROR in {equation}:\nAn equation must not have more than one /"
+
         last_is_multiplication = False
         last_is_division = False
         last_is_dash = False
         last_is_reaction = False
         prelast_is_reaction = False
+        prelast_is_dash = False
         last_is_number = False
         is_start = True
         for semantic in semantics:
             if is_start:
                 if semantic in ("multiplication", "division"):
                     errors += f"ERROR in {equation}:\nAn equation must not start with * or /"
-                elif semantic == "reaction":
-                    last_is_reaction = True
-                elif semantics == "number":
-                    last_is_number = True
-                elif semantic == "dash":
-                    last_is_dash = True
-
                 is_start = False
-                continue
 
             if (last_is_multiplication or last_is_division) and (semantic in ("multiplication", "division")):
                 errors += f"ERROR in {equation}:\n* or / must not follow on * or /\n"
-            if (last_is_multiplication or last_is_division) and (semantic == "number"):
-                errors += f"ERROR in {equation}:\n* or / must not follow on a number\n"
             if last_is_dash and (semantic in ("multiplication", "division")):
                 errors += f"ERROR in {equation}:\n* or / must not follow on + or -\n"
             if last_is_number and (semantic == "reaction"):
                 errors += f"ERROR in {equation}:\nA number must not follow on a reaction ID\n"
+            if last_is_reaction and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nA reaction must not follow on a reaction ID\n"
+            if last_is_number and (semantic == "number"):
+                errors += f"ERROR in {equation}:\nA number must not follow on a number ID\n"
 
             if prelast_is_reaction and last_is_multiplication and (semantic == "reaction"):
                 errors += f"ERROR in {equation}:\nTwo reactions must not be multiplied together\n"
@@ -704,6 +700,11 @@ class MCSDialog(QDialog):
             else:
                 prelast_is_reaction = False
 
+            if last_is_dash:
+                prelast_is_dash = True
+            else:
+                prelast_is_dash = False
+
             last_is_multiplication = False
             last_is_division = False
             last_is_dash = False
@@ -711,16 +712,22 @@ class MCSDialog(QDialog):
             last_is_number = False
             if semantic == "multiplication":
                 last_is_multiplication = True
-            elif semantics == "division":
+            elif semantic == "division":
                 last_is_division = True
             elif semantic == "reaction":
                 last_is_reaction = True
             elif semantic == "dash":
                 last_is_dash = True
+            elif semantic == "number":
+                last_is_number = True
 
-        if not last_is_reaction:
+        if last_is_dash or last_is_multiplication or last_is_division:
             errors += (f"ERROR in {equation}:\nA reaction must not end "
-                       f"with any other part than a reaction ID")
+                       f"with a +, -, * or /")
+
+        if prelast_is_dash and last_is_number:
+            errors += (f"ERROR in {equation}:\nA reaction must not end "
+                       f"with a separated number term only")
 
         with self.appdata.project.cobra_py_model as model:
             model_reaction_ids = [x.id for x in model.reactions]
