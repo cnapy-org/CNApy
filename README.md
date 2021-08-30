@@ -24,18 +24,29 @@
 
 We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
 
-1. Create a conda environment with all dependencies
+1. (optional, but recommended if you also use other Python distributions or Anaconda environments) In order to solve
+   potential package version problems, set a systems variable called "PYTHONNOUSERSITE" to the value "True".
+
+   Under Linux systems, you can do this with the following command:
+   ```sh
+   export PYTHONNOUSERSITE=True
+   ```
+
+   Under Windows systems, you can do this by searching for your system's "environmental variables" and adding
+   the variable PYTHONNOUSERSITE with the value True using Window's environmental variables setting window.
+
+2. Create a conda environment with all dependencies
     ```sh
-    conda create -n cnapy-1.0.2 -c conda-forge -c cnapy cnapy=1.0.2
+    conda create -n cnapy-1.0.3 -c conda-forge -c cnapy cnapy=1.0.3
     ```
 
-2. Activate the cnapy conda environment
-    ```
-    conda activate cnapy-1.0.2
+3. Activate the cnapy conda environment
+    ```sh
+    conda activate cnapy-1.0.3
     ```
 
-3. Run CNApy
-    ```
+4. Run CNApy
+    ```sh
     cnapy
     ```
 
