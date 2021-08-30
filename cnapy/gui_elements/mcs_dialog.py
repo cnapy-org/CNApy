@@ -686,7 +686,7 @@ class MCSDialog(QDialog):
             if last_is_dash and (semantic in ("multiplication", "division")):
                 errors += f"ERROR in {equation}:\n* or / must not follow on + or -\n"
             if last_is_number and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nA number must not follow on a reaction ID\n"
+                errors += f"ERROR in {equation}:\nA reaction must not directly follow on a number without a mathematical operation\n"
             if last_is_reaction and (semantic == "reaction"):
                 errors += f"ERROR in {equation}:\nA reaction must not follow on a reaction ID\n"
             if last_is_number and (semantic == "number"):
