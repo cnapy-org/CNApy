@@ -327,6 +327,7 @@ class MapView(QGraphicsView):
     reactionValueChanged = Signal(str, str)
     reactionAdded = Signal(str)
     mapChanged = Signal(str)
+    broadcastReactionID = Signal(str)
 
 
 class CLineEdit(QLineEdit):
@@ -358,6 +359,7 @@ class CLineEdit(QLineEdit):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         if (event.button() == Qt.MouseButton.LeftButton):
             self.parent.setSelected(True)
+            self.parent.broadcast_reaction_id()
         self.setCursor(Qt.ClosedHandCursor)
 
         super().mousePressEvent(event)
@@ -623,6 +625,9 @@ class ReactionBox(QGraphicsItem):
 
     def emit_minimize_action(self):
         self.map.minimizeReaction.emit(self.id)
+
+    def broadcast_reaction_id(self):
+        self.map.broadcastReactionID.emit(self.id)
         self.map.drag = False
 
 

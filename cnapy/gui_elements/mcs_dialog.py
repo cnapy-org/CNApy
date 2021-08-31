@@ -51,7 +51,7 @@ class MCSDialog(QDialog):
         self.target_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.target_list.setCellWidget(0, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.target_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.target_list)
@@ -60,6 +60,7 @@ class MCSDialog(QDialog):
         self.target_list.setCellWidget(0, 2, combo)
         item = QLineEdit("0")
         self.target_list.setCellWidget(0, 3, item)
+        self.active_receiver = item2
 
         s1.addWidget(self.target_list)
 
@@ -86,7 +87,7 @@ class MCSDialog(QDialog):
         self.desired_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.desired_list.setCellWidget(0, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.desired_list)
@@ -246,6 +247,18 @@ class MCSDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
 
+        for i in range(self.central_widget.map_tabs.count()):
+            self.central_widget.map_tabs.widget(i).broadcastReactionID.connect(self.receive_input)
+
+
+    @Slot(str)
+    def receive_input(self, text):
+        completer_mode = self.active_receiver.completer().completionMode()
+        # temporarily disable completer popup
+        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+        self.active_receiver.insert(text)
+        self.active_receiver.completer().setCompletionMode(completer_mode)
+
     @Slot()
     def configure_solver_options(self):  # called when switching solver
         if self.solver_optlang.isChecked():
@@ -284,7 +297,7 @@ class MCSDialog(QDialog):
 
         item = QLineEdit("1")
         self.target_list.setCellWidget(i, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.target_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.target_list)
@@ -304,7 +317,7 @@ class MCSDialog(QDialog):
 
         item = QLineEdit("1")
         self.desired_list.setCellWidget(i, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.desired_list)
@@ -768,3 +781,12 @@ class MCSDialog(QDialog):
                 errors += self.check_right_mcs_equation(desired_right)
 
         return errors
+
+class ReceiverLineEdit(QLineEdit):
+    def __init__(self, mcs_dialog):
+        super().__init__()
+        self.mcs_dialog = mcs_dialog
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.mcs_dialog.active_receiver = self
