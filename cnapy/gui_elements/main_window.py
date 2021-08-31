@@ -1294,7 +1294,7 @@ class MainWindow(QMainWindow):
     def mcs(self):
         self.mcs_dialog = MCSDialog(
             self.appdata, self.centralWidget())
-        self.mcs_dialog.exec_()
+        self.mcs_dialog.show()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
