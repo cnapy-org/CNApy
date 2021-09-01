@@ -356,14 +356,16 @@ class CLineEdit(QLineEdit):
         super().mouseDoubleClickEvent(event)
         self.parent.switch_to_reaction_mask()
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent):
+        super().mousePressEvent(event)
         if (event.button() == Qt.MouseButton.LeftButton):
+            modifiers = QApplication.queryKeyboardModifiers()
+            if modifiers != Qt.ControlModifier:
+                for bx in self.parent.map.reaction_boxes.values():
+                    bx.setSelected(False)
             self.parent.setSelected(True)
             self.parent.broadcast_reaction_id()
         self.setCursor(Qt.ClosedHandCursor)
-
-        super().mousePressEvent(event)
-
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
@@ -437,7 +439,9 @@ class ReactionBox(QGraphicsItem):
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         self.setCursor(Qt.OpenHandCursor)
-        super().mouseReleaseEvent(event)
+        modifiers = QApplication.queryKeyboardModifiers()
+        if modifiers != Qt.ControlModifier:
+            super().mouseReleaseEvent(event) # here deselection of the other boxes occurs
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         drag = QDrag(event.widget())
@@ -563,7 +567,6 @@ class ReactionBox(QGraphicsItem):
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
-
         if self.isSelected():
             light_blue = QColor(100, 100, 200)
             pen = QPen(light_blue)
