@@ -386,7 +386,7 @@ class ReactionBox(QGraphicsItem):
         self.item.setFont(font)
         self.item.setAttribute(Qt.WA_TranslucentBackground)
 
-        self.item.setMaximumWidth(self.map.appdata.box_width)
+        self.item.setFixedWidth(self.map.appdata.box_width)
         self.item.setMaximumHeight(self.map.appdata.box_height)
         self.item.setMinimumHeight(self.map.appdata.box_height)
         r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(r_id)
@@ -605,6 +605,8 @@ class ReactionBox(QGraphicsItem):
         painter.setPen(Qt.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
+
+        self.item.setFixedWidth(self.map.appdata.box_width)
 
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
