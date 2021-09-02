@@ -72,7 +72,7 @@ class CentralWidget(QWidget):
         self.splitter = QSplitter()
         self.splitter2 = QSplitter()
         self.splitter2.addWidget(self.map_tabs)
-        self.mode_navigator = ModeNavigator(self.appdata)
+        self.mode_navigator = ModeNavigator(self.appdata, self)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
         self.splitter2.setOrientation(Qt.Vertical)
