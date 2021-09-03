@@ -21,7 +21,7 @@ DECREASE_FACTOR = 1/INCREASE_FACTOR
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, appdata: AppData, name: str):
+    def __init__(self, appdata: AppData, central_widget, name: str):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
@@ -29,6 +29,7 @@ class MapView(QGraphicsView):
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.appdata = appdata
+        self.central_widget = central_widget
         self.name = name
         self.setAcceptDrops(True)
         self.drag = False
@@ -632,7 +633,7 @@ class ReactionBox(QGraphicsItem):
         self.map.minimizeReaction.emit(self.id)
 
     def broadcast_reaction_id(self):
-        self.map.broadcastReactionID.emit(self.id)
+        self.map.central_widget.broadcastReactionID.emit(self.id)
         self.map.drag = False
 
 

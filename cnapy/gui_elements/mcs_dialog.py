@@ -247,9 +247,7 @@ class MCSDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
 
-        for i in range(self.central_widget.map_tabs.count()):
-            self.central_widget.map_tabs.widget(i).broadcastReactionID.connect(self.receive_input)
-
+        self.central_widget.broadcastReactionID.connect(self.receive_input)
 
     @Slot(str)
     def receive_input(self, text):

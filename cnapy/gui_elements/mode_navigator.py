@@ -75,6 +75,7 @@ class ModeNavigator(QWidget):
         self.selector.returnPressed.connect(self.apply_selection)
         self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
         self.size_histogram_button.clicked.connect(self.size_histogram)
+        self.central_widget.broadcastReactionID.connect(self.selector.receive_input)
 
     def update(self):
         txt = str(self.current + 1) + "/" + \
@@ -113,14 +114,6 @@ class ModeNavigator(QWidget):
             return
         self.appdata.project.modes.save(filename)
 
-    def connect_selector(self):
-        for i in range(self.central_widget.map_tabs.count()):
-            try:
-                self.central_widget.map_tabs.widget(i).broadcastReactionID.connect(self.selector.receive_input,
-                     type=Qt.UniqueConnection)
-            except TypeError: # raised when connection already exists
-                pass
-
     def update_completion_list(self):
         reac_id = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         self.completion_list.setStringList(reac_id+["!"+str(r) for r in reac_id])
@@ -134,7 +127,6 @@ class ModeNavigator(QWidget):
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
         self.select_all()
-        self.connect_selector()
         self.update_completion_list()
 
     def set_to_efm(self):
@@ -146,13 +138,13 @@ class ModeNavigator(QWidget):
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
         self.select_all()
-        self.connect_selector()
         self.update_completion_list()
 
     def clear(self):
         self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
         self.appdata.recreate_scenario_from_history()
+        self.selector.accept_signal_input = False
         self.hide()
         self.modeNavigatorClosed.emit()
 

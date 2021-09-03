@@ -948,7 +948,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         for name, mmap in self.appdata.project.maps.items():
-            mmap = MapView(self.appdata, name)
+            mmap = MapView(self.appdata, self.centralWidget(), name)
             mmap.show()
             mmap.switchToReactionMask.connect(
                 self.centralWidget().switch_to_reaction)
