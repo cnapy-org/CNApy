@@ -1,7 +1,7 @@
 """The metabolite list"""
 
 import cobra
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton,
                             QSplitter, QTableWidget, QTableWidgetItem,
@@ -36,7 +36,7 @@ class MetaboliteList(QWidget):
         self.pop_menu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
-        self.metabolite_mask = MetabolitesMask(appdata)
+        self.metabolite_mask = MetabolitesMask(self, appdata)
         self.metabolite_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -178,8 +178,9 @@ class MetaboliteList(QWidget):
 class MetabolitesMask(QWidget):
     """The input mask for a metabolites"""
 
-    def __init__(self, appdata):
+    def __init__(self, metabolite_list, appdata):
         QWidget.__init__(self)
+        self.metabolite_list = metabolite_list
         self.appdata = appdata
         self.metabolite = None
         self.is_valid = True
@@ -243,7 +244,7 @@ class MetabolitesMask(QWidget):
         l.addWidget(label)
         l2 = QHBoxLayout()
         self.reactions = QTreeWidget()
-        self.reactions.setHeaderLabels(["Id"])
+        self.reactions.setHeaderLabels(["Id", "Reaction"])
         self.reactions.setSortingEnabled(True)
         l2.addWidget(self.reactions)
         l.addItem(l2)
@@ -401,13 +402,28 @@ class MetabolitesMask(QWidget):
             for r in metabolite.reactions:
                 item = QTreeWidgetItem(self.reactions)
                 item.setText(0, r.id)
-                item.setText(1, r.name)
                 item.setData(2, 0, r)
-                text = "Id: " + r.id + "\nName: " + r.name
+                text = "Name: " + r.name
+                item.setToolTip(0, text)
                 item.setToolTip(1, text)
+                reaction_string_widget = ReactionString(r, self.metabolite_list)
+                self.reactions.setItemWidget(item, 1, reaction_string_widget)
 
     def emit_jump_to_reaction(self, reaction):
         self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite)
+
+class ReactionString(QLineEdit):
+    def __init__(self, reaction, metabolite_list):
+        super().__init__(reaction.build_reaction_string())
+        self.model = reaction.model
+        self.metabolite_list = metabolite_list
+        self.setCursorPosition(0) # to get proper left justification
+        self.selectionChanged.connect(self.switch_metabolite)
+
+    @Slot()
+    def switch_metabolite(self):
+        if self.model.metabolites.has_id(self.selectedText()):
+            self.metabolite_list.set_current_item(self.selectedText())
