@@ -7,7 +7,7 @@ from cobra.core import reaction
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget)
 
@@ -203,7 +203,7 @@ class CentralWidget(QWidget):
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
-        mmap = MapView(self.appdata, name)
+        mmap = MapView(self.appdata, self, name)
         mmap.switchToReactionMask.connect(self.switch_to_reaction)
         mmap.minimizeReaction.connect(self.minimize_reaction)
         mmap.maximizeReaction.connect(self.maximize_reaction)
@@ -327,6 +327,7 @@ class CentralWidget(QWidget):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
         self.show_bottom_of_console()
 
+    broadcastReactionID = Signal(str)
 
 class ConfirmMapDeleteDialog(QDialog):
 
