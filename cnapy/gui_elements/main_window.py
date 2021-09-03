@@ -98,6 +98,10 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(load_scenario_action)
         load_scenario_action.triggered.connect(self.load_scenario)
 
+        merge_scenario_action = QAction("Merge scenario ...", self)
+        self.scenario_menu.addAction(merge_scenario_action)
+        merge_scenario_action.triggered.connect(self.merge_scenario)
+
         save_scenario_action = QAction("Save scenario...", self)
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
@@ -511,7 +515,11 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def load_scenario(self):
+    def merge_scenario(self):
+        self.load_scenario(merge=True)
+
+    @Slot()
+    def load_scenario(self, merge=False):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             directory=self.appdata.last_scen_directory, filter="*.scen")[0]
@@ -520,7 +528,8 @@ class MainWindow(QMainWindow):
 
         with open(filename, 'r') as fp:
             values = json.load(fp)
-            self.appdata.project.scen_values.clear()
+            if not merge:
+                self.appdata.project.scen_values.clear()
             self.appdata.scenario_past.clear()
             self.appdata.scenario_future.clear()
             missing_reactions = []
