@@ -3,7 +3,6 @@
 import io
 import os
 import traceback
-from PyQt5.QtCore import left
 import scipy
 
 from qtpy.QtCore import Qt, Slot
@@ -145,12 +144,10 @@ class MCSDialog(QDialog):
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
         self.bg1 = QButtonGroup()
-        self.optlang_solver_name = interface_to_str(
-            appdata.project.cobra_py_model.problem)
-        self.solver_optlang = QRadioButton(
-            f"{self.optlang_solver_name} (optlang)")
+        self.solver_optlang = QRadioButton()
+        self.set_optlang_solver_text()
         self.solver_optlang.setToolTip(
-            "Uses the solver specified by the current model.")
+            "Change solver in COBRApy configuration.")
         s33.addWidget(self.solver_optlang)
         self.bg1.addButton(self.solver_optlang)
         self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
@@ -256,6 +253,11 @@ class MCSDialog(QDialog):
         self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
         self.active_receiver.insert(text)
         self.active_receiver.completer().setCompletionMode(completer_mode)
+
+    @Slot()
+    def set_optlang_solver_text(self):
+        self.optlang_solver_name = interface_to_str(self.appdata.project.cobra_py_model.problem)
+        self.solver_optlang.setText(f"{self.optlang_solver_name} (optlang)")
 
     @Slot()
     def configure_solver_options(self):  # called when switching solver
