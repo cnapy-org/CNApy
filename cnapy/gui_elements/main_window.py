@@ -258,6 +258,7 @@ class MainWindow(QMainWindow):
         self.mcs_action = QAction("Compute Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.mcs_menu.addAction(self.mcs_action)
+        self.mcs_dialog = None
 
         load_mcs_action = QAction("Load Minimal Cut Sets...", self)
         self.mcs_menu.addAction(load_mcs_action)
@@ -355,6 +356,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self.checked_unsaved():
+            self.close_project_dialogs()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
             del self.appdata.project.modes
@@ -464,6 +466,9 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
+        if self.mcs_dialog is not None:
+            dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
+            dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -750,6 +755,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         self.centralWidget().mode_navigator.clear()
+        self.close_project_dialogs()
 
         self.appdata.project.scen_values.clear()
         self.appdata.scenario_past.clear()
@@ -794,6 +800,7 @@ class MainWindow(QMainWindow):
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
 
+            self.close_project_dialogs()
             temp_dir = TemporaryDirectory()
 
             self.setCursor(Qt.BusyCursor)
@@ -853,6 +860,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, 'Could not open project.', exstr)
 
             self.setCursor(Qt.ArrowCursor)
+
+    def close_project_dialogs(self):
+        '''closes modeless dialogs'''
+        if self.mcs_dialog is not None:
+            self.mcs_dialog.close()
+            self.mcs_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
