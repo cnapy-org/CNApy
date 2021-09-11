@@ -212,14 +212,14 @@ class ModeNavigator(QWidget):
         if must_occur != None:
             for r in must_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i in range(len(self.selection)):
-                    if self.selection[i] and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
+                for i, selected in enumerate(self.selection):
+                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
                         self.selection[i] = False
-        if must_not_occur != None:
+        if must_not_occur is not None:
             for r in must_not_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i in range(len(self.selection)):
-                    if self.selection[i] and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
+                for i, selected in enumerate(self.selection):
+                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
                         self.selection[i] = False
         self.num_selected = numpy.sum(self.selection)
 
