@@ -3,7 +3,6 @@ from ast import literal_eval as make_tuple
 
 import numpy
 import cobra
-from cobra.core import reaction
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
