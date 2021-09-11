@@ -186,13 +186,13 @@ class MapView(QGraphicsView):
 
     def update_selected(self, string):
 
-        for r_id in self.reaction_boxes:
+        for r_id, box in self.reaction_boxes.items():
             if string.lower() in r_id.lower():
-                self.reaction_boxes[r_id].item.setHidden(False)
-            elif string.lower() in self.reaction_boxes[r_id].name.lower():
-                self.reaction_boxes[r_id].item.setHidden(False)
+                box.item.setHidden(False)
+            elif string.lower() in box.name.lower():
+                box.item.setHidden(False)
             else:
-                self.reaction_boxes[r_id].item.setHidden(True)
+                box.item.setHidden(True)
 
     def focus_reaction(self, reaction: str):
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
