@@ -1,17 +1,15 @@
 """The COBRApy configuration dialog"""
 import configparser
 import os
-import appdirs
-
-import cobra
-from cobra.util.solver import interface_to_str, solvers
 from multiprocessing import cpu_count
 
+import appdirs
+import cobra
+from cobra.util.solver import interface_to_str, solvers
 from qtpy.QtCore import Signal
 from qtpy.QtGui import QDoubleValidator, QIntValidator
-from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                            QVBoxLayout)
+from qtpy.QtWidgets import (QComboBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
+                            QMessageBox, QPushButton, QVBoxLayout)
 import cnapy.resources
 from cnapy.appdata import AppData
 

@@ -406,7 +406,8 @@ class MetabolitesMask(QWidget):
                 text = "Name: " + r.name
                 item.setToolTip(0, text)
                 item.setToolTip(1, text)
-                reaction_string_widget = ReactionString(r, self.metabolite_list)
+                reaction_string_widget = ReactionString(
+                    r, self.metabolite_list)
                 self.reactions.setItemWidget(item, 1, reaction_string_widget)
 
     def emit_jump_to_reaction(self, reaction):
@@ -415,12 +416,13 @@ class MetabolitesMask(QWidget):
     jumpToReaction = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite)
 
+
 class ReactionString(QLineEdit):
     def __init__(self, reaction, metabolite_list):
         super().__init__(reaction.build_reaction_string())
         self.model = reaction.model
         self.metabolite_list = metabolite_list
-        self.setCursorPosition(0) # to get proper left justification
+        self.setCursorPosition(0)  # to get proper left justification
         self.selectionChanged.connect(self.switch_metabolite)
 
     @Slot()

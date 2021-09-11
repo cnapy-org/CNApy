@@ -467,8 +467,10 @@ class MainWindow(QMainWindow):
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
         if self.mcs_dialog is not None:
-            dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
-            dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+            dialog.optlang_solver_set.connect(
+                self.mcs_dialog.set_optlang_solver_text)
+            dialog.optlang_solver_set.connect(
+                self.mcs_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -540,12 +542,12 @@ class MainWindow(QMainWindow):
             missing_reactions = []
             for i in values:
                 self.appdata.scen_values_set(i, values[i])
-                if i not in  self.appdata.project.cobra_py_model.reactions:
+                if i not in self.appdata.project.cobra_py_model.reactions:
                     missing_reactions.append(i)
 
-            if len(missing_reactions) > 0 :
+            if len(missing_reactions) > 0:
                 QMessageBox.warning(
-                            self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
+                    self, 'Unknown reactions in scenario', 'The scenario defined bounds for the following reactions which are not in the current model.\n' + str(missing_reactions))
 
             self.appdata.project.comp_values.clear()
         self.centralWidget().update()
@@ -1253,7 +1255,8 @@ class MainWindow(QMainWindow):
         print('Largest (absolute) value:', max(c))
 
     def print_in_out_fluxes(self, metabolite):
-        soldict = {id: val[0] for (id, val) in self.appdata.project.comp_values.items()}
+        soldict = {id: val[0]
+                   for (id, val) in self.appdata.project.comp_values.items()}
         self.in_out_fluxes(metabolite, soldict)
 
     def show_model_bounds(self):
@@ -1444,7 +1447,8 @@ class MainWindow(QMainWindow):
             sum_cons = 0
             sum_prod = 0
             for rxn in met.reactions:
-                flux = rxn.get_coefficient(metabolite_id) * soldict.get(rxn.id, 0.0)
+                flux = rxn.get_coefficient(
+                    metabolite_id) * soldict.get(rxn.id, 0.0)
                 if flux < 0:
                     cons.append((rxn, -flux))
                 elif flux > 0:
@@ -1452,10 +1456,12 @@ class MainWindow(QMainWindow):
             cons = sorted(cons, key=lambda x: x[1], reverse=True)
             prod = sorted(prod, key=lambda x: x[1], reverse=True)
             for rxn, flux in prod:
-                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn.id+": "+rxn.build_reaction_string())
+                ax.bar(1, flux, width=0.8, bottom=sum_prod,
+                       label=rxn.id+": "+rxn.build_reaction_string())
                 sum_prod += flux
             for rxn, flux in cons:
-                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn.id+": "+rxn.build_reaction_string())
+                ax.bar(2, flux, width=0.8, bottom=sum_cons,
+                       label=rxn.id+": "+rxn.build_reaction_string())
                 sum_cons += flux
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)

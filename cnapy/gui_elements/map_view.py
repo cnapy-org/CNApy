@@ -368,6 +368,7 @@ class CLineEdit(QLineEdit):
             self.parent.broadcast_reaction_id()
         self.setCursor(Qt.ClosedHandCursor)
 
+
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
 
@@ -429,20 +430,17 @@ class ReactionBox(QGraphicsItem):
         self.pop_menu.addSeparator()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
-        if (event.button() == Qt.MouseButton.LeftButton):
+        if event.button() == Qt.MouseButton.LeftButton:
             self.setSelected(True)
 
         self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
 
-    def mouseDoubleClickEvent(self, event):
-        super().mouseDoubleClickEvent(event)
-
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         self.setCursor(Qt.OpenHandCursor)
         modifiers = QApplication.queryKeyboardModifiers()
         if modifiers != Qt.ControlModifier:
-            super().mouseReleaseEvent(event) # here deselection of the other boxes occurs
+            super().mouseReleaseEvent(event)  # here deselection of the other boxes occurs
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         drag = QDrag(event.widget())
@@ -507,8 +505,8 @@ class ReactionBox(QGraphicsItem):
             self.item.setText(
                 str(round(float(vl), self.map.appdata.rounding)).rstrip("0").rstrip("."))
         else:
-            self.item.setText(
-                str(round(float(vl), self.map.appdata.rounding)).rstrip("0").rstrip(".")+", "+str(round(float(vu), self.map.appdata.rounding)).rstrip("0").rstrip("."))
+            self.item.setText(str(round(float(vl), self.map.appdata.rounding)).rstrip("0").rstrip(
+                ".")+", "+str(round(float(vu), self.map.appdata.rounding)).rstrip("0").rstrip("."))
         self.item.setCursorPosition(0)
 
     def recolor(self):

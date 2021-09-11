@@ -19,7 +19,7 @@ class ModeNavigator(QWidget):
         self.appdata = appdata
         self.central_widget = central_widget
         self.current = 0
-        self.mode_type = 0 # EFM or some sort of flux vector
+        self.mode_type = 0  # EFM or some sort of flux vector
         self.scenario = {}
         self.setFixedHeight(70)
         self.layout = QVBoxLayout()
@@ -34,7 +34,8 @@ class ModeNavigator(QWidget):
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
-        self.reaction_participation_button = QPushButton("Reaction participation")
+        self.reaction_participation_button = QPushButton(
+            "Reaction participation")
         self.size_histogram_button = QPushButton("Size histogram")
 
         l1 = QHBoxLayout()
@@ -72,9 +73,11 @@ class ModeNavigator(QWidget):
         self.next_button.clicked.connect(self.next)
         self.clear_button.clicked.connect(self.clear)
         self.selector.returnPressed.connect(self.apply_selection)
-        self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
+        self.selector.findChild(QToolButton).triggered.connect(
+            self.reset_selection)  # findChild(QToolButton) retrieves the clear button
         self.size_histogram_button.clicked.connect(self.size_histogram)
-        self.central_widget.broadcastReactionID.connect(self.selector.receive_input)
+        self.central_widget.broadcastReactionID.connect(
+            self.selector.receive_input)
 
     def update(self):
         txt = str(self.current + 1) + "/" + \
@@ -115,32 +118,35 @@ class ModeNavigator(QWidget):
 
     def update_completion_list(self):
         reac_id = self.appdata.project.cobra_py_model.reactions.list_attr("id")
-        self.completion_list.setStringList(reac_id+["!"+str(r) for r in reac_id])
+        self.completion_list.setStringList(
+            reac_id+["!"+str(r) for r in reac_id])
 
     def set_to_mcs(self):
         self.mode_type = 1
         self.title.setText("MCS Navigation")
         if self.save_button_connection is not None:
             self.save_button.clicked.disconnect(self.save_button_connection)
-        self.save_button_connection = self.save_button.clicked.connect(self.save_mcs)
+        self.save_button_connection = self.save_button.clicked.connect(
+            self.save_mcs)
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
         self.select_all()
         self.update_completion_list()
 
     def set_to_efm(self):
-        self.mode_type = 0 # EFM or some sort of flux vector
+        self.mode_type = 0  # EFM or some sort of flux vector
         self.title.setText("Mode Navigation")
         if self.save_button_connection is not None:
             self.save_button.clicked.disconnect(self.save_button_connection)
-        self.save_button_connection = self.save_button.clicked.connect(self.save_efm)
+        self.save_button_connection = self.save_button.clicked.connect(
+            self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
         self.select_all()
         self.update_completion_list()
 
     def clear(self):
-        self.mode_type = 0 # EFM or some sort of flux vector
+        self.mode_type = 0  # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
         self.appdata.recreate_scenario_from_history()
         self.selector.accept_signal_input = False
@@ -174,18 +180,19 @@ class ModeNavigator(QWidget):
         self.display_mode()
 
     def select_all(self):
-        self.selection = numpy.ones(len(self.appdata.project.modes), dtype=numpy.bool)
+        self.selection = numpy.ones(
+            len(self.appdata.project.modes), dtype=numpy.bool)
         self.num_selected = len(self.appdata.project.modes)
         self.selector.setText("")
 
     def reset_selection(self):
         self.selector.accept_signal_input = False
-        self.selection[:] = True # select all
+        self.selection[:] = True  # select all
         self.num_selected = len(self.appdata.project.modes)
         self.update()
 
     def apply_selection(self):
-        must_occur =  []
+        must_occur = []
         must_not_occur = []
         self.selector.accept_signal_input = False
         selector_text = self.selector.text().strip()
@@ -198,11 +205,14 @@ class ModeNavigator(QWidget):
                         must_not_occur.append(r[1:].lstrip())
                     else:
                         must_occur.append(r)
-                self.select(must_occur=must_occur, must_not_occur=must_not_occur)
-            except (ValueError, IndexError): # some ID was not found / an empty ID was encountered
-                QMessageBox.critical(self, "Cannot apply selection", "Check the selection for mistakes.")
+                self.select(must_occur=must_occur,
+                            must_not_occur=must_not_occur)
+            except (ValueError, IndexError):  # some ID was not found / an empty ID was encountered
+                QMessageBox.critical(
+                    self, "Cannot apply selection", "Check the selection for mistakes.")
             if self.num_selected == 0:
-                QMessageBox.information(self, "Selection not applied", "This selection is empty and was therefore not applied.")
+                QMessageBox.information(
+                    self, "Selection not applied", "This selection is empty and was therefore not applied.")
                 self.reset_selection()
             else:
                 self.current = 0
@@ -212,6 +222,7 @@ class ModeNavigator(QWidget):
                     self.next()
 
     def select(self, must_occur=None, must_not_occur=None):
+        self.selection[:] = True  # reset selection
         if must_occur is not None:
             for r in must_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
@@ -227,17 +238,21 @@ class ModeNavigator(QWidget):
         self.num_selected = numpy.sum(self.selection)
 
     def size_histogram(self):
-        sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
-        if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            sizes = sizes.A1 # flatten into 1D array
+        sizes = numpy.sum(
+            self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
+        # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+        if isinstance(sizes, numpy.matrix):
+            sizes = sizes.A1  # flatten into 1D array
         plt.hist(sizes, bins="auto")
         plt.show()
 
     def __del__(self):
-        self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
-    
+        # for proper deallocation when it is a FluxVectorMemmap
+        self.appdata.project.modes.clear()
+
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()
+
 
 class SelectorLineEdit(QLineEdit):
     def __init__(self, parent=None):
@@ -261,11 +276,12 @@ class SelectorLineEdit(QLineEdit):
                 self.insert(","+text)
             self.completer().setCompletionMode(completer_mode)
 
+
 class CustomCompleter(QCompleter):
     def __init__(self, parent=None):
         QCompleter.__init__(self, parent)
 
-    def pathFromIndex(self, index): # overrides Qcompleter method
+    def pathFromIndex(self, index):  # overrides Qcompleter method
         path = QCompleter.pathFromIndex(self, index)
         lst = str(self.widget().text()).split(',')
         # print("pathFromIndex", lst)
@@ -273,7 +289,7 @@ class CustomCompleter(QCompleter):
             path = '%s, %s' % (','.join(lst[:-1]), path)
         return path
 
-    def splitPath(self, path): # overrides Qcompleter method
+    def splitPath(self, path):  # overrides Qcompleter method
         path = str(path.split(',')[-1]).lstrip(' ')
         # print("splitPath", path)
         return [path]

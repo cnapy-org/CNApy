@@ -250,13 +250,15 @@ class MCSDialog(QDialog):
     def receive_input(self, text):
         completer_mode = self.active_receiver.completer().completionMode()
         # temporarily disable completer popup
-        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+        self.active_receiver.completer().setCompletionMode(
+            QCompleter.CompletionMode.InlineCompletion)
         self.active_receiver.insert(text)
         self.active_receiver.completer().setCompletionMode(completer_mode)
 
     @Slot()
     def set_optlang_solver_text(self):
-        self.optlang_solver_name = interface_to_str(self.appdata.project.cobra_py_model.problem)
+        self.optlang_solver_name = interface_to_str(
+            self.appdata.project.cobra_py_model.problem)
         self.solver_optlang.setText(f"{self.optlang_solver_name} (optlang)")
 
     @Slot()
@@ -511,11 +513,12 @@ class MCSDialog(QDialog):
             #     current_mcs[reaction] = c_value
             # omcs.append(current_mcs)
             # self.appdata.project.modes = omcs
-            self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
+            self.appdata.project.modes = FluxVectorContainer(
+                omcs, reac_id=reac_id)
             self.central_widget.mode_navigator.current = 0
             QMessageBox.information(self, 'Cut sets found',
                                           str(num_mcs)+' Cut sets have been calculated.')
-                                        #   str(len(omcs))+' Cut sets have been calculated.')
+            #   str(len(omcs))+' Cut sets have been calculated.')
 
         self.central_widget.mode_navigator.set_to_mcs()
         self.central_widget.update_mode()
@@ -629,7 +632,7 @@ class MCSDialog(QDialog):
 
         # omcs = [{reac_id[i]: -1.0 for i in m} for m in mcs]
         omcs = scipy.sparse.lil_matrix((len(mcs), len(reac_id)))
-        for i,m in enumerate(mcs):
+        for i, m in enumerate(mcs):
             for j in m:
                 omcs[i, j] = -1.0
         # self.appdata.project.modes = omcs
@@ -751,7 +754,6 @@ class MCSDialog(QDialog):
 
         return errors
 
-
     def check_right_mcs_equation(self, equation: str) -> str:
         try:
             float(equation)
@@ -781,6 +783,7 @@ class MCSDialog(QDialog):
                 errors += self.check_right_mcs_equation(desired_right)
 
         return errors
+
 
 class ReceiverLineEdit(QLineEdit):
     def __init__(self, mcs_dialog):

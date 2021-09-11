@@ -100,7 +100,8 @@ class CentralWidget(QWidget):
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
-        self.mode_navigator.reaction_participation_button.clicked.connect(self.reaction_participation)
+        self.mode_navigator.reaction_participation_button.clicked.connect(
+            self.reaction_participation)
 
         self.update()
 
@@ -243,7 +244,7 @@ class CentralWidget(QWidget):
             self.appdata.project.comp_values.clear()
             for i in values:
                 if self.mode_navigator.mode_type == 1 and values[i] == -1:
-                    values[i] = 0.0 # display cuts as zero flux
+                    values[i] = 0.0  # display cuts as zero flux
                 self.appdata.project.comp_values[i] = (values[i], values[i])
 
         self.appdata.modes_coloring = True
@@ -251,11 +252,14 @@ class CentralWidget(QWidget):
         self.appdata.modes_coloring = False
 
     def reaction_participation(self):
-        relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
-        if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            relative_participation = relative_participation.A1 # flatten into 1D array
+        relative_participation = numpy.sum(
+            self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
+        # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+        if isinstance(relative_participation, numpy.matrix):
+            relative_participation = relative_participation.A1  # flatten into 1D array
         self.appdata.project.comp_values.clear()
-        self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        self.appdata.project.comp_values = {r: (
+            relative_participation[i], relative_participation[i]) for i, r in enumerate(self.appdata.project.modes.reac_id)}
         self.update()
         self.parent.set_heaton()
 
@@ -327,6 +331,7 @@ class CentralWidget(QWidget):
         self.show_bottom_of_console()
 
     broadcastReactionID = Signal(str)
+
 
 class ConfirmMapDeleteDialog(QDialog):
 
