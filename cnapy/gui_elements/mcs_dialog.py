@@ -482,10 +482,10 @@ class MCSDialog(QDialog):
             num_mcs = int(mcs[-1][0])
             omcs = scipy.sparse.lil_matrix((num_mcs, len(reac_id)))
             # current_mcs = {}
-            for i in range(0, len(reactions)):
-                # print(mcs[i][0], reactions[i][0], values[i][0])
-                omcs[mcs[i][0]-1, reactions[i][0]-1] = values[i][0]
-            #     reacid = int(reactions[i][0])
+            for i, reaction in enumerate(reactions):
+                # print(mcs[i][0], reaction[0], values[i][0])
+                omcs[mcs[i][0]-1, reaction[0]-1] = values[i][0]
+            #     reacid = int(reaction[0])
             #     reaction = reac_id[reacid-1]
             #     c_mcs = int(mcs[i][0])
             #     c_value = int(values[i][0])
