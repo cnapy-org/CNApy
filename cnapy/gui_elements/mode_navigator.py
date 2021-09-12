@@ -207,8 +207,8 @@ class ModeNavigator(QWidget):
                     self.next()
 
     def select(self, must_occur=None, must_not_occur=None):
-        self.selection[:] = True # reset selection
-        if must_occur != None:
+        self.selection[:] = True  # reset selection
+        if must_occur is not None:
             for r in must_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
                 for i, selected in enumerate(self.selection):
