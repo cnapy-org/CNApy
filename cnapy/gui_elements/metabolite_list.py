@@ -2,13 +2,15 @@
 
 import cobra
 from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
-                            QLineEdit, QMenu, QMessageBox, QPushButton,
+                            QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 
 
 class MetaboliteList(QWidget):
@@ -224,8 +226,21 @@ class MetabolitesMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
+
+        l3 = QHBoxLayout()
         label = QLabel("Annotations:")
-        l.addWidget(label)
+        l3.addWidget(label)
+
+        check_button = QPushButton("identifiers.org check")
+        check_button.setIcon(QIcon.fromTheme("list-add"))
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        check_button.setSizePolicy(policy)
+        check_button.clicked.connect(self.check_in_identifiers_org)
+        l3.addWidget(check_button)
+
+        l.addItem(l3)
+
         l2 = QHBoxLayout()
         self.annotation = QTableWidget(0, 2)
         self.annotation.setHorizontalHeaderLabels(
@@ -317,6 +332,57 @@ class MetabolitesMask(QWidget):
             else:
                 turn_white(self.id)
                 return True
+
+    def check_in_identifiers_org(self):
+        rows = self.annotation.rowCount()
+        valid_green = QColor(0, 255, 0)
+        invalid_red = QColor(255, 0, 0)
+        for i in range(0, rows):
+            if self.annotation.item(i, 0) is not None:
+                key = self.annotation.item(i, 0).text()
+            else:
+                key = ""
+            if self.annotation.item(i, 1) is not None:
+                values = self.annotation.item(i, 1).text()
+            else:
+                values = ""
+            if (key == "") or (values == ""):
+                continue
+
+            if values.startswith("["):
+                values = values.replace("', ", "'\b,").replace('", ', '"\b,').replace("[", "")\
+                               .replace("]", "").replace("'", "").replace('"', "")
+                values = values.split("\b,")
+            else:
+                values = [values]
+
+            for value in values:
+                is_valid, connection_error = check_identifiers_org_entry(key, value)
+
+                if connection_error:
+                    msgBox = QMessageBox()
+                    msgBox.setWindowTitle("Connection error!")
+                    msgBox.setTextFormat(Qt.RichText)
+                    msgBox.setText("<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
+                    msgBox.setIcon(QMessageBox.Warning)
+                    msgBox.exec()
+                    break
+
+                if (not is_valid) and (":" in value):
+                    split_value = value.split(":")
+                    is_valid, connection_error = check_identifiers_org_entry(split_value[0], split_value[1])
+
+
+                if is_valid:
+                    color = valid_green
+                else:
+                    color = invalid_red
+
+                self.annotation.item(i, 0).setBackground(color)
+                self.annotation.item(i, 1).setBackground(color)
+
+                if not is_valid:
+                    break
 
     def validate_name(self):
         with self.appdata.project.cobra_py_model as model:
