@@ -130,8 +130,9 @@ class ProjectData:
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}
+        self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
+        self.fva_values: Dict[str, Tuple[float, float]] = {}
         self.modes = []
-        self.compute_color_type = 1
         self.meta_data = {}
 
     def load_scenario_into_model(self, model):

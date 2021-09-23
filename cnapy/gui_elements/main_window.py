@@ -359,7 +359,7 @@ class MainWindow(QMainWindow):
             self.close_project_dialogs()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
         else:
             event.ignore()
 
@@ -426,7 +426,7 @@ class MainWindow(QMainWindow):
     def exit_app(self):
         if self.checked_unsaved():
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
             QApplication.quit()
 
     def set_current_filename(self, filename):
@@ -548,6 +548,7 @@ class MainWindow(QMainWindow):
                             self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
             self.appdata.project.comp_values.clear()
+            self.appdata.project.fva_values.clear()
         self.centralWidget().update()
 
         self.appdata.last_scen_directory = os.path.dirname(filename)
@@ -729,12 +730,14 @@ class MainWindow(QMainWindow):
     def clear_scenario(self):
         self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
 
     def load_default_scenario(self):
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.scen_values_clear()
         for r in self.appdata.project.cobra_py_model.reactions:
             if 'cnapy-default' in r.annotation.keys():
@@ -1068,6 +1071,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
+            self.appdata.project.comp_values_type = 0
             self.centralWidget().update()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):
@@ -1095,6 +1099,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
+        self.appdata.project.comp_values_type = 0
         self.centralWidget().update()
 
     def pfba(self):
@@ -1122,6 +1127,7 @@ class MainWindow(QMainWindow):
                         self, 'No solution!', solution.status)
                     self.appdata.project.comp_values.clear()
             finally:
+                self.appdata.project.comp_values_type = 0
                 self.centralWidget().update()
 
     def execute_print_model_stats(self):
@@ -1260,6 +1266,7 @@ class MainWindow(QMainWindow):
         for reaction in self.appdata.project.cobra_py_model.reactions:
             self.appdata.project.comp_values[reaction.id] = (
                 reaction.lower_bound, reaction.upper_bound)
+        self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
@@ -1292,8 +1299,8 @@ class MainWindow(QMainWindow):
                 for i in minimum:
                     self.appdata.project.comp_values[i] = (
                         minimum[i], maximum[i])
-
-                self.appdata.project.compute_color_type = 3
+                self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+                self.appdata.project.comp_values_type = 1
 
         self.centralWidget().update()
         self.setCursor(Qt.ArrowCursor)

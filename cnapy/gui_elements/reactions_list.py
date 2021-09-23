@@ -5,7 +5,7 @@ import traceback
 
 import cobra
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot
-from qtpy.QtGui import QDrag, QIcon
+from qtpy.QtGui import QDrag, QIcon, QColor
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
@@ -21,9 +21,8 @@ class DragableTreeWidget(QTreeWidget):
     def mouseMoveEvent(self, _event):
         item = self.currentItem()
         if item is not None:
-            reaction: cobra.Reaction = item.data(3, 0)
             mime_data = QMimeData()
-            mime_data.setText(reaction.id)
+            mime_data.setText(item.reaction.id)
             drag = QDrag(self)
             drag.setMimeData(mime_data)
             drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
@@ -32,9 +31,12 @@ class DragableTreeWidget(QTreeWidget):
 class ReactionListItem(QTreeWidgetItem):
     """ For custom sorting of columns """
 
-    def __init__(self, parent=None):
+    def __init__(self, reaction: cobra.Reaction, parent=None):
         QTreeWidgetItem.__init__(self, parent)
+        self.reaction = reaction
         self.flux_sort_val = -float('inf')
+        self.lb_val = -float('inf')
+        self.ub_val = float('inf')
 
     def setFluxData(self, column, role, text, value):
         self.setData(column, role, text)
@@ -48,9 +50,13 @@ class ReactionListItem(QTreeWidgetItem):
         column = self.treeWidget().sortColumn()
         if column == 2:  # 2 is the flux column
             return self.flux_sort_val < other.flux_sort_val
+        elif column == 3:
+            return self.lb_val < other.lb_val
+        elif column == 4:
+            return self.ub_val < other.ub_val
         else:  # use Qt default comparison for the other columns
-            return super().__lt__(other)
-
+#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
+            return self.text(column) < other.text(column)
 
 class ReactionList(QWidget):
     """A list of reaction"""
@@ -69,7 +75,7 @@ class ReactionList(QWidget):
 
         self.reaction_list = DragableTreeWidget()
         self.reaction_list.setDragEnabled(True)
-        self.reaction_list.setHeaderLabels(["Id", "Name", "Flux"])
+        self.reaction_list.setHeaderLabels(["Id", "Name", "Flux", "LB", "UB"])
         self.reaction_list.setSortingEnabled(True)
 
         for r in self.appdata.project.cobra_py_model.reactions:
@@ -102,6 +108,9 @@ class ReactionList(QWidget):
 
         self.add_button.clicked.connect(self.add_new_reaction)
 
+    def format_flux_value(self, flux_value):
+        return str(round(float(flux_value), self.appdata.rounding)).rstrip("0").rstrip(".")
+
     def clear(self):
         self.reaction_list.clear()
         self.reaction_mask.hide()
@@ -109,10 +118,12 @@ class ReactionList(QWidget):
     def add_reaction(self, reaction: cobra.Reaction) -> ReactionListItem:
         ''' create a new item in the reaction list'''
         self.reaction_list.clearSelection()
-        item = ReactionListItem(self.reaction_list)
+        item = ReactionListItem(reaction, self.reaction_list)
         item.setText(0, reaction.id)
         item.setText(1, reaction.name)
-        self.set_flux_value(item, reaction.id)
+        if self.appdata.project.comp_values_type == 0:
+            self.set_flux_value(item)
+        self.set_bounds_values(item)
 
         text = "Id: " + reaction.id + "\nName: " + reaction.name \
             + "\nEquation: " + reaction.build_reaction_string()\
@@ -121,11 +132,11 @@ class ReactionList(QWidget):
             + "\nObjective coefficient: " + str(reaction.objective_coefficient)
 
         item.setToolTip(1, text)
-        item.setData(3, 0, reaction)
 
         return item
 
-    def set_flux_value(self, item, key):
+    def set_flux_value(self, item):
+        key = item.reaction.id
         if key in self.appdata.project.scen_values.keys():
             (vl, vu) = self.appdata.project.scen_values[key]
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
@@ -166,6 +177,41 @@ class ReactionList(QWidget):
 
             item.setForeground(2, Qt.black)
 
+    def set_bounds_values(self, item):
+        key = item.reaction.id
+        if key in self.appdata.project.scen_values.keys():
+            (vl, vu) = self.appdata.project.scen_values[key]
+            background_color = self.appdata.scen_color
+        elif key in self.appdata.project.fva_values.keys():
+            (vl, vu) = self.appdata.project.fva_values[key]
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
+                if self.appdata.modes_coloring:
+                    if vl == 0:
+                        background_color = Qt.red
+                    else:
+                        background_color = Qt.green
+                else:
+                        background_color = self.appdata.comp_color
+            else:
+                if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
+                    background_color = self.appdata.special_color_1
+                elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
+                    background_color = self.appdata.special_color_1
+                elif vl <= 0 and vu >= 0:
+                    background_color = self.appdata.special_color_1
+                else:
+                    background_color = self.appdata.special_color_2
+        else:
+            vl = item.reaction.lower_bound
+            vu = item.reaction.upper_bound
+            background_color = Qt.white
+        item.setBackground(3, background_color)
+        item.lb_val = vl
+        item.setText(3, self.format_flux_value(vl))
+        item.setBackground(4, background_color)
+        item.ub_val = vu
+        item.setText(4, self.format_flux_value(vu))
+
     def add_new_reaction(self):
         self.reaction_mask.show()
         while True:
@@ -204,7 +250,7 @@ class ReactionList(QWidget):
         else:
             item.setSelected(True)
             self.reaction_mask.show()
-            reaction: cobra.Reaction = item.data(3, 0)
+            reaction: cobra.Reaction = item.reaction
 
             self.last_selected = reaction.id
             self.reaction_mask.reaction = reaction
@@ -243,7 +289,7 @@ class ReactionList(QWidget):
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
-            if item.data(3, 0) == reaction:
+            if item.reaction == reaction:
                 old_id = item.text(0)
                 item.setText(0, reaction.id)
                 item.setText(1, reaction.name)
@@ -258,7 +304,7 @@ class ReactionList(QWidget):
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
-            if item.data(3, 0) == reaction:
+            if item.reaction == reaction:
                 # remove item
                 self.reaction_list.takeTopLevelItem(
                     self.reaction_list.indexOfTopLevelItem(item))
@@ -294,6 +340,9 @@ class ReactionList(QWidget):
                 self.reaction_list.setCurrentItem(i)
                 break
 
+        self.reaction_list.resizeColumnToContents(2)
+        self.reaction_list.resizeColumnToContents(3)
+        self.reaction_list.resizeColumnToContents(4)
         self.reaction_mask.update_state()
 
     def set_current_item(self, key):

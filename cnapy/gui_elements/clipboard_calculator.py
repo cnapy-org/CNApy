@@ -123,7 +123,7 @@ class ClipboardCalculator(QDialog):
 
             res = self.combine(lv_scen, rv_scen)
             self.appdata.project.scen_values[key] = res
-
+        self.appdata.project.comp_values_type = 0
         self.appdata.window.centralWidget().update()
 
     def combine(self, lv, rv):
