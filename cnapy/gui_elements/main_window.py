@@ -841,6 +841,8 @@ class MainWindow(QMainWindow):
                     self.recreate_maps()
                     self.centralWidget().mode_navigator.clear()
                     self.appdata.project.scen_values.clear()
+                    self.appdata.project.comp_values.clear()
+                    self.appdata.project.fva_values.clear()
                     self.appdata.scenario_past.clear()
                     self.appdata.scenario_future.clear()
                     for r in self.appdata.project.cobra_py_model.reactions:

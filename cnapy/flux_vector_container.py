@@ -30,7 +30,7 @@ class FluxVectorContainer:
         return self.fv_mat.shape[0]
 
     def is_integer_vector_rounded(self, idx, decimals=0):
-        # does not yet work when fv_mat is list of lists sparse matrix
+        # TODO: does not yet work when fv_mat is list of lists sparse matrix
         # return all([val.is_integer() for val in numpy.round(self.fv_mat[idx, :], decimals)])
         return all(round(val, decimals).is_integer() for val in self.fv_mat[idx, :])
 
