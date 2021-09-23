@@ -197,14 +197,13 @@ class MCSDialog(QDialog):
         self.layout.addItem(s3)
 
         # Disable incompatible combinations
+        self.solver_optlang.setChecked(True)
         if appdata.selected_engine == 'None':
-            self.solver_optlang.setChecked(True)
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
         else:
-            self.solver_glpk.setChecked(True)
             self.solver_cplex_matlab.setEnabled(
                 self.eng.is_cplex_matlab_ready())
             self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
