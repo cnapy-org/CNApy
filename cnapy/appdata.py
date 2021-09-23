@@ -116,6 +116,7 @@ class AppData:
                 self.selected_engine = "None"
                 print("No engine selected!")
         else:
+            self.selected_engine = "None"
             print("No engine selected!")
 
 
