@@ -334,6 +334,7 @@ class MetabolitesMask(QWidget):
                 return True
 
     def check_in_identifiers_org(self):
+        self.setCursor(Qt.BusyCursor)
         rows = self.annotation.rowCount()
         valid_green = QColor(0, 255, 0)
         invalid_red = QColor(255, 0, 0)
@@ -357,9 +358,9 @@ class MetabolitesMask(QWidget):
                 values = [values]
 
             for value in values:
-                is_valid, connection_error = check_identifiers_org_entry(key, value)
+                identifiers_org_result = check_identifiers_org_entry(key, value)
 
-                if connection_error:
+                if identifiers_org_result.connection_error:
                     msgBox = QMessageBox()
                     msgBox.setWindowTitle("Connection error!")
                     msgBox.setTextFormat(Qt.RichText)
@@ -368,21 +369,26 @@ class MetabolitesMask(QWidget):
                     msgBox.exec()
                     break
 
-                if (not is_valid) and (":" in value):
+                if (not identifiers_org_result.is_key_value_pair_valid) and (":" in value):
                     split_value = value.split(":")
-                    is_valid, connection_error = check_identifiers_org_entry(split_value[0], split_value[1])
+                    identifiers_org_result = check_identifiers_org_entry(split_value[0], split_value[1])
 
 
-                if is_valid:
-                    color = valid_green
+                if identifiers_org_result.is_key_valid:
+                    key_color = valid_green
                 else:
-                    color = invalid_red
+                    key_color = invalid_red
+                self.annotation.item(i, 0).setBackground(key_color)
 
-                self.annotation.item(i, 0).setBackground(color)
-                self.annotation.item(i, 1).setBackground(color)
+                if identifiers_org_result.is_key_value_pair_valid:
+                    value_color = valid_green
+                else:
+                    value_color = invalid_red
+                self.annotation.item(i, 1).setBackground(value_color)
 
-                if not is_valid:
+                if not identifiers_org_result.is_key_value_pair_valid:
                     break
+            self.setCursor(Qt.ArrowCursor)
 
     def validate_name(self):
         with self.appdata.project.cobra_py_model as model:
