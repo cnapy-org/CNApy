@@ -8,7 +8,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget)
+                            QTabWidget, QVBoxLayout, QWidget, QAction)
 
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.map_view import MapView
@@ -287,6 +287,11 @@ class CentralWidget(QWidget):
         if idx >= 0:
             m = self.map_tabs.widget(idx)
             m.update()
+
+        if self.parent.heaton_action.isChecked():
+            self.parent.heaton_action.activate(QAction.Trigger)
+        elif self.parent.onoff_action.isChecked():
+            self.parent.onoff_action.activate(QAction.Trigger)
 
     def update_map(self, idx):
         m = self.map_tabs.widget(idx)
