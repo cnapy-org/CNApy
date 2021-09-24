@@ -14,17 +14,17 @@ class DownloadDialog(QDialog):
 
     def __init__(self, appdata: AppData):
         QDialog.__init__(self)
-        self.setWindowTitle("Create folder with example files?")
+        self.setWindowTitle("Create folder with example projects?")
 
         self.appdata = appdata
         self.layout = QVBoxLayout()
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "CNApy has found no projects directory.")
+            "CNApy could not find a projects directory.")
         label_line.addWidget(label)
         label = QLabel(
-            "Should CNApy create a projects directory and download examples files?")
+            "Should CNApy create a projects directory and download example projects?")
         label_line.addWidget(label)
         self.layout.addItem(label_line)
 
