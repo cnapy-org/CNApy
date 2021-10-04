@@ -336,7 +336,6 @@ class MetabolitesMask(QWidget):
     def check_in_identifiers_org(self):
         self.setCursor(Qt.BusyCursor)
         rows = self.annotation.rowCount()
-        valid_green = QColor(0, 255, 0)
         invalid_red = QColor(255, 0, 0)
         for i in range(0, rows):
             if self.annotation.item(i, 0) is not None:
@@ -374,15 +373,11 @@ class MetabolitesMask(QWidget):
                     identifiers_org_result = check_identifiers_org_entry(split_value[0], split_value[1])
 
 
-                if identifiers_org_result.is_key_valid:
-                    key_color = valid_green
-                else:
+                if not identifiers_org_result.is_key_valid:
                     key_color = invalid_red
                 self.annotation.item(i, 0).setBackground(key_color)
 
-                if identifiers_org_result.is_key_value_pair_valid:
-                    value_color = valid_green
-                else:
+                if not identifiers_org_result.is_key_value_pair_valid:
                     value_color = invalid_red
                 self.annotation.item(i, 1).setBackground(value_color)
 
