@@ -349,7 +349,7 @@ class ConfirmMapDeleteDialog(QDialog):
         self.parent = parent
         self.idx = idx
         self.name = name
-        self.lable = QLabel("Do you realy want to delete this map?")
+        self.lable = QLabel("Do you really want to delete this map?")
         self.button_yes = QPushButton("Yes delete")
         self.button_no = QPushButton("No!")
         # Create layout and add widgets
