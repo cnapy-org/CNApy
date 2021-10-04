@@ -49,13 +49,16 @@ class DownloadDialog(QDialog):
         for t in targets:
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
-                print("Downloading ", target, "...")
                 url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.5/' + t
+                print("Downloading", url, "to", target, "...")
                 urllib.request.urlretrieve(url, target)
+                print("Done!")
 
                 zip_path = os.path.join(work_directory, t)
+                print("Extracting", zip_path, "...")
                 with ZipFile(zip_path, 'r') as zip_file:
-                    zip_file.extractall()
+                    zip_file.extractall(path=work_directory)
+                print("Done!")
                 os.remove(zip_path)
 
         self.accept()
