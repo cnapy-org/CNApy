@@ -627,12 +627,10 @@ class ReactionMask(QWidget):
 
 
                 if not identifiers_org_result.is_key_valid:
-                    key_color = invalid_red
-                self.annotation.item(i, 0).setBackground(key_color)
+                    self.annotation.item(i, 0).setBackground(invalid_red)
 
                 if not identifiers_org_result.is_key_value_pair_valid:
-                    value_color = invalid_red
-                self.annotation.item(i, 1).setBackground(value_color)
+                    self.annotation.item(i, 1).setBackground(invalid_red)
 
                 if not identifiers_org_result.is_key_value_pair_valid:
                     break
