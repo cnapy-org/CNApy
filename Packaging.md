@@ -18,7 +18,17 @@ conda install constructor
 # Create and upload a conda package
 
 ```sh
+# You have to create a noarch package for all systems except
+# Windows and a win64 package for Windows. Otherwise, without
+# a specific win64 package, the Windows .exe installer will not
+# work.
 cd recipes/noarch
+conda-build . -c conda-forge -c cnapy
+anaconda login
+anaconda upload -u cnapy FILENAME
+
+cd ..
+cd recipes/win
 conda-build . -c conda-forge -c cnapy
 anaconda login
 anaconda upload -u cnapy FILENAME
