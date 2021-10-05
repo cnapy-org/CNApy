@@ -28,7 +28,7 @@ anaconda login
 anaconda upload -u cnapy FILENAME
 
 cd ..
-cd recipes/win
+cd win
 conda-build . -c conda-forge -c cnapy
 anaconda login
 anaconda upload -u cnapy FILENAME
