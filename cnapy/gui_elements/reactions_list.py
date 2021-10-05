@@ -5,7 +5,7 @@ import traceback
 
 import cobra
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot
-from qtpy.QtGui import QDrag, QIcon, QColor
+from qtpy.QtGui import QColor, QDrag, QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 
 
 class DragableTreeWidget(QTreeWidget):
@@ -483,8 +484,21 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
+
+        l3 = QHBoxLayout()
         label = QLabel("Annotations:")
-        l.addWidget(label)
+        l3.addWidget(label)
+
+        check_button = QPushButton("identifiers.org check")
+        check_button.setIcon(QIcon.fromTheme("list-add"))
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        check_button.setSizePolicy(policy)
+        check_button.clicked.connect(self.check_in_identifiers_org)
+        l3.addWidget(check_button)
+
+        l.addItem(l3)
+
         l2 = QHBoxLayout()
         self.annotation = QTableWidget(0, 2)
         self.annotation.setHorizontalHeaderLabels(
@@ -571,6 +585,58 @@ class ReactionMask(QWidget):
 
             self.changed = False
             self.reactionChanged.emit(self.reaction)
+
+    def check_in_identifiers_org(self):
+        self.setCursor(Qt.BusyCursor)
+        rows = self.annotation.rowCount()
+        invalid_red = QColor(255, 0, 0)
+        for i in range(0, rows):
+            if self.annotation.item(i, 0) is not None:
+                key = self.annotation.item(i, 0).text()
+            else:
+                key = ""
+            if self.annotation.item(i, 1) is not None:
+                values = self.annotation.item(i, 1).text()
+            else:
+                values = ""
+            if (key == "") or (values == ""):
+                continue
+
+            if values.startswith("["):
+                values = values.replace("', ", "'\b,").replace('", ', '"\b,').replace("[", "")\
+                               .replace("]", "").replace("'", "").replace('"', "")
+                values = values.split("\b,")
+            else:
+                values = [values]
+
+            for value in values:
+                identifiers_org_result = check_identifiers_org_entry(key, value)
+
+                if identifiers_org_result.connection_error:
+                    msgBox = QMessageBox()
+                    msgBox.setWindowTitle("Connection error!")
+                    msgBox.setTextFormat(Qt.RichText)
+                    msgBox.setText("<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
+                    msgBox.setIcon(QMessageBox.Warning)
+                    msgBox.exec()
+                    break
+
+                if (not identifiers_org_result.is_key_value_pair_valid) and (":" in value):
+                    split_value = value.split(":")
+                    identifiers_org_result = check_identifiers_org_entry(split_value[0], split_value[1])
+
+
+                if not identifiers_org_result.is_key_valid:
+                    key_color = invalid_red
+                self.annotation.item(i, 0).setBackground(key_color)
+
+                if not identifiers_org_result.is_key_value_pair_valid:
+                    value_color = invalid_red
+                self.annotation.item(i, 1).setBackground(value_color)
+
+                if not identifiers_org_result.is_key_value_pair_valid:
+                    break
+        self.setCursor(Qt.ArrowCursor)
 
     def delete_reaction(self):
         self.hide()

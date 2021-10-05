@@ -1,9 +1,8 @@
 """The CNApy download examples files dialog"""
 import os
-import shutil
 import urllib.request
+from zipfile import ZipFile
 
-import pkg_resources
 from qtpy.QtWidgets import (
     QLabel, QDialog, QHBoxLayout, QPushButton,  QVBoxLayout)
 
@@ -15,17 +14,17 @@ class DownloadDialog(QDialog):
 
     def __init__(self, appdata: AppData):
         QDialog.__init__(self)
-        self.setWindowTitle("Create folder with example files?")
+        self.setWindowTitle("Create folder with example projects?")
 
         self.appdata = appdata
         self.layout = QVBoxLayout()
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "CNApy has found no projects directory.")
+            "CNApy could not find a projects directory.")
         label_line.addWidget(label)
         label = QLabel(
-            "Should CNApy create a projects directory and download examples files?")
+            "Should CNApy create a projects directory and download example projects?")
         label_line.addWidget(label)
         self.layout.addItem(label_line)
 
@@ -46,24 +45,20 @@ class DownloadDialog(QDialog):
         print("Create work directory:", work_directory)
         os.mkdir(work_directory)
 
-        targets = ["ECC2.cna", "ECC2comp.cna", "e_coli_core.cna", "SmallExample.cna",
-                   "iJO1366.cna", "iJO1366core.cna", "iML1515.cna", "iML1515core.cna"]
+        targets = ["all_cnapy_projects.zip"]
         for t in targets:
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
-                print("Download:", target)
-                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.4/'+t
+                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.5/' + t
+                print("Downloading", url, "to", target, "...")
                 urllib.request.urlretrieve(url, target)
+                print("Done!")
 
-        scen_file = pkg_resources.resource_filename(
-            'cnapy', 'data/Ecoli-glucose-standard.scen')
-        target = os.path.join(
-            work_directory, 'Ecoli-glucose-standard.scen')
-        shutil.copyfile(scen_file, target)
-        scen_file = pkg_resources.resource_filename(
-            'cnapy', 'data/Ecoli-flux-analysis.scen')
-        target = os.path.join(
-            work_directory, 'Ecoli-flux-analysis.scen')
-        shutil.copyfile(scen_file, target)
+                zip_path = os.path.join(work_directory, t)
+                print("Extracting", zip_path, "...")
+                with ZipFile(zip_path, 'r') as zip_file:
+                    zip_file.extractall(path=work_directory)
+                print("Done!")
+                os.remove(zip_path)
 
         self.accept()
