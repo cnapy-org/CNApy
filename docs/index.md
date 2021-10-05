@@ -1,22 +1,11 @@
 ![CNApy main window](https://raw.githubusercontent.com/cnapy-org/CNApy/master/screenshot.png)
 
-## CNApy installation with conda
+# Installation
 
-We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
+There are two ways to install CNApy:
 
-1. Create a conda environment with all dependencies:
-```
-conda create -n cnapy-1.0.4 -c conda-forge -c cnapy cnapy=1.0.4
-```
-2. Activate the cnapy conda environment:
-```
-conda activate cnapy-1.0.4
-```
-3. Run CNApy
-```
-cnapy
-```
-IMPORTANT: To use the CNA Matlab functions you need at least [Matlab](https://www.mathworks.com) 2019b or [Octave](https://www.octave.org) 5.2. Also, you need to download [CellNetAnalyzer](http://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html)
+1. Under any operating system, by installing CNApy as a conda package (see [https://github.com/cnapy-org/CNApy#install-cnapy-with-conda](https://github.com/cnapy-org/CNApy#install-cnapy-with-conda))
+2. As an alternative installation way under Windows, by using the .exe installer attached to [CNApy's latest release](https://github.com/cnapy-org/CNApy/releases/latest).
 
 ## Documentation
 
