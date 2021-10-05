@@ -24,6 +24,11 @@
 
 We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
 
+0. (only recommended if you have already installed CNApy by using conda) If you already have a cnapy environment, e.g., cnapy-1.X.X, you can delete it with the command
+    ```sh
+    # Here, the Xs stand for the last CNApy version you've installed by using conda
+    conda env remove -n cnapy-1.X.X
+    ```
 1. (optional, but recommended if you also use other Python distributions or Anaconda environments) In order to solve
    potential package version problems, set a systems variable called "PYTHONNOUSERSITE" to the value "True".
 
