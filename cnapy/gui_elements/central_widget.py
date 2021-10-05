@@ -8,7 +8,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget)
+                            QTabWidget, QVBoxLayout, QWidget, QAction)
 
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.map_view import MapView
@@ -237,6 +237,12 @@ class CentralWidget(QWidget):
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
             values = self.appdata.project.modes[self.mode_navigator.current]
+            if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
+                self.mode_navigator.current, self.appdata.rounding):
+                # normalize non-integer EFM for better display
+                mean = sum(abs(v) for v in values.values())/len(values)
+                for r,v in values.items():
+                    values[r] = v/mean
 
             # set values
             self.appdata.project.scen_values.clear()
@@ -245,6 +251,7 @@ class CentralWidget(QWidget):
                 if self.mode_navigator.mode_type == 1 and values[i] == -1:
                     values[i] = 0.0 # display cuts as zero flux
                 self.appdata.project.comp_values[i] = (values[i], values[i])
+            self.appdata.project.comp_values_type = 0
 
         self.appdata.modes_coloring = True
         self.update()
@@ -256,6 +263,7 @@ class CentralWidget(QWidget):
             relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values.clear()
         self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        self.appdata.project.comp_values_type = 0
         self.update()
         self.parent.set_heaton()
 
@@ -279,6 +287,11 @@ class CentralWidget(QWidget):
         if idx >= 0:
             m = self.map_tabs.widget(idx)
             m.update()
+
+        if self.parent.heaton_action.isChecked():
+            self.parent.heaton_action.activate(QAction.Trigger)
+        elif self.parent.onoff_action.isChecked():
+            self.parent.onoff_action.activate(QAction.Trigger)
 
     def update_map(self, idx):
         m = self.map_tabs.widget(idx)
@@ -336,7 +349,7 @@ class ConfirmMapDeleteDialog(QDialog):
         self.parent = parent
         self.idx = idx
         self.name = name
-        self.lable = QLabel("Do you realy want to delete this map?")
+        self.lable = QLabel("Do you really want to delete this map?")
         self.button_yes = QPushButton("Yes delete")
         self.button_no = QPushButton("No!")
         # Create layout and add widgets

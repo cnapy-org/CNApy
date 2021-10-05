@@ -116,6 +116,7 @@ class AppData:
                 self.selected_engine = "None"
                 print("No engine selected!")
         else:
+            self.selected_engine = "None"
             print("No engine selected!")
 
 
@@ -130,8 +131,9 @@ class ProjectData:
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.comp_values: Dict[str, Tuple[float, float]] = {}
+        self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
+        self.fva_values: Dict[str, Tuple[float, float]] = {} # store FVA results persistently
         self.modes = []
-        self.compute_color_type = 1
         self.meta_data = {}
 
     def load_scenario_into_model(self, model):

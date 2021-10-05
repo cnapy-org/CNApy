@@ -14,7 +14,7 @@ from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
                             QMainWindow, QMessageBox, QToolBar, QShortcut)
 
 from cnapy.appdata import AppData, ProjectData
@@ -44,6 +44,15 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
+
+        # self.heaton_action and self.onoff_action need to be defined before CentralWidget
+        self.heaton_action = QAction("Heatmap coloring", self)
+        self.heaton_action.setIcon(QIcon(":/icons/heat.png"))
+        self.heaton_action.triggered.connect(self.set_heaton)
+ 
+        self.onoff_action = QAction("On/Off coloring", self)
+        self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
+        self.onoff_action.triggered.connect(self.set_onoff)
 
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
@@ -145,15 +154,13 @@ class MainWindow(QMainWindow):
 
         self.scenario_menu.addSeparator()
 
-        heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon(":/icons/heat.png"))
-        heaton_action.triggered.connect(self.set_heaton)
-        self.scenario_menu.addAction(heaton_action)
+        update_action = QAction("Default Coloring", self)
+        update_action.setIcon(QIcon(":/icons/default-color.png"))
+        update_action.triggered.connect(central_widget.update)
 
-        onoff_action = QAction("Apply On/Off coloring", self)
-        onoff_action.setIcon(QIcon(":/icons/onoff.png"))
-        onoff_action.triggered.connect(self.set_onoff)
-        self.scenario_menu.addAction(onoff_action)
+        self.scenario_menu.addAction(self.heaton_action)
+        self.scenario_menu.addAction(self.onoff_action)
+        self.scenario_menu.addAction(update_action)
 
         self.clipboard_menu = self.menu.addMenu("Clipboard")
 
@@ -323,10 +330,6 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
-        update_action = QAction("Default Coloring", self)
-        update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(central_widget.update)
-
         zoom_in_action = QAction("Zoom in Map", self)
         zoom_in_action.setIcon(QIcon(":/icons/zoom-in.png"))
         zoom_in_action.triggered.connect(self.zoom_in)
@@ -337,13 +340,25 @@ class MainWindow(QMainWindow):
 
         self.set_current_filename("Untitled project")
 
+        self.heaton_action.setCheckable(True)
+        self.onoff_action.setCheckable(True)
+        update_action.setCheckable(True)
+        update_action.setChecked(True)
+        colorings = QActionGroup(self)
+        colorings.addAction(self.heaton_action)
+        colorings.addAction(self.onoff_action)
+        colorings.addAction(update_action)
+        colorings.setExclusive(True)
+
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_scenario_action)
         self.tool_bar.addAction(undo_scenario_action)
         self.tool_bar.addAction(redo_scenario_action)
-        self.tool_bar.addAction(heaton_action)
-        self.tool_bar.addAction(onoff_action)
+        self.tool_bar.addSeparator()
+        self.tool_bar.addAction(self.heaton_action)
+        self.tool_bar.addAction(self.onoff_action)
         self.tool_bar.addAction(update_action)
+        self.tool_bar.addSeparator()
         self.tool_bar.addAction(zoom_in_action)
         self.tool_bar.addAction(zoom_out_action)
         self.addToolBar(self.tool_bar)
@@ -359,7 +374,7 @@ class MainWindow(QMainWindow):
             self.close_project_dialogs()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
         else:
             event.ignore()
 
@@ -426,7 +441,7 @@ class MainWindow(QMainWindow):
     def exit_app(self):
         if self.checked_unsaved():
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
             QApplication.quit()
 
     def set_current_filename(self, filename):
@@ -548,6 +563,7 @@ class MainWindow(QMainWindow):
                             self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
             self.appdata.project.comp_values.clear()
+            self.appdata.project.fva_values.clear()
         self.centralWidget().update()
 
         self.appdata.last_scen_directory = os.path.dirname(filename)
@@ -729,12 +745,14 @@ class MainWindow(QMainWindow):
     def clear_scenario(self):
         self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
 
     def load_default_scenario(self):
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.scen_values_clear()
         for r in self.appdata.project.cobra_py_model.reactions:
             if 'cnapy-default' in r.annotation.keys():
@@ -838,6 +856,8 @@ class MainWindow(QMainWindow):
                     self.recreate_maps()
                     self.centralWidget().mode_navigator.clear()
                     self.appdata.project.scen_values.clear()
+                    self.appdata.project.comp_values.clear()
+                    self.appdata.project.fva_values.clear()
                     self.appdata.scenario_past.clear()
                     self.appdata.scenario_future.clear()
                     for r in self.appdata.project.cobra_py_model.reactions:
@@ -1068,6 +1088,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
+            self.appdata.project.comp_values_type = 0
             self.centralWidget().update()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):
@@ -1095,6 +1116,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution!', solution.status)
                 self.appdata.project.comp_values.clear()
+        self.appdata.project.comp_values_type = 0
         self.centralWidget().update()
 
     def pfba(self):
@@ -1122,6 +1144,7 @@ class MainWindow(QMainWindow):
                         self, 'No solution!', solution.status)
                     self.appdata.project.comp_values.clear()
             finally:
+                self.appdata.project.comp_values_type = 0
                 self.centralWidget().update()
 
     def execute_print_model_stats(self):
@@ -1260,6 +1283,7 @@ class MainWindow(QMainWindow):
         for reaction in self.appdata.project.cobra_py_model.reactions:
             self.appdata.project.comp_values[reaction.id] = (
                 reaction.lower_bound, reaction.upper_bound)
+        self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
@@ -1292,8 +1316,8 @@ class MainWindow(QMainWindow):
                 for i in minimum:
                     self.appdata.project.comp_values[i] = (
                         minimum[i], maximum[i])
-
-                self.appdata.project.compute_color_type = 3
+                self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+                self.appdata.project.comp_values_type = 1
 
         self.centralWidget().update()
         self.setCursor(Qt.ArrowCursor)
@@ -1320,7 +1344,8 @@ class MainWindow(QMainWindow):
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0:
+        if idx == 0 and self.appdata.project.comp_values_type == 0:
+            # do coloring of LB/UB columns in this case?
             view = self.centralWidget().reaction_list
             root = view.reaction_list.invisibleRootItem()
             child_count = root.childCount()
@@ -1365,7 +1390,8 @@ class MainWindow(QMainWindow):
     def set_heaton(self):
         (low, high) = self.high_and_low()
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0:
+        if idx == 0 and self.appdata.project.comp_values_type == 0:
+            # TODO: coloring of LB/UB columns
             view = self.centralWidget().reaction_list
             root = view.reaction_list.invisibleRootItem()
             child_count = root.childCount()

@@ -275,7 +275,7 @@ class MetabolitesMask(QWidget):
         self.name.textEdited.connect(self.throttler.throttle)
         self.formula.textEdited.connect(self.throttler.throttle)
         self.charge.textEdited.connect(self.throttler.throttle)
-        self.compartment.textEdited.connect(self.throttler.throttle)
+        self.compartment.editingFinished.connect(self.metabolites_data_changed)
         self.annotation.itemChanged.connect(self.throttler.throttle)
         self.validate_mask()
 
@@ -424,23 +424,25 @@ class MetabolitesMask(QWidget):
             turn_red(self.compartment)
             return False
         else:
-
+            turn_white(self.compartment)
             if self.compartment.text() != "" and self.compartment.text() not in self.appdata.project.cobra_py_model.compartments:
+                self.compartment.blockSignals(True) # block signals triggered by appearance of message_box
                 message_box = QMessageBox()
                 message_box.setText(
-                    "The compartment "+self.compartment.text() + " does not yet exist")
+                    "The compartment "+self.compartment.text() + " does not yet exist.")
                 message_box.setInformativeText(
                     "Do you want to create the compartment?")
                 message_box.setStandardButtons(
                     QMessageBox.Ok | QMessageBox.Cancel)
                 message_box.setDefaultButton(QMessageBox.Ok)
                 ret = message_box.exec()
+                self.compartment.blockSignals(False)
 
                 if ret == QMessageBox.Cancel:
-                    turn_red(self.compartment)
-                    return False
+                    metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
+                                    self.id.text())
+                    self.compartment.setText(metabolite.compartment)
 
-            turn_white(self.compartment)
             return True
 
     def validate_mask(self):
