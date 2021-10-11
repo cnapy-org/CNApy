@@ -102,7 +102,6 @@ class CentralWidget(QWidget):
             self.handle_changed_gene)
         self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
         self.gene_list.jumpToMetabolite.connect(self.jump_to_metabolite)
-        print("UUUU")
         self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.model_info.optimizationDirectionChanged.connect(
             self.handle_changed_optimization_direction)
