@@ -2,14 +2,15 @@
 from math import isclose
 import io
 import traceback
+from enum import IntEnum
 
 import cobra
-from qtpy.QtCore import QMimeData, Qt, Signal, Slot
+from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint
 from qtpy.QtGui import QColor, QDrag, QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
-                            QTreeWidgetItem, QVBoxLayout, QWidget)
+                            QTreeWidgetItem, QVBoxLayout, QWidget, QMenu, QAction)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
@@ -76,8 +77,12 @@ class ReactionList(QWidget):
 
         self.reaction_list = DragableTreeWidget()
         self.reaction_list.setDragEnabled(True)
-        self.reaction_list.setHeaderLabels(["Id", "Name", "Flux", "LB", "UB"])
+        self.header_labels = ["Id", "Name", "Flux", "LB", "UB"]
+        self.reaction_list.setHeaderLabels(self.header_labels)
+        self.visible_column = [True]*len(self.header_labels)
         self.reaction_list.setSortingEnabled(True)
+        self.reaction_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reaction_list.header().customContextMenuRequested.connect(self.header_context_menu)
 
         for r in self.appdata.project.cobra_py_model.reactions:
             self.add_reaction(r)
@@ -355,6 +360,23 @@ class ReactionList(QWidget):
 
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(metabolite)
+
+    @Slot(bool)
+    def set_column_visibility_action(self, visible):
+        col_idx = self.sender().data()
+        self.reaction_list.setColumnHidden(col_idx, not visible)
+        self.visible_column[col_idx] = visible
+
+    @Slot(QPoint)
+    def header_context_menu(self, position):
+        menu = QMenu(self.reaction_list.header())
+        for col_idx in range(1, len(self.header_labels)):
+            action = menu.addAction(self.header_labels[col_idx])
+            action.setCheckable(True)
+            action.setChecked(self.visible_column[col_idx])
+            action.setData(col_idx)
+            action.triggered.connect(self.set_column_visibility_action)
+        menu.exec_(self.reaction_list.header().mapToGlobal(position))
 
     itemActivated = Signal(str)
     reactionChanged = Signal(str, cobra.Reaction)
