@@ -36,7 +36,7 @@ class CentralWidget(QWidget):
         self.throttler.triggered.connect(self.update_selected)
 
         self.tabs = QTabWidget()
-        self.reaction_list = ReactionList(self.appdata)
+        self.reaction_list = ReactionList(self)
         self.metabolite_list = MetaboliteList(self.appdata)
         self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
@@ -175,7 +175,7 @@ class CentralWidget(QWidget):
     def maximize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, mmin=False)
 
-    def update_reaction_value(self, reaction: str, value: str):
+    def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
@@ -186,7 +186,8 @@ class CentralWidget(QWidget):
             except ValueError:
                 (vl, vh) = make_tuple(value)
                 self.appdata.scen_values_set(reaction, (vl, vh))
-        self.reaction_list.update()
+        if update_reaction_list:
+            self.reaction_list.update()
 
     def update_reaction_maps(self, _reaction: str):
         self.parent.unsaved_changes()
