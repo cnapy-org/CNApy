@@ -15,10 +15,7 @@
 
 ## Video tutorials
 
-- [Create a new CNApy project](http://www.youtube.com/watch?v=bsNXZBmtyWw)
-- [Perform FBA and FVA with CNApy](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
-- [Calculate Elementary Modes with CNApy](https://www.youtube.com/watch?v=AHyMk14_DxI)
-- [Calculate Minimal Cut Sets with CNApy](https://www.youtube.com/watch?v=NfRLdTfHSEY)
+You can find several video tutorials on our [CNApy YouTube channel](https://www.youtube.com/channel/UCRIXSdzs5WnBE3_uukuNMlg).
 
 ## Install CNApy with conda
 
