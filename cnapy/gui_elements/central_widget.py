@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
+from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
 from cnapy.gui_elements.reactions_list import ReactionList
@@ -37,9 +38,11 @@ class CentralWidget(QWidget):
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self.appdata)
         self.metabolite_list = MetaboliteList(self.appdata)
+        self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
+        self.tabs.addTab(self.gene_list, "Genes")
         self.tabs.addTab(self.model_info, "Model")
 
         self.map_tabs = QTabWidget()
@@ -95,6 +98,11 @@ class CentralWidget(QWidget):
             self.handle_changed_metabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
+        self.gene_list.geneChanged.connect(
+            self.handle_changed_gene)
+        self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
+        self.gene_list.jumpToMetabolite.connect(self.jump_to_metabolite)
+        self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.model_info.optimizationDirectionChanged.connect(
             self.handle_changed_optimization_direction)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
@@ -138,6 +146,11 @@ class CentralWidget(QWidget):
         self.delete_reaction_on_maps(reaction.id)
 
     def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
+        self.parent.unsaved_changes()
+        # TODO update only relevant reaction boxes on maps
+        self.update_maps()
+
+    def handle_changed_gene(self, old_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
@@ -191,6 +204,8 @@ class CentralWidget(QWidget):
             self.appdata.project.cobra_py_model = clean_model
             self.metabolite_list.update()
         elif idx == 2:
+            self.gene_list.update()
+        elif idx == 3:
             self.model_info.update()
 
     def add_map(self):
@@ -228,6 +243,8 @@ class CentralWidget(QWidget):
             self.reaction_list.update_selected(x)
         if idx == 1:
             self.metabolite_list.update_selected(x)
+        if idx == 2:
+            self.gene_list.update_selected(x)
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
@@ -281,6 +298,8 @@ class CentralWidget(QWidget):
         elif idx == 1:
             self.metabolite_list.update()
         elif idx == 2:
+            self.gene_list.update()
+        elif idx == 3:
             self.model_info.update()
 
         idx = self.map_tabs.currentIndex()
