@@ -52,6 +52,7 @@ class AppData:
             "cnapy", roaming=True, appauthor=False), "cobrapy-config.txt")
         self.scenario_past = []
         self.scenario_future = []
+        self.auto_fba = False
 
     def scen_values_set(self, reaction: str, values: (float, float)):
         self.project.scen_values[reaction] = values
@@ -77,6 +78,9 @@ class AppData:
                 self.project.scen_values.pop(reaction, None)
             elif tag == "clear":
                 self.project.scen_values.clear()
+
+    def format_flux_value(self, flux_value):
+        return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
 
     def create_cobra_model(self):
         if self.engine is not None:  # matlab or octave:
@@ -130,6 +134,7 @@ class ProjectData:
         self.maps = {"Map": default_map}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
+        self.solution: cobra.Solution = None
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
         self.fva_values: Dict[str, Tuple[float, float]] = {} # store FVA results persistently
