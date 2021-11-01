@@ -251,6 +251,11 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
+        qlp_fba_action = QAction(
+            "Flux Equilibration", self)
+        qlp_fba_action.triggered.connect(self.qlp_fba)
+        self.analysis_menu.addAction(qlp_fba_action)
+
         self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
@@ -1130,9 +1135,9 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 0
         self.centralWidget().update()
 
-    def qlp_fba(self): # preliminary function name; flux reconcilitation?
+    def qlp_fba(self):
         with self.appdata.project.cobra_py_model as model:
-            mfa_objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
+            model.objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
             for reaction_id, scen_val in self.appdata.project.scen_values.items():
                 try:
                     reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
@@ -1140,22 +1145,17 @@ class MainWindow(QMainWindow):
                     print('reaction', reaction_id, 'not found!')
                     continue
                 if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
-                    mfa_objective += ((reaction.flux_expression - scen_val[0])**2)/scen_val[0]
+                    try:
+                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/scen_val[0]
+                    except ValueError:
+                        QMessageBox.critical(self, "Solver with support for quadratic objectives required",
+                                "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
+                        return
                 else:
                     reaction.lower_bound = scen_val[0]
                     reaction.upper_bound = scen_val[1]
-            if mfa_objective.expression != optlang.symbolics.Zero:
-                try:
-                    previous_objective = model.objective
-                    model.objective = mfa_objective
-                except ValueError:
-                    model.objective = previous_objective
-                    QMessageBox.critical(self, "Solver with support for quadratic objectives required",
-                                "Choose an appropriate solver (see Configure COBRApy).")
-                    print("The currently selected solver does not support quadratic objectives.")
-                    return
-                self.appdata.project.solution = model.optimize()
-                self.process_fba_solution()
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:
