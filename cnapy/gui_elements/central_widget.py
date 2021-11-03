@@ -1,5 +1,4 @@
 """The central widget"""
-from ast import literal_eval as make_tuple
 
 import numpy
 import cobra
@@ -10,7 +9,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
-from cnapy.appdata import AppData, CnaMap
+from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
@@ -178,17 +177,16 @@ class CentralWidget(QWidget):
     def maximize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, mmin=False)
 
+    def set_scen_value(self, reaction: str):
+        self.appdata.set_comp_value_as_scen_value(reaction)
+        self.update()
+
     def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
         else:
-            try:
-                x = float(value)
-                self.appdata.scen_values_set(reaction, (x, x))
-            except ValueError:
-                (vl, vh) = make_tuple(value)
-                self.appdata.scen_values_set(reaction, (vl, vh))
+            self.appdata.scen_values_set(reaction, parse_scenario(value))
         if update_reaction_list:
             self.reaction_list.update(rebuild=False)
 

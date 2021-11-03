@@ -336,6 +336,7 @@ class MapView(QGraphicsView):
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
     minimizeReaction = Signal(str)
+    setScenValue = Signal(str)
     reactionRemoved = Signal(str)
     reactionValueChanged = Signal(str, str)
     reactionAdded = Signal(str)
@@ -432,6 +433,9 @@ class ReactionBox(QGraphicsItem):
         maximize_action.triggered.connect(self.emit_maximize_action)
         minimize_action = QAction('minimize flux for this reaction', parent)
         self.pop_menu.addAction(minimize_action)
+        set_scen_value_action = QAction('add computed value to scenario', parent)
+        set_scen_value_action.triggered.connect(self.emit_set_scen_value_action)
+        self.pop_menu.addAction(set_scen_value_action)
         minimize_action.triggered.connect(self.emit_minimize_action)
         switch_action = QAction('switch to reaction mask', parent)
         self.pop_menu.addAction(switch_action)
@@ -666,8 +670,13 @@ class ReactionBox(QGraphicsItem):
         self.map.maximizeReaction.emit(self.id)
         self.map.drag = False
 
+    def emit_set_scen_value_action(self):
+        self.map.setScenValue.emit(self.id)
+        self.map.drag = False
+
     def emit_minimize_action(self):
         self.map.minimizeReaction.emit(self.id)
+        self.map.drag = False
 
     def broadcast_reaction_id(self):
         self.map.central_widget.broadcastReactionID.emit(self.id)

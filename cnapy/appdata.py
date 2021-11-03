@@ -2,7 +2,8 @@
 import os
 import pathlib
 from tempfile import TemporaryDirectory
-from typing import Dict, Tuple
+from typing import List, Dict, Tuple
+from ast import literal_eval as make_tuple
 
 import appdirs
 import cobra
@@ -54,9 +55,16 @@ class AppData:
         self.scenario_future = []
         self.auto_fba = False
 
-    def scen_values_set(self, reaction: str, values: (float, float)):
+    def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         self.project.scen_values[reaction] = values
         self.scenario_past.append(("set", reaction, values))
+        self.scenario_future.clear()
+
+    def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
+        count = min(len(reactions), len(values))
+        for i in range(count):
+            self.project.scen_values[reactions[i]] = values[i]
+        self.scenario_past.append(("set", reactions[:count], values[:count]))
         self.scenario_future.clear()
 
     def scen_values_pop(self, reaction: str):
@@ -69,11 +77,20 @@ class AppData:
         self.scenario_past.append(("clear", "all", 0))
         self.scenario_future.clear()
 
+    def set_comp_value_as_scen_value(self, reaction: str):
+        val = self.project.comp_values.get(reaction, None)
+        if val:
+            self.scen_values_set(reaction, val)
+
     def recreate_scenario_from_history(self):
         self.project.scen_values = {}
         for (tag, reaction, values) in self.scenario_past:
             if tag == "set":
-                self.project.scen_values[reaction] = values
+                if isinstance(reaction, list):
+                    for i in range(len(reaction)):
+                        self.project.scen_values[reaction[i]] = values[i]
+                else:
+                    self.project.scen_values[reaction] = values
             elif tag == "pop":
                 self.project.scen_values.pop(reaction, None)
             elif tag == "clear":
@@ -152,6 +169,14 @@ class ProjectData:
                 y.lower_bound = vl
                 y.upper_bound = vu
 
+    def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
+        reactions = []
+        values = []
+        for r in self.cobra_py_model.reactions:
+            if 'cnapy-default' in r.annotation.keys():
+                reactions.append(r.id)
+                values.append(parse_scenario(r.annotation['cnapy-default']))
+        return reactions, values
 
 def CnaMap(name):
     background_svg = pkg_resources.resource_filename(
@@ -164,3 +189,11 @@ def CnaMap(name):
             "pos": (0, 0),
             "boxes": {}
             }
+
+def parse_scenario(text: str) -> Tuple[float, float]:
+    """parse a string that describes a valid scenario value"""
+    try:
+        x = float(text)
+        return (x, x)
+    except ValueError:
+        return(make_tuple(text))

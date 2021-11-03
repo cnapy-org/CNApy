@@ -97,6 +97,8 @@ class ReactionList(QWidget):
         self.reaction_list.setDragEnabled(True)
         self.reaction_list.setColumnCount(len(ReactionListColumn))
         self.reaction_list.setRootIsDecorated(False)
+        self.reaction_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reaction_list.customContextMenuRequested.connect(self.context_menu)
         self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
         self.reaction_list.setHeaderLabels(self.header_labels)
         # heuristic initial column widths
@@ -260,7 +262,7 @@ class ReactionList(QWidget):
         self.reaction_list.blockSignals(True)
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
-        self.reaction_selected(item, ReactionListColumn.Id)
+        self.reaction_selected(item)
         self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
@@ -414,6 +416,7 @@ class ReactionList(QWidget):
     def set_current_item(self, key):
         self.last_selected = key
         self.update()
+        self.reaction_selected(self.reaction_list.currentItem())
 
     def emit_jump_to_map(self, idx: str, reaction: str):
         self.jumpToMap.emit(idx, reaction)
@@ -426,6 +429,31 @@ class ReactionList(QWidget):
         col_idx = self.sender().data()
         self.reaction_list.setColumnHidden(col_idx, not visible)
         self.visible_column[col_idx] = visible
+
+    @Slot(QPoint)
+    def context_menu(self, position):
+        item: ReactionListItem = self.reaction_list.currentItem()
+        if item:
+            menu = QMenu(self.reaction_list)
+            maximize_action = menu.addAction("maximize flux for this reaction")
+            maximize_action.triggered.connect(self.maximize_reaction)
+            minimize_action = menu.addAction("minimize flux for this reaction")
+            minimize_action.triggered.connect(self.minimize_reaction)
+            set_scen_value_action = menu.addAction("add computed value to scenario")
+            set_scen_value_action.triggered.connect(self.set_scen_value_action)
+            menu.exec_(self.reaction_list.mapToGlobal(position))
+
+    @Slot()
+    def maximize_reaction(self):
+        self.central_widget.maximize_reaction(self.reaction_list.currentItem().reaction.id)
+
+    @Slot()
+    def minimize_reaction(self):
+        self.central_widget.minimize_reaction(self.reaction_list.currentItem().reaction.id)
+
+    @Slot()
+    def set_scen_value_action(self):
+        self.central_widget.set_scen_value(self.reaction_list.currentItem().reaction.id)
 
     @Slot(QPoint)
     def header_context_menu(self, position):

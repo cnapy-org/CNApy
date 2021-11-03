@@ -251,8 +251,7 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        qlp_fba_action = QAction(
-            "Flux Equilibration", self)
+        qlp_fba_action = QAction("Make scenario feasible (QLP)", self)
         qlp_fba_action.triggered.connect(self.qlp_fba)
         self.analysis_menu.addAction(qlp_fba_action)
 
@@ -571,15 +570,20 @@ class MainWindow(QMainWindow):
             self.appdata.scenario_past.clear()
             self.appdata.scenario_future.clear()
             missing_reactions = []
+            reactions = []
+            scen_values = []
             for i in values:
-                self.appdata.scen_values_set(i, values[i])
-                if i not in  self.appdata.project.cobra_py_model.reactions:
+                if i in self.appdata.project.cobra_py_model.reactions:
+                    reactions.append(i)
+                    scen_values.append(values[i])
+                else:
                     missing_reactions.append(i)
 
             if len(missing_reactions) > 0 :
                 QMessageBox.warning(
                             self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
+            self.appdata.scen_values_set_multiple(reactions, scen_values)
             self.appdata.project.comp_values.clear()
             self.appdata.project.fva_values.clear()
         if self.appdata.auto_fba:
@@ -780,10 +784,11 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         self.appdata.scen_values_clear()
-        for r in self.appdata.project.cobra_py_model.reactions:
-            if 'cnapy-default' in r.annotation.keys():
-                self.centralWidget().update_reaction_value(
-                    r.id, r.annotation['cnapy-default'])
+        (reactions, values) = self.appdata.project.collect_default_scenario_values()
+        if len(reactions) == 0:
+            self.appdata.scen_values_clear()
+        else:
+            self.appdata.scen_values_set_multiple(reactions, values)
         if self.appdata.auto_fba:
             self.fba()
         else:
@@ -892,10 +897,9 @@ class MainWindow(QMainWindow):
                     self.appdata.scenario_past.clear()
                     self.appdata.scenario_future.clear()
                     self.clear_status_bar()
-                    for r in self.appdata.project.cobra_py_model.reactions:
-                        if 'cnapy-default' in r.annotation.keys():
-                            self.centralWidget().update_reaction_value(
-                                r.id, r.annotation['cnapy-default'])
+                    (reactions, values) = self.appdata.project.collect_default_scenario_values()
+                    if len(reactions) > 0:
+                        self.appdata.scen_values_set_multiple(reactions, values)
                     self.nounsaved_changes()
 
                     # if project contains maps move splitter and fit mapview
@@ -1030,6 +1034,8 @@ class MainWindow(QMainWindow):
                 self.centralWidget().minimize_reaction)
             mmap.maximizeReaction.connect(
                 self.centralWidget().maximize_reaction)
+            mmap.setScenValue.connect(
+                self.centralWidget().set_scen_value)
             mmap.reactionValueChanged.connect(
                 self.centralWidget().update_reaction_value)
             mmap.reactionRemoved.connect(
@@ -1114,7 +1120,7 @@ class MainWindow(QMainWindow):
             self.appdata.project.solution = model.optimize()
         self.process_fba_solution()
 
-    def process_fba_solution(self):
+    def process_fba_solution(self, update=True):
         if self.appdata.project.solution.status == 'optimal':
             display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
             self.set_status_optimal()
@@ -1133,11 +1139,13 @@ class MainWindow(QMainWindow):
         self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
         self.solver_status_display.setText(display_text)
         self.appdata.project.comp_values_type = 0
-        self.centralWidget().update()
+        if update:
+            self.centralWidget().update()
 
     def qlp_fba(self):
         with self.appdata.project.cobra_py_model as model:
             model.objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
+            reactions_in_objective = []
             for reaction_id, scen_val in self.appdata.project.scen_values.items():
                 try:
                     reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
@@ -1145,8 +1153,9 @@ class MainWindow(QMainWindow):
                     print('reaction', reaction_id, 'not found!')
                     continue
                 if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
+                    reactions_in_objective.append(reaction_id)
                     try:
-                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/scen_val[0]
+                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/abs(scen_val[0])
                     except ValueError:
                         QMessageBox.critical(self, "Solver with support for quadratic objectives required",
                                 "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
@@ -1155,7 +1164,11 @@ class MainWindow(QMainWindow):
                     reaction.lower_bound = scen_val[0]
                     reaction.upper_bound = scen_val[1]
             self.appdata.project.solution = model.optimize()
-        self.process_fba_solution()
+        self.process_fba_solution(update=False)
+        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
+            self.appdata.scen_values_set_multiple(reactions_in_objective,
+                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+        self.centralWidget().update()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:
