@@ -530,7 +530,7 @@ class ReactionMask(QWidget):
     def __init__(self, parent: ReactionList):
         QWidget.__init__(self)
 
-        self.parent = parent
+        self.parent: ReactionList = parent
         self.reaction = None
         self.is_valid = True
         self.changed = False
@@ -697,6 +697,7 @@ class ReactionMask(QWidget):
 
             self.changed = False
             self.reactionChanged.emit(self.reaction)
+            self.parent.update_item(self.parent.reaction_list.currentItem())
 
     def check_in_identifiers_org(self):
         self.setCursor(Qt.BusyCursor)

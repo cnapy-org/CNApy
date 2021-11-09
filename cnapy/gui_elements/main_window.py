@@ -1189,7 +1189,7 @@ class MainWindow(QMainWindow):
             self.appdata.project.solution = model.optimize()
         self.process_fba_solution()
 
-    def pfba(self): # use status bar
+    def pfba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             try:
