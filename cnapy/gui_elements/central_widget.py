@@ -1,5 +1,4 @@
 """The central widget"""
-from ast import literal_eval as make_tuple
 
 import numpy
 import cobra
@@ -10,7 +9,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
-from cnapy.appdata import AppData, CnaMap
+from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
@@ -86,6 +85,9 @@ class CentralWidget(QWidget):
         layout.addWidget(self.searchbar)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
+        margins = self.layout().contentsMargins()
+        margins.setBottom(0) # otherwise the distance to the status bar appears too large
+        self.layout().setContentsMargins(margins)
 
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
@@ -175,19 +177,18 @@ class CentralWidget(QWidget):
     def maximize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, mmin=False)
 
+    def set_scen_value(self, reaction: str):
+        self.appdata.set_comp_value_as_scen_value(reaction)
+        self.update()
+
     def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
         else:
-            try:
-                x = float(value)
-                self.appdata.scen_values_set(reaction, (x, x))
-            except ValueError:
-                (vl, vh) = make_tuple(value)
-                self.appdata.scen_values_set(reaction, (vl, vh))
+            self.appdata.scen_values_set(reaction, parse_scenario(value))
         if update_reaction_list:
-            self.reaction_list.update()
+            self.reaction_list.update(rebuild=False)
 
     def update_reaction_maps(self, _reaction: str):
         self.parent.unsaved_changes()
@@ -263,8 +264,8 @@ class CentralWidget(QWidget):
                     values[r] = v/mean
 
             # set values
-            self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
+            self.parent.clear_status_bar()
             for i in values:
                 if self.mode_navigator.mode_type == 1 and values[i] == -1:
                     values[i] = 0.0 # display cuts as zero flux
@@ -280,12 +281,14 @@ class CentralWidget(QWidget):
         if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
             relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values.clear()
+        self.parent.clear_status_bar()
         self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
         self.appdata.project.comp_values_type = 0
         self.update()
         self.parent.set_heaton()
 
-    def update(self):
+    def update(self, rebuild=False):
+        # use rebuild=True to rebuild all tabs when the model changes
         if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
             self.mode_navigator.current = 0
@@ -294,13 +297,13 @@ class CentralWidget(QWidget):
             self.mode_navigator.update()
 
         idx = self.tabs.currentIndex()
-        if idx == 0:
-            self.reaction_list.update()
-        elif idx == 1:
+        if idx == 0 or rebuild:
+            self.reaction_list.update(rebuild=rebuild)
+        elif idx == 1 or rebuild:
             self.metabolite_list.update()
-        elif idx == 2:
+        elif idx == 2 or rebuild:
             self.gene_list.update()
-        elif idx == 3:
+        elif idx == 3 or rebuild:
             self.model_info.update()
 
         idx = self.map_tabs.currentIndex()

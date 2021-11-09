@@ -4,7 +4,7 @@ from ast import literal_eval as make_tuple
 from math import isclose
 from typing import Dict, Tuple
 
-from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
+from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
 from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
@@ -189,6 +189,14 @@ class MapView(QGraphicsView):
         self.viewport().setCursor(Qt.OpenHandCursor)
         self.select = False
 
+    def enterEvent(self, event) -> None:
+        super().enterEvent(event)
+        self.setFocus() # to capture Shift/Ctrl keys
+
+    def leaveEvent(self, event) -> None:
+        super().leaveEvent(event)
+        self.clearFocus() # finishes editing of potentially active ReactionBox
+
     def update_selected(self, string):
 
         for r_id, box in self.reaction_boxes.items():
@@ -328,6 +336,7 @@ class MapView(QGraphicsView):
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
     minimizeReaction = Signal(str)
+    setScenValue = Signal(str)
     reactionRemoved = Signal(str)
     reactionValueChanged = Signal(str, str)
     reactionAdded = Signal(str)
@@ -339,29 +348,30 @@ class CLineEdit(QLineEdit):
     """A special line edit implementation for the use in ReactionBox"""
 
     def __init__(self, parent):
-        self.parent = parent
+        self.parent: ReactionBox = parent
+        self.accept_next_change_into_history = True
         super().__init__()
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
-        if not validate_value(self.text()):
-            self.parent.map.set_values()
-            if self.parent.id in self.parent.map.appdata.project.scen_values.keys():
-                self.parent.map.reaction_boxes[self.parent.id].set_value(
-                    self.parent.map.appdata.project.scen_values[self.parent.id])
-            elif self.parent.id in self.parent.map.appdata.project.comp_values.keys():
-                self.parent.map.reaction_boxes[self.parent.id].set_value(
-                    self.parent.map.appdata.project.comp_values[self.parent.id])
-            else:
-                self.setText("")
-        self.parent.recolor()
+        self.parent.setSelected(False)
+        if self.isModified() and self.parent.map.appdata.auto_fba:
+            self.parent.map.central_widget.parent.fba()
         self.parent.update()
+
+    def focusInEvent(self, event):
+        # is called before mousePressEvent
+        super().focusInEvent(event)
+        self.accept_next_change_into_history = True
+        self.setModified(False)
+        self.parent.setSelected(True) # in case focus is regained via enterEvent of the map
 
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
         self.parent.switch_to_reaction_mask()
 
     def mousePressEvent(self, event: QMouseEvent):
+        # is called after focusInEvent
         super().mousePressEvent(event)
         if (event.button() == Qt.MouseButton.LeftButton):
             if not self.parent.map.select:
@@ -423,6 +433,9 @@ class ReactionBox(QGraphicsItem):
         maximize_action.triggered.connect(self.emit_maximize_action)
         minimize_action = QAction('minimize flux for this reaction', parent)
         self.pop_menu.addAction(minimize_action)
+        set_scen_value_action = QAction('add computed value to scenario', parent)
+        set_scen_value_action.triggered.connect(self.emit_set_scen_value_action)
+        self.pop_menu.addAction(set_scen_value_action)
         minimize_action.triggered.connect(self.emit_minimize_action)
         switch_action = QAction('switch to reaction mask', parent)
         self.pop_menu.addAction(switch_action)
@@ -471,15 +484,28 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
     def returnPressed(self):
-        if validate_value(self.item.text()):
-            self.map.value_changed(self.id, self.item.text())
+        # self.item.clearFocus() # does not yet yield focus...
+        self.proxy.clearFocus() # ...but this does
+        self.map.setFocus()
+        self.item.accept_next_change_into_history = True # reset so that next change will be recorded
 
+    def handle_editing_finished(self):
+        if self.item.isModified() and self.map.appdata.auto_fba:
+            self.map.central_widget.parent.fba()
+
+    #@Slot() # using the decorator gives a connection error?
     def value_changed(self):
         test = self.item.text().replace(" ", "")
         if test == "":
+            if not self.item.accept_next_change_into_history:
+                self.map.appdata.scenario_past.pop() # replace previous change
+            self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, test)
             self.set_default_style()
         elif validate_value(self.item.text()):
+            if not self.item.accept_next_change_into_history:
+                self.map.appdata.scenario_past.pop() # replace previous change
+            self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
                 self.set_scen_style()
@@ -644,8 +670,13 @@ class ReactionBox(QGraphicsItem):
         self.map.maximizeReaction.emit(self.id)
         self.map.drag = False
 
+    def emit_set_scen_value_action(self):
+        self.map.setScenValue.emit(self.id)
+        self.map.drag = False
+
     def emit_minimize_action(self):
         self.map.minimizeReaction.emit(self.id)
+        self.map.drag = False
 
     def broadcast_reaction_id(self):
         self.map.central_widget.broadcastReactionID.emit(self.id)
