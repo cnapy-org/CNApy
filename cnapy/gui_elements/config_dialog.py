@@ -268,7 +268,7 @@ class ConfigDialog(QDialog):
             qmark = qmark_icon.pixmap(QSize(32, 32))
             self.cna_label.setPixmap(qmark)
         else:
-            if self.cna_ok:
+            if self.appdata.cna_ok:
                 self.cna_label.setPixmap(check)
             else:
                 self.cna_label.setPixmap(cross)
@@ -388,11 +388,10 @@ class ConfigDialog(QDialog):
             self.oeng = try_octave_engine(self.oc_exe.text())
 
     def check_cna(self):
-
         if self.oeng is not None:
-            self.cna_ok = try_cna(self.oeng, self.cna_path.text())
+            self.appdata.cna_ok = try_cna(self.oeng, self.cna_path.text())
         elif self.meng is not None:
-            self.cna_ok = try_cna(self.meng, self.cna_path.text())
+            self.appdata.cna_ok = try_cna(self.meng, self.cna_path.text())
 
     def choose_scen_color(self):
         palette = self.scen_color_btn.palette()

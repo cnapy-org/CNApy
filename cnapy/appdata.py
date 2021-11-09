@@ -23,6 +23,7 @@ class AppData:
         self.matlab_path = ""
         self.engine = None
         self.matlab_engine = None
+        self.cna_ok = False
         self.octave_engine = None
         self.modes_coloring = False
         self.scen_color = QColor(255, 0, 127)

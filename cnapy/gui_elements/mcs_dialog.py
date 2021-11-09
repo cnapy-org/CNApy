@@ -198,7 +198,7 @@ class MCSDialog(QDialog):
 
         # Disable incompatible combinations
         self.solver_optlang.setChecked(True)
-        if appdata.selected_engine == 'None':
+        if (appdata.selected_engine == 'None') or (self.eng is None) or (not appdata.cna_ok):  # Hotfix
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
