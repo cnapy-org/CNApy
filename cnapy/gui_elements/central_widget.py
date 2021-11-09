@@ -264,7 +264,6 @@ class CentralWidget(QWidget):
                     values[r] = v/mean
 
             # set values
-            self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
             self.parent.clear_status_bar()
             for i in values:

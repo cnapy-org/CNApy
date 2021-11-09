@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
 from cnapy.flux_vector_container import FluxVectorContainer
-
 import cobra
 import optlang
 import numpy as np
@@ -118,9 +117,13 @@ class MainWindow(QMainWindow):
         save_scenario_action.triggered.connect(self.save_scenario)
 
         clear_scenario_action = QAction("Clear scenario", self)
-        clear_scenario_action.setIcon(QIcon(":/icons/clear.png"))
         self.scenario_menu.addAction(clear_scenario_action)
         clear_scenario_action.triggered.connect(self.clear_scenario)
+
+        clear_all_action = QAction("Clear all", self)
+        clear_all_action.setIcon(QIcon(":/icons/clear.png"))
+        self.scenario_menu.addAction(clear_all_action)
+        clear_all_action.triggered.connect(self.clear_all)
 
         undo_scenario_action = QAction("Undo scenario edit", self)
         undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
@@ -362,7 +365,7 @@ class MainWindow(QMainWindow):
         colorings.setExclusive(True)
 
         self.tool_bar = QToolBar()
-        self.tool_bar.addAction(clear_scenario_action)
+        self.tool_bar.addAction(clear_all_action)
         self.tool_bar.addAction(undo_scenario_action)
         self.tool_bar.addAction(redo_scenario_action)
         self.tool_bar.addSeparator()
@@ -478,8 +481,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def phase_plane(self):
-        dialog = PhasePlaneDialog(self.appdata)
-        dialog.exec_()
+        self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
+        self.phase_plane_dialog.show()
 
     @Slot()
     def optimize_yield(self):
@@ -772,6 +775,10 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def clear_scenario(self):
+        self.appdata.scen_values_clear()
+        self.centralWidget().update()
+
+    def clear_all(self):
         self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
@@ -1082,9 +1089,9 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def add_values_to_scenario(self):
-        for key in self.appdata.project.comp_values.keys():
-            self.appdata.scen_values_set(
-                key, self.appdata.project.comp_values[key])
+        self.appdata.scen_values_set_multiple(list(self.appdata.project.comp_values.keys()),
+                                              list(self.appdata.project.comp_values.values()))
+        self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
     def set_model_bounds_to_scenario(self):
@@ -1124,10 +1131,8 @@ class MainWindow(QMainWindow):
         if self.appdata.project.solution.status == 'optimal':
             display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
             self.set_status_optimal()
-            soldict = self.appdata.project.solution.fluxes.to_dict()
-            for i in soldict:
-                self.appdata.project.comp_values[i] = (
-                    soldict[i], soldict[i])
+            for r, v in self.appdata.project.solution.fluxes.items():
+                self.appdata.project.comp_values[r] = (v, v)
         elif self.appdata.project.solution.status == 'infeasible':
             display_text = "No solution, the current scenario is infeasible"
             self.set_status_infeasible()

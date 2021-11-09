@@ -61,10 +61,9 @@ class AppData:
         self.scenario_future.clear()
 
     def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
-        count = min(len(reactions), len(values))
-        for i in range(count):
-            self.project.scen_values[reactions[i]] = values[i]
-        self.scenario_past.append(("set", reactions[:count], values[:count]))
+        for r, v in zip(reactions, values):
+            self.project.scen_values[r] = v
+        self.scenario_past.append(("set", reactions, values))
         self.scenario_future.clear()
 
     def scen_values_pop(self, reaction: str):
@@ -87,8 +86,8 @@ class AppData:
         for (tag, reaction, values) in self.scenario_past:
             if tag == "set":
                 if isinstance(reaction, list):
-                    for i in range(len(reaction)):
-                        self.project.scen_values[reaction[i]] = values[i]
+                    for r, v in zip(reaction, values):
+                        self.project.scen_values[r] = v
                 else:
                     self.project.scen_values[reaction] = values
             elif tag == "pop":
@@ -165,9 +164,7 @@ class ProjectData:
             except KeyError:
                 print('reaction', x, 'not found!')
             else:
-                (vl, vu) = self.scen_values[x]
-                y.lower_bound = vl
-                y.upper_bound = vu
+                y.bounds = self.scen_values[x]
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []

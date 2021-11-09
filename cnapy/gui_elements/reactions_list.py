@@ -389,7 +389,8 @@ class ReactionList(QWidget):
 
     def update(self, rebuild=False):
         # should only need to rebuild the whole list if the model changes
-        self.reaction_list.blockSignals(True) # block itemChanged while updating
+        self.reaction_list.itemChanged.disconnect(self.handle_item_changed)
+        self.reaction_list.setSortingEnabled(False) # keep row order stable so that each item is updated
         if rebuild:
             self.reaction_list.clear()
             for r in self.appdata.project.cobra_py_model.reactions:
@@ -407,7 +408,8 @@ class ReactionList(QWidget):
                 self.reaction_list.setCurrentItem(i)
                 break
 
-        self.reaction_list.blockSignals(False)
+        self.reaction_list.setSortingEnabled(True)
+        self.reaction_list.itemChanged.connect(self.handle_item_changed)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
@@ -751,13 +753,17 @@ class ReactionMask(QWidget):
         self.reactionDeleted.emit(self.reaction)
 
     def validate_id(self):
-        if self.reaction.id != self.id.text() and \
-            self.id.text() in self.parent.appdata.project.cobra_py_model.reactions:
-            turn_red(self.id)
-            QMessageBox.information(
-                self, 'Invalid id', 'Please change identifier ' +
-                self.id.text() + ' because it is already in use.')
-            return False
+        if self.reaction.id != self.id.text():
+            if len(self.id.text().strip()) == 0:
+                turn_red(self.id)
+                return False
+            elif self.id.text() in self.parent.appdata.project.cobra_py_model.reactions:
+                turn_red(self.id)
+                QMessageBox.information(
+                    self, 'Invalid id', 'Please change identifier ' +
+                    self.id.text() + ' because it is already in use.')
+                return False
+        turn_white(self.id)
         return True
 
     def validate_name(self):
