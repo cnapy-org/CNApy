@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         self.heaton_action = QAction("Heatmap coloring", self)
         self.heaton_action.setIcon(QIcon(":/icons/heat.png"))
         self.heaton_action.triggered.connect(self.set_heaton)
- 
+
         self.onoff_action = QAction("On/Off coloring", self)
         self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         self.onoff_action.triggered.connect(self.set_onoff)
@@ -426,13 +426,13 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.setEnabled(False)
 
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
-            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
+            if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
         elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
-            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
+            if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
