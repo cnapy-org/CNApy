@@ -55,38 +55,25 @@ class Application:
         self.appdata.window = self.window
         self.window.recreate_maps()
 
-        self.read_config()
+        config_file_version = self.read_config()
         if sys.platform == "win32":  # CNApy running on Windows
             # on Windows disable multiprocessing in COBRApy because of performance issues
             cobra.Configuration().processes = 1
         self.read_cobrapy_config()
 
-        config_parser = configparser.RawConfigParser()
-        config_parser.read(self.appdata.conf_path)
-
-        version = "unknown"
-        try:
-            version = config_parser.get('cnapy-config', 'version')
-        except (KeyError, NoOptionError):
-            print("Could not find version in cnapy-config.txt")
-        except NoSectionError:
-            print("Could not find section cnapy-config in cnapy-config.txt")
-
-        if version != self.appdata.version:
+        if config_file_version != self.appdata.version:
             if not os.path.exists(self.appdata.work_directory):
                 self.window.show_download_dialog()
-            self.window.show_config_dialog()
-        else:
-            if self.appdata.selected_engine == "matlab":
-                self.appdata.matlab_engine = try_matlab_engine()
-                if self.appdata.matlab_engine is not None:
-                    self.appdata.cna_ok = try_cna(self.appdata.matlab_engine, self.appdata.cna_path)
-            elif self.appdata.selected_engine == "octave":
-                self.appdata.octave_engine = try_octave_engine(
-                    self.appdata.octave_executable)
-                if self.appdata.octave_engine is not None:
-                    self.appdata.cna_ok = try_cna(self.appdata.octave_engine, self.appdata.cna_path)
-            self.appdata.select_engine()
+        if self.appdata.selected_engine == "matlab":
+            self.appdata.matlab_engine = try_matlab_engine()
+            if self.appdata.matlab_engine is not None:
+                self.appdata.cna_ok = try_cna(self.appdata.matlab_engine, self.appdata.cna_path)
+        elif self.appdata.selected_engine == "octave":
+            self.appdata.octave_engine = try_octave_engine(
+                self.appdata.octave_executable)
+            if self.appdata.octave_engine is not None:
+                self.appdata.cna_ok = try_cna(self.appdata.octave_engine, self.appdata.cna_path)
+        self.appdata.select_engine()
 
         self.window.disable_enable_dependent_actions()
         self.window.save_project_action.setEnabled(False)
@@ -107,9 +94,17 @@ class Application:
 
     def read_config(self):
         ''' Try to read data from cnapy-config.txt into appdata'''
+        config_file_version = "unknown"
         config_parser = configparser.RawConfigParser()
-        config_parser.read(self.appdata.conf_path)
+        if len(config_parser.read(self.appdata.conf_path)) == 0:
+                print("No cnapy-config.txt file found, using default settings.")
+                return config_file_version
         try:
+            try:
+                config_file_version = config_parser.get('cnapy-config', 'version')
+            except (KeyError, NoOptionError):
+                print("Could not find version in cnapy-config.txt")
+
             try:
                 self.appdata.matlab_path = config_parser.get(
                     'cnapy-config', 'matlab_path')
@@ -192,12 +187,15 @@ class Application:
                 print("Could not find abs_tol in cnapy-config.txt")
         except NoSectionError:
             print("Could not find section cnapy-config in cnapy-config.txt")
+        return config_file_version
 
     def read_cobrapy_config(self):
         ''' Try to read data from cobrapy-config.txt into appdata'''
         config_parser = configparser.RawConfigParser()
         try:
-            config_parser.read(self.appdata.cobrapy_conf_path)
+            if len(config_parser.read(self.appdata.cobrapy_conf_path)) == 0:
+                print("No cobrapy-config.txt file found, using COBRApy base settings.")
+                return
             try:
                 cobra.Configuration().solver = config_parser.get('cobrapy-config', 'solver')
             except Exception as e:
