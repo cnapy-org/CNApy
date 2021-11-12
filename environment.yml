@@ -22,6 +22,4 @@ dependencies:
   - numpy
   - scipy
   - optlang
-  - efmtool_link=0.0.3
-  - optlang_enumerator=0.0.5
 prefix: /home/user/miniconda3/envs/cnapy
