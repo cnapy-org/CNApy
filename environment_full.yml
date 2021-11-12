@@ -1,0 +1,23 @@
+name: cnapy
+channels:
+  - cnapy
+  - conda-forge
+  - defaults
+dependencies:
+  - pytest
+  - pylint
+  - autopep8
+  - oct2py=5.2
+  - openjdk=8
+  - matplotlib-base
+  - pip
+  - python=3.7
+  - qtpy=1.9
+  - pyside2
+  - appdirs
+  - cobra=0.22
+  - qtconsole=5.0
+  - requests
+  - efmtool_link=0.0.3
+  - optlang_enumerator=0.0.6
+prefix: /home/user/miniconda3/envs/cnapy
