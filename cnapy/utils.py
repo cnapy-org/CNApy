@@ -55,6 +55,12 @@ class SignalThrottler(QObject):
         self.hasPendingEmission = False
         self.triggered.emit()
 
+    @Slot()
+    def finish(self):
+        self.timer.stop()
+        if self.hasPendingEmission:
+            self.emit_triggered()
+
     triggered = Signal()
     timeoutChanged = Signal(int)
     timerTypeChanged = Signal(Qt.TimerType)
