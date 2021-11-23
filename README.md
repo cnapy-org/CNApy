@@ -15,29 +15,44 @@
 
 ## Video tutorials
 
-- [Create a new CNApy project](http://www.youtube.com/watch?v=bsNXZBmtyWw)
-- [Perform FBA and FVA with CNApy](http://www.youtube.com/watch?v=I5RJjXRBRaQ)
+You can find several video tutorials on our [CNApy YouTube channel](https://www.youtube.com/channel/UCRIXSdzs5WnBE3_uukuNMlg).
 
 ## Install CNApy with conda
 
 We use conda as package manager to install CNApy. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
 
-1. Create a conda environment with all dependencies
+0. (only recommended if you have already installed CNApy by using conda) If you already have a cnapy environment, e.g., cnapy-1.X.X, you can delete it with the command
     ```sh
-    conda create -n cnapy-1.0.1 -c conda-forge -c cnapy cnapy=1.0.1
+    # Here, the Xs stand for the last CNApy version you've installed by using conda
+    conda env remove -n cnapy-1.X.X
+    ```
+1. (optional, but recommended if you also use other Python distributions or Anaconda environments) In order to solve
+   potential package version problems, set a systems variable called "PYTHONNOUSERSITE" to the value "True".
+
+   Under Linux systems, you can do this with the following command:
+   ```sh
+   export PYTHONNOUSERSITE=True
+   ```
+
+   Under Windows systems, you can do this by searching for your system's "environmental variables" and adding
+   the variable PYTHONNOUSERSITE with the value True using Window's environmental variables setting window.
+
+2. Create a conda environment with all dependencies
+    ```sh
+    conda create -n cnapy-1.0.5 -c conda-forge -c cnapy cnapy=1.0.5
     ```
 
-2. Activate the cnapy conda environment
-    ```
-    conda activate cnapy-1.0.1
+3. Activate the cnapy conda environment
+    ```sh
+    conda activate cnapy-1.0.5
     ```
 
-3. Run CNApy
-    ```
+4. Run CNApy
+    ```sh
     cnapy
     ```
 
-**IMPORTANT**: To use the CNA Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course CNA. Alternatively to Matlab you can also use Octave.
+**IMPORTANT**: To use the CellNetAnalyzer (CNA) Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course [CellNetAnalyzer itself](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html). Alternatively to Matlab you can also use the free and open-source [GNU Octave](https://www.gnu.org/software/octave/index).
 
 ## How to run a script in the CNApy terminal
 

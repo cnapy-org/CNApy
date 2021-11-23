@@ -1,8 +1,7 @@
-import json
 import numpy
 import matplotlib.pyplot as plt
 
-from qtpy.QtCore import Qt, Signal, QStringListModel
+from qtpy.QtCore import Qt, Signal, Slot, QStringListModel
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
@@ -15,9 +14,10 @@ from cnapy.flux_vector_container import FluxVectorContainer
 class ModeNavigator(QWidget):
     """A navigator widget"""
 
-    def __init__(self, appdata):
+    def __init__(self, appdata, central_widget):
         QWidget.__init__(self)
         self.appdata = appdata
+        self.central_widget = central_widget
         self.current = 0
         self.mode_type = 0 # EFM or some sort of flux vector
         self.scenario = {}
@@ -39,7 +39,7 @@ class ModeNavigator(QWidget):
 
         l1 = QHBoxLayout()
         self.title = QLabel("Mode Navigation")
-        self.selector = QLineEdit()
+        self.selector = SelectorLineEdit(self)
         self.selector.setPlaceholderText("Select...")
         self.selector.setClearButtonEnabled(True)
 
@@ -74,6 +74,7 @@ class ModeNavigator(QWidget):
         self.selector.returnPressed.connect(self.apply_selection)
         self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
         self.size_histogram_button.clicked.connect(self.size_histogram)
+        self.central_widget.broadcastReactionID.connect(self.selector.receive_input)
 
     def update(self):
         txt = str(self.current + 1) + "/" + \
@@ -142,6 +143,7 @@ class ModeNavigator(QWidget):
         self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
         self.appdata.recreate_scenario_from_history()
+        self.selector.accept_signal_input = False
         self.hide()
         self.modeNavigatorClosed.emit()
 
@@ -177,6 +179,7 @@ class ModeNavigator(QWidget):
         self.selector.setText("")
 
     def reset_selection(self):
+        self.selector.accept_signal_input = False
         self.selection[:] = True # select all
         self.num_selected = len(self.appdata.project.modes)
         self.update()
@@ -184,6 +187,7 @@ class ModeNavigator(QWidget):
     def apply_selection(self):
         must_occur =  []
         must_not_occur = []
+        self.selector.accept_signal_input = False
         selector_text = self.selector.text().strip()
         if len(selector_text) == 0:
             self.reset_selection()
@@ -208,18 +212,18 @@ class ModeNavigator(QWidget):
                     self.next()
 
     def select(self, must_occur=None, must_not_occur=None):
-        self.selection[:] = True # reset selection
-        if must_occur != None:
+        self.selection[:] = True  # reset selection
+        if must_occur is not None:
             for r in must_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i in range(len(self.selection)):
-                    if self.selection[i] and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
+                for i, selected in enumerate(self.selection):
+                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
                         self.selection[i] = False
-        if must_not_occur != None:
+        if must_not_occur is not None:
             for r in must_not_occur:
                 r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i in range(len(self.selection)):
-                    if self.selection[i] and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
+                for i, selected in enumerate(self.selection):
+                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
                         self.selection[i] = False
         self.num_selected = numpy.sum(self.selection)
 
@@ -235,6 +239,28 @@ class ModeNavigator(QWidget):
     
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()
+
+class SelectorLineEdit(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.accept_signal_input = False
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.accept_signal_input = True
+
+    @Slot(str)
+    def receive_input(self, text):
+        if self.accept_signal_input:
+            completer_mode = self.completer().completionMode()
+            # temporarily disable completer popup
+            self.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+            if len(self.text()) == 0:
+                self.insert(text)
+            else:
+                self.setCursorPosition(len(self.text()))
+                self.insert(","+text)
+            self.completer().setCompletionMode(completer_mode)
 
 class CustomCompleter(QCompleter):
     def __init__(self, parent=None):

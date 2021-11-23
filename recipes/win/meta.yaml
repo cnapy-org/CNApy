@@ -1,4 +1,4 @@
-{% set version = '1.0.1' %}
+{% set version = '1.0.5' %}
 
 package:
   name: cnapy
@@ -24,8 +24,9 @@ requirements:
     - appdirs
     - cobra=0.22
     - qtconsole=5.0
-    - efmtool_link=0.0.3
-    - optlang_enumerator=0.0.5
+    - requests
+    - efmtool_link=0.0.4
+    - optlang_enumerator=0.0.6
 
 build:
   number: 0  # NOTE: increment for new build/set to zero for new version

@@ -1,19 +1,18 @@
 """The central widget"""
-from ast import literal_eval as make_tuple
 
 import numpy
 import cobra
-from cobra.core import reaction
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget)
+                            QTabWidget, QVBoxLayout, QWidget, QAction)
 
-from cnapy.appdata import AppData, CnaMap
+from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
+from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
 from cnapy.gui_elements.reactions_list import ReactionList
@@ -36,11 +35,13 @@ class CentralWidget(QWidget):
         self.throttler.triggered.connect(self.update_selected)
 
         self.tabs = QTabWidget()
-        self.reaction_list = ReactionList(self.appdata)
+        self.reaction_list = ReactionList(self)
         self.metabolite_list = MetaboliteList(self.appdata)
+        self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
+        self.tabs.addTab(self.gene_list, "Genes")
         self.tabs.addTab(self.model_info, "Model")
 
         self.map_tabs = QTabWidget()
@@ -72,7 +73,7 @@ class CentralWidget(QWidget):
         self.splitter = QSplitter()
         self.splitter2 = QSplitter()
         self.splitter2.addWidget(self.map_tabs)
-        self.mode_navigator = ModeNavigator(self.appdata)
+        self.mode_navigator = ModeNavigator(self.appdata, self)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
         self.splitter2.setOrientation(Qt.Vertical)
@@ -84,6 +85,9 @@ class CentralWidget(QWidget):
         layout.addWidget(self.searchbar)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
+        margins = self.layout().contentsMargins()
+        margins.setBottom(0) # otherwise the distance to the status bar appears too large
+        self.layout().setContentsMargins(margins)
 
         self.tabs.currentChanged.connect(self.tabs_changed)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
@@ -96,6 +100,11 @@ class CentralWidget(QWidget):
             self.handle_changed_metabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
+        self.gene_list.geneChanged.connect(
+            self.handle_changed_gene)
+        self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
+        self.gene_list.jumpToMetabolite.connect(self.jump_to_metabolite)
+        self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.model_info.optimizationDirectionChanged.connect(
             self.handle_changed_optimization_direction)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
@@ -118,12 +127,14 @@ class CentralWidget(QWidget):
 
     def handle_changed_reaction(self, old_id: str, reaction: cobra.Reaction):
         self.parent.unsaved_changes()
+        reaction_has_box = False
         for mmap in self.appdata.project.maps:
             if old_id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     old_id)
-
-        self.update_reaction_on_maps(old_id, reaction.id)
+                reaction_has_box = True
+        if reaction_has_box:
+            self.update_reaction_on_maps(old_id, reaction.id)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
@@ -137,6 +148,11 @@ class CentralWidget(QWidget):
         self.delete_reaction_on_maps(reaction.id)
 
     def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
+        self.parent.unsaved_changes()
+        # TODO update only relevant reaction boxes on maps
+        self.update_maps()
+
+    def handle_changed_gene(self, old_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
@@ -161,18 +177,18 @@ class CentralWidget(QWidget):
     def maximize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, mmin=False)
 
-    def update_reaction_value(self, reaction: str, value: str):
+    def set_scen_value(self, reaction: str):
+        self.appdata.set_comp_value_as_scen_value(reaction)
+        self.update()
+
+    def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
         else:
-            try:
-                x = float(value)
-                self.appdata.scen_values_set(reaction, (x, x))
-            except ValueError:
-                (vl, vh) = make_tuple(value)
-                self.appdata.scen_values_set(reaction, (vl, vh))
-        self.reaction_list.update()
+            self.appdata.scen_values_set(reaction, parse_scenario(value))
+        if update_reaction_list:
+            self.reaction_list.update(rebuild=False)
 
     def update_reaction_maps(self, _reaction: str):
         self.parent.unsaved_changes()
@@ -190,6 +206,8 @@ class CentralWidget(QWidget):
             self.appdata.project.cobra_py_model = clean_model
             self.metabolite_list.update()
         elif idx == 2:
+            self.gene_list.update()
+        elif idx == 3:
             self.model_info.update()
 
     def add_map(self):
@@ -201,7 +219,7 @@ class CentralWidget(QWidget):
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
-        mmap = MapView(self.appdata, name)
+        mmap = MapView(self.appdata, self, name)
         mmap.switchToReactionMask.connect(self.switch_to_reaction)
         mmap.minimizeReaction.connect(self.minimize_reaction)
         mmap.maximizeReaction.connect(self.maximize_reaction)
@@ -227,6 +245,8 @@ class CentralWidget(QWidget):
             self.reaction_list.update_selected(x)
         if idx == 1:
             self.metabolite_list.update_selected(x)
+        if idx == 2:
+            self.gene_list.update_selected(x)
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
@@ -236,14 +256,21 @@ class CentralWidget(QWidget):
     def update_mode(self):
         if len(self.appdata.project.modes) > self.mode_navigator.current:
             values = self.appdata.project.modes[self.mode_navigator.current]
+            if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
+                self.mode_navigator.current, self.appdata.rounding):
+                # normalize non-integer EFM for better display
+                mean = sum(abs(v) for v in values.values())/len(values)
+                for r,v in values.items():
+                    values[r] = v/mean
 
             # set values
-            self.appdata.project.scen_values.clear()
             self.appdata.project.comp_values.clear()
+            self.parent.clear_status_bar()
             for i in values:
                 if self.mode_navigator.mode_type == 1 and values[i] == -1:
                     values[i] = 0.0 # display cuts as zero flux
                 self.appdata.project.comp_values[i] = (values[i], values[i])
+            self.appdata.project.comp_values_type = 0
 
         self.appdata.modes_coloring = True
         self.update()
@@ -254,11 +281,14 @@ class CentralWidget(QWidget):
         if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
             relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values.clear()
+        self.parent.clear_status_bar()
         self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        self.appdata.project.comp_values_type = 0
         self.update()
         self.parent.set_heaton()
 
-    def update(self):
+    def update(self, rebuild=False):
+        # use rebuild=True to rebuild all tabs when the model changes
         if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
             self.mode_navigator.current = 0
@@ -267,17 +297,24 @@ class CentralWidget(QWidget):
             self.mode_navigator.update()
 
         idx = self.tabs.currentIndex()
-        if idx == 0:
-            self.reaction_list.update()
-        elif idx == 1:
+        if idx == 0 or rebuild:
+            self.reaction_list.update(rebuild=rebuild)
+        elif idx == 1 or rebuild:
             self.metabolite_list.update()
-        elif idx == 2:
+        elif idx == 2 or rebuild:
+            self.gene_list.update()
+        elif idx == 3 or rebuild:
             self.model_info.update()
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
             m = self.map_tabs.widget(idx)
             m.update()
+
+        if self.parent.heaton_action.isChecked():
+            self.parent.heaton_action.activate(QAction.Trigger)
+        elif self.parent.onoff_action.isChecked():
+            self.parent.onoff_action.activate(QAction.Trigger)
 
     def update_map(self, idx):
         m = self.map_tabs.widget(idx)
@@ -325,6 +362,7 @@ class CentralWidget(QWidget):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
         self.show_bottom_of_console()
 
+    broadcastReactionID = Signal(str)
 
 class ConfirmMapDeleteDialog(QDialog):
 
@@ -334,7 +372,7 @@ class ConfirmMapDeleteDialog(QDialog):
         self.parent = parent
         self.idx = idx
         self.name = name
-        self.lable = QLabel("Do you realy want to delete this map?")
+        self.lable = QLabel("Do you really want to delete this map?")
         self.button_yes = QPushButton("Yes delete")
         self.button_no = QPushButton("No!")
         # Create layout and add widgets

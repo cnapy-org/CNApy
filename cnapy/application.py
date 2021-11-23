@@ -27,7 +27,7 @@ from qtpy.QtWidgets import QApplication
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.main_window import MainWindow
-from cnapy.legacy import try_matlab_engine, try_octave_engine
+from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 import cnapy.utils as utils
 
 
@@ -79,9 +79,13 @@ class Application:
         else:
             if self.appdata.selected_engine == "matlab":
                 self.appdata.matlab_engine = try_matlab_engine()
+                if self.appdata.matlab_engine is not None:
+                    self.appdata.cna_ok = try_cna(self.appdata.matlab_engine, self.appdata.cna_path)
             elif self.appdata.selected_engine == "octave":
                 self.appdata.octave_engine = try_octave_engine(
                     self.appdata.octave_executable)
+                if self.appdata.octave_engine is not None:
+                    self.appdata.cna_ok = try_cna(self.appdata.octave_engine, self.appdata.cna_path)
             self.appdata.select_engine()
 
         self.window.disable_enable_dependent_actions()

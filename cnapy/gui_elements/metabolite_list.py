@@ -1,14 +1,16 @@
 """The metabolite list"""
 
 import cobra
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
-                            QLineEdit, QMenu, QMessageBox, QPushButton,
+                            QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 
 
 class MetaboliteList(QWidget):
@@ -36,7 +38,7 @@ class MetaboliteList(QWidget):
         self.pop_menu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
-        self.metabolite_mask = MetabolitesMask(appdata)
+        self.metabolite_mask = MetabolitesMask(self, appdata)
         self.metabolite_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -178,8 +180,9 @@ class MetaboliteList(QWidget):
 class MetabolitesMask(QWidget):
     """The input mask for a metabolites"""
 
-    def __init__(self, appdata):
+    def __init__(self, metabolite_list, appdata):
         QWidget.__init__(self)
+        self.metabolite_list = metabolite_list
         self.appdata = appdata
         self.metabolite = None
         self.is_valid = True
@@ -223,8 +226,21 @@ class MetabolitesMask(QWidget):
         layout.addItem(l)
 
         l = QVBoxLayout()
+
+        l3 = QHBoxLayout()
         label = QLabel("Annotations:")
-        l.addWidget(label)
+        l3.addWidget(label)
+
+        check_button = QPushButton("identifiers.org check")
+        check_button.setIcon(QIcon.fromTheme("list-add"))
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        check_button.setSizePolicy(policy)
+        check_button.clicked.connect(self.check_in_identifiers_org)
+        l3.addWidget(check_button)
+
+        l.addItem(l3)
+
         l2 = QHBoxLayout()
         self.annotation = QTableWidget(0, 2)
         self.annotation.setHorizontalHeaderLabels(
@@ -243,7 +259,7 @@ class MetabolitesMask(QWidget):
         l.addWidget(label)
         l2 = QHBoxLayout()
         self.reactions = QTreeWidget()
-        self.reactions.setHeaderLabels(["Id"])
+        self.reactions.setHeaderLabels(["Id", "Reaction"])
         self.reactions.setSortingEnabled(True)
         l2.addWidget(self.reactions)
         l.addItem(l2)
@@ -259,7 +275,7 @@ class MetabolitesMask(QWidget):
         self.name.textEdited.connect(self.throttler.throttle)
         self.formula.textEdited.connect(self.throttler.throttle)
         self.charge.textEdited.connect(self.throttler.throttle)
-        self.compartment.textEdited.connect(self.throttler.throttle)
+        self.compartment.editingFinished.connect(self.metabolites_data_changed)
         self.annotation.itemChanged.connect(self.throttler.throttle)
         self.validate_mask()
 
@@ -317,6 +333,56 @@ class MetabolitesMask(QWidget):
                 turn_white(self.id)
                 return True
 
+    def check_in_identifiers_org(self):
+        self.setCursor(Qt.BusyCursor)
+        rows = self.annotation.rowCount()
+        invalid_red = QColor(255, 0, 0)
+        for i in range(0, rows):
+            if self.annotation.item(i, 0) is not None:
+                key = self.annotation.item(i, 0).text()
+            else:
+                key = ""
+            if self.annotation.item(i, 1) is not None:
+                values = self.annotation.item(i, 1).text()
+            else:
+                values = ""
+            if (key == "") or (values == ""):
+                continue
+
+            if values.startswith("["):
+                values = values.replace("', ", "'\b,").replace('", ', '"\b,').replace("[", "")\
+                               .replace("]", "").replace("'", "").replace('"', "")
+                values = values.split("\b,")
+            else:
+                values = [values]
+
+            for value in values:
+                identifiers_org_result = check_identifiers_org_entry(key, value)
+
+                if identifiers_org_result.connection_error:
+                    msgBox = QMessageBox()
+                    msgBox.setWindowTitle("Connection error!")
+                    msgBox.setTextFormat(Qt.RichText)
+                    msgBox.setText("<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
+                    msgBox.setIcon(QMessageBox.Warning)
+                    msgBox.exec()
+                    break
+
+                if (not identifiers_org_result.is_key_value_pair_valid) and (":" in value):
+                    split_value = value.split(":")
+                    identifiers_org_result = check_identifiers_org_entry(split_value[0], split_value[1])
+
+
+                if not identifiers_org_result.is_key_valid:
+                    self.annotation.item(i, 0).setBackground(invalid_red)
+
+                if not identifiers_org_result.is_key_value_pair_valid:
+                    self.annotation.item(i, 1).setBackground(invalid_red)
+
+                if not identifiers_org_result.is_key_value_pair_valid:
+                    break
+            self.setCursor(Qt.ArrowCursor)
+
     def validate_name(self):
         with self.appdata.project.cobra_py_model as model:
             try:
@@ -356,23 +422,25 @@ class MetabolitesMask(QWidget):
             turn_red(self.compartment)
             return False
         else:
-
+            turn_white(self.compartment)
             if self.compartment.text() != "" and self.compartment.text() not in self.appdata.project.cobra_py_model.compartments:
+                self.compartment.blockSignals(True) # block signals triggered by appearance of message_box
                 message_box = QMessageBox()
                 message_box.setText(
-                    "The compartment "+self.compartment.text() + " does not yet exist")
+                    "The compartment "+self.compartment.text() + " does not yet exist.")
                 message_box.setInformativeText(
                     "Do you want to create the compartment?")
                 message_box.setStandardButtons(
                     QMessageBox.Ok | QMessageBox.Cancel)
                 message_box.setDefaultButton(QMessageBox.Ok)
                 ret = message_box.exec()
+                self.compartment.blockSignals(False)
 
                 if ret == QMessageBox.Cancel:
-                    turn_red(self.compartment)
-                    return False
+                    metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
+                                    self.id.text())
+                    self.compartment.setText(metabolite.compartment)
 
-            turn_white(self.compartment)
             return True
 
     def validate_mask(self):
@@ -401,13 +469,28 @@ class MetabolitesMask(QWidget):
             for r in metabolite.reactions:
                 item = QTreeWidgetItem(self.reactions)
                 item.setText(0, r.id)
-                item.setText(1, r.name)
                 item.setData(2, 0, r)
-                text = "Id: " + r.id + "\nName: " + r.name
+                text = "Name: " + r.name
+                item.setToolTip(0, text)
                 item.setToolTip(1, text)
+                reaction_string_widget = ReactionString(r, self.metabolite_list)
+                self.reactions.setItemWidget(item, 1, reaction_string_widget)
 
     def emit_jump_to_reaction(self, reaction):
         self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite)
+
+class ReactionString(QLineEdit):
+    def __init__(self, reaction, metabolite_list):
+        super().__init__(reaction.build_reaction_string())
+        self.model = reaction.model
+        self.metabolite_list = metabolite_list
+        self.setCursorPosition(0) # to get proper left justification
+        self.selectionChanged.connect(self.switch_metabolite)
+
+    @Slot()
+    def switch_metabolite(self):
+        if self.model.metabolites.has_id(self.selectedText()):
+            self.metabolite_list.set_current_item(self.selectedText())

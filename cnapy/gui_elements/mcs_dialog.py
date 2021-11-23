@@ -50,7 +50,7 @@ class MCSDialog(QDialog):
         self.target_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.target_list.setCellWidget(0, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.target_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.target_list)
@@ -59,6 +59,7 @@ class MCSDialog(QDialog):
         self.target_list.setCellWidget(0, 2, combo)
         item = QLineEdit("0")
         self.target_list.setCellWidget(0, 3, item)
+        self.active_receiver = item2
 
         s1.addWidget(self.target_list)
 
@@ -85,7 +86,7 @@ class MCSDialog(QDialog):
         self.desired_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.desired_list.setCellWidget(0, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.desired_list)
@@ -143,12 +144,10 @@ class MCSDialog(QDialog):
         g3 = QGroupBox("Solver")
         s33 = QVBoxLayout()
         self.bg1 = QButtonGroup()
-        self.optlang_solver_name = interface_to_str(
-            appdata.project.cobra_py_model.problem)
-        self.solver_optlang = QRadioButton(
-            f"{self.optlang_solver_name} (optlang)")
+        self.solver_optlang = QRadioButton()
+        self.set_optlang_solver_text()
         self.solver_optlang.setToolTip(
-            "Uses the solver specified by the current model.")
+            "Change solver in COBRApy configuration.")
         s33.addWidget(self.solver_optlang)
         self.bg1.addButton(self.solver_optlang)
         self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
@@ -198,14 +197,13 @@ class MCSDialog(QDialog):
         self.layout.addItem(s3)
 
         # Disable incompatible combinations
-        if appdata.selected_engine == 'None':
-            self.solver_optlang.setChecked(True)
+        self.solver_optlang.setChecked(True)
+        if (appdata.selected_engine == 'None') or (self.eng is None) or (not appdata.cna_ok):  # Hotfix
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
         else:
-            self.solver_glpk.setChecked(True)
             self.solver_cplex_matlab.setEnabled(
                 self.eng.is_cplex_matlab_ready())
             self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
@@ -245,6 +243,21 @@ class MCSDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
 
+        self.central_widget.broadcastReactionID.connect(self.receive_input)
+
+    @Slot(str)
+    def receive_input(self, text):
+        completer_mode = self.active_receiver.completer().completionMode()
+        # temporarily disable completer popup
+        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+        self.active_receiver.insert(text)
+        self.active_receiver.completer().setCompletionMode(completer_mode)
+
+    @Slot()
+    def set_optlang_solver_text(self):
+        self.optlang_solver_name = interface_to_str(self.appdata.project.cobra_py_model.problem)
+        self.solver_optlang.setText(f"{self.optlang_solver_name} (optlang)")
+
     @Slot()
     def configure_solver_options(self):  # called when switching solver
         if self.solver_optlang.isChecked():
@@ -283,7 +296,7 @@ class MCSDialog(QDialog):
 
         item = QLineEdit("1")
         self.target_list.setCellWidget(i, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.target_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.target_list)
@@ -303,7 +316,7 @@ class MCSDialog(QDialog):
 
         item = QLineEdit("1")
         self.desired_list.setCellWidget(i, 0, item)
-        item2 = QLineEdit("")
+        item2 = ReceiverLineEdit(self)
         item2.setCompleter(completer)
         self.desired_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.desired_list)
@@ -322,10 +335,20 @@ class MCSDialog(QDialog):
         self.desired_list.removeRow(i-1)
 
     def compute(self):
-        if self.solver_optlang.isChecked():
-            self.compute_optlang()
+        mcs_equation_errors = self.check_for_mcs_equation_errors()
+        if mcs_equation_errors == "":
+            if self.solver_optlang.isChecked():
+                self.compute_optlang()
+            else:
+                self.compute_legacy()
         else:
-            self.compute_legacy()
+            QMessageBox.warning(
+                self,
+                "MCS target/desired region error",
+                f"Cannot perform MCS calculation due to the following error(s) "
+                f"in the given target and/or desired regions:\n"
+                f"{mcs_equation_errors}"
+            )
 
     def compute_legacy(self):
         self.setCursor(Qt.BusyCursor)
@@ -471,10 +494,10 @@ class MCSDialog(QDialog):
             num_mcs = int(mcs[-1][0])
             omcs = scipy.sparse.lil_matrix((num_mcs, len(reac_id)))
             # current_mcs = {}
-            for i in range(0, len(reactions)):
-                # print(mcs[i][0], reactions[i][0], values[i][0])
-                omcs[mcs[i][0]-1, reactions[i][0]-1] = values[i][0]
-            #     reacid = int(reactions[i][0])
+            for i, reaction in enumerate(reactions):
+                # print(mcs[i][0], reaction[0], values[i][0])
+                omcs[mcs[i][0]-1, reaction[0]-1] = values[i][0]
+            #     reacid = int(reaction[0])
             #     reaction = reac_id[reacid-1]
             #     c_mcs = int(mcs[i][0])
             #     c_value = int(values[i][0])
@@ -617,3 +640,152 @@ class MCSDialog(QDialog):
         self.central_widget.mode_navigator.set_to_mcs()
         self.central_widget.update_mode()
         self.accept()
+
+    def check_left_mcs_equation(self, equation: str) -> str:
+        errors = ""
+
+        semantics = []
+        reaction_ids = []
+        last_part = ""
+        counter = 1
+        for char in equation+" ":
+            if (char == " ") or (char in ("*", "/", "+", "-")) or (counter == len(equation+" ")):
+                if last_part != "":
+                    try:
+                        float(last_part)
+                    except ValueError:
+                        reaction_ids.append(last_part)
+                        semantics.append("reaction")
+                    else:
+                        semantics.append("number")
+                    last_part = ""
+
+                if counter == len(equation+" "):
+                    break
+
+            if char in "*":
+                semantics.append("multiplication")
+            elif char in "/":
+                semantics.append("division")
+            elif char in ("+", "-"):
+                semantics.append("dash")
+            elif char not in " ":
+                last_part += char
+            counter += 1
+
+        if len(reaction_ids) == 0:
+            errors += f"EQUATION ERROR in {equation}:\nNo reaction ID is given in the equation\n"
+
+        if semantics.count("division") > 1:
+            errors += f"ERROR in {equation}:\nAn equation must not have more than one /"
+
+        last_is_multiplication = False
+        last_is_division = False
+        last_is_dash = False
+        last_is_reaction = False
+        prelast_is_reaction = False
+        prelast_is_dash = False
+        last_is_number = False
+        is_start = True
+        for semantic in semantics:
+            if is_start:
+                if semantic in ("multiplication", "division"):
+                    errors += f"ERROR in {equation}:\nAn equation must not start with * or /"
+                is_start = False
+
+            if (last_is_multiplication or last_is_division) and (semantic in ("multiplication", "division")):
+                errors += f"ERROR in {equation}:\n* or / must not follow on * or /\n"
+            if last_is_dash and (semantic in ("multiplication", "division")):
+                errors += f"ERROR in {equation}:\n* or / must not follow on + or -\n"
+            if last_is_number and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nA reaction must not directly follow on a number without a mathematical operation\n"
+            if last_is_reaction and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nA reaction must not follow on a reaction ID\n"
+            if last_is_number and (semantic == "number"):
+                errors += f"ERROR in {equation}:\nA number must not follow on a number ID\n"
+
+            if prelast_is_reaction and last_is_multiplication and (semantic == "reaction"):
+                errors += f"ERROR in {equation}:\nTwo reactions must not be multiplied together\n"
+
+            if last_is_reaction:
+                prelast_is_reaction = True
+            else:
+                prelast_is_reaction = False
+
+            if last_is_dash:
+                prelast_is_dash = True
+            else:
+                prelast_is_dash = False
+
+            last_is_multiplication = False
+            last_is_division = False
+            last_is_dash = False
+            last_is_reaction = False
+            last_is_number = False
+            if semantic == "multiplication":
+                last_is_multiplication = True
+            elif semantic == "division":
+                last_is_division = True
+            elif semantic == "reaction":
+                last_is_reaction = True
+            elif semantic == "dash":
+                last_is_dash = True
+            elif semantic == "number":
+                last_is_number = True
+
+        if last_is_dash or last_is_multiplication or last_is_division:
+            errors += (f"ERROR in {equation}:\nA reaction must not end "
+                       f"with a +, -, * or /")
+
+        if prelast_is_dash and last_is_number:
+            errors += (f"ERROR in {equation}:\nA reaction must not end "
+                       f"with a separated number term only")
+
+        with self.appdata.project.cobra_py_model as model:
+            model_reaction_ids = [x.id for x in model.reactions]
+            for reaction_id in reaction_ids:
+                if reaction_id not in model_reaction_ids:
+                    errors += (f"ERROR in {equation}:\nA reaction with "
+                               f"the ID {reaction_id} does not exist in the model\n")
+
+        return errors
+
+
+    def check_right_mcs_equation(self, equation: str) -> str:
+        try:
+            float(equation)
+        except ValueError:
+            error = f"ERROR in {equation}:\nRight equation must be a number\n"
+            return error
+        else:
+            return ""
+
+    def check_for_mcs_equation_errors(self) -> str:
+        errors = ""
+        rows = self.target_list.rowCount()
+        for i in range(0, rows):
+            target_left = self.target_list.cellWidget(i, 1).text()
+            errors += self.check_left_mcs_equation(target_left)
+            target_right = self.target_list.cellWidget(i, 3).text()
+            errors += self.check_right_mcs_equation(target_right)
+
+        rows = self.desired_list.rowCount()
+        for i in range(0, rows):
+            desired_left = self.desired_list.cellWidget(i, 1).text()
+            if len(desired_left) > 0:
+                errors += self.check_left_mcs_equation(desired_left)
+
+            desired_right = self.desired_list.cellWidget(i, 3).text()
+            if len(desired_right) > 0:
+                errors += self.check_right_mcs_equation(desired_right)
+
+        return errors
+
+class ReceiverLineEdit(QLineEdit):
+    def __init__(self, mcs_dialog):
+        super().__init__()
+        self.mcs_dialog = mcs_dialog
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.mcs_dialog.active_receiver = self

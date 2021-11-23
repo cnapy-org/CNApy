@@ -4,11 +4,11 @@ from ast import literal_eval as make_tuple
 from math import isclose
 from typing import Dict, Tuple
 
-from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
-from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QPainter, QFont
+from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
+from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
-                            QGraphicsSceneDragDropEvent,
+                            QGraphicsSceneDragDropEvent, QTreeWidget,
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
@@ -21,7 +21,7 @@ DECREASE_FACTOR = 1/INCREASE_FACTOR
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
-    def __init__(self, appdata: AppData, name: str):
+    def __init__(self, appdata: AppData, central_widget, name: str):
         self.scene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
         palette = self.palette()
@@ -29,13 +29,13 @@ class MapView(QGraphicsView):
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.appdata = appdata
+        self.central_widget = central_widget
         self.name = name
         self.setAcceptDrops(True)
-        self.drag = False
+        self.drag_map = False
         self.reaction_boxes: Dict[str, ReactionBox] = {}
         self._zoom = 0
-        self.drag = False
-        self.drag_start = None
+        self.previous_point = None
         self.select = False
         self.select_start = None
 
@@ -64,30 +64,31 @@ class MapView(QGraphicsView):
             self.horizontalScrollBar().value(), y)
 
     def dragEnterEvent(self, event: QGraphicsSceneDragDropEvent):
-        event.setAccepted(True)
-        event.accept()
+        self.previous_point = self.mapToScene(event.pos())
         event.acceptProposedAction()
 
     def dragMoveEvent(self, event: QGraphicsSceneDragDropEvent):
         event.setAccepted(True)
-        point = event.pos()
-        point_item = self.mapToScene(point)
+        point_item = self.mapToScene(event.pos())
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
-            old = self.appdata.project.maps[self.name]["boxes"][r_id]
-            move_x = point_item.x() - old[0]
-            move_y = point_item.y() - old[1]
+            if isinstance(event.source(), QTreeWidget): # existing/continued drag from reaction list
+                self.appdata.project.maps[self.name]["boxes"][r_id] = (point_item.x(), point_item.y())
+                self.mapChanged.emit(r_id)
+            else:
+                move_x = point_item.x() - self.previous_point.x()
+                move_y = point_item.y() - self.previous_point.y()
+                self.previous_point = point_item
+                selected = self.scene.selectedItems()
+                for item in selected:
+                    pos = self.appdata.project.maps[self.name]["boxes"][item.id]
 
-            selected = self.scene.selectedItems()
-            for item in selected:
-                pos = self.appdata.project.maps[self.name]["boxes"][item.id]
+                    self.appdata.project.maps[self.name]["boxes"][item.id] = (
+                        pos[0]+move_x, pos[1]+move_y)
+                    self.mapChanged.emit(item.id)
 
-                self.appdata.project.maps[self.name]["boxes"][item.id] = (
-                    pos[0]+move_x, pos[1]+move_y)
-                self.mapChanged.emit(item.id)
-
-        else:
+        else: # drag reaction from list that has not yet a box on this map
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(), point_item.y())
             self.reactionAdded.emit(r_id)
@@ -95,17 +96,11 @@ class MapView(QGraphicsView):
 
         self.update()
 
-    def dragLeaveEvent(self, _event):
-        self.update()
-
     def dropEvent(self, event: QGraphicsSceneDragDropEvent):
-        self.drag = False
-        point = event.pos()
-        point_item = self.mapToScene(point)
+        self.drag_map = False
         identifier = event.mimeData().text()
-        self.appdata.project.maps[self.name]["boxes"][identifier] = (
-            point_item.x(), point_item.y())
         self.mapChanged.emit(identifier)
+        self.viewport().setCursor(Qt.OpenHandCursor)
         self.update()
 
     def wheelEvent(self, event):
@@ -139,32 +134,39 @@ class MapView(QGraphicsView):
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
-    def mousePressEvent(self, event: QMouseEvent):
-        modifiers = QApplication.queryKeyboardModifiers()
-        if modifiers == Qt.ShiftModifier:
-            self.setDragMode(QGraphicsView.RubberBandDrag)
+    def keyPressEvent(self, event: QKeyEvent):
+        if not self.drag_map and event.key() in (Qt.Key_Control, Qt.Key_Shift):
+            self.viewport().setCursor(Qt.ArrowCursor)
             self.select = True
-            self.select_start = self.mapToScene(event.pos())
-
         else:
+            super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event: QKeyEvent):
+        if self.select and QApplication.mouseButtons() != Qt.LeftButton and event.key() in (Qt.Key_Control, Qt.Key_Shift):
+            self.viewport().setCursor(Qt.OpenHandCursor)
+            self.select = False
+        else:
+            super().keyReleaseEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        if self.select: # select multiple boxes
+            self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
+            self.select_start = self.mapToScene(event.pos())
+        else: # drag entire map
+            self.viewport().setCursor(Qt.ClosedHandCursor)
             self.setDragMode(QGraphicsView.ScrollHandDrag)
-            self.drag = True
-            self.drag_start = event.pos()
-
-        self.setCursor(Qt.ClosedHandCursor)
-        super(MapView, self).mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
-        if self.drag:
-            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-
-        super(MapView, self).mouseMoveEvent(event)
+            self.drag_map = True
+        super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if self.drag:
-            self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-
+        if self.drag_map:
+            self.viewport().setCursor(Qt.OpenHandCursor)
+            self.drag_map = False
         if self.select:
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers != Qt.ControlModifier and modifiers != Qt.ShiftModifier:
+                self.viewport().setCursor(Qt.OpenHandCursor)
+                self.select = False
             point = self.mapToScene(event.pos())
 
             width = point.x() - self.select_start.x()
@@ -179,20 +181,31 @@ class MapView(QGraphicsView):
         painter = QPainter()
         self.render(painter)
 
-        self.select = False
-        self.drag = False
-        self.setCursor(Qt.OpenHandCursor)
         super(MapView, self).mouseReleaseEvent(event)
+        event.accept()
+
+    def focusOutEvent(self, event):
+        super(MapView, self).focusOutEvent(event)
+        self.viewport().setCursor(Qt.OpenHandCursor)
+        self.select = False
+
+    def enterEvent(self, event) -> None:
+        super().enterEvent(event)
+        self.setFocus() # to capture Shift/Ctrl keys
+
+    def leaveEvent(self, event) -> None:
+        super().leaveEvent(event)
+        self.clearFocus() # finishes editing of potentially active ReactionBox
 
     def update_selected(self, string):
 
-        for r_id in self.reaction_boxes:
+        for r_id, box in self.reaction_boxes.items():
             if string.lower() in r_id.lower():
-                self.reaction_boxes[r_id].item.setHidden(False)
-            elif string.lower() in self.reaction_boxes[r_id].name.lower():
-                self.reaction_boxes[r_id].item.setHidden(False)
+                box.item.setHidden(False)
+            elif string.lower() in box.name.lower():
+                box.item.setHidden(False)
             else:
-                self.reaction_boxes[r_id].item.setHidden(True)
+                box.item.setHidden(True)
 
     def focus_reaction(self, reaction: str):
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
@@ -323,45 +336,50 @@ class MapView(QGraphicsView):
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
     minimizeReaction = Signal(str)
+    setScenValue = Signal(str)
     reactionRemoved = Signal(str)
     reactionValueChanged = Signal(str, str)
     reactionAdded = Signal(str)
     mapChanged = Signal(str)
+    broadcastReactionID = Signal(str)
 
 
 class CLineEdit(QLineEdit):
     """A special line edit implementation for the use in ReactionBox"""
 
     def __init__(self, parent):
-        self.parent = parent
+        self.parent: ReactionBox = parent
+        self.accept_next_change_into_history = True
         super().__init__()
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
-        if not validate_value(self.text()):
-            self.parent.map.set_values()
-            if self.parent.id in self.parent.map.appdata.project.scen_values.keys():
-                self.parent.map.reaction_boxes[self.parent.id].set_value(
-                    self.parent.map.appdata.project.scen_values[self.parent.id])
-            elif self.parent.id in self.parent.map.appdata.project.comp_values.keys():
-                self.parent.map.reaction_boxes[self.parent.id].set_value(
-                    self.parent.map.appdata.project.comp_values[self.parent.id])
-            else:
-                self.setText("")
-        self.parent.recolor()
+        self.parent.setSelected(False)
+        if self.isModified() and self.parent.map.appdata.auto_fba:
+            self.parent.map.central_widget.parent.fba()
         self.parent.update()
+
+    def focusInEvent(self, event):
+        # is called before mousePressEvent
+        super().focusInEvent(event)
+        self.accept_next_change_into_history = True
+        self.setModified(False)
+        self.parent.setSelected(True) # in case focus is regained via enterEvent of the map
 
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
         self.parent.switch_to_reaction_mask()
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
-        if (event.button() == Qt.MouseButton.LeftButton):
-            self.parent.setSelected(True)
-        self.setCursor(Qt.ClosedHandCursor)
-
+    def mousePressEvent(self, event: QMouseEvent):
+        # is called after focusInEvent
         super().mousePressEvent(event)
-
+        if (event.button() == Qt.MouseButton.LeftButton):
+            if not self.parent.map.select:
+                for bx in self.parent.map.reaction_boxes.values():
+                    bx.setSelected(False)
+            self.parent.setSelected(True)
+            self.parent.broadcast_reaction_id()
+        event.accept()
 
 class ReactionBox(QGraphicsItem):
     """Handle to the line edits on the map"""
@@ -373,7 +391,9 @@ class ReactionBox(QGraphicsItem):
         self.id = r_id
         self.name = name
 
-        self.setFlags(QGraphicsItem.ItemIsSelectable)
+        self.setFlag(QGraphicsItem.ItemIsSelectable)
+        self.setFlag(QGraphicsItem.ItemIsMovable)
+        self.setAcceptHoverEvents(True)
         self.item = CLineEdit(self)
         self.item.setTextMargins(1, -13, 0, -10)  # l t r b
         font = self.item.font()
@@ -382,7 +402,7 @@ class ReactionBox(QGraphicsItem):
         self.item.setFont(font)
         self.item.setAttribute(Qt.WA_TranslucentBackground)
 
-        self.item.setMaximumWidth(self.map.appdata.box_width)
+        self.item.setFixedWidth(self.map.appdata.box_width)
         self.item.setMaximumHeight(self.map.appdata.box_height)
         self.item.setMinimumHeight(self.map.appdata.box_height)
         r = self.map.appdata.project.cobra_py_model.reactions.get_by_id(r_id)
@@ -413,6 +433,9 @@ class ReactionBox(QGraphicsItem):
         maximize_action.triggered.connect(self.emit_maximize_action)
         minimize_action = QAction('minimize flux for this reaction', parent)
         self.pop_menu.addAction(minimize_action)
+        set_scen_value_action = QAction('add computed value to scenario', parent)
+        set_scen_value_action.triggered.connect(self.emit_set_scen_value_action)
+        self.pop_menu.addAction(set_scen_value_action)
         minimize_action.triggered.connect(self.emit_minimize_action)
         switch_action = QAction('switch to reaction mask', parent)
         self.pop_menu.addAction(switch_action)
@@ -424,20 +447,32 @@ class ReactionBox(QGraphicsItem):
         self.pop_menu.addSeparator()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
-        if (event.button() == Qt.MouseButton.LeftButton):
-            self.setSelected(True)
-
-        self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        super().mouseDoubleClickEvent(event)
+        event.accept()
+        if (event.button() == Qt.MouseButton.LeftButton):
+            if self.map.select:
+                self.setSelected(not self.isSelected())
+            else:
+                self.setSelected(True)
+        else:
+            self.setCursor(Qt.ClosedHandCursor)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
-        self.setCursor(Qt.OpenHandCursor)
-        super().mouseReleaseEvent(event)
+        event.accept()
+        self.ungrabMouse()
+        if not self.map.select:
+            self.setCursor(Qt.OpenHandCursor)
+            super().mouseReleaseEvent(event) # here deselection of the other boxes occurs
+
+    def hoverEnterEvent(self, event):
+        if self.map.select:
+            self.setCursor(Qt.ArrowCursor)
+        else:
+            self.setCursor(Qt.OpenHandCursor)
+        super().hoverEnterEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        event.accept()
         drag = QDrag(event.widget())
         mime = QMimeData()
         mime.setText(str(self.id))
@@ -449,15 +484,28 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
     def returnPressed(self):
-        if validate_value(self.item.text()):
-            self.map.value_changed(self.id, self.item.text())
+        # self.item.clearFocus() # does not yet yield focus...
+        self.proxy.clearFocus() # ...but this does
+        self.map.setFocus()
+        self.item.accept_next_change_into_history = True # reset so that next change will be recorded
 
+    def handle_editing_finished(self):
+        if self.item.isModified() and self.map.appdata.auto_fba:
+            self.map.central_widget.parent.fba()
+
+    #@Slot() # using the decorator gives a connection error?
     def value_changed(self):
         test = self.item.text().replace(" ", "")
         if test == "":
+            if not self.item.accept_next_change_into_history:
+                self.map.appdata.scenario_past.pop() # replace previous change
+            self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, test)
             self.set_default_style()
         elif validate_value(self.item.text()):
+            if not self.item.accept_next_change_into_history:
+                self.map.appdata.scenario_past.pop() # replace previous change
+            self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
                 self.set_scen_style()
@@ -561,7 +609,6 @@ class ReactionBox(QGraphicsItem):
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
         # set color depending on wether the value belongs to the scenario
-
         if self.isSelected():
             light_blue = QColor(100, 100, 200)
             pen = QPen(light_blue)
@@ -601,6 +648,8 @@ class ReactionBox(QGraphicsItem):
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
+        self.item.setFixedWidth(self.map.appdata.box_width)
+
     def setPos(self, x, y):
         self.proxy.setPos(x, y)
         super().setPos(x, y)
@@ -621,8 +670,16 @@ class ReactionBox(QGraphicsItem):
         self.map.maximizeReaction.emit(self.id)
         self.map.drag = False
 
+    def emit_set_scen_value_action(self):
+        self.map.setScenValue.emit(self.id)
+        self.map.drag = False
+
     def emit_minimize_action(self):
         self.map.minimizeReaction.emit(self.id)
+        self.map.drag = False
+
+    def broadcast_reaction_id(self):
+        self.map.central_widget.broadcastReactionID.emit(self.id)
         self.map.drag = False
 
 
@@ -632,13 +689,11 @@ def validate_value(value):
     except ValueError:
         try:
             (vl, vh) = make_tuple(value)
-            if not isinstance(vl, int) and not isinstance(vl, float):
-                return False
-            if not isinstance(vh, int) and not isinstance(vh, float):
+            if isinstance(vl, (int, float)) and isinstance(vh, (int, float)) and vl <= vh:
+                return True
+            else:
                 return False
         except (ValueError, SyntaxError, TypeError):
             return False
-        else:
-            return True
     else:
         return True

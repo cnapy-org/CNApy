@@ -6,16 +6,16 @@ from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
 from cnapy.flux_vector_container import FluxVectorContainer
-
 import cobra
+import optlang
 import numpy as np
 
 from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut)
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
+                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 
 from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -30,6 +30,7 @@ from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
+from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import \
     YieldOptimizationDialog
@@ -44,6 +45,15 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
+
+        # self.heaton_action and self.onoff_action need to be defined before CentralWidget
+        self.heaton_action = QAction("Heatmap coloring", self)
+        self.heaton_action.setIcon(QIcon(":/icons/heat.png"))
+        self.heaton_action.triggered.connect(self.set_heaton)
+
+        self.onoff_action = QAction("On/Off coloring", self)
+        self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
+        self.onoff_action.triggered.connect(self.set_onoff)
 
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
@@ -98,14 +108,22 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(load_scenario_action)
         load_scenario_action.triggered.connect(self.load_scenario)
 
+        merge_scenario_action = QAction("Merge scenario ...", self)
+        self.scenario_menu.addAction(merge_scenario_action)
+        merge_scenario_action.triggered.connect(self.merge_scenario)
+
         save_scenario_action = QAction("Save scenario...", self)
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
 
         clear_scenario_action = QAction("Clear scenario", self)
-        clear_scenario_action.setIcon(QIcon(":/icons/clear.png"))
         self.scenario_menu.addAction(clear_scenario_action)
         clear_scenario_action.triggered.connect(self.clear_scenario)
+
+        clear_all_action = QAction("Clear all", self)
+        clear_all_action.setIcon(QIcon(":/icons/clear.png"))
+        self.scenario_menu.addAction(clear_all_action)
+        clear_all_action.triggered.connect(self.clear_all)
 
         undo_scenario_action = QAction("Undo scenario edit", self)
         undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
@@ -141,15 +159,13 @@ class MainWindow(QMainWindow):
 
         self.scenario_menu.addSeparator()
 
-        heaton_action = QAction("Apply heatmap coloring", self)
-        heaton_action.setIcon(QIcon(":/icons/heat.png"))
-        heaton_action.triggered.connect(self.set_heaton)
-        self.scenario_menu.addAction(heaton_action)
+        update_action = QAction("Default Coloring", self)
+        update_action.setIcon(QIcon(":/icons/default-color.png"))
+        update_action.triggered.connect(central_widget.update)
 
-        onoff_action = QAction("Apply On/Off coloring", self)
-        onoff_action.setIcon(QIcon(":/icons/onoff.png"))
-        onoff_action.triggered.connect(self.set_onoff)
-        self.scenario_menu.addAction(onoff_action)
+        self.scenario_menu.addAction(self.heaton_action)
+        self.scenario_menu.addAction(self.onoff_action)
+        self.scenario_menu.addAction(update_action)
 
         self.clipboard_menu = self.menu.addMenu("Clipboard")
 
@@ -224,6 +240,11 @@ class MainWindow(QMainWindow):
         fba_action.triggered.connect(self.fba)
         self.analysis_menu.addAction(fba_action)
 
+        self.auto_fba_action = QAction("Auto FBA", self)
+        self.auto_fba_action.triggered.connect(self.auto_fba)
+        self.auto_fba_action.setCheckable(True)
+        self.analysis_menu.addAction(self.auto_fba_action)
+
         pfba_action = QAction(
             "Parsimonious Flux Balance Analysis (pFBA)", self)
         pfba_action.triggered.connect(self.pfba)
@@ -232,6 +253,10 @@ class MainWindow(QMainWindow):
         fva_action = QAction("Flux Variability Analysis (FVA)", self)
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
+
+        qlp_fba_action = QAction("Make scenario feasible (QLP)", self)
+        qlp_fba_action.triggered.connect(self.qlp_fba)
+        self.analysis_menu.addAction(qlp_fba_action)
 
         self.analysis_menu.addSeparator()
 
@@ -254,6 +279,7 @@ class MainWindow(QMainWindow):
         self.mcs_action = QAction("Compute Minimal Cut Sets ...", self)
         self.mcs_action.triggered.connect(self.mcs)
         self.mcs_menu.addAction(self.mcs_action)
+        self.mcs_dialog = None
 
         load_mcs_action = QAction("Load Minimal Cut Sets...", self)
         self.mcs_menu.addAction(load_mcs_action)
@@ -318,10 +344,6 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
-        update_action = QAction("Default Coloring", self)
-        update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(central_widget.update)
-
         zoom_in_action = QAction("Zoom in Map", self)
         zoom_in_action.setIcon(QIcon(":/icons/zoom-in.png"))
         zoom_in_action.triggered.connect(self.zoom_in)
@@ -332,13 +354,25 @@ class MainWindow(QMainWindow):
 
         self.set_current_filename("Untitled project")
 
+        self.heaton_action.setCheckable(True)
+        self.onoff_action.setCheckable(True)
+        update_action.setCheckable(True)
+        update_action.setChecked(True)
+        colorings = QActionGroup(self)
+        colorings.addAction(self.heaton_action)
+        colorings.addAction(self.onoff_action)
+        colorings.addAction(update_action)
+        colorings.setExclusive(True)
+
         self.tool_bar = QToolBar()
-        self.tool_bar.addAction(clear_scenario_action)
+        self.tool_bar.addAction(clear_all_action)
         self.tool_bar.addAction(undo_scenario_action)
         self.tool_bar.addAction(redo_scenario_action)
-        self.tool_bar.addAction(heaton_action)
-        self.tool_bar.addAction(onoff_action)
+        self.tool_bar.addSeparator()
+        self.tool_bar.addAction(self.heaton_action)
+        self.tool_bar.addAction(self.onoff_action)
         self.tool_bar.addAction(update_action)
+        self.tool_bar.addSeparator()
         self.tool_bar.addAction(zoom_in_action)
         self.tool_bar.addAction(zoom_out_action)
         self.addToolBar(self.tool_bar)
@@ -347,13 +381,20 @@ class MainWindow(QMainWindow):
             QKeySequence('Ctrl+f'), self)
         self.focus_search_action.activated.connect(self.focus_search_box)
 
+        status_bar: QStatusBar = self.statusBar()
+        self.solver_status_display = QLabel()
+        status_bar.addPermanentWidget(self.solver_status_display)
+        self.solver_status_symbol = QLabel()
+        status_bar.addPermanentWidget(self.solver_status_symbol)
+
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
     def closeEvent(self, event):
         if self.checked_unsaved():
+            self.close_project_dialogs()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
         else:
             event.ignore()
 
@@ -405,13 +446,13 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.setEnabled(False)
 
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
-            if try_cna(self.appdata.matlab_engine, self.appdata.cna_path):
+            if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
         elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
-            if try_cna(self.appdata.octave_engine, self.appdata.cna_path):
+            if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.mcs_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
@@ -420,7 +461,7 @@ class MainWindow(QMainWindow):
     def exit_app(self):
         if self.checked_unsaved():
             # releases the memory map file if this is a FluxVectorMemmap
-            del self.appdata.project.modes
+            self.appdata.project.modes.clear()
             QApplication.quit()
 
     def set_current_filename(self, filename):
@@ -440,8 +481,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def phase_plane(self):
-        dialog = PhasePlaneDialog(self.appdata)
-        dialog.exec_()
+        self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
+        self.phase_plane_dialog.show()
 
     @Slot()
     def optimize_yield(self):
@@ -460,6 +501,9 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
+        if self.mcs_dialog is not None:
+            dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
+            dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -511,7 +555,11 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
-    def load_scenario(self):
+    def merge_scenario(self):
+        self.load_scenario(merge=True)
+
+    @Slot()
+    def load_scenario(self, merge=False):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             directory=self.appdata.last_scen_directory, filter="*.scen")[0]
@@ -520,22 +568,32 @@ class MainWindow(QMainWindow):
 
         with open(filename, 'r') as fp:
             values = json.load(fp)
-            self.appdata.project.scen_values.clear()
+            if not merge:
+                self.appdata.project.scen_values.clear()
             self.appdata.scenario_past.clear()
             self.appdata.scenario_future.clear()
             missing_reactions = []
+            reactions = []
+            scen_values = []
             for i in values:
-                self.appdata.scen_values_set(i, values[i])
-                if i not in  self.appdata.project.cobra_py_model.reactions:
+                if i in self.appdata.project.cobra_py_model.reactions:
+                    reactions.append(i)
+                    scen_values.append(values[i])
+                else:
                     missing_reactions.append(i)
 
             if len(missing_reactions) > 0 :
                 QMessageBox.warning(
                             self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
+            self.appdata.scen_values_set_multiple(reactions, scen_values)
             self.appdata.project.comp_values.clear()
-        self.centralWidget().update()
-
+            self.appdata.project.fva_values.clear()
+        if self.appdata.auto_fba:
+            self.fba()
+        else:
+            self.centralWidget().update()
+            self.clear_status_bar()
         self.appdata.last_scen_directory = os.path.dirname(filename)
 
     @Slot()
@@ -702,6 +760,8 @@ class MainWindow(QMainWindow):
             last = self.appdata.scenario_past.pop()
             self.appdata.scenario_future.append(last)
             self.appdata.recreate_scenario_from_history()
+            if self.appdata.auto_fba:
+                self.fba()
             self.centralWidget().update()
 
     def redo_scenario_edit(self):
@@ -710,23 +770,37 @@ class MainWindow(QMainWindow):
             nex = self.appdata.scenario_future.pop()
             self.appdata.scenario_past.append(nex)
             self.appdata.recreate_scenario_from_history()
+            if self.appdata.auto_fba:
+                self.fba()
             self.centralWidget().update()
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
+        self.centralWidget().update()
+
+    def clear_all(self):
+        self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
+        self.clear_status_bar()
 
     def load_default_scenario(self):
         self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         self.appdata.scen_values_clear()
-        for r in self.appdata.project.cobra_py_model.reactions:
-            if 'cnapy-default' in r.annotation.keys():
-                self.centralWidget().update_reaction_value(
-                    r.id, r.annotation['cnapy-default'])
-        self.centralWidget().update()
+        (reactions, values) = self.appdata.project.collect_default_scenario_values()
+        if len(reactions) == 0:
+            self.appdata.scen_values_clear()
+        else:
+            self.appdata.scen_values_set_multiple(reactions, values)
+        if self.appdata.auto_fba:
+            self.fba()
+        else:
+            self.centralWidget().update()
+            self.clear_status_bar()
 
     @Slot()
     def new_project(self):
@@ -741,6 +815,8 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         self.centralWidget().mode_navigator.clear()
+        self.centralWidget().reaction_list.reaction_list.clear()
+        self.close_project_dialogs()
 
         self.appdata.project.scen_values.clear()
         self.appdata.scenario_past.clear()
@@ -772,7 +848,7 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model = cobra_py_model
 
             self.recreate_maps()
-            self.centralWidget().update()
+            self.centralWidget().update(rebuild=True)
 
             self.setCursor(Qt.ArrowCursor)
 
@@ -785,6 +861,7 @@ class MainWindow(QMainWindow):
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
 
+            self.close_project_dialogs()
             temp_dir = TemporaryDirectory()
 
             self.setCursor(Qt.BusyCursor)
@@ -822,12 +899,14 @@ class MainWindow(QMainWindow):
                     self.recreate_maps()
                     self.centralWidget().mode_navigator.clear()
                     self.appdata.project.scen_values.clear()
+                    self.appdata.project.comp_values.clear()
+                    self.appdata.project.fva_values.clear()
                     self.appdata.scenario_past.clear()
                     self.appdata.scenario_future.clear()
-                    for r in self.appdata.project.cobra_py_model.reactions:
-                        if 'cnapy-default' in r.annotation.keys():
-                            self.centralWidget().update_reaction_value(
-                                r.id, r.annotation['cnapy-default'])
+                    self.clear_status_bar()
+                    (reactions, values) = self.appdata.project.collect_default_scenario_values()
+                    if len(reactions) > 0:
+                        self.appdata.scen_values_set_multiple(reactions, values)
                     self.nounsaved_changes()
 
                     # if project contains maps move splitter and fit mapview
@@ -836,7 +915,7 @@ class MainWindow(QMainWindow):
                         self.centralWidget().splitter2.moveSplitter(r*0.8, 1)
                         self.centralWidget().fit_mapview()
 
-                    self.centralWidget().update()
+                    self.centralWidget().update(rebuild=True)
             except FileNotFoundError:
                 output = io.StringIO()
                 traceback.print_exc(file=output)
@@ -844,6 +923,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, 'Could not open project.', exstr)
 
             self.setCursor(Qt.ArrowCursor)
+
+    def close_project_dialogs(self):
+        '''closes modeless dialogs'''
+        if self.mcs_dialog is not None:
+            self.mcs_dialog.close()
+            self.mcs_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -948,7 +1033,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         for name, mmap in self.appdata.project.maps.items():
-            mmap = MapView(self.appdata, name)
+            mmap = MapView(self.appdata, self.centralWidget(), name)
             mmap.show()
             mmap.switchToReactionMask.connect(
                 self.centralWidget().switch_to_reaction)
@@ -956,6 +1041,8 @@ class MainWindow(QMainWindow):
                 self.centralWidget().minimize_reaction)
             mmap.maximizeReaction.connect(
                 self.centralWidget().maximize_reaction)
+            mmap.setScenValue.connect(
+                self.centralWidget().set_scen_value)
             mmap.reactionValueChanged.connect(
                 self.centralWidget().update_reaction_value)
             mmap.reactionRemoved.connect(
@@ -1002,9 +1089,9 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def add_values_to_scenario(self):
-        for key in self.appdata.project.comp_values.keys():
-            self.appdata.scen_values_set(
-                key, self.appdata.project.comp_values[key])
+        self.appdata.scen_values_set_multiple(list(self.appdata.project.comp_values.keys()),
+                                              list(self.appdata.project.comp_values.values()))
+        self.appdata.project.comp_values.clear()
         self.centralWidget().update()
 
     def set_model_bounds_to_scenario(self):
@@ -1027,28 +1114,68 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
         self.unsaved_changes()
 
+    def auto_fba(self):
+        if self.auto_fba_action.isChecked():
+            self.appdata.auto_fba = True
+            self.fba()
+        else:
+            self.appdata.auto_fba = False
+
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            solution = model.optimize()
-            if solution.status == 'optimal':
-                self.centralWidget().kernel_client.execute(
-                    "print('\\nObjective value: "+str(solution.objective_value)+"')")
-                soldict = solution.fluxes.to_dict()
-                for i in soldict:
-                    self.appdata.project.comp_values[i] = (
-                        soldict[i], soldict[i])
-            elif solution.status == 'infeasible':
-                QMessageBox.information(
-                    self, 'No solution!', 'No solution the scenario is infeasible!')
-                self.appdata.project.comp_values.clear()
-            else:
-                QMessageBox.information(
-                    self, 'No solution!', solution.status)
-                self.appdata.project.comp_values.clear()
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution()
+
+    def process_fba_solution(self, update=True):
+        if self.appdata.project.solution.status == 'optimal':
+            display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
+            self.set_status_optimal()
+            for r, v in self.appdata.project.solution.fluxes.items():
+                self.appdata.project.comp_values[r] = (v, v)
+        elif self.appdata.project.solution.status == 'infeasible':
+            display_text = "No solution, the current scenario is infeasible"
+            self.set_status_infeasible()
+            self.appdata.project.comp_values.clear()
+        else:
+            display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
+            self.set_status_unknown()
+            self.appdata.project.comp_values.clear()
+        self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
+        self.solver_status_display.setText(display_text)
+        self.appdata.project.comp_values_type = 0
+        if update:
             self.centralWidget().update()
 
-    def fba_optimize_reaction(self, reaction: str, mmin: bool):
+    def qlp_fba(self):
+        with self.appdata.project.cobra_py_model as model:
+            model.objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
+            reactions_in_objective = []
+            for reaction_id, scen_val in self.appdata.project.scen_values.items():
+                try:
+                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
+                except KeyError:
+                    print('reaction', reaction_id, 'not found!')
+                    continue
+                if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
+                    reactions_in_objective.append(reaction_id)
+                    try:
+                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/abs(scen_val[0])
+                    except ValueError:
+                        QMessageBox.critical(self, "Solver with support for quadratic objectives required",
+                                "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
+                        return
+                else:
+                    reaction.lower_bound = scen_val[0]
+                    reaction.upper_bound = scen_val[1]
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution(update=False)
+        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
+            self.appdata.scen_values_set_multiple(reactions_in_objective,
+                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+        self.centralWidget().update()
+
+    def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             for r in self.appdata.project.cobra_py_model.reactions:
@@ -1059,21 +1186,8 @@ class MainWindow(QMainWindow):
                         r.objective_coefficient = 1
                 else:
                     r.objective_coefficient = 0
-            solution = model.optimize()
-            if solution.status == 'optimal':
-                soldict = solution.fluxes.to_dict()
-                for i in soldict:
-                    self.appdata.project.comp_values[i] = (
-                        soldict[i], soldict[i])
-            elif solution.status == 'infeasible':
-                QMessageBox.information(
-                    self, 'No solution!', 'No solution the scenario is infeasible!')
-                self.appdata.project.comp_values.clear()
-            else:
-                QMessageBox.information(
-                    self, 'No solution!', solution.status)
-                self.appdata.project.comp_values.clear()
-        self.centralWidget().update()
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution()
 
     def pfba(self):
         with self.appdata.project.cobra_py_model as model:
@@ -1081,9 +1195,13 @@ class MainWindow(QMainWindow):
             try:
                 solution = cobra.flux_analysis.pfba(model)
             except cobra.exceptions.Infeasible:
-                QMessageBox.information(
-                    self, 'No solution', 'The scenario is infeasible')
+                display_text = "No solution, the current scenario is infeasible"
+                self.set_status_infeasible()
+                self.appdata.project.comp_values.clear()
             except Exception:
+                display_text = "An unexpected error occured."
+                self.set_status_unknown()
+                self.appdata.project.comp_values.clear()
                 output = io.StringIO()
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
@@ -1095,11 +1213,17 @@ class MainWindow(QMainWindow):
                     for i in soldict:
                         self.appdata.project.comp_values[i] = (
                             soldict[i], soldict[i])
+                    display_text = "Optimal solution with objective value "+ \
+                        self.appdata.format_flux_value(solution.objective_value)
+                    self.set_status_optimal()
                 else:
-                    QMessageBox.information(
-                        self, 'No solution!', solution.status)
+                    display_text = "No optimal solution, solver status is "+solution.status
+                    self.set_status_unknown()
                     self.appdata.project.comp_values.clear()
             finally:
+                self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
+                self.solver_status_display.setText(display_text)
+                self.appdata.project.comp_values_type = 0
                 self.centralWidget().update()
 
     def execute_print_model_stats(self):
@@ -1238,6 +1362,7 @@ class MainWindow(QMainWindow):
         for reaction in self.appdata.project.cobra_py_model.reactions:
             self.appdata.project.comp_values[reaction.id] = (
                 reaction.lower_bound, reaction.upper_bound)
+        self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
@@ -1270,8 +1395,8 @@ class MainWindow(QMainWindow):
                 for i in minimum:
                     self.appdata.project.comp_values[i] = (
                         minimum[i], maximum[i])
-
-                self.appdata.project.compute_color_type = 3
+                self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+                self.appdata.project.comp_values_type = 1
 
         self.centralWidget().update()
         self.setCursor(Qt.ArrowCursor)
@@ -1294,12 +1419,14 @@ class MainWindow(QMainWindow):
     def mcs(self):
         self.mcs_dialog = MCSDialog(
             self.appdata, self.centralWidget())
-        self.mcs_dialog.exec_()
+        self.mcs_dialog.show()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0:
+        if idx == 0 and self.appdata.project.comp_values_type == 0:
+            # do coloring of LB/UB columns in this case?
             view = self.centralWidget().reaction_list
+            view.reaction_list.blockSignals(True) # block itemChanged while recoloring
             root = view.reaction_list.invisibleRootItem()
             child_count = root.childCount()
             for i in range(child_count):
@@ -1308,11 +1435,12 @@ class MainWindow(QMainWindow):
                 if key in self.appdata.project.scen_values:
                     value = self.appdata.project.scen_values[key]
                     color = self.compute_color_onoff(value)
-                    item.setBackground(2, color)
+                    item.setBackground(ReactionListColumn.Flux, color)
                 elif key in self.appdata.project.comp_values:
                     value = self.appdata.project.comp_values[key]
                     color = self.compute_color_onoff(value)
-                    item.setBackground(2, color)
+                    item.setBackground(ReactionListColumn.Flux, color)
+            view.reaction_list.blockSignals(False)
 
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
@@ -1343,8 +1471,10 @@ class MainWindow(QMainWindow):
     def set_heaton(self):
         (low, high) = self.high_and_low()
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0:
+        if idx == 0 and self.appdata.project.comp_values_type == 0:
+            # TODO: coloring of LB/UB columns
             view = self.centralWidget().reaction_list
+            view.reaction_list.blockSignals(True) # block itemChanged while recoloring
             root = view.reaction_list.invisibleRootItem()
             child_count = root.childCount()
             for i in range(child_count):
@@ -1353,11 +1483,12 @@ class MainWindow(QMainWindow):
                 if key in self.appdata.project.scen_values:
                     value = self.appdata.project.scen_values[key]
                     color = self.compute_color_heat(value, low, high)
-                    item.setBackground(2, color)
+                    item.setBackground(ReactionListColumn.Flux, color)
                 elif key in self.appdata.project.comp_values:
                     value = self.appdata.project.comp_values[key]
                     color = self.compute_color_heat(value, low, high)
-                    item.setBackground(2, color)
+                    item.setBackground(ReactionListColumn.Flux, color)
+            view.reaction_list.blockSignals(False)
 
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
@@ -1455,6 +1586,21 @@ class MainWindow(QMainWindow):
         (_, r) = self.centralWidget().splitter.getRange(1)
         self.centralWidget().splitter.moveSplitter(r*0.5, 1)
 
+    def clear_status_bar(self):
+        self.solver_status_display.setText("")
+        self.solver_status_symbol.setText("")
+
+    def set_status_optimal(self):
+        self.solver_status_symbol.setStyleSheet("color: green; font-weight: bold")
+        self.solver_status_symbol.setText("\u2713")
+
+    def set_status_infeasible(self):
+        self.solver_status_symbol.setStyleSheet("color: red; font-weight: bold")
+        self.solver_status_symbol.setText("\u2717")
+
+    def set_status_unknown(self):
+        self.solver_status_symbol.setStyleSheet("color: black")
+        self.solver_status_symbol.setText("?")
 
 def my_mean(value):
     if isinstance(value, float):

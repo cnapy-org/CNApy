@@ -271,7 +271,7 @@ class YieldOptimizationDialog(QDialog):
                             self.appdata.project.comp_values[r] = (
                                 float(val), float(val))
                             idx = idx+1
-
+                        self.appdata.project.comp_values_type = 0
                         self.central_widget.update()
 
             elif self.appdata.is_octave_ready():
@@ -297,6 +297,7 @@ class YieldOptimizationDialog(QDialog):
                         self.appdata.project.comp_values[r] = (
                             float(val), float(val))
                         idx = idx+1
+                    self.appdata.project.comp_values_type = 0
                     self.central_widget.update()
 
         self.setCursor(Qt.ArrowCursor)

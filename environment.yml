@@ -17,11 +17,7 @@ dependencies:
   - appdirs
   - cobra=0.22
   - qtconsole=5.0
-  - jpype1
-  - psutil
-  - numpy
-  - scipy
-  - optlang
-  - efmtool_link=0.0.3
+  - requests
+  - efmtool_link=0.0.4
   - optlang_enumerator=0.0.6
 prefix: /home/user/miniconda3/envs/cnapy

@@ -7,6 +7,7 @@ import cobra
 from cobra.util.solver import interface_to_str, solvers
 from multiprocessing import cpu_count
 
+from qtpy.QtCore import Signal
 from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
@@ -116,6 +117,7 @@ class ConfigCobrapyDialog(QDialog):
             self.appdata.project.cobra_py_model.solver = self.current_solver.currentText()
             self.appdata.project.cobra_py_model.tolerance = float(
                 self.current_tolerance.text())
+            self.optlang_solver_set.emit()
         except Exception as e:
             QMessageBox.critical(
                 self, "Cannot set current solver/tolerance", str(e))
@@ -141,3 +143,5 @@ class ConfigCobrapyDialog(QDialog):
         fp.close()
 
         self.accept()
+
+    optlang_solver_set = Signal()

@@ -29,6 +29,11 @@ class FluxVectorContainer:
     def __len__(self):
         return self.fv_mat.shape[0]
 
+    def is_integer_vector_rounded(self, idx, decimals=0):
+        # TODO: does not yet work when fv_mat is list of lists sparse matrix
+        # return all([val.is_integer() for val in numpy.round(self.fv_mat[idx, :], decimals)])
+        return all(round(val, decimals).is_integer() for val in self.fv_mat[idx, :])
+
     def __getitem__(self, idx):
         return{self.reac_id[i]: float(self.fv_mat[idx, i]) for i in range(len(self.reac_id)) if self.fv_mat[idx, i] != 0}
 
