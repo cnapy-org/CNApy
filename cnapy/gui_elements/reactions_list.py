@@ -266,7 +266,6 @@ class ReactionList(QWidget):
         self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
-
         self.reaction_mask.annotation.itemChanged.disconnect(
             self.reaction_mask.throttler.throttle)
         c = self.reaction_mask.annotation.rowCount()
@@ -306,8 +305,6 @@ class ReactionList(QWidget):
             self.reaction_mask.gene_reaction_rule.setText(
                 str(reaction.gene_reaction_rule))
             self.update_annotations(reaction.annotation)
-
-            self.reaction_mask.changed = False
 
             turn_white(self.reaction_mask.id)
             turn_white(self.reaction_mask.name)
@@ -533,7 +530,7 @@ class ReactionMask(QWidget):
         self.parent: ReactionList = parent
         self.reaction = None
         self.is_valid = True
-        self.changed = False
+        self.fba_relevant_change = False
         self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
@@ -650,9 +647,16 @@ class ReactionMask(QWidget):
         self.id.textEdited.connect(self.throttler.throttle)
         self.name.textEdited.connect(self.throttler.throttle)
         self.equation.editingFinished.connect(self.reaction_data_changed)
+        self.equation.editingFinished.connect(self.auto_fba)
         self.lower_bound.textEdited.connect(self.throttler.throttle)
+        self.lower_bound.editingFinished.connect(self.throttler.finish)
+        self.lower_bound.editingFinished.connect(self.auto_fba)
         self.upper_bound.textEdited.connect(self.throttler.throttle)
+        self.upper_bound.editingFinished.connect(self.throttler.finish)
+        self.upper_bound.editingFinished.connect(self.auto_fba)
         self.coefficent.textEdited.connect(self.throttler.throttle)
+        self.coefficent.editingFinished.connect(self.throttler.finish)
+        self.coefficent.editingFinished.connect(self.auto_fba)
         self.gene_reaction_rule.textEdited.connect(self.throttler.throttle)
         self.annotation.itemChanged.connect(self.throttler.throttle)
 
@@ -660,27 +664,30 @@ class ReactionMask(QWidget):
     def add_anno_row(self):
         i = self.annotation.rowCount()
         self.annotation.insertRow(i)
-        self.changed = True
 
     def apply(self):
+        bounds = self.reaction.bounds
         try:
-            self.reaction.lower_bound = float(self.lower_bound.text())
-            self.reaction.upper_bound = float(self.upper_bound.text())
+            self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
         except ValueError as exception:
+            self.is_valid = False
             turn_red(self.lower_bound)
             turn_red(self.upper_bound)
             QMessageBox.warning(self, 'ValueError', str(exception))
         else:
+            id_ = self.reaction.id
             if self.reaction.id != self.id.text():
                 self.reaction.id = self.id.text()
+            name = self.reaction.name
             self.reaction.name = self.name.text()
-            self.reaction.build_reaction_from_string(self.equation.text())
-            self.reaction.lower_bound = float(self.lower_bound.text())
-            self.reaction.upper_bound = float(self.upper_bound.text())
+            metabolites = self.reaction.metabolites
+            self.reaction.build_reaction_from_string(self.equation.text()) # creates a new metabolites dict
+            objective_coefficient = self.reaction.objective_coefficient
             self.reaction.objective_coefficient = float(self.coefficent.text())
             self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
-            self.reaction.lower_bound = float(self.lower_bound.text())
-            self.reaction.upper_bound = float(self.upper_bound.text())
+            gene_reaction_rule = self.reaction.gene_reaction_rule
+            self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
+            annotation = self.reaction.annotation
             self.reaction.annotation = {}
             rows = self.annotation.rowCount()
             for i in range(0, rows):
@@ -695,9 +702,20 @@ class ReactionMask(QWidget):
 
                 self.reaction.annotation[key] = value
 
-            self.changed = False
-            self.reactionChanged.emit(self.reaction)
-            self.parent.update_item(self.parent.reaction_list.currentItem())
+            if bounds != self.reaction.bounds or metabolites != self.reaction.metabolites or \
+                objective_coefficient != self.reaction.objective_coefficient:
+                self.fba_relevant_change = True
+            if self.fba_relevant_change or name != self.reaction.name or \
+                gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
+                annotation != self.reaction.annotation:
+                self.reactionChanged.emit(self.reaction)
+                self.parent.update_item(self.parent.reaction_list.currentItem())
+                self.parent.central_widget.update()
+
+    def auto_fba(self):
+        if self.fba_relevant_change and self.parent.appdata.auto_fba:
+            self.fba_relevant_change = False
+            self.parent.central_widget.parent.fba()
 
     def check_in_identifiers_org(self):
         self.setCursor(Qt.BusyCursor)
@@ -860,7 +878,6 @@ class ReactionMask(QWidget):
             self.is_valid = False
 
     def reaction_data_changed(self):
-        self.changed = True
         self.validate_mask()
         if self.is_valid:
             self.apply()
