@@ -681,7 +681,9 @@ class ReactionMask(QWidget):
             name = self.reaction.name
             self.reaction.name = self.name.text()
             metabolites = self.reaction.metabolites
-            self.reaction.build_reaction_from_string(self.equation.text()) # creates a new metabolites dict
+            if self.equation.isModified():
+                self.reaction.build_reaction_from_string(self.equation.text()) # creates a new metabolites dict
+                self.equation.setModified(False)
             objective_coefficient = self.reaction.objective_coefficient
             self.reaction.objective_coefficient = float(self.coefficent.text())
             self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
@@ -798,7 +800,10 @@ class ReactionMask(QWidget):
                 return True
 
     def validate_equation(self):
+        if not self.equation.isModified():
+            return True
         ok = False
+        existing_metabolites = set(self.parent.appdata.project.cobra_py_model.metabolites.list_attr('id'))
         test_reaction = cobra.Reaction(
             "xxxx_cnapy_test_reaction", name="cnapy test reaction")
         with self.parent.appdata.project.cobra_py_model as model:
@@ -814,6 +819,28 @@ class ReactionMask(QWidget):
                     ok = True
             except ValueError:
                 turn_red(self.equation)
+
+            if ok:
+                new_metabolites = {m.id for m in test_reaction.metabolites} - existing_metabolites
+                print("new_metabolites", new_metabolites)
+                if len(new_metabolites) > 0:
+                    self.equation.blockSignals(True)
+                    msg_box = QMessageBox(self)
+                    msg_box.setIcon(QMessageBox.Question)
+                    msg_box.setWindowTitle("Create new metabolites?")
+                    msg_box.setText("The following metabolites do not exist and will be added to the model:\n" +
+                                    ', '.join(new_metabolites))
+                    msg_box.setDefaultButton(msg_box.addButton(QMessageBox.Ok)) #"Ok", QMessageBox.AcceptRole))
+                    edit_but = msg_box.addButton("Edit equation", QMessageBox.RejectRole)
+                    revert_but = msg_box.addButton("Revert equation", QMessageBox.ResetRole)
+                    msg_box.exec_()
+                    if msg_box.clickedButton() == edit_but:
+                        self.equation.setFocus()
+                        ok = False
+                    elif msg_box.clickedButton() == revert_but:
+                        self.equation.setText(model.reactions.get_by_id(self.id.text()).build_reaction_string())
+                        self.equation.setModified(False)
+                    self.equation.blockSignals(False)
 
         try:
             test_reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(

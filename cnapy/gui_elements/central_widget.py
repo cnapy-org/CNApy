@@ -2,7 +2,6 @@
 
 import numpy
 import cobra
-from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal
@@ -201,9 +200,6 @@ class CentralWidget(QWidget):
         if idx == 0:
             self.reaction_list.update()
         elif idx == 1:
-            (clean_model, unused_mets) = prune_unused_metabolites(
-                self.appdata.project.cobra_py_model)
-            self.appdata.project.cobra_py_model = clean_model
             self.metabolite_list.update()
         elif idx == 2:
             self.gene_list.update()

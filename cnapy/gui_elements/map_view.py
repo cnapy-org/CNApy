@@ -149,14 +149,15 @@ class MapView(QGraphicsView):
             super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
-        if self.select: # select multiple boxes
-            self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
-            self.select_start = self.mapToScene(event.pos())
-        else: # drag entire map
-            self.viewport().setCursor(Qt.ClosedHandCursor)
-            self.setDragMode(QGraphicsView.ScrollHandDrag)
-            self.drag_map = True
-        super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
+        if self.hasFocus():
+            if self.select: # select multiple boxes
+                self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
+                self.select_start = self.mapToScene(event.pos())
+            else: # drag entire map
+                self.viewport().setCursor(Qt.ClosedHandCursor)
+                self.setDragMode(QGraphicsView.ScrollHandDrag)
+                self.drag_map = True
+            super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.drag_map:
@@ -191,7 +192,10 @@ class MapView(QGraphicsView):
 
     def enterEvent(self, event) -> None:
         super().enterEvent(event)
-        self.setFocus() # to capture Shift/Ctrl keys
+        if not isinstance(QApplication.focusWidget(), QLineEdit):
+            # only take focus if no QlineEdit is active to prevent
+            # editingFinished signals there
+            self.setFocus() # to capture Shift/Ctrl keys
 
     def leaveEvent(self, event) -> None:
         super().leaveEvent(event)

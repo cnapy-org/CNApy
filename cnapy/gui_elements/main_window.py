@@ -10,7 +10,7 @@ import cobra
 import optlang
 import numpy as np
 
-from cobra.manipulation.delete import prune_unused_metabolites
+# from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
@@ -934,9 +934,11 @@ class MainWindow(QMainWindow):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
-        # remove unused species
-        (clean_model, unused_mets) = prune_unused_metabolites(
-            self.appdata.project.cobra_py_model)
+        # remove unused species - > cleanup disabled for now because of issues 
+        # with prune_unused_metabolites
+        # (clean_model, unused_mets) = prune_unused_metabolites(
+        #     self.appdata.project.cobra_py_model)
+        clean_model = self.appdata.project.cobra_py_model
         # set unset compartments to ''
         undefined = ''
         for m in clean_model.metabolites:
