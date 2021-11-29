@@ -132,6 +132,8 @@ class YieldOptimizationDialog(QDialog):
             # create CobraModel for matlab
             self.appdata.create_cobra_model()
 
+            # The following try-except block is added as a workaround as long as the
+            # current CNA version cannot be directly read.
             try:
                 self.eng.eval("load('cobra_model.mat')",
                             nargout=0)

@@ -203,6 +203,8 @@ class MCSDialog(QDialog):
             deactivate_external_solvers = True
 
         if not deactivate_external_solvers:
+            # The following try-except block is added as a workaround as long as the
+            # current CNA version cannot be directly read.
             try:
                 self.solver_cplex_matlab.setEnabled(
                     self.eng.is_cplex_matlab_ready())
