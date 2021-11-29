@@ -23,7 +23,7 @@ from configparser import NoOptionError, NoSectionError
 
 import cobra
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication, QMessageBox
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.main_window import MainWindow
@@ -54,6 +54,9 @@ class Application:
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
         self.window.recreate_maps()
+        self.window.resize(1200, 1000)
+        self.window.save_project_action.setEnabled(False)
+        self.window.show()
 
         config_file_version = self.read_config()
         if sys.platform == "win32":  # CNApy running on Windows
@@ -64,6 +67,9 @@ class Application:
         if config_file_version != self.appdata.version:
             if not os.path.exists(self.appdata.work_directory):
                 self.window.show_download_dialog()
+            QMessageBox.information(self.window, 'CNA bridge',
+                'If you want to use the CNA legacy functions you can set up the CNA configuration under:\n'+
+                'Config -> Configure CNA bridge')
         if self.appdata.selected_engine == "matlab":
             self.appdata.matlab_engine = try_matlab_engine()
             if self.appdata.matlab_engine is not None:
@@ -76,9 +82,6 @@ class Application:
         self.appdata.select_engine()
 
         self.window.disable_enable_dependent_actions()
-        self.window.save_project_action.setEnabled(False)
-        self.window.resize(1200, 1000)
-        self.window.show()
 
         # Execute application
 

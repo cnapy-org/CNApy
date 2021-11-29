@@ -27,7 +27,7 @@ class ConfigCNADialog(QDialog):
         self.cna_ok = False
 
         descr = QLabel(
-            "Some functionalities in CNApy need a working CNA installation. " \
+            "Some functionalities in CNApy need a working CNA (>= 2021.1) installation. " \
             "To use CNA you need either Matlab >= R2019 or Octave >= 5.\n" \
             "Below you can choose a Matlab directory or the Octave executable. "\
             "Only if one of the engines is green your CNA directory can be validated.")
