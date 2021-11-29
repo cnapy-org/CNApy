@@ -198,16 +198,35 @@ class MCSDialog(QDialog):
 
         # Disable incompatible combinations
         self.solver_optlang.setChecked(True)
+        deactivate_external_solvers = False
         if (appdata.selected_engine == 'None') or (self.eng is None) or (not appdata.cna_ok):  # Hotfix
+            deactivate_external_solvers = True
+
+        if not deactivate_external_solvers:
+            try:
+                self.solver_cplex_matlab.setEnabled(
+                    self.eng.is_cplex_matlab_ready())
+                self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
+                self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
+            except Exception:  # Either a Matlab or an Octave error due to a wrong configuration of CellNetAnalyzer
+                msgBox = QMessageBox()
+                msgBox.setWindowTitle("CellNetAnalyzer error!")
+                msgBox.setTextFormat(Qt.RichText)
+                msgBox.setText("<p>Error when loading CellNetAnalyzer. MCS calculation only possible with cobrapy solvers.<br>"
+                               "This error may be resolved in one of the following ways:<br>"
+                               "1. Check that you have the latest CellNetAnalyzer version and that you have set in in CNApy's configuration correctly.<br>"
+                               "2. If CellNetAnalyzer is up-to-date and correctly set in CNApy and this error still occurs, check that you can successfully run CellNetAnalyzer using MATLAB or Octave. "
+                               "</p>")
+                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.exec()
+                deactivate_external_solvers = True
+
+        if deactivate_external_solvers:
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
-        else:
-            self.solver_cplex_matlab.setEnabled(
-                self.eng.is_cplex_matlab_ready())
-            self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
-            self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
+
         self.configure_solver_options()
 
         s4 = QVBoxLayout()
