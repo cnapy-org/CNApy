@@ -22,6 +22,7 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
+from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
@@ -328,6 +329,10 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
+        config_action = QAction("Configure CNA bridge ...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_cna_dialog)
+
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
         show_console_action.triggered.connect(self.show_console)
@@ -492,6 +497,13 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_config_cna_dialog(self):
+        self.setCursor(Qt.BusyCursor)
+        dialog = ConfigCNADialog(self.appdata)
+        self.setCursor(Qt.ArrowCursor)
         dialog.exec_()
 
     def show_download_dialog(self):

@@ -1,5 +1,6 @@
 """The application data"""
 import os
+from configparser import ConfigParser
 import pathlib
 from tempfile import TemporaryDirectory
 from typing import List, Dict, Tuple
@@ -140,6 +141,30 @@ class AppData:
             self.selected_engine = "None"
             print("No engine selected!")
 
+    def save_cnapy_config(self):
+        try:
+            fp = open(self.conf_path, "w")
+        except FileNotFoundError:
+            os.makedirs(appdirs.user_config_dir("cnapy", roaming=True, appauthor=False))
+            fp = open(self.conf_path, "w")
+        parser = ConfigParser()
+        parser.add_section('cnapy-config')
+        parser.set('cnapy-config', 'version', self.version)
+        parser.set('cnapy-config', 'matlab_path', self.matlab_path)
+        parser.set('cnapy-config', 'OCTAVE_EXECUTABLE', self.octave_executable)
+        parser.set('cnapy-config', 'work_directory', self.work_directory)
+        parser.set('cnapy-config', 'cna_path', self.cna_path)
+        parser.set('cnapy-config', 'scen_color', str(self.scen_color.rgb()))
+        parser.set('cnapy-config', 'comp_color', str(self.comp_color.rgb()))
+        parser.set('cnapy-config', 'spec1_color', str(self.special_color_1.rgb()))
+        parser.set('cnapy-config', 'spec2_color', str(self.special_color_2.rgb()))
+        parser.set('cnapy-config', 'default_color', str(self.default_color.rgb()))
+        parser.set('cnapy-config', 'box_width', str(self.box_width))
+        parser.set('cnapy-config', 'rounding', str(self.rounding))
+        parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))
+        parser.set('cnapy-config', 'selected_engine', str(self.selected_engine))
+        parser.write(fp)
+        fp.close()
 
 class ProjectData:
     ''' The cnapy project data '''
