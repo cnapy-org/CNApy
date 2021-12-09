@@ -8,6 +8,7 @@ from zipfile import ZipFile
 from cnapy.flux_vector_container import FluxVectorContainer
 import cobra
 import optlang
+from optlang.symbolics import Zero
 import numpy as np
 
 # from cobra.manipulation.delete import prune_unused_metabolites
@@ -255,9 +256,13 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        qlp_fba_action = QAction("Make scenario feasible (QLP)", self)
-        qlp_fba_action.triggered.connect(self.qlp_fba)
-        self.analysis_menu.addAction(qlp_fba_action)
+        self.make_feasible_menu = self.analysis_menu.addMenu("Make scenario feasible")
+        make_feasible_linear_action = QAction("Linear objective (LP)", self)
+        make_feasible_linear_action.triggered.connect(self.make_feasible_linear)
+        self.make_feasible_menu.addAction(make_feasible_linear_action)
+        make_feasible_quadratic_action = QAction("Quadratic objective (QLP)", self)
+        make_feasible_quadratic_action.triggered.connect(self.make_feasible_quadratic)
+        self.make_feasible_menu.addAction(make_feasible_quadratic_action)
 
         self.analysis_menu.addSeparator()
 
@@ -1161,9 +1166,41 @@ class MainWindow(QMainWindow):
         if update:
             self.centralWidget().update()
 
-    def qlp_fba(self):
+    def make_feasible_linear(self):
         with self.appdata.project.cobra_py_model as model:
-            model.objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
+            model.objective = model.problem.Objective(Zero, direction='min')
+            reactions_in_objective = []
+            for reaction_id, scen_val in self.appdata.project.scen_values.items():
+                try:
+                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
+                except KeyError:
+                    print('reaction', reaction_id, 'not found!')
+                    continue
+                if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
+                    reactions_in_objective.append(reaction_id)
+                    pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
+                    neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
+                    # elastic_constr = model.problem.Constraint(add([reaction.forward_variable, -reaction.reverse_variable, 
+                    #                                             pos_slack, -neg_slack]), lb=scen_val[0], ub=scen_val[0])
+                    elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
+                    model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
+                    elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
+                                                            pos_slack: 1.0, neg_slack: -1.0})
+                    # model.objective += pos_slack + neg_slack # does not build valid expressions for CPLEX/Gurobi?!?
+                    model.objective.set_linear_coefficients({pos_slack: 1.0, neg_slack: 1.0})
+                else:
+                    reaction.lower_bound = scen_val[0]
+                    reaction.upper_bound = scen_val[1]
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution(update=False)
+        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
+            self.appdata.scen_values_set_multiple(reactions_in_objective,
+                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+        self.centralWidget().update()
+
+    def make_feasible_quadratic(self):
+        with self.appdata.project.cobra_py_model as model:
+            model.objective = model.problem.Objective(Zero, direction='min')
             reactions_in_objective = []
             for reaction_id, scen_val in self.appdata.project.scen_values.items():
                 try:
