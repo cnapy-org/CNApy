@@ -1,10 +1,11 @@
 """The cnapy configuration dialog"""
 import os
+from pathlib import Path
 
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                            QVBoxLayout)
+                            QVBoxLayout, QCheckBox)
 from cnapy.appdata import AppData
 
 
@@ -64,7 +65,7 @@ class ConfigDialog(QDialog):
 
         h5 = QHBoxLayout()
         label = QLabel(
-            "Special Color 2 used for non equal flux bounds that exclude 0:")
+            "Special Color 2 used for non equal flux bounds that exclude 0: ")
         h5.addWidget(label)
         self.spec2_color_btn = QPushButton()
         self.spec2_color_btn.setFixedWidth(100)
@@ -119,6 +120,15 @@ class ConfigDialog(QDialog):
         h8.addWidget(self.abs_tol)
         self.layout.addItem(h8)
 
+        h = QHBoxLayout()
+        self.use_results_cache = QCheckBox("Cache results (e.g. FVA) in ")
+        self.use_results_cache.setChecked(self.appdata.use_results_cache)
+        h.addWidget(self.use_results_cache)
+        self.results_cache_directory = QPushButton()
+        self.results_cache_directory.setText(str(self.appdata.results_cache_dir))
+        h.addWidget(self.results_cache_directory)
+        self.layout.addItem(h)
+
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
         self.close = QPushButton("Close")
@@ -134,6 +144,7 @@ class ConfigDialog(QDialog):
         self.spec1_color_btn.clicked.connect(self.choose_spec1_color)
         self.spec2_color_btn.clicked.connect(self.choose_spec2_color)
         self.default_color_btn.clicked.connect(self.choose_default_color)
+        self.results_cache_directory.clicked.connect(self.choose_results_cache_directory)
         self.close.clicked.connect(self.accept)
         self.button.clicked.connect(self.apply)
 
@@ -143,6 +154,13 @@ class ConfigDialog(QDialog):
         if not directory or len(directory) == 0 or not os.path.exists(directory):
             return
         self.work_directory.setText(directory)
+
+    def choose_results_cache_directory(self):
+        dialog = QFileDialog(self, directory=self.results_cache_directory.text())
+        directory: Path = Path(dialog.getExistingDirectory())
+        if not directory.exists():
+            return
+        self.results_cache_directory.setText(str(directory))
 
     def choose_scen_color(self):
         palette = self.scen_color_btn.palette()
@@ -218,6 +236,10 @@ class ConfigDialog(QDialog):
         self.appdata.box_width = int(self.box_width.text())
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
+        self.appdata.results_cache_dir = Path(self.results_cache_directory.text())
+        if not self.appdata.results_cache_dir.exists():
+            self.use_results_cache.setChecked(False)
+        self.appdata.use_results_cache = self.use_results_cache.isChecked()
 
         self.appdata.save_cnapy_config()
 

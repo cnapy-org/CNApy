@@ -20,6 +20,7 @@ import os
 import sys
 import traceback
 from configparser import NoOptionError, NoSectionError
+from pathlib import Path
 
 import cobra
 from qtpy.QtGui import QColor
@@ -188,6 +189,12 @@ class Application:
                 self.appdata.abs_tol = float(abs_tol)
             except (KeyError, NoOptionError):
                 print("Could not find abs_tol in cnapy-config.txt")
+
+            self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
+                    'use_results_cache', fallback=self.appdata.use_results_cache)
+            self.appdata.results_cache_dir = Path(config_parser.get('cnapy-config',
+                    'results_cache_directory', fallback=self.appdata.results_cache_dir))
+
         except NoSectionError:
             print("Could not find section cnapy-config in cnapy-config.txt")
         return config_file_version

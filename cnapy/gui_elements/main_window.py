@@ -2,12 +2,14 @@ import io
 import json
 import os
 import traceback
+import pickle
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
 from cnapy.flux_vector_container import FluxVectorContainer
 import cobra
-import optlang
+from optlang_enumerator.cobra_cnapy import CNApyModel
+from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
 
@@ -853,7 +855,7 @@ class MainWindow(QMainWindow):
 
             self.setCursor(Qt.BusyCursor)
             try:
-                cobra_py_model = cobra.io.read_sbml_model(filename)
+                cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
                 output = io.StringIO()
                 traceback.print_exc(file=output)
@@ -899,7 +901,7 @@ class MainWindow(QMainWindow):
                         meta_data = json.load(fp)
 
                     try:
-                        cobra_py_model = cobra.io.read_sbml_model(
+                        cobra_py_model = CNApyModel.read_sbml_model(
                             temp_dir.name + "/model.sbml")
                     except cobra.io.sbml.CobraSBMLError:
                         output = io.StringIO()
@@ -1417,20 +1419,29 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
-
         self.setCursor(Qt.BusyCursor)
-        from cobra.flux_analysis import flux_variability_analysis
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            if len(self.appdata.project.scen_values) > 0:
+                update_stoichiometry_hash = True
+            else:
+                update_stoichiometry_hash = False
             for r in self.appdata.project.cobra_py_model.reactions:
-                r.objective_coefficient = 0
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+            if self.appdata.use_results_cache and update_stoichiometry_hash:
+                model.set_stoichiometry_hash_object()
             try:
-                solution = flux_variability_analysis(
-                    model, fraction_of_optimum=fraction_of_optimum)
+                solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
+                    results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
+                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None, 
+                    print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')

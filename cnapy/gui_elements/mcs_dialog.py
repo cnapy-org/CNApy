@@ -559,13 +559,22 @@ class MCSDialog(QDialog):
             enum_method = 4
 
         with self.appdata.project.cobra_py_model as model:
+            update_stoichiometry_hash = False
             if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 self.appdata.project.load_scenario_into_model(model)
+                if len(self.appdata.project.scen_values) > 0:
+                    update_stoichiometry_hash = True
             for r in model.reactions:  # make all reactions bounded for COBRApy FVA
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+            if self.appdata.use_results_cache and update_stoichiometry_hash:
+                model.set_stoichiometry_hash_object()
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
@@ -613,13 +622,11 @@ class MCSDialog(QDialog):
             self.setCursor(Qt.BusyCursor)
             try:
                 mcs, err_val = mcs_computation.compute_mcs(model,
-                                                           targets=targets,
-                                                           desired=desired,
-                                                           enum_method=enum_method,
-                                                           max_mcs_size=max_mcs_size,
-                                                           max_mcs_num=max_mcs_num,
-                                                           timeout=timeout,
-                                                           exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+                                targets=targets, desired=desired, enum_method=enum_method,
+                                max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, timeout=timeout,
+                                exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked(),
+                                results_cache_dir=self.appdata.results_cache_dir
+                                if self.appdata.use_results_cache else None)
             except mcs_computation.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return targets, desired
