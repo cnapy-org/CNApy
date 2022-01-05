@@ -191,6 +191,10 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(add_map_action)
         add_map_action.triggered.connect(central_widget.add_map)
 
+        add_escher_map_action = QAction("Add new map from Escher JSON and SVG...", self)
+        self.map_menu.addAction(add_escher_map_action)
+        add_escher_map_action.triggered.connect(self.add_escher_map)
+
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
@@ -667,11 +671,12 @@ class MainWindow(QMainWindow):
         # self.appdata.modes_coloring = False
 
     @Slot()
-    def change_background(self):
+    def change_background(self, caption="Select a SVG file", directory=None):
         '''Load a background image for the current map'''
         dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.svg")[0]
+        filename: str = dialog.getOpenFileName(caption=caption,
+            directory=self.appdata.work_directory if directory is None else directory,
+            filter="*.svg")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
@@ -688,6 +693,38 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
             self.centralWidget().map_tabs.setCurrentIndex(idx)
             self.unsaved_changes()
+
+    @Slot()
+    def add_escher_map(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
+            directory=self.appdata.work_directory, filter="*.json")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+
+        with open(filename) as fp:
+            map_json = json.load(fp)
+
+        map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
+        self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
+
+        reaction_bigg_ids = dict()
+        for r in self.appdata.project.cobra_py_model.reactions:
+            bigg_id = r.annotation.get("bigg.reaction", None)
+            if bigg_id is None: # if there is no BiGG ID in the annotation...
+                bigg_id = r.id # ... use the reaction ID as proxy
+            reaction_bigg_ids[bigg_id] = r.id
+
+        offset_x = map_json[1]['canvas']['x']
+        offset_y = map_json[1]['canvas']['y']
+        self.appdata.project.maps[map_name]["boxes"] = dict()
+        for r in map_json[1]["reactions"].values():
+            bigg_id = r["bigg_id"]
+            if bigg_id in reaction_bigg_ids:
+                self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
+
+        self.recreate_maps()
+        self.centralWidget().map_tabs.setCurrentIndex(map_idx)
 
     @Slot()
     def change_map_name(self):

@@ -4,7 +4,7 @@ import numpy
 import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
@@ -206,12 +206,16 @@ class CentralWidget(QWidget):
         elif idx == 3:
             self.model_info.update()
 
-    def add_map(self):
-        while True:
-            name = "Map "+str(self.map_counter)
-            self.map_counter += 1
-            if name not in self.appdata.project.maps.keys():
-                break
+    @Slot()
+    def add_map(self, base_name="Map"):
+        if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
+            while True:
+                name = base_name + " " + str(self.map_counter)
+                self.map_counter += 1
+                if name not in self.appdata.project.maps.keys():
+                    break
+        else:
+            name = base_name
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
@@ -224,10 +228,12 @@ class CentralWidget(QWidget):
         mmap.reactionRemoved.connect(self.update_reaction_maps)
         mmap.reactionAdded.connect(self.update_reaction_maps)
         mmap.mapChanged.connect(self.handle_mapChanged)
-        self.map_tabs.addTab(mmap, m["name"])
+        idx = self.map_tabs.addTab(mmap, m["name"])
         self.update_maps()
-        self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
+        self.map_tabs.setCurrentIndex(idx)
         self.parent.unsaved_changes()
+
+        return name, idx
 
     def delete_map(self, idx: int):
         name = self.map_tabs.tabText(idx)
