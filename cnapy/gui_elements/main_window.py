@@ -5,6 +5,7 @@ import traceback
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
+import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
 import cobra
 import optlang
@@ -191,7 +192,8 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(add_map_action)
         add_map_action.triggered.connect(central_widget.add_map)
 
-        add_escher_map_action = QAction("Add new map from Escher JSON and SVG...", self)
+        # add_escher_map_action = QAction("Add new map from Escher JSON and SVG...", self)
+        add_escher_map_action = QAction("Add new map from Escher SVG...", self)
         self.map_menu.addAction(add_escher_map_action)
         add_escher_map_action.triggered.connect(self.add_escher_map)
 
@@ -678,35 +680,62 @@ class MainWindow(QMainWindow):
             directory=self.appdata.work_directory if directory is None else directory,
             filter="*.svg")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
+            return None
 
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
-        if filename != '':
-            self.appdata.project.maps[name]["background"] = filename
 
-            background = QGraphicsSvgItem(
-                self.appdata.project.maps[name]["background"])
-            background.setFlags(QGraphicsItem.ItemClipsToShape)
-            self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
+        self.appdata.project.maps[name]["background"] = filename
 
-            self.centralWidget().update()
-            self.centralWidget().map_tabs.setCurrentIndex(idx)
-            self.unsaved_changes()
+        background = QGraphicsSvgItem(
+            self.appdata.project.maps[name]["background"])
+        background.setFlags(QGraphicsItem.ItemClipsToShape)
+        self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
+
+        self.centralWidget().update()
+        self.centralWidget().map_tabs.setCurrentIndex(idx)
+        self.unsaved_changes()
+
+        return filename
+
+    # the variant below requires both the Escher JSON and an exported SVG
+    # @Slot()
+    # def add_escher_map(self):
+    #     dialog = QFileDialog(self)
+    #     filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
+    #         directory=self.appdata.work_directory, filter="*.json")[0]
+    #     if not filename or len(filename) == 0 or not os.path.exists(filename):
+    #         return
+    #
+    #     with open(filename) as fp:
+    #         map_json = json.load(fp)
+    #
+    #     map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
+    #     self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
+    #
+    #     reaction_bigg_ids = dict()
+    #     for r in self.appdata.project.cobra_py_model.reactions:
+    #         bigg_id = r.annotation.get("bigg.reaction", None)
+    #         if bigg_id is None: # if there is no BiGG ID in the annotation...
+    #             bigg_id = r.id # ... use the reaction ID as proxy
+    #         reaction_bigg_ids[bigg_id] = r.id
+    #
+    #     offset_x = map_json[1]['canvas']['x']
+    #     offset_y = map_json[1]['canvas']['y']
+    #     self.appdata.project.maps[map_name]["boxes"] = dict()
+    #     for r in map_json[1]["reactions"].values():
+    #         bigg_id = r["bigg_id"]
+    #         if bigg_id in reaction_bigg_ids:
+    #             self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
+    #
+    #     self.recreate_maps()
+    #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
 
     @Slot()
     def add_escher_map(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
-            directory=self.appdata.work_directory, filter="*.json")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
-
-        with open(filename) as fp:
-            map_json = json.load(fp)
-
-        map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
-        self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
+        # maps gets a default name because an Escher SVG file does not contain the map name
+        map_name, map_idx = self.centralWidget().add_map()
+        filen_name = self.change_background(caption="Select an Escher SVG file")
 
         reaction_bigg_ids = dict()
         for r in self.appdata.project.cobra_py_model.reactions:
@@ -715,13 +744,44 @@ class MainWindow(QMainWindow):
                 bigg_id = r.id # ... use the reaction ID as proxy
             reaction_bigg_ids[bigg_id] = r.id
 
-        offset_x = map_json[1]['canvas']['x']
-        offset_y = map_json[1]['canvas']['y']
+        def get_translate_coordinates(translate: str):
+            x_y = translate.split("(")[1].split(",")
+            return float(x_y[0]), float(x_y[1][:-1])
         self.appdata.project.maps[map_name]["boxes"] = dict()
-        for r in map_json[1]["reactions"].values():
-            bigg_id = r["bigg_id"]
-            if bigg_id in reaction_bigg_ids:
-                self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
+        try:
+            root = ET.parse(filen_name).getroot()
+            graph = root.find('{http://www.w3.org/2000/svg}g')
+            canvas_group = None
+            reactions = None
+            for child in graph:
+                # print(child.tag, child.attrib)
+                if child.attrib.get("class", None) == "canvas-group":
+                    canvas_group = child
+                if child.attrib.get("id", None) == "reactions":
+                    reactions = child
+            if canvas_group is None or reactions is None:
+                raise ValueError
+            canvas = None
+            for child in canvas_group:
+                if child.attrib.get("id", None) == "canvas":
+                    canvas = child
+            if canvas is None:
+                raise ValueError
+            (offset_x, offset_y) = get_translate_coordinates(canvas.attrib['transform'])
+            for r in reactions:
+                for child in r:
+                    if child.attrib.get("class", None) == "reaction-label-group":
+                        for neighbor in child.iter():
+                            if neighbor.attrib.get("class", None) == "reaction-label label":
+                                bigg_id = neighbor.text
+                                if bigg_id in reaction_bigg_ids:
+                                    (label_x, label_y) =  get_translate_coordinates(child.attrib['transform'])
+                                    self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [label_x - offset_x, label_y - offset_y]
+        except:
+            QMessageBox.critical(self, "Failed to parse "+filen_name+" as Escher SVG file",
+                                 filen_name+" does not appear to have been exported from Escher. "
+                                 "Automatic mapping of reaction boxes not possible.")
+            self.appdata.project.maps[map_name]["boxes"] = dict()
 
         self.recreate_maps()
         self.centralWidget().map_tabs.setCurrentIndex(map_idx)
