@@ -18,7 +18,7 @@ class ConfigDialog(QDialog):
 
         self.layout = QVBoxLayout()
         bw = QHBoxLayout()
-        label = QLabel("box width:")
+        label = QLabel("Box width:")
         bw.addWidget(label)
 
         self.box_width = QLineEdit()
