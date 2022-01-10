@@ -19,5 +19,5 @@ dependencies:
   - qtconsole=5.0
   - requests
   - efmtool_link=0.0.4
-  - optlang_enumerator=0.0.6
+  - optlang_enumerator=0.0.7
 prefix: /home/user/miniconda3/envs/cnapy

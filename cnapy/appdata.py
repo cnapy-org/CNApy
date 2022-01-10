@@ -5,9 +5,11 @@ import pathlib
 from tempfile import TemporaryDirectory
 from typing import List, Dict, Tuple
 from ast import literal_eval as make_tuple
-
+import hashlib
+import pickle
 import appdirs
 import cobra
+from optlang_enumerator.cobra_cnapy import CNApyModel
 import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
@@ -46,6 +48,8 @@ class AppData:
         self.selected_engine = "None"
         self.work_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
+        self.use_results_cache = False
+        self.results_cache_dir: pathlib.Path = pathlib.Path(".")
         self.last_scen_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
         self.temp_dir = TemporaryDirectory()
@@ -162,6 +166,8 @@ class AppData:
         parser.set('cnapy-config', 'box_width', str(self.box_width))
         parser.set('cnapy-config', 'rounding', str(self.rounding))
         parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))
+        parser.set('cnapy-config', 'use_results_cache', str(self.use_results_cache))
+        parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
         parser.set('cnapy-config', 'selected_engine', str(self.selected_engine))
         parser.write(fp)
         fp.close()
@@ -171,7 +177,7 @@ class ProjectData:
 
     def __init__(self):
         self.name = "Unnamed project"
-        self.cobra_py_model = cobra.Model()
+        self.cobra_py_model = CNApyModel()
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
@@ -191,6 +197,7 @@ class ProjectData:
                 print('reaction', x, 'not found!')
             else:
                 y.bounds = self.scen_values[x]
+                y.set_hash_value()
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []
@@ -200,6 +207,10 @@ class ProjectData:
                 reactions.append(r.id)
                 values.append(parse_scenario(r.annotation['cnapy-default']))
         return reactions, values
+
+    # currently unused
+    # def scenario_hash_value(self):
+    #     return hashlib.md5(pickle.dumps(sorted(self.scen_values.items()))).digest()
 
 def CnaMap(name):
     background_svg = pkg_resources.resource_filename(
