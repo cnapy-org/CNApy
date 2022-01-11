@@ -735,9 +735,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def add_escher_map(self):
-        # maps gets a default name because an Escher SVG file does not contain the map name
+        # map gets a default name because an Escher SVG file does not contain the map name
+        has_unsaved_changes = self.appdata.unsaved
         map_name, map_idx = self.centralWidget().add_map()
-        filen_name = self.change_background(caption="Select an Escher SVG file")
+        file_name = self.change_background(caption="Select an Escher SVG file")
+        if file_name is None:
+            del self.appdata.project.maps[map_name]
+            self.centralWidget().map_tabs.removeTab(map_idx)
+            self.appdata.unsaved = has_unsaved_changes
+            return
 
         reaction_bigg_ids = dict()
         for r in self.appdata.project.cobra_py_model.reactions:
@@ -751,7 +757,7 @@ class MainWindow(QMainWindow):
             return float(x_y[0]), float(x_y[1][:-1])
         self.appdata.project.maps[map_name]["boxes"] = dict()
         try:
-            root = ET.parse(filen_name).getroot()
+            root = ET.parse(file_name).getroot()
             graph = root.find('{http://www.w3.org/2000/svg}g')
             canvas_group = None
             reactions = None
@@ -780,8 +786,8 @@ class MainWindow(QMainWindow):
                                     (label_x, label_y) =  get_translate_coordinates(child.attrib['transform'])
                                     self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [label_x - offset_x, label_y - offset_y]
         except:
-            QMessageBox.critical(self, "Failed to parse "+filen_name+" as Escher SVG file",
-                                 filen_name+" does not appear to have been exported from Escher. "
+            QMessageBox.critical(self, "Failed to parse "+file_name+" as Escher SVG file",
+                                 file_name+" does not appear to have been exported from Escher. "
                                  "Automatic mapping of reaction boxes not possible.")
             self.appdata.project.maps[map_name]["boxes"] = dict()
 
