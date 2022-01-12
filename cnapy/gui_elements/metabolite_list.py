@@ -180,9 +180,9 @@ class MetaboliteList(QWidget):
 class MetabolitesMask(QWidget):
     """The input mask for a metabolites"""
 
-    def __init__(self, metabolite_list, appdata):
+    def __init__(self, metabolite_list: MetaboliteList, appdata):
         QWidget.__init__(self)
-        self.metabolite_list = metabolite_list
+        self.metabolite_list: MetaboliteList = metabolite_list
         self.appdata = appdata
         self.metabolite = None
         self.is_valid = True
@@ -190,6 +190,15 @@ class MetabolitesMask(QWidget):
         self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
+        l = QHBoxLayout()
+        self.delete_button = QPushButton("Delete metabolite")
+        self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        self.delete_button.setSizePolicy(policy)
+        l.addWidget(self.delete_button)
+        layout.addItem(l)
+
         l = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLineEdit()
@@ -268,6 +277,8 @@ class MetabolitesMask(QWidget):
 
         self.setLayout(layout)
 
+        self.delete_button.clicked.connect(self.delete_metabolite)
+
         self.throttler = SignalThrottler(500)
         self.throttler.triggered.connect(self.metabolites_data_changed)
 
@@ -278,6 +289,17 @@ class MetabolitesMask(QWidget):
         self.compartment.editingFinished.connect(self.metabolites_data_changed)
         self.annotation.itemChanged.connect(self.throttler.throttle)
         self.validate_mask()
+
+    def delete_metabolite(self):
+        self.hide()
+        # in C++ the currentItem can just be destructed but in Python this is more convoluted
+        current_row_index = self.metabolite_list.metabolite_list.currentIndex().row()
+        self.metabolite_list.metabolite_list.setCurrentItem(None)
+        self.metabolite.remove_from_model()
+        self.metabolite_list.last_selected = None
+        self.metabolite_list.metabolite_list.takeTopLevelItem(current_row_index)
+        self.appdata.window.unsaved_changes()
+        self.appdata.window.setFocus()
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
