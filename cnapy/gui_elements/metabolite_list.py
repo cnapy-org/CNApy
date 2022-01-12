@@ -193,6 +193,7 @@ class MetabolitesMask(QWidget):
         l = QHBoxLayout()
         self.delete_button = QPushButton("Delete metabolite")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
+        self.delete_button.setToolTip("Delete this metabolite and remove it from associated reactions.")
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
