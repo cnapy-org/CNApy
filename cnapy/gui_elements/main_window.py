@@ -688,14 +688,10 @@ class MainWindow(QMainWindow):
         name = self.centralWidget().map_tabs.tabText(idx)
 
         self.appdata.project.maps[name]["background"] = filename
-
-        background = QGraphicsSvgItem(
-            self.appdata.project.maps[name]["background"])
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
-
+        self.centralWidget().map_tabs.widget(idx).set_background()
         self.centralWidget().update()
         self.centralWidget().map_tabs.setCurrentIndex(idx)
+        self.centralWidget().map_tabs.widget(idx).fit()
         self.unsaved_changes()
 
         return filename
@@ -793,6 +789,7 @@ class MainWindow(QMainWindow):
 
         self.recreate_maps()
         self.centralWidget().map_tabs.setCurrentIndex(map_idx)
+        self.centralWidget().map_tabs.widget(map_idx).fit()
 
     @Slot()
     def change_map_name(self):
