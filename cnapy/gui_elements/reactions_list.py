@@ -938,6 +938,11 @@ class ReactionMask(QWidget):
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(str(metabolite.data(2, 0)))
 
+    @Slot()
+    def update_reaction_string(self):
+        if self.reaction is not None:
+            self.equation.setText(self.reaction.build_reaction_string())
+
     jumpToMap = Signal(str, str)
     jumpToMetabolite = Signal(str)
     reactionChanged = Signal(cobra.Reaction)

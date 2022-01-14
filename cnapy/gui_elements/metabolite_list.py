@@ -91,20 +91,19 @@ class MetaboliteList(QWidget):
         self.metabolite_mask.annotation.itemChanged.connect(
             self.metabolite_mask.throttler.throttle)
 
-    def handle_changed_metabolite(self, metabolite: cobra.Metabolite):
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
         # Update metabolite item in list
         root = self.metabolite_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
             if item.data(2, 0) == metabolite:
-                old_id = item.text(0)
                 item.setText(0, metabolite.id)
                 item.setText(1, metabolite.name)
                 break
 
         self.last_selected = self.metabolite_mask.id.text()
-        self.metaboliteChanged.emit(old_id, metabolite)
+        self.metaboliteChanged.emit(metabolite, affected_reactions)
 
     def update_selected(self, string):
         root = self.metabolite_list.invisibleRootItem()
@@ -172,7 +171,7 @@ class MetaboliteList(QWidget):
         self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
 
     itemActivated = Signal(str)
-    metaboliteChanged = Signal(str, cobra.Metabolite)
+    metaboliteChanged = Signal(cobra.Metabolite, object)
     jumpToReaction = Signal(str)
     computeInOutFlux = Signal(str)
 
@@ -296,11 +295,13 @@ class MetabolitesMask(QWidget):
         # in C++ the currentItem can just be destructed but in Python this is more convoluted
         current_row_index = self.metabolite_list.metabolite_list.currentIndex().row()
         self.metabolite_list.metabolite_list.setCurrentItem(None)
+        affected_reactions = self.metabolite.reactions # remember these before removal
         self.metabolite.remove_from_model()
         self.metabolite_list.last_selected = None
         self.metabolite_list.metabolite_list.takeTopLevelItem(current_row_index)
         self.appdata.window.unsaved_changes()
         self.appdata.window.setFocus()
+        self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
@@ -335,7 +336,7 @@ class MetabolitesMask(QWidget):
                 self.metabolite.annotation[key] = value
 
             self.changed = False
-            self.metaboliteChanged.emit(self.metabolite)
+            self.metaboliteChanged.emit(self.metabolite, self.metabolite.reactions)
 
     def validate_id(self):
         with self.appdata.project.cobra_py_model as model:
@@ -503,7 +504,8 @@ class MetabolitesMask(QWidget):
         self.jumpToReaction.emit(reaction.data(2, 0).id)
 
     jumpToReaction = Signal(str)
-    metaboliteChanged = Signal(cobra.Metabolite)
+    metaboliteChanged = Signal(cobra.Metabolite, object)
+    metaboliteDeleted = Signal(cobra.Metabolite, object)
 
 class ReactionString(QLineEdit):
     def __init__(self, reaction, metabolite_list):

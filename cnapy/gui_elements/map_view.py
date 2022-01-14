@@ -30,7 +30,7 @@ class MapView(QGraphicsView):
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.appdata = appdata
         self.central_widget = central_widget
-        self.name = name
+        self.name: str = name
         self.setAcceptDrops(True)
         self.drag_map = False
         self.reaction_boxes: Dict[str, ReactionBox] = {}
@@ -255,17 +255,20 @@ class MapView(QGraphicsView):
             except KeyError:
                 print("failed to add reaction box for", r_id)
 
-    def delete_box(self, reaction_id: str):
-        try:
-            box = self.reaction_boxes[reaction_id]
+    def delete_box(self, reaction_id: str) -> bool:
+        box = self.reaction_boxes.get(reaction_id, None)
+        if box is not None:
             lineedit = box.proxy
             self.scene.removeItem(lineedit)
             self.scene.removeItem(box)
-        except KeyError:
-            print(f"Reaction {reaction_id} does not occur in any map")
+            return True
+        else:
+            # print(f"Reaction {reaction_id} does not occur on map {self.name}")
+            return False
 
     def update_reaction(self, old_reaction_id: str, new_reaction_id: str):
-        self.delete_box(old_reaction_id)
+        if not self.delete_box(old_reaction_id): # reaction is not on map
+            return
         try:
             name = self.appdata.project.cobra_py_model.reactions.get_by_id(
                 new_reaction_id).name
@@ -283,7 +286,7 @@ class MapView(QGraphicsView):
                        [0], self.appdata.project.maps[self.name]["boxes"][box.id][1])
 
         except KeyError:
-            print("failed to add reaction box for", new_reaction_id)
+            print(f"Failed to add reaction box for {new_reaction_id} on map {self.name}")
 
     def update(self):
         for item in self.scene.items():
