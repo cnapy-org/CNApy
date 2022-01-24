@@ -1,10 +1,8 @@
 import io
 import json
 import os
-from pathlib import Path
 import traceback
 from tempfile import TemporaryDirectory
-import pkg_resources
 from typing import Tuple
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
@@ -34,6 +32,7 @@ from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
@@ -215,9 +214,9 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(add_escher_map_action)
         add_escher_map_action.triggered.connect(self.add_escher_map)
 
-        open_escher = QAction("Open Escher tab", self)
+        open_escher = QAction("Add interactive Escher map", self)
         self.map_menu.addAction(open_escher)
-        open_escher.triggered.connect(self.open_escher)
+        open_escher.triggered.connect(lambda: central_widget.add_map(escher=True))
 
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
@@ -831,45 +830,6 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.widget(map_idx).fit()
 
     @Slot()
-    def open_escher(self):
-        self.appdata.escher_view = QWebEngineView()
-        self.appdata.escher_view.loadFinished.connect(self.has_loaded)
-        self.appdata.escher_view.page().profile().downloadRequested.connect(self.save_from_escher)
-        idx = self.centralWidget().map_tabs.addTab(self.appdata.escher_view, "Escher")
-        self.appdata.escher_view.load(QUrl.fromLocalFile(
-            pkg_resources.resource_filename("cnapy", r"data/escher_new.html")))
-        self.appdata.escher_view.show()
-        self.centralWidget().map_tabs.setCurrentIndex(idx)
-
-    @Slot(bool)
-    def has_loaded(self, ok: bool):
-        print("has_loaded", ok)
-        if ok:
-            #self.load_test_map()
-            self.appdata.escher_view.page().runJavaScript("builder.load_model("+cobra.io.to_json(self.appdata.project.cobra_py_model)+")")
-
-    # self.appdata.escher_view.page().runJavaScript('builder.map.save()')
-    @Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
-    def save_from_escher(self, download):
-        path = Path(download.path()) # path()/setPath() delared in PyQt
-        # print(path, path.name, Path(self.appdata.temp_dir.name, path.name))
-        path = str(Path(self.appdata.temp_dir.name, path.name))
-        print(path)
-        download.setPath(path)
-        # downloadFileName downloadDirectory not known?!?
-        # print(download.downloadFileName())
-        # print(download.downloadDirectory())
-        download.accept()
-
-    # def load_test_map(self):
-    #     with open(pkg_resources.resource_filename("cnapy", r"data/test_map.json")) as txt_file:
-    #         print("load_test_map")
-    #         map_data = txt_file.read()
-    #         # print(map_data)
-    #         # delay hack needed to wait until DOM is ready 
-    #         self.appdata.escher_view.page().runJavaScript("setTimeout(function(){builder.load_map("+map_data+")},50)")
-
-    @Slot()
     def change_map_name(self):
         '''Execute RenameMapDialog'''
         dialog = RenameMapDialog(
@@ -1237,24 +1197,14 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         for name, mmap in self.appdata.project.maps.items():
-            mmap = MapView(self.appdata, self.centralWidget(), name)
-            mmap.show()
-            mmap.switchToReactionMask.connect(
-                self.centralWidget().switch_to_reaction)
-            mmap.minimizeReaction.connect(
-                self.centralWidget().minimize_reaction)
-            mmap.maximizeReaction.connect(
-                self.centralWidget().maximize_reaction)
-            mmap.setScenValue.connect(
-                self.centralWidget().set_scen_value)
-            mmap.reactionValueChanged.connect(
-                self.centralWidget().update_reaction_value)
-            mmap.reactionRemoved.connect(
-                self.centralWidget().update_reaction_maps)
-            mmap.reactionAdded.connect(
-                self.centralWidget().update_reaction_maps)
-            mmap.mapChanged.connect(
-                self.centralWidget().handle_mapChanged)
+            if mmap.get("view", "cnapy") == "cnapy":
+                mmap = MapView(self.appdata, self.centralWidget(), name)
+                mmap.show()
+                self.centralWidget().connect_map_view_signals(mmap)
+            elif mmap["view"] == "escher":
+                mmap = EscherMapView(self.appdata, name)
+            else:
+                raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
             mmap.update()
 

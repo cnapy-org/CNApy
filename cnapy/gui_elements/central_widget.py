@@ -12,6 +12,7 @@ from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
@@ -242,8 +243,18 @@ class CentralWidget(QWidget):
         elif idx == ModelTabIndex.Model:
             self.model_info.update()
 
+    def connect_map_view_signals(self, mmap: MapView):
+        mmap.switchToReactionMask.connect(self.switch_to_reaction)
+        mmap.minimizeReaction.connect(self.minimize_reaction)
+        mmap.maximizeReaction.connect(self.maximize_reaction)
+        mmap.reactionValueChanged.connect(self.update_reaction_value)
+        mmap.reactionRemoved.connect(self.update_reaction_maps)
+        mmap.reactionAdded.connect(self.update_reaction_maps)
+        mmap.mapChanged.connect(self.handle_mapChanged)
+
     @Slot()
-    def add_map(self, base_name="Map"):
+    def add_map(self, base_name="Map", escher=False):
+        print(base_name, escher)
         if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
             while True:
                 name = base_name + " " + str(self.map_counter)
@@ -253,17 +264,13 @@ class CentralWidget(QWidget):
         else:
             name = base_name
         m = CnaMap(name)
-
         self.appdata.project.maps[name] = m
-        mmap = MapView(self.appdata, self, name)
-        mmap.switchToReactionMask.connect(self.switch_to_reaction)
-        mmap.minimizeReaction.connect(self.minimize_reaction)
-        mmap.maximizeReaction.connect(self.maximize_reaction)
-
-        mmap.reactionValueChanged.connect(self.update_reaction_value)
-        mmap.reactionRemoved.connect(self.update_reaction_maps)
-        mmap.reactionAdded.connect(self.update_reaction_maps)
-        mmap.mapChanged.connect(self.handle_mapChanged)
+        if escher:
+            mmap = EscherMapView(self.appdata, name)
+            self.appdata.project.maps[name]['view'] = 'escher'
+        else:
+            mmap = MapView(self.appdata, self, name)
+            self.connect_map_view_signals(mmap)
         idx = self.map_tabs.addTab(mmap, m["name"])
         self.update_maps()
         self.map_tabs.setCurrentIndex(idx)

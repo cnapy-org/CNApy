@@ -56,7 +56,6 @@ class AppData:
         self.scenario_past = []
         self.scenario_future = []
         self.auto_fba = False
-        self.escher_view = None
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
@@ -330,7 +329,9 @@ def CnaMap(name):
             "box-size": 1,
             "zoom": 0,
             "pos": (0, 0),
-            "boxes": {}
+            "boxes": {},
+            "view": "cnapy", # either "cnapy" or "escher"
+            "escher_map_data": "" # JSON string
             }
 
 def parse_scenario(text: str) -> Tuple[float, float]:
