@@ -218,9 +218,9 @@ class CentralWidget(QWidget):
         if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
             while True:
                 name = base_name + " " + str(self.map_counter)
-                self.map_counter += 1
                 if name not in self.appdata.project.maps.keys():
                     break
+                self.map_counter += 1
         else:
             name = base_name
         m = CnaMap(name)

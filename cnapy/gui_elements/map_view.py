@@ -22,8 +22,9 @@ class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
     def __init__(self, appdata: AppData, central_widget, name: str):
-        self.scene = QGraphicsScene()
+        self.scene: QGraphicsScene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
+        self.background: QGraphicsSvgItem = None
         palette = self.palette()
         self.setPalette(palette)
         self.setInteractive(True)
@@ -234,14 +235,19 @@ class MapView(QGraphicsView):
         treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
 
+    def set_background(self):
+        if self.background is not None:
+            self.scene.removeItem(self.background)
+        self.background = QGraphicsSvgItem(
+            self.appdata.project.maps[self.name]["background"])
+        self.background.setFlags(QGraphicsItem.ItemClipsToShape)
+        self.background.setScale(self.appdata.project.maps[self.name]["bg-size"])
+        self.scene.addItem(self.background)
+
     def rebuild_scene(self):
         self.scene.clear()
-        background = QGraphicsSvgItem(
-            self.appdata.project.maps[self.name]["background"])
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        background.setScale(self.appdata.project.maps[self.name]["bg-size"])
-
-        self.scene.addItem(background)
+        self.background = None
+        self.set_background()
 
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
             try:
