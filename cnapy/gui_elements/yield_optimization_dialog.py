@@ -132,10 +132,26 @@ class YieldOptimizationDialog(QDialog):
             # create CobraModel for matlab
             self.appdata.create_cobra_model()
 
-            self.eng.eval("load('cobra_model.mat')",
-                          nargout=0)
-            self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0)
+            # The following try-except block is added as a workaround as long as the
+            # current CNA version cannot be directly read.
+            try:
+                self.eng.eval("load('cobra_model.mat')",
+                            nargout=0)
+                self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
+                            nargout=0)
+            except Exception:  # Either a Matlab or an Octave error due to a wrong configuration of CellNetAnalyzer
+                msgBox = QMessageBox()
+                msgBox.setWindowTitle("CellNetAnalyzer error!")
+                msgBox.setTextFormat(Qt.RichText)
+                msgBox.setText("<p>Error when loading CellNetAnalyzer. Yield calculation not possible!<br>"
+                               "This error may be resolved in one of the following ways:<br>"
+                               "1. Check that you have the latest CellNetAnalyzer version and that you have set in in CNApy's configuration correctly.<br>"
+                               "2. If CellNetAnalyzer is up-to-date and correctly set in CNApy and this error still occurs, check that you can successfully run CellNetAnalyzer using MATLAB or Octave. "
+                               "</p>")
+                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.exec()
+                self.setCursor(Qt.ArrowCursor)
+                return
 
             # get some data
             self.eng.eval("reac_id = cellstr(cnap.reacID)';",

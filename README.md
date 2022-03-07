@@ -39,12 +39,12 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
 
 2. Create a conda environment with all dependencies
     ```sh
-    conda create -n cnapy-1.0.5 -c conda-forge -c cnapy cnapy=1.0.5
+    conda create -n cnapy-1.0.6 -c conda-forge -c cnapy cnapy=1.0.6
     ```
 
 3. Activate the cnapy conda environment
     ```sh
-    conda activate cnapy-1.0.5
+    conda activate cnapy-1.0.6
     ```
 
 4. Run CNApy
@@ -52,7 +52,7 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
     cnapy
     ```
 
-**IMPORTANT**: To use the CellNetAnalyzer (CNA) Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course [CellNetAnalyzer itself](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html). Alternatively to Matlab you can also use the free and open-source [GNU Octave](https://www.gnu.org/software/octave/index).
+**IMPORTANT**: To use the CellNetAnalyzer (CNA, version 2021.1 or higher) Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course [CellNetAnalyzer itself](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html). Alternatively to Matlab you can also use the free and open-source [GNU Octave](https://www.gnu.org/software/octave/index).
 
 ## How to run a script in the CNApy terminal
 

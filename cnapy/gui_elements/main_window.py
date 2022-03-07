@@ -2,15 +2,19 @@ import io
 import json
 import os
 import traceback
+import pickle
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
+import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
 import cobra
-import optlang
+from optlang_enumerator.cobra_cnapy import CNApyModel
+from optlang_enumerator.mcs_computation import flux_variability_analysis
+from optlang.symbolics import Zero
 import numpy as np
 
-from cobra.manipulation.delete import prune_unused_metabolites
+# from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
@@ -22,6 +26,7 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
+from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
@@ -189,6 +194,11 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(add_map_action)
         add_map_action.triggered.connect(central_widget.add_map)
 
+        # add_escher_map_action = QAction("Add new map from Escher JSON and SVG...", self)
+        add_escher_map_action = QAction("Add new map from Escher SVG...", self)
+        self.map_menu.addAction(add_escher_map_action)
+        add_escher_map_action.triggered.connect(self.add_escher_map)
+
         load_maps_action = QAction("Load reaction box positions...", self)
         self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
@@ -254,9 +264,13 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        qlp_fba_action = QAction("Make scenario feasible (QLP)", self)
-        qlp_fba_action.triggered.connect(self.qlp_fba)
-        self.analysis_menu.addAction(qlp_fba_action)
+        self.make_feasible_menu = self.analysis_menu.addMenu("Make scenario feasible")
+        make_feasible_linear_action = QAction("Linear objective (LP)", self)
+        make_feasible_linear_action.triggered.connect(self.make_feasible_linear)
+        self.make_feasible_menu.addAction(make_feasible_linear_action)
+        make_feasible_quadratic_action = QAction("Quadratic objective (QLP)", self)
+        make_feasible_quadratic_action.triggered.connect(self.make_feasible_quadratic)
+        self.make_feasible_menu.addAction(make_feasible_quadratic_action)
 
         self.analysis_menu.addSeparator()
 
@@ -327,6 +341,10 @@ class MainWindow(QMainWindow):
         config_action = QAction("Configure COBRApy ...", self)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
+
+        config_action = QAction("Configure CNA bridge ...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_config_cna_dialog)
 
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
@@ -494,6 +512,13 @@ class MainWindow(QMainWindow):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
+    @Slot()
+    def show_config_cna_dialog(self):
+        self.setCursor(Qt.BusyCursor)
+        dialog = ConfigCNADialog(self.appdata)
+        self.setCursor(Qt.ArrowCursor)
+        dialog.exec_()
+
     def show_download_dialog(self):
         dialog = DownloadDialog(self.appdata)
         dialog.exec_()
@@ -650,27 +675,121 @@ class MainWindow(QMainWindow):
         # self.appdata.modes_coloring = False
 
     @Slot()
-    def change_background(self):
+    def change_background(self, caption="Select a SVG file", directory=None):
         '''Load a background image for the current map'''
         dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.svg")[0]
+        filename: str = dialog.getOpenFileName(caption=caption,
+            directory=self.appdata.work_directory if directory is None else directory,
+            filter="*.svg")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
+            return None
 
         idx = self.centralWidget().map_tabs.currentIndex()
         name = self.centralWidget().map_tabs.tabText(idx)
-        if filename != '':
-            self.appdata.project.maps[name]["background"] = filename
 
-            background = QGraphicsSvgItem(
-                self.appdata.project.maps[name]["background"])
-            background.setFlags(QGraphicsItem.ItemClipsToShape)
-            self.centralWidget().map_tabs.widget(idx).scene.addItem(background)
+        self.appdata.project.maps[name]["background"] = filename
+        self.centralWidget().map_tabs.widget(idx).set_background()
+        self.centralWidget().update()
+        self.centralWidget().map_tabs.setCurrentIndex(idx)
+        self.centralWidget().map_tabs.widget(idx).fit()
+        self.unsaved_changes()
 
-            self.centralWidget().update()
-            self.centralWidget().map_tabs.setCurrentIndex(idx)
-            self.unsaved_changes()
+        return filename
+
+    # the variant below requires both the Escher JSON and an exported SVG
+    # @Slot()
+    # def add_escher_map(self):
+    #     dialog = QFileDialog(self)
+    #     filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
+    #         directory=self.appdata.work_directory, filter="*.json")[0]
+    #     if not filename or len(filename) == 0 or not os.path.exists(filename):
+    #         return
+    #
+    #     with open(filename) as fp:
+    #         map_json = json.load(fp)
+    #
+    #     map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
+    #     self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
+    #
+    #     reaction_bigg_ids = dict()
+    #     for r in self.appdata.project.cobra_py_model.reactions:
+    #         bigg_id = r.annotation.get("bigg.reaction", None)
+    #         if bigg_id is None: # if there is no BiGG ID in the annotation...
+    #             bigg_id = r.id # ... use the reaction ID as proxy
+    #         reaction_bigg_ids[bigg_id] = r.id
+    #
+    #     offset_x = map_json[1]['canvas']['x']
+    #     offset_y = map_json[1]['canvas']['y']
+    #     self.appdata.project.maps[map_name]["boxes"] = dict()
+    #     for r in map_json[1]["reactions"].values():
+    #         bigg_id = r["bigg_id"]
+    #         if bigg_id in reaction_bigg_ids:
+    #             self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
+    #
+    #     self.recreate_maps()
+    #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
+
+    @Slot()
+    def add_escher_map(self):
+        # map gets a default name because an Escher SVG file does not contain the map name
+        has_unsaved_changes = self.appdata.unsaved
+        map_name, map_idx = self.centralWidget().add_map()
+        file_name = self.change_background(caption="Select an Escher SVG file")
+        if file_name is None:
+            del self.appdata.project.maps[map_name]
+            self.centralWidget().map_tabs.removeTab(map_idx)
+            self.appdata.unsaved = has_unsaved_changes
+            return
+
+        reaction_bigg_ids = dict()
+        for r in self.appdata.project.cobra_py_model.reactions:
+            bigg_id = r.annotation.get("bigg.reaction", None)
+            if bigg_id is None: # if there is no BiGG ID in the annotation...
+                bigg_id = r.id # ... use the reaction ID as proxy
+            reaction_bigg_ids[bigg_id] = r.id
+
+        def get_translate_coordinates(translate: str):
+            x_y = translate.split("(")[1].split(",")
+            return float(x_y[0]), float(x_y[1][:-1])
+        self.appdata.project.maps[map_name]["boxes"] = dict()
+        try:
+            root = ET.parse(file_name).getroot()
+            graph = root.find('{http://www.w3.org/2000/svg}g')
+            canvas_group = None
+            reactions = None
+            for child in graph:
+                # print(child.tag, child.attrib)
+                if child.attrib.get("class", None) == "canvas-group":
+                    canvas_group = child
+                if child.attrib.get("id", None) == "reactions":
+                    reactions = child
+            if canvas_group is None or reactions is None:
+                raise ValueError
+            canvas = None
+            for child in canvas_group:
+                if child.attrib.get("id", None) == "canvas":
+                    canvas = child
+            if canvas is None:
+                raise ValueError
+            (offset_x, offset_y) = get_translate_coordinates(canvas.attrib['transform'])
+            for r in reactions:
+                for child in r:
+                    if child.attrib.get("class", None) == "reaction-label-group":
+                        for neighbor in child.iter():
+                            if neighbor.attrib.get("class", None) == "reaction-label label":
+                                bigg_id = neighbor.text
+                                if bigg_id in reaction_bigg_ids:
+                                    (label_x, label_y) =  get_translate_coordinates(child.attrib['transform'])
+                                    self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [label_x - offset_x, label_y - offset_y]
+        except:
+            QMessageBox.critical(self, "Failed to parse "+file_name+" as Escher SVG file",
+                                 file_name+" does not appear to have been exported from Escher. "
+                                 "Automatic mapping of reaction boxes not possible.")
+            self.appdata.project.maps[map_name]["boxes"] = dict()
+
+        self.recreate_maps()
+        self.centralWidget().map_tabs.setCurrentIndex(map_idx)
+        self.centralWidget().map_tabs.widget(map_idx).fit()
 
     @Slot()
     def change_map_name(self):
@@ -836,7 +955,7 @@ class MainWindow(QMainWindow):
 
             self.setCursor(Qt.BusyCursor)
             try:
-                cobra_py_model = cobra.io.read_sbml_model(filename)
+                cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
                 output = io.StringIO()
                 traceback.print_exc(file=output)
@@ -882,7 +1001,7 @@ class MainWindow(QMainWindow):
                         meta_data = json.load(fp)
 
                     try:
-                        cobra_py_model = cobra.io.read_sbml_model(
+                        cobra_py_model = CNApyModel.read_sbml_model(
                             temp_dir.name + "/model.sbml")
                     except cobra.io.sbml.CobraSBMLError:
                         output = io.StringIO()
@@ -934,9 +1053,11 @@ class MainWindow(QMainWindow):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
-        # remove unused species
-        (clean_model, unused_mets) = prune_unused_metabolites(
-            self.appdata.project.cobra_py_model)
+        # remove unused species - > cleanup disabled for now because of issues 
+        # with prune_unused_metabolites
+        # (clean_model, unused_mets) = prune_unused_metabolites(
+        #     self.appdata.project.cobra_py_model)
+        clean_model = self.appdata.project.cobra_py_model
         # set unset compartments to ''
         undefined = ''
         for m in clean_model.metabolites:
@@ -1147,9 +1268,41 @@ class MainWindow(QMainWindow):
         if update:
             self.centralWidget().update()
 
-    def qlp_fba(self):
+    def make_feasible_linear(self):
         with self.appdata.project.cobra_py_model as model:
-            model.objective = model.problem.Objective(optlang.symbolics.Zero, direction='min')
+            model.objective = model.problem.Objective(Zero, direction='min')
+            reactions_in_objective = []
+            for reaction_id, scen_val in self.appdata.project.scen_values.items():
+                try:
+                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
+                except KeyError:
+                    print('reaction', reaction_id, 'not found!')
+                    continue
+                if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
+                    reactions_in_objective.append(reaction_id)
+                    pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
+                    neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
+                    # elastic_constr = model.problem.Constraint(add([reaction.forward_variable, -reaction.reverse_variable, 
+                    #                                             pos_slack, -neg_slack]), lb=scen_val[0], ub=scen_val[0])
+                    elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
+                    model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
+                    elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
+                                                            pos_slack: 1.0, neg_slack: -1.0})
+                    # model.objective += pos_slack + neg_slack # does not build valid expressions for CPLEX/Gurobi?!?
+                    model.objective.set_linear_coefficients({pos_slack: 1.0, neg_slack: 1.0})
+                else:
+                    reaction.lower_bound = scen_val[0]
+                    reaction.upper_bound = scen_val[1]
+            self.appdata.project.solution = model.optimize()
+        self.process_fba_solution(update=False)
+        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
+            self.appdata.scen_values_set_multiple(reactions_in_objective,
+                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+        self.centralWidget().update()
+
+    def make_feasible_quadratic(self):
+        with self.appdata.project.cobra_py_model as model:
+            model.objective = model.problem.Objective(Zero, direction='min')
             reactions_in_objective = []
             for reaction_id, scen_val in self.appdata.project.scen_values.items():
                 try:
@@ -1366,20 +1519,29 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
-
         self.setCursor(Qt.BusyCursor)
-        from cobra.flux_analysis import flux_variability_analysis
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            if len(self.appdata.project.scen_values) > 0:
+                update_stoichiometry_hash = True
+            else:
+                update_stoichiometry_hash = False
             for r in self.appdata.project.cobra_py_model.reactions:
-                r.objective_coefficient = 0
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+            if self.appdata.use_results_cache and update_stoichiometry_hash:
+                model.set_stoichiometry_hash_object()
             try:
-                solution = flux_variability_analysis(
-                    model, fraction_of_optimum=fraction_of_optimum)
+                solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
+                    results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
+                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None, 
+                    print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')

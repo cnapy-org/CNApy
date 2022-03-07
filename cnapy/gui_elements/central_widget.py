@@ -2,10 +2,9 @@
 
 import numpy
 import cobra
-from cobra.manipulation.delete import prune_unused_metabolites
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
@@ -100,6 +99,12 @@ class CentralWidget(QWidget):
             self.handle_changed_metabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
+        self.metabolite_list.metabolite_mask.metaboliteChanged.connect(
+                self.reaction_list.reaction_mask.update_reaction_string)
+        self.metabolite_list.metabolite_mask.metaboliteDeleted.connect(
+                self.reaction_list.reaction_mask.update_reaction_string)
+        self.metabolite_list.metabolite_mask.metaboliteDeleted.connect(
+                self.handle_changed_metabolite)
         self.gene_list.geneChanged.connect(
             self.handle_changed_gene)
         self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
@@ -147,10 +152,11 @@ class CentralWidget(QWidget):
 
         self.delete_reaction_on_maps(reaction.id)
 
-    def handle_changed_metabolite(self, old_id: str, metabolite: cobra.Metabolite):
+    @Slot(cobra.Metabolite, object)
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
         self.parent.unsaved_changes()
-        # TODO update only relevant reaction boxes on maps
-        self.update_maps()
+        for reaction in affected_reactions:
+            self.update_reaction_on_maps(reaction.id, reaction.id)
 
     def handle_changed_gene(self, old_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
@@ -201,21 +207,22 @@ class CentralWidget(QWidget):
         if idx == 0:
             self.reaction_list.update()
         elif idx == 1:
-            (clean_model, unused_mets) = prune_unused_metabolites(
-                self.appdata.project.cobra_py_model)
-            self.appdata.project.cobra_py_model = clean_model
             self.metabolite_list.update()
         elif idx == 2:
             self.gene_list.update()
         elif idx == 3:
             self.model_info.update()
 
-    def add_map(self):
-        while True:
-            name = "Map "+str(self.map_counter)
-            self.map_counter += 1
-            if name not in self.appdata.project.maps.keys():
-                break
+    @Slot()
+    def add_map(self, base_name="Map"):
+        if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
+            while True:
+                name = base_name + " " + str(self.map_counter)
+                if name not in self.appdata.project.maps.keys():
+                    break
+                self.map_counter += 1
+        else:
+            name = base_name
         m = CnaMap(name)
 
         self.appdata.project.maps[name] = m
@@ -228,10 +235,12 @@ class CentralWidget(QWidget):
         mmap.reactionRemoved.connect(self.update_reaction_maps)
         mmap.reactionAdded.connect(self.update_reaction_maps)
         mmap.mapChanged.connect(self.handle_mapChanged)
-        self.map_tabs.addTab(mmap, m["name"])
+        idx = self.map_tabs.addTab(mmap, m["name"])
         self.update_maps()
-        self.map_tabs.setCurrentIndex(len(self.appdata.project.maps))
+        self.map_tabs.setCurrentIndex(idx)
         self.parent.unsaved_changes()
+
+        return name, idx
 
     def delete_map(self, idx: int):
         name = self.map_tabs.tabText(idx)

@@ -198,16 +198,37 @@ class MCSDialog(QDialog):
 
         # Disable incompatible combinations
         self.solver_optlang.setChecked(True)
+        deactivate_external_solvers = False
         if (appdata.selected_engine == 'None') or (self.eng is None) or (not appdata.cna_ok):  # Hotfix
+            deactivate_external_solvers = True
+
+        if not deactivate_external_solvers:
+            # The following try-except block is added as a workaround as long as the
+            # current CNA version cannot be directly read.
+            try:
+                self.solver_cplex_matlab.setEnabled(
+                    self.eng.is_cplex_matlab_ready())
+                self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
+                self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
+            except Exception:  # Either a Matlab or an Octave error due to a wrong configuration of CellNetAnalyzer
+                msgBox = QMessageBox()
+                msgBox.setWindowTitle("CellNetAnalyzer error!")
+                msgBox.setTextFormat(Qt.RichText)
+                msgBox.setText("<p>Error when loading CellNetAnalyzer. MCS calculation only possible with cobrapy solvers.<br>"
+                               "This error may be resolved in one of the following ways:<br>"
+                               "1. Check that you have the latest CellNetAnalyzer version and that you have set in in CNApy's configuration correctly.<br>"
+                               "2. If CellNetAnalyzer is up-to-date and correctly set in CNApy and this error still occurs, check that you can successfully run CellNetAnalyzer using MATLAB or Octave. "
+                               "</p>")
+                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.exec()
+                deactivate_external_solvers = True
+
+        if deactivate_external_solvers:
             self.solver_cplex_matlab.setEnabled(False)
             self.solver_cplex_java.setEnabled(False)
             self.solver_glpk.setEnabled(False)
             self.solver_intlinprog.setEnabled(False)
-        else:
-            self.solver_cplex_matlab.setEnabled(
-                self.eng.is_cplex_matlab_ready())
-            self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
-            self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
+
         self.configure_solver_options()
 
         s4 = QVBoxLayout()
@@ -538,13 +559,22 @@ class MCSDialog(QDialog):
             enum_method = 4
 
         with self.appdata.project.cobra_py_model as model:
+            update_stoichiometry_hash = False
             if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 self.appdata.project.load_scenario_into_model(model)
+                if len(self.appdata.project.scen_values) > 0:
+                    update_stoichiometry_hash = True
             for r in model.reactions:  # make all reactions bounded for COBRApy FVA
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+            if self.appdata.use_results_cache and update_stoichiometry_hash:
+                model.set_stoichiometry_hash_object()
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
@@ -592,13 +622,11 @@ class MCSDialog(QDialog):
             self.setCursor(Qt.BusyCursor)
             try:
                 mcs, err_val = mcs_computation.compute_mcs(model,
-                                                           targets=targets,
-                                                           desired=desired,
-                                                           enum_method=enum_method,
-                                                           max_mcs_size=max_mcs_size,
-                                                           max_mcs_num=max_mcs_num,
-                                                           timeout=timeout,
-                                                           exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked())
+                                targets=targets, desired=desired, enum_method=enum_method,
+                                max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, timeout=timeout,
+                                exclude_boundary_reactions_as_cuts=self.exclude_boundary.isChecked(),
+                                results_cache_dir=self.appdata.results_cache_dir
+                                if self.appdata.use_results_cache else None)
             except mcs_computation.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return targets, desired

@@ -1,12 +1,15 @@
 """The application data"""
 import os
+from configparser import ConfigParser
 import pathlib
 from tempfile import TemporaryDirectory
 from typing import List, Dict, Tuple
 from ast import literal_eval as make_tuple
-
+import hashlib
+import pickle
 import appdirs
 import cobra
+from optlang_enumerator.cobra_cnapy import CNApyModel
 import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
@@ -16,7 +19,7 @@ class AppData:
     ''' The application data '''
 
     def __init__(self):
-        self.version = "cnapy-1.0.5"
+        self.version = "cnapy-1.0.6"
         self.format_version = 1
         self.unsaved = False
         self.project = ProjectData()
@@ -45,6 +48,8 @@ class AppData:
         self.selected_engine = "None"
         self.work_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
+        self.use_results_cache = False
+        self.results_cache_dir: pathlib.Path = pathlib.Path(".")
         self.last_scen_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
         self.temp_dir = TemporaryDirectory()
@@ -140,13 +145,39 @@ class AppData:
             self.selected_engine = "None"
             print("No engine selected!")
 
+    def save_cnapy_config(self):
+        try:
+            fp = open(self.conf_path, "w")
+        except FileNotFoundError:
+            os.makedirs(appdirs.user_config_dir("cnapy", roaming=True, appauthor=False))
+            fp = open(self.conf_path, "w")
+        parser = ConfigParser()
+        parser.add_section('cnapy-config')
+        parser.set('cnapy-config', 'version', self.version)
+        parser.set('cnapy-config', 'matlab_path', self.matlab_path)
+        parser.set('cnapy-config', 'OCTAVE_EXECUTABLE', self.octave_executable)
+        parser.set('cnapy-config', 'work_directory', self.work_directory)
+        parser.set('cnapy-config', 'cna_path', self.cna_path)
+        parser.set('cnapy-config', 'scen_color', str(self.scen_color.rgb()))
+        parser.set('cnapy-config', 'comp_color', str(self.comp_color.rgb()))
+        parser.set('cnapy-config', 'spec1_color', str(self.special_color_1.rgb()))
+        parser.set('cnapy-config', 'spec2_color', str(self.special_color_2.rgb()))
+        parser.set('cnapy-config', 'default_color', str(self.default_color.rgb()))
+        parser.set('cnapy-config', 'box_width', str(self.box_width))
+        parser.set('cnapy-config', 'rounding', str(self.rounding))
+        parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))
+        parser.set('cnapy-config', 'use_results_cache', str(self.use_results_cache))
+        parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
+        parser.set('cnapy-config', 'selected_engine', str(self.selected_engine))
+        parser.write(fp)
+        fp.close()
 
 class ProjectData:
     ''' The cnapy project data '''
 
     def __init__(self):
         self.name = "Unnamed project"
-        self.cobra_py_model = cobra.Model()
+        self.cobra_py_model = CNApyModel()
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
         self.scen_values: Dict[str, Tuple[float, float]] = {}
@@ -166,6 +197,7 @@ class ProjectData:
                 print('reaction', x, 'not found!')
             else:
                 y.bounds = self.scen_values[x]
+                y.set_hash_value()
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []
@@ -175,6 +207,10 @@ class ProjectData:
                 reactions.append(r.id)
                 values.append(parse_scenario(r.annotation['cnapy-default']))
         return reactions, values
+
+    # currently unused
+    # def scenario_hash_value(self):
+    #     return hashlib.md5(pickle.dumps(sorted(self.scen_values.items()))).digest()
 
 def CnaMap(name):
     background_svg = pkg_resources.resource_filename(

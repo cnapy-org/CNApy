@@ -22,15 +22,16 @@ class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
     def __init__(self, appdata: AppData, central_widget, name: str):
-        self.scene = QGraphicsScene()
+        self.scene: QGraphicsScene = QGraphicsScene()
         QGraphicsView.__init__(self, self.scene)
+        self.background: QGraphicsSvgItem = None
         palette = self.palette()
         self.setPalette(palette)
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.appdata = appdata
         self.central_widget = central_widget
-        self.name = name
+        self.name: str = name
         self.setAcceptDrops(True)
         self.drag_map = False
         self.reaction_boxes: Dict[str, ReactionBox] = {}
@@ -149,14 +150,15 @@ class MapView(QGraphicsView):
             super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
-        if self.select: # select multiple boxes
-            self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
-            self.select_start = self.mapToScene(event.pos())
-        else: # drag entire map
-            self.viewport().setCursor(Qt.ClosedHandCursor)
-            self.setDragMode(QGraphicsView.ScrollHandDrag)
-            self.drag_map = True
-        super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
+        if self.hasFocus():
+            if self.select: # select multiple boxes
+                self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
+                self.select_start = self.mapToScene(event.pos())
+            else: # drag entire map
+                self.viewport().setCursor(Qt.ClosedHandCursor)
+                self.setDragMode(QGraphicsView.ScrollHandDrag)
+                self.drag_map = True
+            super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.drag_map:
@@ -191,7 +193,10 @@ class MapView(QGraphicsView):
 
     def enterEvent(self, event) -> None:
         super().enterEvent(event)
-        self.setFocus() # to capture Shift/Ctrl keys
+        if not isinstance(QApplication.focusWidget(), QLineEdit):
+            # only take focus if no QlineEdit is active to prevent
+            # editingFinished signals there
+            self.setFocus() # to capture Shift/Ctrl keys
 
     def leaveEvent(self, event) -> None:
         super().leaveEvent(event)
@@ -230,14 +235,19 @@ class MapView(QGraphicsView):
         treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
 
+    def set_background(self):
+        if self.background is not None:
+            self.scene.removeItem(self.background)
+        self.background = QGraphicsSvgItem(
+            self.appdata.project.maps[self.name]["background"])
+        self.background.setFlags(QGraphicsItem.ItemClipsToShape)
+        self.background.setScale(self.appdata.project.maps[self.name]["bg-size"])
+        self.scene.addItem(self.background)
+
     def rebuild_scene(self):
         self.scene.clear()
-        background = QGraphicsSvgItem(
-            self.appdata.project.maps[self.name]["background"])
-        background.setFlags(QGraphicsItem.ItemClipsToShape)
-        background.setScale(self.appdata.project.maps[self.name]["bg-size"])
-
-        self.scene.addItem(background)
+        self.background = None
+        self.set_background()
 
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
             try:
@@ -251,17 +261,20 @@ class MapView(QGraphicsView):
             except KeyError:
                 print("failed to add reaction box for", r_id)
 
-    def delete_box(self, reaction_id: str):
-        try:
-            box = self.reaction_boxes[reaction_id]
+    def delete_box(self, reaction_id: str) -> bool:
+        box = self.reaction_boxes.get(reaction_id, None)
+        if box is not None:
             lineedit = box.proxy
             self.scene.removeItem(lineedit)
             self.scene.removeItem(box)
-        except KeyError:
-            print(f"Reaction {reaction_id} does not occur in any map")
+            return True
+        else:
+            # print(f"Reaction {reaction_id} does not occur on map {self.name}")
+            return False
 
     def update_reaction(self, old_reaction_id: str, new_reaction_id: str):
-        self.delete_box(old_reaction_id)
+        if not self.delete_box(old_reaction_id): # reaction is not on map
+            return
         try:
             name = self.appdata.project.cobra_py_model.reactions.get_by_id(
                 new_reaction_id).name
@@ -279,7 +292,7 @@ class MapView(QGraphicsView):
                        [0], self.appdata.project.maps[self.name]["boxes"][box.id][1])
 
         except KeyError:
-            print("failed to add reaction box for", new_reaction_id)
+            print(f"Failed to add reaction box for {new_reaction_id} on map {self.name}")
 
     def update(self):
         for item in self.scene.items():
