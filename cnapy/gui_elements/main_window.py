@@ -12,6 +12,7 @@ import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
+import mcs
 import numpy as np
 
 # from cobra.manipulation.delete import prune_unused_metabolites
@@ -33,6 +34,7 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
+from cnapy.gui_elements.strain_design_dialog import SDDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -289,15 +291,20 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(load_modes_action)
         load_modes_action.triggered.connect(self.load_modes)
 
-        self.mcs_menu = self.analysis_menu.addMenu("Minimal Cut Sets")
-        self.mcs_action = QAction("Compute Minimal Cut Sets ...", self)
-        self.mcs_action.triggered.connect(self.mcs)
-        self.mcs_menu.addAction(self.mcs_action)
+        self.sd_menu = self.analysis_menu.addMenu("Strain Design")
+        self.sd_action = QAction("Compute Minimal Cut Sets ...", self)
+        self.sd_action.triggered.connect(self.mcs)
+        self.sd_menu.addAction(self.sd_action)
         self.mcs_dialog = None
 
-        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
-        self.mcs_menu.addAction(load_mcs_action)
-        load_mcs_action.triggered.connect(self.load_mcs)
+        load_sd_action = QAction("Load Minimal Cut Sets...", self)
+        self.sd_menu.addAction(load_sd_action)
+        load_sd_action.triggered.connect(self.load_mcs)
+           
+        self.sd_action = QAction("Compute Strain Designs ...", self)
+        self.sd_action.triggered.connect(self.strain_design)
+        self.sd_menu.addAction(self.sd_action)
+        self.strain_design_dialog = None
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -466,13 +473,13 @@ class MainWindow(QMainWindow):
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
-                self.mcs_action.setEnabled(True)
+                self.sd_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
         elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
-                self.mcs_action.setEnabled(True)
+                self.sd_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
     @Slot()
@@ -529,6 +536,7 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+            dialog.optlang_solver_set.connect(self.strain_design_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -1048,6 +1056,9 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
+        if self.strain_design_dialog is not None:
+            self.strain_design_dialog.close()
+            self.strain_design_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -1580,6 +1591,11 @@ class MainWindow(QMainWindow):
 
     def mcs(self):
         self.mcs_dialog = MCSDialog(
+            self.appdata, self.centralWidget())
+        self.mcs_dialog.show()
+        
+    def strain_design(self):
+        self.mcs_dialog = SDDialog(
             self.appdata, self.centralWidget())
         self.mcs_dialog.show()
 

@@ -19,4 +19,5 @@ dependencies:
   - qtconsole=5.0
   - requests
   - optlang
+  - psutil
 prefix: /home/user/miniconda3/envs/cnapy
