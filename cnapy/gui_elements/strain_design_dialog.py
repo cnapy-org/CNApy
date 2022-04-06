@@ -4,18 +4,34 @@ import io
 import os
 import traceback
 import scipy
-
+from random import randint
+from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
-                            QRadioButton, QTableWidget, QVBoxLayout)
+                            QRadioButton, QTableWidget, QVBoxLayout, QSpacerItem)
 import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
+from mcs import SD_Module, lineqlist2str, linexprdict2str
+from mcs.names import *
 from cnapy.flux_vector_container import FluxVectorContainer
 
+MCS_STR = 'MCS'
+MCS_BILVL_STR = 'MCS bilevel'
+OPTKNOCK_STR = 'OptKnock'
+ROBUSTKNOCK_STR = 'RobustKnock'
+OPTCOUPLE_STR = 'OptCouple'
+MODULE_TYPES = [MCS_STR, MCS_BILVL_STR, OPTKNOCK_STR, ROBUSTKNOCK_STR, OPTCOUPLE_STR]
+CURR_MODULE = 'current_module'
+
+def BORDER_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
+    return "QGroupBox#EditModule "+\
+                "{ border: 1px solid "+HEX+";"+\
+                "  padding: 12 5 0 0 em ;"+\
+                "  margin: 0 0 0 0 em};"
 
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
@@ -30,55 +46,197 @@ class SDDialog(QDialog):
         self.out = io.StringIO()
         self.err = io.StringIO()
 
-        self.layout = QVBoxLayout()
-        module_box = QGroupBox("Strain Design module(s)")
-        s1 = QHBoxLayout()
-
-        completer = QCompleter(
+        self.completer = QCompleter(
             self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        
+        numr = len(self.appdata.project.cobra_py_model.reactions)
+        if numr > 2:
+            r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
+            r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
+            r3 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
+            self.placeholder_eq = 'e.g.: "'+r1+' - "'+r2+'" <= 2" or "'+r3+'" = -1.5"'
+            placeholder_expr = 'e.g.: "'+r1+'" or "-0.75 '+r2+' + '+r3+'"'
+            placeholder_rid = 'e.g.: "'+r1+'"'
+        else:
+            self.placeholder_eq = 'e.g.: "R1 - R2 <= 2" or "R3 = -1.5"'
+            placeholder_expr = 'e.g.: "R1" or "-0.75 R2 + R3"'
+            placeholder_rid = 'e.g.: "R1"'
+        
+        self.modules = []
+        self.layout = QVBoxLayout()
+        modules_box = QGroupBox("Strain Design module(s)")
+        
+        # layout for modules list and buttons
+        modules_layout = QHBoxLayout()
+        self.module_list = QTableWidget(0, 2)
+        module_add_rem_buttons = QVBoxLayout()
+        modules_layout.addWidget(self.module_list)
+        modules_layout.addItem(module_add_rem_buttons)
+        
+        # modules list
+        self.module_list.setFixedWidth(190)
+        self.module_list.setHorizontalHeaderLabels(["Module Type",""])
+        # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.module_list.horizontalHeader().resizeSection(0, 110)
+        self.module_list.horizontalHeader().resizeSection(1, 60)
+        # self.modules = [None]
+        # combo = QComboBox(self.module_list)
+        # combo.insertItems(0,MODULE_TYPES)
+        # combo.currentTextChanged.connect(self.sel_module_type)
+        # self.module_list.setCellWidget(0, 0, combo)
+        # module_edit_button = QPushButton("Edit ...")
+        # module_edit_button.clicked.connect(self.edit_module)
+        # module_edit_button.setMaximumWidth(60)
+        # self.module_list.setCellWidget(0, 1, module_edit_button)
 
-        self.target_list = QTableWidget(1, 2)
-        self.target_list.setFixedWidth(185)
-        self.target_list.setHorizontalHeaderLabels(["module_type",""])
-        self.target_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.target_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.target_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.target_list.horizontalHeader().resizeSection(0, 110)
-        self.target_list.horizontalHeader().resizeSection(1, 60)
-        combo = QComboBox(self.target_list)
-        combo.insertItem(1, "MCS")
-        combo.insertItem(2, "MCS bilevel")
-        combo.insertItem(3, "OptKnock")
-        combo.insertItem(4, "RobustKnock")
-        combo.insertItem(5, "OptCouple")
-        self.target_list.setCellWidget(0, 0, combo)
-        module_edit_button = QPushButton("Edit ...")
-        module_edit_button.setMaximumWidth(60)
-        self.target_list.setCellWidget(0, 1, module_edit_button)
+        # module add and remove buttons
+        add_module_button = QPushButton("+")
+        add_module_button.clicked.connect(self.add_module)
+        add_module_button.setMaximumWidth(20)
+        rem_module_button = QPushButton("-")
+        rem_module_button.clicked.connect(self.rem_module)
+        rem_module_button.setMaximumWidth(20)
+        module_add_rem_buttons.addWidget(add_module_button)
+        module_add_rem_buttons.addWidget(rem_module_button)
+        module_add_rem_buttons.addStretch()
+        
+        # edit module area
+        self.module_spec_box = QGroupBox("Module 1 specifications (MCS)")
+        self.module_spec_box.setObjectName("EditModule")
+        self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
+        module_spec_layout = QVBoxLayout()
+        module_spec_layout.setAlignment(Qt.AlignTop)
+        self.module_edit = {}
+        
+        # module sense
+        self.module_edit[MODULE_SENSE+"_label"] = QLabel("Maintain (desired) or eliminate (undesired) flux region")
+        self.module_edit[MODULE_SENSE] = QComboBox()
+        module_spec_layout.addWidget(self.module_edit[MODULE_SENSE+"_label"] )
+        self.module_edit[MODULE_SENSE].insertItems(1,[UNDESIRED,DESIRED])
+        module_spec_layout.addWidget(self.module_edit[MODULE_SENSE])
+        
+        # Outer objective
+        self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
+        self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
+        self.module_edit[OUTER_OBJECTIVE] = ReceiverLineEdit(self)
+        self.module_edit[OUTER_OBJECTIVE].setCompleter(self.completer)
+        self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
+        self.module_edit[OUTER_OBJECTIVE].setHidden(True)
+        module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE+"_label"] )
+        module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE])
+        
+        # Inner objective
+        self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
+        self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
+        self.module_edit[INNER_OBJECTIVE] = ReceiverLineEdit(self)
+        self.module_edit[INNER_OBJECTIVE].setCompleter(self.completer)
+        self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
+        self.module_edit[INNER_OBJECTIVE].setHidden(True)
+        module_spec_layout.addWidget(self.module_edit[INNER_OBJECTIVE+"_label"])
+        module_spec_layout.addWidget(self.module_edit[INNER_OBJECTIVE])
+        
+        optcouple_layout = QHBoxLayout()
+        # Product ID
+        optcouple_layout_prod = QVBoxLayout()
+        self.module_edit[PROD_ID+"_label"]  = QLabel("Product synthesis reaction ID")
+        self.module_edit[PROD_ID+"_label"].setHidden(True)
+        self.module_edit[PROD_ID] = ReceiverLineEdit(self)
+        self.module_edit[PROD_ID].setCompleter(self.completer)
+        self.module_edit[PROD_ID].setPlaceholderText(placeholder_rid)
+        self.module_edit[PROD_ID].setHidden(True)
+        optcouple_layout_prod.addWidget(self.module_edit[PROD_ID+"_label"])
+        optcouple_layout_prod.addWidget(self.module_edit[PROD_ID])
+        optcouple_layout.addItem(optcouple_layout_prod)
+        #
+        # minimal growth coupling potential
+        optcouple_layout_mingcp = QVBoxLayout()
+        self.module_edit[MIN_GCP+"_label"] = QLabel("Minimal growth coupling potential (float)")
+        self.module_edit[MIN_GCP+"_label"].setHidden(True)
+        self.module_edit[MIN_GCP] = ReceiverLineEdit(self)
+        self.module_edit[MIN_GCP].setHidden(True)
+        self.module_edit[MIN_GCP].setPlaceholderText("e.g. 1.3")
+        optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP+"_label"])
+        optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP])
+        optcouple_layout.addItem(optcouple_layout_mingcp)
+        module_spec_layout.addItem(optcouple_layout)
+        
+        # module constraints
+        self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
+        module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
+        constr_list_layout = QHBoxLayout()
+        constr_list_layout.setAlignment(Qt.AlignLeft)
+        module_spec_layout.addItem(constr_list_layout)
+        
+        # layout for constraint list and buttons
+        self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
+        self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.module_edit[CONSTRAINTS].setHorizontalHeaderLabels([" "])
+        # constr_entry = ReceiverLineEdit(self)
+        # constr_entry.setCompleter(self.completer)
+        # constr_entry.setPlaceholderText(self.placeholder_eq)
+        # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
+        # self.active_receiver = constr_entry
+        constr_list_layout.addWidget(self.module_edit[CONSTRAINTS])
+        
+        # buttons to add and remove constraint
+        constraint_add_rem_buttons = QVBoxLayout()
+        self.module_edit["add_constr_button"] = QPushButton("+")
+        self.module_edit["add_constr_button"].clicked.connect(self.add_constr)
+        self.module_edit["add_constr_button"].setMaximumWidth(20)
+        self.module_edit["rem_constr_button"] = QPushButton("-")
+        self.module_edit["rem_constr_button"].clicked.connect(self.rem_constr)
+        self.module_edit["rem_constr_button"].setMaximumWidth(20)
+        constraint_add_rem_buttons.addWidget(self.module_edit["add_constr_button"])
+        constraint_add_rem_buttons.addWidget(self.module_edit["rem_constr_button"])
+        constraint_add_rem_buttons.addStretch()
+        constr_list_layout.addItem(constraint_add_rem_buttons)
+                        
+        # validate module button
+        module_buttons_layout = QHBoxLayout()
+        self.module_edit["module_apply_button"] = QPushButton("Apply")
+        self.module_edit["module_apply_button"].clicked.connect(self.module_apply)
+        self.module_edit["module_apply_button"].setProperty(CURR_MODULE,0)
+        self.module_edit["module_del_button"] = QPushButton("Delete")
+        self.module_edit["module_del_button"].clicked.connect(self.rem_module,True)
+        module_buttons_layout.addWidget(self.module_edit["module_apply_button"])
+        module_buttons_layout.addWidget(self.module_edit["module_del_button"])
+        module_spec_layout.addItem(module_buttons_layout)
+        
+        self.module_spec_box.setLayout(module_spec_layout)
 
-        s1.addWidget(self.target_list)
+        modules_layout.addWidget(self.module_spec_box)
+
+        # complete box
+        modules_box.setLayout(modules_layout)
+        
+        self.update_module_edit()
+        
+        self.show()
+        print("hi")
         
         # self.target_list.setCellWidget(0, 0, item)
         # item2 = ReceiverLineEdit(self)
         # item2.setCompleter(completer)
         # self.target_list.setCellWidget(0, 1, item2)
         # self.active_receiver = item2
-
-        s11 = QVBoxLayout()
-        self.add_module_button = QPushButton("+")
-        self.add_module_button.clicked.connect(self.add_module)
-        self.rem_module_button = QPushButton("-")
-        self.rem_module_button.clicked.connect(self.rem_module)
-        s11.addWidget(self.add_module_button)
-        s11.addWidget(self.rem_module_button)
-        s1.addItem(s11)
         
         # self.s12 = ()
-                
-        module_box.setLayout(s1)
-        self.layout.addWidget(module_box)
+
+        self.layout.addWidget(modules_box)
         # self.layout.addItem(s1)
+        
+        avail_solvers = []
+        if module_exists('swiglpk'):
+            avail_solvers += ['glpk']
+        if module_exists('cplex'):
+            avail_solvers += ['cplex']
+        if module_exists('gurobipy'):
+            avail_solvers += ['gurobi']
+        if module_exists('pyscipopt'):
+            avail_solvers += ['scip']
 
         s3 = QHBoxLayout()
 
@@ -210,10 +368,6 @@ class SDDialog(QDialog):
         buttons.addWidget(self.cancel)
         self.layout.addItem(buttons)
 
-        # max width for buttons
-        self.add_module_button.setMaximumWidth(20)
-        self.rem_module_button.setMaximumWidth(20)
-
         self.setLayout(self.layout)
 
         # Connecting the signal
@@ -243,23 +397,267 @@ class SDDialog(QDialog):
                 self.any_mcs.setChecked(True)
 
     def add_module(self):
-        i = self.target_list.rowCount()
-        self.target_list.insertRow(i)
+        i = self.module_list.rowCount()
+        self.module_list.insertRow(i)
         
-        combo = QComboBox(self.target_list)
-        combo.insertItem(1, "MCS")
-        combo.insertItem(2, "MCS bilevel")
-        combo.insertItem(3, "OptKnock")
-        combo.insertItem(4, "RobustKnock")
-        combo.insertItem(5, "OptCouple")
-        self.target_list.setCellWidget(i, 0, combo)
+        combo = QComboBox(self.module_list)
+        combo.insertItems(0,MODULE_TYPES)
+        combo.currentTextChanged.connect(self.sel_module_type)
+        self.module_list.setCellWidget(i, 0, combo)
         module_edit_button = QPushButton("Edit ...")
+        module_edit_button.clicked.connect(self.edit_module)
         module_edit_button.setMaximumWidth(60)
-        self.target_list.setCellWidget(i, 1, module_edit_button)
+        self.module_list.setCellWidget(i, 1, module_edit_button)
+        self.modules.append(None)
+        if i == 0:
+            self.module_edit["module_apply_button"].setProperty(CURR_MODULE,i)
+            self.update_module_edit()
 
-    def rem_module(self):
-        i = self.target_list.selectedIndexes()[0].row()
-        self.target_list.removeRow(i)
+    def rem_module(self,*args):
+        if self.module_list.rowCount() == 0:
+            return
+        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
+        if args:
+            i = current_module
+        if self.module_list.selectedIndexes():
+            i = self.module_list.selectedIndexes()[0].row()
+        else:
+            i = self.module_list.rowCount()-1
+        self.module_list.removeRow(i)
+        self.modules.pop(i)
+        if i == current_module:
+            last_module = self.module_list.rowCount()-1
+            self.module_edit["module_apply_button"].setProperty(CURR_MODULE,last_module)
+            self.update_module_edit()
+        
+    def edit_module(self):
+        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
+        # if current module is valid, load the module that was newly selected
+        valid, module = self.verify_module(current_module)
+        if valid:
+            self.modules[current_module] = module
+        else:
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
+            return
+        selected_module = self.module_list.selectedIndexes()[0].row()
+        self.module_edit["module_apply_button"].setProperty(CURR_MODULE,selected_module)
+        self.update_module_edit()
+        
+    def sel_module_type(self):
+        i = self.module_list.selectedIndexes()[0].row()
+        self.modules[i] = None
+        if i == self.module_edit["module_apply_button"].property(CURR_MODULE):
+            self.update_module_edit()
+        
+    def add_constr(self):
+        i = self.module_edit[CONSTRAINTS].rowCount()
+        self.module_edit[CONSTRAINTS].insertRow(i)
+        constr_entry = ReceiverLineEdit(self)
+        constr_entry.setCompleter(self.completer)
+        constr_entry.setPlaceholderText(self.placeholder_eq)
+        self.active_receiver = constr_entry
+        self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
+
+    def rem_constr(self):
+        if self.module_edit[CONSTRAINTS].rowCount() == 0:
+            return
+        if self.module_edit[CONSTRAINTS].selectedIndexes():
+            i = self.module_edit[CONSTRAINTS].selectedIndexes()[0].row()
+        else:
+            i = self.module_edit[CONSTRAINTS].rowCount()-1
+        self.module_edit[CONSTRAINTS].removeRow(i)
+    
+    def module_apply(self):
+        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
+        valid, module = self.verify_module(current_module)
+        if valid:
+            self.modules[current_module] = module
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
+        else:
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
+    
+    def update_module_edit(self):
+        if not self.modules: # remove everything
+            self.module_spec_box.setTitle('Please add a module')
+            self.module_edit["module_apply_button"].setHidden(	    True)
+            self.module_edit["module_del_button"].setHidden(	    True)
+            self.module_edit[CONSTRAINTS].setHidden(	            True)
+            self.module_edit[CONSTRAINTS+"_label"].setHidden(	    True)
+            self.module_edit["rem_constr_button"].setHidden(	    True)
+            self.module_edit["add_constr_button"].setHidden(	    True)
+            self.module_edit[MODULE_SENSE].setHidden(	            True)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    True)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			True)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
+            self.module_edit[PROD_ID].setHidden( 					True)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
+            self.module_edit[MIN_GCP].setHidden( 					True)
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
+            return
+        else:
+            self.module_edit["module_apply_button"].setHidden(	    False)
+            self.module_edit["module_del_button"].setHidden(	    False)
+            self.module_edit[CONSTRAINTS].setHidden(	            False)
+            self.module_edit[CONSTRAINTS+"_label"].setHidden(	    False)
+            self.module_edit["rem_constr_button"].setHidden(	    False)
+            self.module_edit["add_constr_button"].setHidden(	    False)
+        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
+        module_type = self.module_list.cellWidget(current_module,0).currentText()
+        self.module_spec_box.setTitle('Module '+str(current_module+1)+' specifications ('+module_type+')')
+        if not self.modules[current_module]:
+            self.module_edit[MODULE_SENSE].setCurrentText("")
+            self.module_edit[INNER_OBJECTIVE].setText("")
+            self.module_edit[OUTER_OBJECTIVE].setText("")
+            self.module_edit[PROD_ID].setText("")
+            self.module_edit[MIN_GCP].setText("")
+            for _ in range(self.module_edit[CONSTRAINTS].rowCount()):
+                self.module_edit[CONSTRAINTS].removeRow(0)
+            # uncomment this to add an empty constraint by default
+            # self.module_edit[CONSTRAINTS].insertRow(0)
+            # constr_entry = ReceiverLineEdit(self)
+            # constr_entry.setCompleter(self.completer)
+            # self.active_receiver = constr_entry
+            # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
+        else:
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
+            mod = {}
+            mod[MODULE_SENSE]    = self.modules[current_module][MODULE_SENSE]
+            mod[CONSTRAINTS]     = self.modules[current_module][CONSTRAINTS]
+            mod[INNER_OBJECTIVE] = self.modules[current_module][INNER_OBJECTIVE]
+            mod[OUTER_OBJECTIVE] = self.modules[current_module][OUTER_OBJECTIVE]
+            mod[PROD_ID]         = self.modules[current_module][PROD_ID]
+            mod[MIN_GCP]         = self.modules[current_module][MIN_GCP]
+            
+            # remove all former constraints and refill again from module
+            for _ in range(self.module_edit[CONSTRAINTS].rowCount()):
+                self.module_edit[CONSTRAINTS].removeRow(0)
+            constr_entry = [None for _ in range(len(mod[CONSTRAINTS]))]
+            for i,c in enumerate(mod[CONSTRAINTS]):
+                text = lineqlist2str(c)
+                self.module_edit[CONSTRAINTS].insertRow(i)
+                constr_entry[i] = ReceiverLineEdit(self)
+                constr_entry[i].setText(text)
+                constr_entry[i].setCompleter(self.completer)
+                self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry[i])
+            # load other information from module
+            if mod[MODULE_SENSE]:
+                self.module_edit[MODULE_SENSE].setCurrentText(mod[MODULE_SENSE])
+            if mod[INNER_OBJECTIVE]:
+                self.module_edit[INNER_OBJECTIVE].setText(\
+                    linexprdict2str(mod[INNER_OBJECTIVE]))
+            if mod[OUTER_OBJECTIVE]:
+                self.module_edit[OUTER_OBJECTIVE].setText(\
+                    linexprdict2str(mod[OUTER_OBJECTIVE]))
+            if mod[PROD_ID]:
+                self.module_edit[PROD_ID].setText(\
+                    linexprdict2str(mod[PROD_ID]))
+            if mod[MIN_GCP]:
+                self.module_edit[MIN_GCP].setText(str(mod[MIN_GCP]))
+
+        if module_type == MCS_STR:
+            self.module_edit[MODULE_SENSE].setHidden(	            False)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			True)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
+            self.module_edit[PROD_ID].setHidden( 					True)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
+            self.module_edit[MIN_GCP].setHidden( 					True)
+        elif module_type == MCS_BILVL_STR:
+            self.module_edit[MODULE_SENSE].setHidden(	            False)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
+            self.module_edit[PROD_ID].setHidden( 					True)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
+            self.module_edit[MIN_GCP].setHidden( 					True)
+        elif module_type == OPTKNOCK_STR:
+            self.module_edit[MODULE_SENSE].setHidden(	            True)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    True)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			False)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
+            self.module_edit[PROD_ID].setHidden( 					True)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
+            self.module_edit[MIN_GCP].setHidden( 					True)
+        elif module_type == ROBUSTKNOCK_STR:
+            self.module_edit[MODULE_SENSE].setHidden(	            True)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    True)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			False)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
+            self.module_edit[PROD_ID].setHidden( 					True)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
+            self.module_edit[MIN_GCP].setHidden( 					True)
+        elif module_type == OPTCOUPLE_STR:
+            self.module_edit[MODULE_SENSE].setHidden(	            True)
+            self.module_edit[MODULE_SENSE+"_label"].setHidden(	    True)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
+            self.module_edit[PROD_ID+"_label"].setHidden( 			False)
+            self.module_edit[PROD_ID].setHidden( 					False)
+            self.module_edit[MIN_GCP+"_label"].setHidden( 			False)
+            self.module_edit[MIN_GCP].setHidden( 					False)
+    
+    def verify_module(self,*args):
+        module_no = args[0]
+        module_type = self.module_list.cellWidget(module_no,0).currentText()
+        # retrieve module infos from gui
+        constraints = [self.module_edit[CONSTRAINTS].cellWidget(i,0).text() \
+                            for i in range(self.module_edit[CONSTRAINTS].rowCount())]
+        module_sense = self.module_edit[MODULE_SENSE].currentText()
+        inner_objective = self.module_edit[INNER_OBJECTIVE].text()
+        outer_objective = self.module_edit[OUTER_OBJECTIVE].text()
+        prod_id = self.module_edit[PROD_ID].text()
+        min_gcp = self.module_edit[MIN_GCP].text()
+        if min_gcp:
+            min_gcp = float(min_gcp)
+        else:
+            min_gcp = 0.0
+        # adapt model
+        try:
+            with self.appdata.project.cobra_py_model as model:
+                if self.consider_scenario.isChecked():  # integrate scenario into model bounds
+                    for r in self.appdata.project.scen_values.keys():
+                        model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
+                if module_type == MCS_STR:
+                    module = SD_Module(model,module_type=MCS_LIN, \
+                                        module_sense=module_sense, constraints=constraints)
+                elif module_type == MCS_BILVL_STR:
+                    module = SD_Module(model,module_type=MCS_BILVL, inner_objective=inner_objective,\
+                                        inner_opt_sense=MAXIMIZE, module_sense=module_sense, \
+                                        constraints=constraints)
+                elif module_type == OPTKNOCK_STR:
+                    module = SD_Module(model,module_type=OPTKNOCK, inner_objective=inner_objective,\
+                                        inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
+                                        outer_opt_sense=MAXIMIZE, constraints=constraints)
+                elif module_type == ROBUSTKNOCK_STR:
+                    module = SD_Module(model,module_type=ROBUSTKNOCK, inner_objective=inner_objective,\
+                                        inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
+                                        outer_opt_sense=MAXIMIZE, constraints=constraints)
+                elif module_type == OPTCOUPLE_STR:
+                    module = SD_Module(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
+                                        inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
+                                        min_gcp=min_gcp, constraints=constraints)
+            return True, module
+        except:
+            return False, None
+            # paint frame red
 
     def compute(self):
         mcs_equation_errors = self.check_for_mcs_equation_errors()
@@ -325,15 +723,15 @@ class SDDialog(QDialog):
         elif self.smalles_mcs_first.isChecked():
             self.eng.eval("mcs_search_mode = 'search_3';", nargout=0)
 
-        rows = self.target_list.rowCount()
+        rows = self.module_list.rowCount()
         for i in range(0, rows):
-            p1 = self.target_list.cellWidget(i, 0).text()
-            p2 = self.target_list.cellWidget(i, 1).text()
-            if self.target_list.cellWidget(i, 2).currentText() == '≤':
+            p1 = self.module_list.cellWidget(i, 0).text()
+            p2 = self.module_list.cellWidget(i, 1).text()
+            if self.module_list.cellWidget(i, 2).currentText() == '≤':
                 p3 = "<="
             else:
                 p3 = ">="
-            p4 = self.target_list.cellWidget(i, 3).text()
+            p4 = self.module_list.cellWidget(i, 3).text()
             cmd = "dg_T = {[" + p1+"], '" + p2 + \
                 "', '" + p3 + "', [" + p4 + "']};"
             self.eng.eval(cmd, nargout=0,
@@ -471,17 +869,17 @@ class SDDialog(QDialog):
                 model.set_stoichiometry_hash_object()
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
-            rows = self.target_list.rowCount()
+            rows = self.module_list.rowCount()
             targets = dict()
             for i in range(0, rows):
-                p1 = self.target_list.cellWidget(i, 0).text()
-                p2 = self.target_list.cellWidget(i, 1).text()
+                p1 = self.module_list.cellWidget(i, 0).text()
+                p2 = self.module_list.cellWidget(i, 1).text()
                 if len(p1) > 0 and len(p2) > 0:
-                    if self.target_list.cellWidget(i, 2).currentText() == '≤':
+                    if self.module_list.cellWidget(i, 2).currentText() == '≤':
                         p3 = "<="
                     else:
                         p3 = ">="
-                    p4 = float(self.target_list.cellWidget(i, 3).text())
+                    p4 = float(self.module_list.cellWidget(i, 3).text())
                     targets.setdefault(p1, []).append((p2, p3, p4))
             targets = list(targets.values())
             try:
@@ -684,11 +1082,11 @@ class SDDialog(QDialog):
 
     def check_for_mcs_equation_errors(self) -> str:
         errors = ""
-        rows = self.target_list.rowCount()
+        rows = self.module_list.rowCount()
         for i in range(0, rows):
-            target_left = self.target_list.cellWidget(i, 1).text()
+            target_left = self.module_list.cellWidget(i, 1).text()
             errors += self.check_left_mcs_equation(target_left)
-            target_right = self.target_list.cellWidget(i, 3).text()
+            target_right = self.module_list.cellWidget(i, 3).text()
             errors += self.check_right_mcs_equation(target_right)
 
         rows = self.desired_list.rowCount()
