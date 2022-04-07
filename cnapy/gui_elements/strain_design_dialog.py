@@ -1,12 +1,12 @@
 """The dialog for calculating minimal cut sets"""
 
 import io
-from msilib.schema import CheckBox
 import os
 import traceback
 import scipy
 from random import randint
 from importlib import find_loader as module_exists
+from qtpy.QtWidgets import QAbstractItemView
 from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
@@ -34,7 +34,7 @@ def BORDER_COLOR(HEX): # string that defines style sheet for changing the color 
                 "{ border: 1px solid "+HEX+";"+\
                 "  padding: 12 5 0 0 em ;"+\
                 "  margin: 0 0 0 0 em};"
-
+            
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
 
@@ -47,17 +47,38 @@ class SDDialog(QDialog):
         self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
+        self.setMinimumWidth(620)
 
-        self.completer = QCompleter(
-            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
+        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        
+        self.completer = QCompleter(self.reac_ids, self)
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        
+        if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
+            len(self.appdata.project.cobra_py_model.genes) == 0:
+                self.completer_ko_ki = self.completer
+        else:
+            keywords = set( self.appdata.project.cobra_py_model.reactions.list_attr("id")+ \
+                            self.appdata.project.cobra_py_model.genes.list_attr("id")+
+                            self.appdata.project.cobra_py_model.genes.list_attr("name"))
+            if '' in keywords:
+                keywords.remove('')
+            self.completer_ko_ki = QCompleter(keywords, self)
+            self.completer_ko_ki.setCaseSensitivity(Qt.CaseInsensitive)
+            
+            self.gene_ids = self.appdata.project.cobra_py_model.genes.list_attr("id")
+            if set(self.appdata.project.cobra_py_model.genes.list_attr("name")) != set(""):
+                self.gene_names = self.appdata.project.cobra_py_model.genes.list_attr("name")
+            else:
+                self.gene_names = self.gene_ids
+                
         
         # Define placeholder strings for text edit fields
         numr = len(self.appdata.project.cobra_py_model.reactions)
         if numr > 2:
-            r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
-            r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
-            r3 = self.appdata.project.cobra_py_model.reactions[randint(0,numr)].id
+            r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
+            r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
+            r3 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
             self.placeholder_eq = 'e.g.: "'+r1+' - "'+r2+'" <= 2" or "'+r3+'" = -1.5"'
             placeholder_expr = 'e.g.: "'+r1+'" or "-0.75 '+r2+' + '+r3+'"'
             placeholder_rid = 'e.g.: "'+r1+'"'
@@ -69,7 +90,8 @@ class SDDialog(QDialog):
         ## Upper box of the dialog (for defining modules)
         self.modules = []
         self.layout = QVBoxLayout()
-        modules_box = QGroupBox("Strain design module(s)")
+        self.modules_box = QGroupBox("Strain design module(s)")
+        self.modules_box.setMinimumHeight(300)
         
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
@@ -146,7 +168,7 @@ class SDDialog(QDialog):
         optcouple_layout = QHBoxLayout()
         # Product ID
         optcouple_layout_prod = QVBoxLayout()
-        self.module_edit[PROD_ID+"_label"]  = QLabel("Product synthesis reaction ID")
+        self.module_edit[PROD_ID+"_label"]  = QLabel("Product synth. reac_id")
         self.module_edit[PROD_ID+"_label"].setHidden(True)
         self.module_edit[PROD_ID] = ReceiverLineEdit(self)
         self.module_edit[PROD_ID].setCompleter(self.completer)
@@ -158,11 +180,11 @@ class SDDialog(QDialog):
         #
         # minimal growth coupling potential
         optcouple_layout_mingcp = QVBoxLayout()
-        self.module_edit[MIN_GCP+"_label"] = QLabel("Minimal growth coupling potential (float)")
+        self.module_edit[MIN_GCP+"_label"] = QLabel("Min. growth-coupling potential")
         self.module_edit[MIN_GCP+"_label"].setHidden(True)
         self.module_edit[MIN_GCP] = ReceiverLineEdit(self)
         self.module_edit[MIN_GCP].setHidden(True)
-        self.module_edit[MIN_GCP].setPlaceholderText("e.g. 1.3")
+        self.module_edit[MIN_GCP].setPlaceholderText("(float) e.g.: 1.3")
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP+"_label"])
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP])
         optcouple_layout.addItem(optcouple_layout_mingcp)
@@ -216,32 +238,32 @@ class SDDialog(QDialog):
         # connect module edit box to the overall module layout
         modules_layout.addWidget(self.module_spec_box)
         # connect overall module layout to overall module box
-        modules_box.setLayout(modules_layout)
+        self.modules_box.setLayout(modules_layout)
         # connect overall module box to editor to the dialog window
         splitter = QSplitter()
-        splitter.addWidget(modules_box)
+        splitter.addWidget(self.modules_box)
         self.layout.addWidget(splitter)
         
         
-        # self.layout.addWidget(modules_box)
+        # self.layout.addWidget(self.modules_box)
         # refresh modules -> remove in case you want default entries in module constraint list
         self.update_module_edit()
         
-
-
-        ## Check boxes for gene-mcs, entries in network map, solvers, kos and kis
-
-        # checkboxes
+        params_layout = QHBoxLayout()
+        
+        ## Checkboxes for gene-mcs, entries in network map, solvers, kos and kis
         checkboxes = QWidget()
+        checkboxes.setObjectName("Checkboxes")
         checkboxes_layout = QVBoxLayout()
         self.gen_kos = QCheckBox(" Gene KOs")
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
             len(self.appdata.project.cobra_py_model.genes) == 0:
             self.gen_kos.setEnabled(False)
+        self.gen_kos.clicked.connect(self.gen_ko_checked)
         checkboxes_layout.addWidget(self.gen_kos)
         
         self.consider_scenario = QCheckBox(
-        " Consider constraint(s) given by scenario")
+        " Use scenario")
         checkboxes_layout.addWidget(self.consider_scenario)
         
         max_sols_layout = QHBoxLayout()
@@ -270,7 +292,8 @@ class SDDialog(QDialog):
         
         # add all edit and checkbox-items to dialog
         checkboxes.setLayout(checkboxes_layout)
-        self.layout.addWidget(checkboxes)
+        checkboxes.setStyleSheet("QWidget#Checkboxes { max-height: 10em };")
+        params_layout.addWidget(checkboxes)        
         
         ## Solver and solving options
         # find available solvers
@@ -284,7 +307,8 @@ class SDDialog(QDialog):
         if module_exists('pyscipopt'):
             avail_solvers += [SCIP]
             
-        solver_and_solution_group = QGroupBox("Solver and solution process")
+        solver_and_solution_group = QGroupBox("Solver and solution approach")
+        solver_and_solution_group.setObjectName("Solver_and_solution")
         solver_and_solution_layout = QHBoxLayout()
         
         solver_buttons_layout = QVBoxLayout()
@@ -336,37 +360,191 @@ class SDDialog(QDialog):
         solver_and_solution_layout.addItem(solution_buttons_layout)
                 
         solver_and_solution_group.setLayout(solver_and_solution_layout)
-        self.layout.addWidget(solver_and_solution_group)
+        solver_and_solution_group.setStyleSheet("QGroupBox#Solver_and_solution { max-height: 10em };")
+        solver_and_solution_group.setMinimumWidth(300)
+        params_layout.addWidget(solver_and_solution_group)
 
         self.configure_solver_options()
+        
+        self.layout.addItem(params_layout)
 
+        ## KO and KI costs
+        # checkbox
         self.advanced = QCheckBox(
             "Advanced: Define knockout/addition costs for genes/reactions")
-        self.advanced.setEnabled(False)
         self.layout.addWidget(self.advanced)
+        self.advanced.clicked.connect(self.show_ko_ki)
         
+        self.ko_ki_box = QGroupBox("Specify knockout and addition candidates")
+        print("TO DO: Set KO and KI box to HIDDEN initially..")
+        self.ko_ki_box.setHidden(False)
+        self.ko_ki_box.setObjectName("ko_ki")
+        ko_ki_layout = QVBoxLayout()
+        ko_ki_layout.setAlignment(Qt.AlignLeft)
         
-        buttons = QHBoxLayout()
+        # Filter bar
+        ko_ki_filter_layout = QHBoxLayout()
+        l = QLabel("Filter: ")
+        self.ko_ki_filter = ReceiverLineEdit(self)
+        self.ko_ki_filter.setCompleter(self.completer_ko_ki)
+        self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
+        ko_ki_filter_layout.addWidget(l)
+        ko_ki_filter_layout.addWidget(self.ko_ki_filter)
+        ko_ki_layout.addItem(ko_ki_filter_layout)
+        
+        # Tables
+        ko_ki_lists_layout = QHBoxLayout()
+        
+        # reaction list
+        reaction_interventions_layout = QVBoxLayout()
+        reaction_interventions_layout.setAlignment(Qt.AlignTop)
+        self.reaction_itv_list_widget = QWidget()
+        self.reaction_itv_list_widget.setFixedWidth(270)
+        self.reaction_itv_list = QTableWidget(0, 3)
+        self.reaction_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
+        self.reaction_itv_list.setFocusPolicy(Qt.NoFocus)
+        self.reaction_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
+        self.reaction_itv_list.verticalHeader().setDefaultSectionSize(20)
+        # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
+        self.reaction_itv_list.setFixedWidth(260)
+        self.reaction_itv_list.setMinimumHeight(150)
+        self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.reaction_itv_list.horizontalHeader().resizeSection(0, 100)
+        self.reaction_itv_list.horizontalHeader().resizeSection(1, 80)
+        self.reaction_itv_list.horizontalHeader().resizeSection(2, 40)
+        reaction_interventions_layout.addWidget(self.reaction_itv_list)
+        # fill reaction list
+        self.reaction_itv = {}
+        for i,r in enumerate(self.reac_ids):
+            self.reaction_itv_list.insertRow(i)
+            l = QLabel(r)
+            l.setToolTip(r)
+            l.setMaximumWidth(100)
+            self.reaction_itv.update({r:\
+                                        {'cost': QLineEdit("1.0"),
+                                         'button_group': QButtonGroup()}})
+            r_ko_ki_button_widget = QWidget()
+            r_ko_ki_button_layout = QHBoxLayout()
+            r_ko_ki_button_layout.setAlignment(Qt.AlignCenter)
+            r_ko_ki_button_layout.setContentsMargins(0,0,0,0)
+            r_ko_button = QRadioButton()
+            r_na_button = QRadioButton()
+            r_ki_button = QRadioButton()
+            r_ko_button.setChecked(True)
+            self.reaction_itv[r]['button_group'].addButton(r_ko_button,1)
+            self.reaction_itv[r]['button_group'].addButton(r_na_button,2)
+            self.reaction_itv[r]['button_group'].addButton(r_ki_button,3)
+            r_ko_ki_button_layout.addWidget(r_ko_button)
+            r_ko_ki_button_layout.addWidget(r_na_button)
+            r_ko_ki_button_layout.addWidget(r_ki_button)
+            r_ko_ki_button_widget.setLayout(r_ko_ki_button_layout)
+            self.reaction_itv_list.setCellWidget(i, 0, l)
+            self.reaction_itv_list.setCellWidget(i, 1, r_ko_ki_button_widget)
+            self.reaction_itv_list.setCellWidget(i, 2, self.reaction_itv[r]['cost'])
+            self.reaction_itv[r]['button_group'].buttonClicked.connect(\
+                            lambda state, x=r: self.knock_changed(x,'reac'))
+        # buttons
+        self.deactivate_ex = QPushButton("Exchange reactions notknockable")
+        self.deactivate_ex.clicked.connect(self.set_deactivate_ex)
+        reaction_interventions_layout.addWidget(self.deactivate_ex)
+        self.all_koable = QPushButton("All knockable")
+        self.all_koable.clicked.connect(self.set_all_r_koable)
+        reaction_interventions_layout.addWidget(self.all_koable)
+        self.none_koable = QPushButton("All notknockable")
+        self.none_koable.clicked.connect(self.set_none_r_koable)
+        reaction_interventions_layout.addWidget(self.none_koable)
+        self.reaction_itv_list_widget.setLayout(reaction_interventions_layout)
+        ko_ki_lists_layout.addWidget(self.reaction_itv_list_widget)
+        
+        # gene list
+        gene_interventions_layout = QVBoxLayout()
+        gene_interventions_layout.setAlignment(Qt.AlignTop)
+        self.gene_itv_list_widget = QWidget()
+        self.gene_itv_list_widget.setHidden(True)
+        self.gene_itv_list_widget.setFixedWidth(270)
+        self.gene_itv_list = QTableWidget(0, 3)
+        self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
+        self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
+        self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
+        self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.gene_itv_list.setFixedWidth(260)
+        self.gene_itv_list.setMinimumHeight(150)
+        self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.gene_itv_list.horizontalHeader().resizeSection(0, 90)
+        self.gene_itv_list.horizontalHeader().resizeSection(1, 80)
+        self.gene_itv_list.horizontalHeader().resizeSection(2, 40)
+        gene_interventions_layout.addWidget(self.gene_itv_list)
+        # fill gene list
+        self.gene_itv = {}
+        for i,g in enumerate(self.gene_ids):
+            self.gene_itv_list.insertRow(i)
+            l = QLabel(self.gene_names[i])
+            l.setToolTip(g)
+            l.setMaximumWidth(80)
+            self.gene_itv.update({g:\
+                                        {'cost': QLineEdit("1.0"),
+                                         'button_group': QButtonGroup()}})
+            g_ko_ki_button_widget = QWidget()
+            g_ko_ki_button_layout = QHBoxLayout()
+            g_ko_ki_button_layout.setAlignment(Qt.AlignCenter)
+            g_ko_ki_button_layout.setContentsMargins(0,0,0,0)
+            g_ko_button = QRadioButton()
+            g_na_button = QRadioButton()
+            g_ki_button = QRadioButton()
+            g_ko_button.setChecked(True)
+            self.gene_itv[g]['button_group'].addButton(g_ko_button,1)
+            self.gene_itv[g]['button_group'].addButton(g_na_button,2)
+            self.gene_itv[g]['button_group'].addButton(g_ki_button,3)
+            g_ko_ki_button_layout.addWidget(g_ko_button)
+            g_ko_ki_button_layout.addWidget(g_na_button)
+            g_ko_ki_button_layout.addWidget(g_ki_button)
+            g_ko_ki_button_widget.setLayout(g_ko_ki_button_layout)
+            self.gene_itv_list.setCellWidget(i, 0, l)
+            self.gene_itv_list.setCellWidget(i, 1, g_ko_ki_button_widget)
+            self.gene_itv_list.setCellWidget(i, 2, self.gene_itv[g]['cost'])
+            self.gene_itv[g]['button_group'].buttonClicked.connect(\
+                            lambda state, x=g: self.knock_changed(x,'gene'))
+        # buttons
+        self.all_koable = QPushButton("All knockable")
+        self.all_koable.clicked.connect(self.set_all_g_koable)
+        gene_interventions_layout.addWidget(self.all_koable)
+        self.none_koable = QPushButton("All notknockable")
+        self.none_koable.clicked.connect(self.set_none_g_koable)
+        gene_interventions_layout.addWidget(self.none_koable)
+        self.gene_itv_list_widget.setLayout(gene_interventions_layout)
+        ko_ki_lists_layout.addWidget(self.gene_itv_list_widget)
+        
+        ko_ki_layout.addItem(ko_ki_lists_layout)
+        self.ko_ki_box.setLayout(ko_ki_layout)
+        self.layout.addWidget(self.ko_ki_box)
+                
+        splitter.addWidget(self.ko_ki_box)
+        
+        ## main buttons
+        buttons_layout = QHBoxLayout()
         self.compute_mcs_button = QPushButton("Compute MCS")
-        buttons.addWidget(self.compute_mcs_button)
-        self.save_button = QPushButton("Save")
-        buttons.addWidget(self.save_button)
-        self.load_button = QPushButton("Load")
-        buttons.addWidget(self.load_button)
-        self.cancel_button = QPushButton("Close")
-        buttons.addWidget(self.cancel_button)
-       
-        self.layout.addItem(buttons)
-
-        # 
-        self.setLayout(self.layout)
-
-        # Connecting the signal
-        self.cancel_button.clicked.connect(self.reject)
-        self.save_button.clicked.connect(self.save)
-        self.load_button.clicked.connect(self.load)
         self.compute_mcs_button.clicked.connect(self.compute)
+        buttons_layout.addWidget(self.compute_mcs_button)
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.save)
+        buttons_layout.addWidget(self.save_button)
+        self.load_button = QPushButton("Load")
+        self.load_button.clicked.connect(self.load)
+        buttons_layout.addWidget(self.load_button)
+        self.cancel_button = QPushButton("Close")
+        self.cancel_button.clicked.connect(self.reject)
+        buttons_layout.addWidget(self.cancel_button)
+        self.layout.addItem(buttons_layout)
 
+        # Finalize
+        self.setLayout(self.layout)
+        # Connecting the signal
         self.central_widget.broadcastReactionID.connect(self.receive_input)
 
     @Slot(str)
@@ -377,7 +555,6 @@ class SDDialog(QDialog):
         self.active_receiver.insert(text)
         self.active_receiver.completer().setCompletionMode(completer_mode)
 
-    @Slot()
     def configure_solver_options(self):  # called when switching solver
         if self.solver_buttons[CPLEX].isChecked() or self.solver_buttons[GUROBI].isChecked():
             self.solution_buttons["cardinality"].setEnabled(True)
@@ -648,7 +825,103 @@ class SDDialog(QDialog):
         except:
             return False, None
             # paint frame red
+    
+    def gen_ko_checked(self):
+        if self.gen_kos.isChecked():
+            self.gene_itv_list_widget.setHidden(False)
+            self.set_all_g_koable()
+        else:
+            self.gene_itv_list_widget.setHidden(True)
+            self.set_all_r_koable()
+        
+    def show_ko_ki(self):
+        if self.advanced.isChecked():
+            self.ko_ki_box.setHidden(False)
+        else:
+            self.ko_ki_box.setHidden(True)
+        self.adjustSize()
+    
+    def ko_ki_filter_text_changed(self):
+        txt = self.ko_ki_filter.text().lower()
+        hide_reacs = [True if txt not in r.lower() else False for r in self.reac_ids]
+        for i,h in enumerate(hide_reacs):
+            self.reaction_itv_list.setRowHidden(i,h)
+        hide_genes = [True if txt not in g.lower() and txt not in n.lower() else False \
+                        for g,n in zip(self.gene_ids,self.gene_names)]
+        for i,h in enumerate(hide_genes):
+            self.gene_itv_list.setRowHidden(i,h)
+    
+    def knock_changed(self,id,gene_or_reac):
+        if gene_or_reac == 'reac':
+            genes = [g.id for g in self.appdata.project.cobra_py_model.reactions.get_by_id(id).genes]
+            r = self.reaction_itv[id]
+            checked = r['button_group'].checkedId()
+            if checked in [1,3]:
+                r['cost'].setText('1.0')
+                r['cost'].setEnabled(True)
+                r['button_group'].button(1).setEnabled(True)
+                r['button_group'].button(3).setEnabled(True)
+                for g in [self.gene_itv[s] for s in genes]:
+                    g['cost'].setText('')
+                    g['cost'].setEnabled(False)
+                    g['button_group'].button(1).setDisabled(True)
+                    g['button_group'].button(2).setChecked(True)
+                    g['button_group'].button(3).setDisabled(True)
+            else:
+                r['cost'].setText('')
+                r['cost'].setDisabled(True)
+                for g in [self.gene_itv[s] for s in genes]:
+                    g['button_group'].button(1).setEnabled(True)
+                    g['button_group'].button(3).setEnabled(True)
+        elif gene_or_reac == 'gene':
+            reacs = [r.id for r in self.appdata.project.cobra_py_model.genes.get_by_id(id).reactions]
+            g = self.gene_itv[id]
+            checked = g['button_group'].checkedId()
+            g['button_group'].button(1).setEnabled(True)
+            g['button_group'].button(3).setEnabled(True)
+            if checked in [1,3]:
+                g['cost'].setText('1.0')
+                g['cost'].setEnabled(True)
+                for r in [self.reaction_itv[s] for s in reacs]:
+                    r['cost'].setText('')
+                    r['cost'].setEnabled(False)
+                    r['button_group'].button(1).setDisabled(True)
+                    r['button_group'].button(2).setChecked(True)
+                    r['button_group'].button(3).setDisabled(True)
+            else:
+                g['cost'].setText('')
+                g['cost'].setDisabled(True)
+                for r in [self.reaction_itv[s] for s in reacs]:
+                    r['button_group'].button(1).setEnabled(True)
+                    r['button_group'].button(3).setEnabled(True)
+    
+    def set_deactivate_ex(self):
+        ex_reacs = [r.id for r in self.appdata.project.cobra_py_model.reactions \
+                        if not r.products or not r.reactants]
+        for r in ex_reacs:
+            self.reaction_itv[r]['button_group'].button(2).setChecked(True)
+            self.knock_changed(r,'reac')
+    
+    def set_all_r_koable(self):
+        for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
+            self.reaction_itv[r]['button_group'].button(1).setChecked(True)
+            self.knock_changed(r,'reac')
+    
+    def set_none_r_koable(self):
+        for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
+            self.reaction_itv[r]['button_group'].button(2).setChecked(True)
+            self.knock_changed(r,'reac')
+    
+    def set_all_g_koable(self):
+        for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
+            self.gene_itv[r]['button_group'].button(1).setChecked(True)
+            self.knock_changed(r,'gene')
 
+    def set_none_g_koable(self):
+        for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
+            self.gene_itv[r]['button_group'].button(2).setChecked(True)
+            self.knock_changed(r,'gene')
+    
     def compute(self):
         pass
     
