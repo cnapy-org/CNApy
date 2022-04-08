@@ -1,6 +1,7 @@
 """The dialog for calculating minimal cut sets"""
 
 import io
+from mimetypes import guess_all_extensions
 import os
 import traceback
 import scipy
@@ -262,9 +263,9 @@ class SDDialog(QDialog):
         self.gen_kos.clicked.connect(self.gen_ko_checked)
         checkboxes_layout.addWidget(self.gen_kos)
         
-        self.consider_scenario = QCheckBox(
+        self.use_scenario = QCheckBox(
         " Use scenario")
-        checkboxes_layout.addWidget(self.consider_scenario)
+        checkboxes_layout.addWidget(self.use_scenario)
         
         max_sols_layout = QHBoxLayout()
         l = QLabel(" Max. Solutions")
@@ -316,24 +317,28 @@ class SDDialog(QDialog):
         self.solver_buttons["group"] = QButtonGroup()
         # CPLEX
         self.solver_buttons[CPLEX] = QRadioButton("IBM CPLEX")
+        self.solver_buttons[CPLEX].setProperty('name',CPLEX)
         if CPLEX not in avail_solvers:
             self.solver_buttons[CPLEX].setEnabled(False)
         solver_buttons_layout.addWidget(self.solver_buttons[CPLEX])
         self.solver_buttons["group"].addButton(self.solver_buttons[CPLEX])
         # Gurobi
         self.solver_buttons[GUROBI] = QRadioButton("Gurobi")
+        self.solver_buttons[GUROBI].setProperty('name',GUROBI)
         if GUROBI not in avail_solvers:
             self.solver_buttons[GUROBI].setEnabled(False)
         solver_buttons_layout.addWidget(self.solver_buttons[GUROBI])
         self.solver_buttons["group"].addButton(self.solver_buttons[GUROBI])
         # GLPK
         self.solver_buttons[GLPK] = QRadioButton("GLPK")
+        self.solver_buttons[GLPK].setProperty('name',GLPK)
         if GLPK not in avail_solvers:
             self.solver_buttons[GLPK].setEnabled(False)
         solver_buttons_layout.addWidget(self.solver_buttons[GLPK])
         self.solver_buttons["group"].addButton(self.solver_buttons[GLPK])
         # SCIP
         self.solver_buttons[SCIP] = QRadioButton("SCIP")
+        self.solver_buttons[SCIP].setProperty('name',SCIP)
         if SCIP not in avail_solvers:
             self.solver_buttons[SCIP].setEnabled(False)
         solver_buttons_layout.addWidget(self.solver_buttons[SCIP])
@@ -348,13 +353,16 @@ class SDDialog(QDialog):
         self.solution_buttons = {}
         self.solution_buttons["group"] = QButtonGroup()
         self.solution_buttons["any"] = QRadioButton("any MCS (fast)")
+        self.solution_buttons["any"].setProperty('name',"any")
         self.solution_buttons["any"].setChecked(True)
         self.solution_buttons["group"].addButton(self.solution_buttons["any"])
         solution_buttons_layout.addWidget(self.solution_buttons["any"])
         self.solution_buttons["smallest"] = QRadioButton("smallest MCS first")
+        self.solution_buttons["smallest"].setProperty('name',"smallest")
         self.solution_buttons["group"].addButton(self.solution_buttons["smallest"])
         solution_buttons_layout.addWidget(self.solution_buttons["smallest"])
         self.solution_buttons["cardinality"] = QRadioButton("by cardinality")
+        self.solution_buttons["cardinality"].setProperty('name',"cardinality")
         self.solution_buttons["group"].addButton(self.solution_buttons["cardinality"])
         solution_buttons_layout.addWidget(self.solution_buttons["cardinality"])
         solver_and_solution_layout.addItem(solution_buttons_layout)
@@ -556,7 +564,7 @@ class SDDialog(QDialog):
         self.active_receiver.completer().setCompletionMode(completer_mode)
 
     def configure_solver_options(self):  # called when switching solver
-        if self.solver_buttons[CPLEX].isChecked() or self.solver_buttons[GUROBI].isChecked():
+        if self.solver_buttons['group'].checkedButton().property('name') in [CPLEX, GUROBI]:
             self.solution_buttons["cardinality"].setEnabled(True)
         else:
             self.solution_buttons["cardinality"].setEnabled(False)
@@ -637,11 +645,12 @@ class SDDialog(QDialog):
     def module_apply(self):
         current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
         valid, module = self.verify_module(current_module)
-        if valid:
+        if valid and module:
             self.modules[current_module] = module
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
-        else:
+        elif not valid:
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
+        return valid
     
     def update_module_edit(self):
         if not self.modules: # remove everything
@@ -782,6 +791,8 @@ class SDDialog(QDialog):
             self.module_edit[MIN_GCP].setHidden( 					False)
     
     def verify_module(self,*args):
+        if not self.modules:
+            return True, None
         module_no = args[0]
         module_type = self.module_list.cellWidget(module_no,0).currentText()
         # retrieve module infos from gui
@@ -799,7 +810,7 @@ class SDDialog(QDialog):
         # adapt model
         try:
             with self.appdata.project.cobra_py_model as model:
-                if self.consider_scenario.isChecked():  # integrate scenario into model bounds
+                if self.use_scenario.isChecked():  # integrate scenario into model bounds
                     for r in self.appdata.project.scen_values.keys():
                         model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
                 if module_type == MCS_STR:
@@ -921,12 +932,63 @@ class SDDialog(QDialog):
         for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
             self.gene_itv[r]['button_group'].button(2).setChecked(True)
             self.knock_changed(r,'gene')
+            
+    def parse_inputs(self):
+        sd_setup = {} # strain design setup
+        sd_setup.update({'model_id' : self.appdata.project.cobra_py_model.id})
+        # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
+        [m.pop('model') for m in self.modules]
+        sd_setup.update({'modules' : self.modules.copy()})
+        [m.update({'model':self.appdata.project.cobra_py_model}) for m in self.modules]
+        # other parameters
+        sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
+        sd_setup.update({'use_scenario' : self.use_scenario.isChecked()})
+        sd_setup.update({'max_sols' : self.max_sols.text()})
+        sd_setup.update({'max_size' : self.max_size.text()})
+        sd_setup.update({'time_limit' : self.time_limit.text()})
+        sd_setup.update({'advanced' : self.advanced.isChecked()})
+        sd_setup.update({'solver' : \
+            self.solver_buttons['group'].checkedButton().property('name')})
+        sd_setup.update({'search_type' : \
+            self.solution_buttons["group"].checkedButton().property('name')})
+        # only save knockouts and knockins if advanced is selected
+        if sd_setup['advanced']:
+            koCost = {}
+            kiCost = {}
+            for r in self.reac_ids:
+                but_id = self.reaction_itv[r]['button_group'].checkedId()
+                if but_id == 1:
+                    koCost.update({r:float(self.reaction_itv[r]['cost'].text())})
+                elif but_id == 3:
+                    kiCost.update({r:float(self.reaction_itv[r]['cost'].text())})
+            sd_setup.update({'koCost' : koCost})
+            sd_setup.update({'kiCost' : kiCost})
+            # if gene-kos is selected, also save these
+            if sd_setup['gene_kos']:
+                gkoCost = {}
+                gkiCost = {}
+                for i,g in enumerate(self.gene_ids):
+                    but_id = self.gene_itv[g]['button_group'].checkedId()
+                    if but_id == 1:
+                        gkoCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
+                    elif but_id == 3:
+                        gkiCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
+                sd_setup.update({'gkoCost' : gkoCost})
+                sd_setup.update({'gkiCost' : gkiCost})
+        return sd_setup
+                
     
     def compute(self):
-        pass
+        valid = self.module_apply()
+        if not valid:
+            return
+        sd_setup = self.parse_inputs()
     
     def save(self):
-        pass
+        valid = self.module_apply()
+        if not valid:
+            return
+        sd_setup = self.parse_inputs()
     
     def load(self):
         pass
