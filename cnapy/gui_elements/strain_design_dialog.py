@@ -2,7 +2,9 @@
 
 import io
 from mimetypes import guess_all_extensions
+import json
 import os
+from tkinter import E
 import traceback
 import scipy
 from random import randint
@@ -13,7 +15,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget)
+                            QWidget, QFileDialog)
 import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
@@ -28,7 +30,6 @@ OPTKNOCK_STR = 'OptKnock'
 ROBUSTKNOCK_STR = 'RobustKnock'
 OPTCOUPLE_STR = 'OptCouple'
 MODULE_TYPES = [MCS_STR, MCS_BILVL_STR, OPTKNOCK_STR, ROBUSTKNOCK_STR, OPTCOUPLE_STR]
-CURR_MODULE = 'current_module'
 
 def BORDER_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
     return "QGroupBox#EditModule "+\
@@ -90,6 +91,7 @@ class SDDialog(QDialog):
         
         ## Upper box of the dialog (for defining modules)
         self.modules = []
+        self.current_module = 0
         self.layout = QVBoxLayout()
         self.modules_box = QGroupBox("Strain design module(s)")
         self.modules_box.setMinimumHeight(300)
@@ -227,7 +229,6 @@ class SDDialog(QDialog):
         module_buttons_layout = QHBoxLayout()
         self.module_edit["module_apply_button"] = QPushButton("Apply")
         self.module_edit["module_apply_button"].clicked.connect(self.module_apply)
-        self.module_edit["module_apply_button"].setProperty(CURR_MODULE,0)
         self.module_edit["module_del_button"] = QPushButton("Delete")
         self.module_edit["module_del_button"].clicked.connect(self.rem_module,True)
         module_buttons_layout.addWidget(self.module_edit["module_apply_button"])
@@ -384,8 +385,7 @@ class SDDialog(QDialog):
         self.advanced.clicked.connect(self.show_ko_ki)
         
         self.ko_ki_box = QGroupBox("Specify knockout and addition candidates")
-        print("TO DO: Set KO and KI box to HIDDEN initially..")
-        self.ko_ki_box.setHidden(False)
+        self.ko_ki_box.setHidden(True)
         self.ko_ki_box.setObjectName("ko_ki")
         ko_ki_layout = QVBoxLayout()
         ko_ki_layout.setAlignment(Qt.AlignLeft)
@@ -585,43 +585,46 @@ class SDDialog(QDialog):
         self.module_list.setCellWidget(i, 1, module_edit_button)
         self.modules.append(None)
         if i == 0:
-            self.module_edit["module_apply_button"].setProperty(CURR_MODULE,i)
+            self.current_module = i
             self.update_module_edit()
 
     def rem_module(self,*args):
         if self.module_list.rowCount() == 0:
+            self.modules = []
+            self.current_module = -1
             return
-        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
         if args:
-            i = current_module
+            i = self.current_module
         if self.module_list.selectedIndexes():
             i = self.module_list.selectedIndexes()[0].row()
         else:
             i = self.module_list.rowCount()-1
         self.module_list.removeRow(i)
         self.modules.pop(i)
-        if i == current_module:
+        if i == self.current_module:
             last_module = self.module_list.rowCount()-1
-            self.module_edit["module_apply_button"].setProperty(CURR_MODULE,last_module)
+            self.current_module = last_module
+            self.update_module_edit()
+        elif i < self.current_module:
+            self.current_module -=1
             self.update_module_edit()
         
     def edit_module(self):
-        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
         # if current module is valid, load the module that was newly selected
-        valid, module = self.verify_module(current_module)
+        valid, module = self.verify_module(self.current_module)
         if valid:
-            self.modules[current_module] = module
+            self.modules[self.current_module] = module
         else:
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
             return
         selected_module = self.module_list.selectedIndexes()[0].row()
-        self.module_edit["module_apply_button"].setProperty(CURR_MODULE,selected_module)
+        self.current_module = selected_module
         self.update_module_edit()
         
     def sel_module_type(self):
         i = self.module_list.selectedIndexes()[0].row()
         self.modules[i] = None
-        if i == self.module_edit["module_apply_button"].property(CURR_MODULE):
+        if i == self.current_module:
             self.update_module_edit()
         
     def add_constr(self):
@@ -643,10 +646,9 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS].removeRow(i)
     
     def module_apply(self):
-        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
-        valid, module = self.verify_module(current_module)
+        valid, module = self.verify_module(self.current_module)
         if valid and module:
-            self.modules[current_module] = module
+            self.modules[self.current_module] = module
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
         elif not valid:
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
@@ -680,10 +682,9 @@ class SDDialog(QDialog):
             self.module_edit[CONSTRAINTS+"_label"].setHidden(	    False)
             self.module_edit["rem_constr_button"].setHidden(	    False)
             self.module_edit["add_constr_button"].setHidden(	    False)
-        current_module = self.module_edit["module_apply_button"].property(CURR_MODULE)
-        module_type = self.module_list.cellWidget(current_module,0).currentText()
-        self.module_spec_box.setTitle('Module '+str(current_module+1)+' specifications ('+module_type+')')
-        if not self.modules[current_module]:
+        module_type = self.module_list.cellWidget(self.current_module,0).currentText()
+        self.module_spec_box.setTitle('Module '+str(self.current_module+1)+' specifications ('+module_type+')')
+        if not self.modules[self.current_module]:
             self.module_edit[MODULE_SENSE].setCurrentText("")
             self.module_edit[INNER_OBJECTIVE].setText("")
             self.module_edit[OUTER_OBJECTIVE].setText("")
@@ -701,12 +702,12 @@ class SDDialog(QDialog):
         else:
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
             mod = {}
-            mod[MODULE_SENSE]    = self.modules[current_module][MODULE_SENSE]
-            mod[CONSTRAINTS]     = self.modules[current_module][CONSTRAINTS]
-            mod[INNER_OBJECTIVE] = self.modules[current_module][INNER_OBJECTIVE]
-            mod[OUTER_OBJECTIVE] = self.modules[current_module][OUTER_OBJECTIVE]
-            mod[PROD_ID]         = self.modules[current_module][PROD_ID]
-            mod[MIN_GCP]         = self.modules[current_module][MIN_GCP]
+            mod[MODULE_SENSE]    = self.modules[self.current_module][MODULE_SENSE]
+            mod[CONSTRAINTS]     = self.modules[self.current_module][CONSTRAINTS]
+            mod[INNER_OBJECTIVE] = self.modules[self.current_module][INNER_OBJECTIVE]
+            mod[OUTER_OBJECTIVE] = self.modules[self.current_module][OUTER_OBJECTIVE]
+            mod[PROD_ID]         = self.modules[self.current_module][PROD_ID]
+            mod[MIN_GCP]         = self.modules[self.current_module][MIN_GCP]
             
             # remove all former constraints and refill again from module
             for _ in range(self.module_edit[CONSTRAINTS].rowCount()):
@@ -833,9 +834,12 @@ class SDDialog(QDialog):
                                         inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
                                         min_gcp=min_gcp, constraints=constraints)
             return True, module
-        except:
+        except Exception as e:
+            QMessageBox.warning(self,"Module invalid",\
+                "The current module is either infeasible or "+\
+                "syntactic errors persist in the module's specificaiton. \n\n"+\
+                "Exception details: \n\n"+str(e))
             return False, None
-            # paint frame red
     
     def gen_ko_checked(self):
         if self.gen_kos.isChecked():
@@ -868,7 +872,8 @@ class SDDialog(QDialog):
             r = self.reaction_itv[id]
             checked = r['button_group'].checkedId()
             if checked in [1,3]:
-                r['cost'].setText('1.0')
+                if not r['cost'].text():
+                    r['cost'].setText('1.0')
                 r['cost'].setEnabled(True)
                 r['button_group'].button(1).setEnabled(True)
                 r['button_group'].button(3).setEnabled(True)
@@ -881,9 +886,12 @@ class SDDialog(QDialog):
             else:
                 r['cost'].setText('')
                 r['cost'].setDisabled(True)
-                for g in [self.gene_itv[s] for s in genes]:
-                    g['button_group'].button(1).setEnabled(True)
-                    g['button_group'].button(3).setEnabled(True)
+                for g,gid in zip([self.gene_itv[s] for s in genes],genes):
+                    # reactivate only if all genes of this reaction have been deactivated
+                    reacs = [t.id for t in self.appdata.project.cobra_py_model.genes.get_by_id(gid).reactions]
+                    if all([self.reaction_itv[k]['button_group'].button(2).isChecked() for k in reacs]):
+                        g['button_group'].button(1).setEnabled(True)
+                        g['button_group'].button(3).setEnabled(True)
         elif gene_or_reac == 'gene':
             reacs = [r.id for r in self.appdata.project.cobra_py_model.genes.get_by_id(id).reactions]
             g = self.gene_itv[id]
@@ -891,7 +899,8 @@ class SDDialog(QDialog):
             g['button_group'].button(1).setEnabled(True)
             g['button_group'].button(3).setEnabled(True)
             if checked in [1,3]:
-                g['cost'].setText('1.0')
+                if not g['cost'].text():
+                    g['cost'].setText('1.0')
                 g['cost'].setEnabled(True)
                 for r in [self.reaction_itv[s] for s in reacs]:
                     r['cost'].setText('')
@@ -902,9 +911,12 @@ class SDDialog(QDialog):
             else:
                 g['cost'].setText('')
                 g['cost'].setDisabled(True)
-                for r in [self.reaction_itv[s] for s in reacs]:
-                    r['button_group'].button(1).setEnabled(True)
-                    r['button_group'].button(3).setEnabled(True)
+                for r,rid in zip([self.reaction_itv[s] for s in reacs],reacs):
+                    # reactivate only if all genes of this reaction have been deactivated
+                    genes = [t.id for t in self.appdata.project.cobra_py_model.reactions.get_by_id(rid).genes]
+                    if all([self.gene_itv[k]['button_group'].button(2).isChecked() for k in genes]):
+                        r['button_group'].button(1).setEnabled(True)
+                        r['button_group'].button(3).setEnabled(True)
     
     def set_deactivate_ex(self):
         ex_reacs = [r.id for r in self.appdata.project.cobra_py_model.reactions \
@@ -937,9 +949,9 @@ class SDDialog(QDialog):
         sd_setup = {} # strain design setup
         sd_setup.update({'model_id' : self.appdata.project.cobra_py_model.id})
         # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
-        [m.pop('model') for m in self.modules]
-        sd_setup.update({'modules' : self.modules.copy()})
-        [m.update({'model':self.appdata.project.cobra_py_model}) for m in self.modules]
+        modules = [m.copy() for m in self.modules] # "deep" copy necessary
+        [m.pop('model') for m in modules]
+        sd_setup.update({'modules' : modules})
         # other parameters
         sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
         sd_setup.update({'use_scenario' : self.use_scenario.isChecked()})
@@ -985,13 +997,103 @@ class SDDialog(QDialog):
         sd_setup = self.parse_inputs()
     
     def save(self):
+        # if current module is invalid, abort
         valid = self.module_apply()
         if not valid:
             return
+        # open file dialog
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.sd")[0]
+        if not filename or len(filename) == 0:
+            return
+        elif len(filename)<=3 or filename[-3:] != '.sd':
+            filename += '.sd'
+        # readout strain design setup from dialog
         sd_setup = self.parse_inputs()
+        # dump dictionary into json-file
+        with open(filename, 'w') as fp:
+            json.dump(sd_setup, fp)
     
     def load(self):
-        pass
+        # open file dialog
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.last_scen_directory, filter="*.sd")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+        # dump dictionary into json-file
+        with open(filename, 'r') as fp:
+            sd_setup = json.load(fp)
+        # warn if strain design setup was constructed for another model
+        if sd_setup['model_id'] != self.appdata.project.cobra_py_model.id:
+            QMessageBox.information(self,"Model IDs not matching",\
+                "The strain design setup was specified for a different model. "+\
+                "Errors might occur due to non-matching reaction or gene-identifiers.")
+        # write back content to dialog
+        for m in self.modules[::-1]:
+            self.rem_module()
+        self.modules = []
+        for m in sd_setup['modules']:
+            self.add_module()
+        self.module_list.selectRow(len(self.modules)-1)
+        for i,m in enumerate(sd_setup['modules']):
+            if m["module_type"] == MCS_LIN:
+                self.module_list.cellWidget(i, 0).setCurrentText(MCS_STR)
+            elif m["module_type"] == MCS_BILVL:
+                self.module_list.cellWidget(i, 0).setCurrentText(MCS_BILVL_STR)
+            elif m["module_type"] == OPTKNOCK:
+                self.module_list.cellWidget(i, 0).setCurrentText(OPTKNOCK_STR)
+            elif m["module_type"] == ROBUSTKNOCK:
+                self.module_list.cellWidget(i, 0).setCurrentText(ROBUSTKNOCK_STR)
+            elif m["module_type"] == OPTCOUPLE:
+                self.module_list.cellWidget(i, 0).setCurrentText(OPTCOUPLE_STR)
+        [m.update({'model':self.appdata.project.cobra_py_model}) for m in sd_setup['modules']]
+        self.modules = sd_setup['modules']
+        self.current_module = len(self.modules)-1
+        self.update_module_edit()
+        # update checkboxes
+        self.gen_kos.setChecked(sd_setup['gene_kos'])
+        self.use_scenario.setChecked(sd_setup['use_scenario'])
+        self.max_sols.setText(sd_setup['max_sols'])
+        self.max_size.setText(sd_setup['max_size'])
+        self.time_limit.setText(sd_setup['time_limit'])
+        self.advanced.setChecked(sd_setup['advanced'])
+        self.solver_buttons[sd_setup['solver']].setChecked(True)
+        self.solution_buttons[sd_setup['search_type']].setChecked(True)
+        # only load knockouts and knockins if advanced is selected
+        self.gen_ko_checked()
+        self.show_ko_ki()
+        if sd_setup['advanced']:
+            self.set_none_r_koable()
+            for r,v in sd_setup['koCost'].items():
+                self.reaction_itv[r]['button_group'].button(1).setChecked(True)
+                self.reaction_itv[r]['cost'].setText(str(v))
+                self.knock_changed(r,'reac')
+            for r,v in sd_setup['kiCost'].items():
+                self.reaction_itv[r]['button_group'].button(3).setChecked(True)
+                self.reaction_itv[r]['cost'].setText(str(v))
+                self.knock_changed(r,'reac')
+            # if gene-kos is selected, also load these
+            if sd_setup['gene_kos']:
+                self.set_none_g_koable()
+                for k,v in sd_setup['gkoCost'].items():
+                    if k not in self.gene_ids:
+                        g = self.gene_ids[self.gene_names.index(k)]
+                    else:
+                        g=k
+                    self.gene_itv[g]['button_group'].button(1).setChecked(True)
+                    self.gene_itv[g]['cost'].setText(str(v))
+                    self.knock_changed(g,'gene')
+                for k,v in sd_setup['gkiCost'].items():
+                    if k not in self.gene_ids:
+                            g = self.gene_ids[self.gene_names.index(k)]
+                    else:
+                        g=k
+                    self.gene_itv[g]['button_group'].button(3).setChecked(True)
+                    self.gene_itv[g]['cost'].setText(str(v))
+                    self.knock_changed(g,'gene')
+    
 
 class ReceiverLineEdit(QLineEdit):
     def __init__(self, mcs_dialog):

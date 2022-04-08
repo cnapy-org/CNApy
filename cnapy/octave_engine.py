@@ -36,5 +36,5 @@ try:
                 print("CNA not availabe ... continue with CNA disabled.")
                 return False
 
-except (ModuleNotFoundError, OSError):
+except: #(ModuleNotFoundError, OSError, EOFError):
     pass
