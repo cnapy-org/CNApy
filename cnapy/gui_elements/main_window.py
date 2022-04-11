@@ -34,7 +34,7 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
-from cnapy.gui_elements.strain_design_dialog import SDDialog
+from cnapy.gui_elements.strain_design_dialog import SDDialog, StrainDesignComputationDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -304,7 +304,7 @@ class MainWindow(QMainWindow):
         self.sd_action = QAction("Compute Strain Designs ...", self)
         self.sd_action.triggered.connect(self.strain_design)
         self.sd_menu.addAction(self.sd_action)
-        self.strain_design_dialog = None
+        self.sd_dialog = None
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -509,6 +509,11 @@ class MainWindow(QMainWindow):
         self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
         self.phase_plane_dialog.show()
 
+    @Slot(str)
+    def compute_strain_design(self,sd_setup):
+        self.sd_dialog = StrainDesignComputationDialog(self.appdata, sd_setup)
+        self.sd_dialog.exec()
+        
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
@@ -536,7 +541,6 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
-            dialog.optlang_solver_set.connect(self.strain_design_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -1056,9 +1060,9 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        if self.strain_design_dialog is not None:
-            self.strain_design_dialog.close()
-            self.strain_design_dialog = None
+        if self.sd_dialog is not None:
+            self.sd_dialog.close()
+            self.sd_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -1595,9 +1599,9 @@ class MainWindow(QMainWindow):
         self.mcs_dialog.show()
         
     def strain_design(self):
-        self.mcs_dialog = SDDialog(
+        self.sd_dialog = SDDialog(
             self.appdata, self.centralWidget())
-        self.mcs_dialog.show()
+        self.sd_dialog.show()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()

@@ -1,26 +1,31 @@
 """The dialog for calculating minimal cut sets"""
 
+from contextlib import redirect_stdout, redirect_stderr
 import io
 from mimetypes import guess_all_extensions
 import json
 import os
+from threading import currentThread
 from tkinter import E
+from typing import Dict
+from multiprocessing import Lock, Queue
 import traceback
 import scipy
+from time import sleep
 from random import randint
 from importlib import find_loader as module_exists
 from qtpy.QtWidgets import QAbstractItemView
-from qtpy.QtCore import Qt, Slot
+from qtpy.QtCore import Qt, Slot, Signal, QThread
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog)
+                            QWidget, QFileDialog, QTextEdit)
 import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
-from mcs import SD_Module, lineqlist2str, linexprdict2str
+from mcs import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
 from mcs.names import *
 from cnapy.flux_vector_container import FluxVectorContainer
 
@@ -57,8 +62,10 @@ class SDDialog(QDialog):
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
         
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
-            len(self.appdata.project.cobra_py_model.genes) == 0:
-                self.completer_ko_ki = self.completer
+                len(self.appdata.project.cobra_py_model.genes) == 0:
+            self.completer_ko_ki = self.completer
+            self.gene_ids = []
+            self.gene_names = []
         else:
             keywords = set( self.appdata.project.cobra_py_model.reactions.list_attr("id")+ \
                             self.appdata.project.cobra_py_model.genes.list_attr("id")+
@@ -552,8 +559,9 @@ class SDDialog(QDialog):
 
         # Finalize
         self.setLayout(self.layout)
-        # Connecting the signal
+        # Connecting signals
         self.central_widget.broadcastReactionID.connect(self.receive_input)
+        self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
 
     @Slot(str)
     def receive_input(self, text):
@@ -630,8 +638,9 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        constr_entry = ReceiverLineEdit(self)
-        constr_entry.setCompleter(self.completer)
+        # constr_entry = ReceiverLineEdit(self)
+        # constr_entry.setCompleter(self.completer)
+        constr_entry = CompleterLineEdit(self, self.completer)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -792,6 +801,7 @@ class SDDialog(QDialog):
             self.module_edit[MIN_GCP].setHidden( 					False)
     
     def verify_module(self,*args):
+        self.setCursor(Qt.BusyCursor)
         if not self.modules:
             return True, None
         module_no = args[0]
@@ -833,12 +843,14 @@ class SDDialog(QDialog):
                     module = SD_Module(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
                                         min_gcp=min_gcp, constraints=constraints)
+            self.setCursor(Qt.ArrowCursor)
             return True, module
         except Exception as e:
             QMessageBox.warning(self,"Module invalid",\
                 "The current module is either infeasible or "+\
                 "syntactic errors persist in the module's specificaiton. \n\n"+\
                 "Exception details: \n\n"+str(e))
+            self.setCursor(Qt.ArrowCursor)
             return False, None
     
     def gen_ko_checked(self):
@@ -857,6 +869,7 @@ class SDDialog(QDialog):
         self.adjustSize()
     
     def ko_ki_filter_text_changed(self):
+        self.setCursor(Qt.BusyCursor)
         txt = self.ko_ki_filter.text().lower()
         hide_reacs = [True if txt not in r.lower() else False for r in self.reac_ids]
         for i,h in enumerate(hide_reacs):
@@ -865,6 +878,7 @@ class SDDialog(QDialog):
                         for g,n in zip(self.gene_ids,self.gene_names)]
         for i,h in enumerate(hide_genes):
             self.gene_itv_list.setRowHidden(i,h)
+        self.setCursor(Qt.ArrowCursor)
     
     def knock_changed(self,id,gene_or_reac):
         if gene_or_reac == 'reac':
@@ -945,12 +959,13 @@ class SDDialog(QDialog):
             self.gene_itv[r]['button_group'].button(2).setChecked(True)
             self.knock_changed(r,'gene')
             
-    def parse_inputs(self):
+    def parse_dialog_inputs(self):
+        self.setCursor(Qt.BusyCursor)
         sd_setup = {} # strain design setup
         sd_setup.update({'model_id' : self.appdata.project.cobra_py_model.id})
         # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
         modules = [m.copy() for m in self.modules] # "deep" copy necessary
-        [m.pop('model') for m in modules]
+        [m.pop('model_id') for m in modules]
         sd_setup.update({'modules' : modules})
         # other parameters
         sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
@@ -987,20 +1002,16 @@ class SDDialog(QDialog):
                         gkiCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
                 sd_setup.update({'gkoCost' : gkoCost})
                 sd_setup.update({'gkiCost' : gkiCost})
+        self.setCursor(Qt.ArrowCursor)
         return sd_setup
-                
-    
-    def compute(self):
-        valid = self.module_apply()
-        if not valid:
-            return
-        sd_setup = self.parse_inputs()
     
     def save(self):
         # if current module is invalid, abort
+        self.setCursor(Qt.BusyCursor)
         valid = self.module_apply()
         if not valid:
             return
+        self.setCursor(Qt.ArrowCursor)
         # open file dialog
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -1010,7 +1021,7 @@ class SDDialog(QDialog):
         elif len(filename)<=3 or filename[-3:] != '.sd':
             filename += '.sd'
         # readout strain design setup from dialog
-        sd_setup = self.parse_inputs()
+        sd_setup = self.parse_dialog_inputs()
         # dump dictionary into json-file
         with open(filename, 'w') as fp:
             json.dump(sd_setup, fp)
@@ -1094,6 +1105,47 @@ class SDDialog(QDialog):
                     self.gene_itv[g]['cost'].setText(str(v))
                     self.knock_changed(g,'gene')
     
+    def compute(self):
+        self.setCursor(Qt.BusyCursor)
+        valid = self.module_apply()
+        if not valid:
+            return
+        sd_setup = self.parse_dialog_inputs()
+        self.launch_computation_signal.emit(json.dumps(sd_setup))
+        self.setCursor(Qt.ArrowCursor)
+        self.accept()
+    
+    launch_computation_signal = Signal(str)
+
+
+class CompleterLineEdit(QLineEdit):
+    '''# does new completion after SPACE'''
+    def __init__(self, sd_dialog, completer):
+        super().__init__()
+        self.sd_dialog = sd_dialog
+        self.completer = completer
+        self.completer.activated.connect(self.complete_text)
+        # self.setCompleter(self.completer)
+        self.textChanged.connect(self.text_changed)
+
+    def text_changed(self, text):
+        all_text = text
+        text = all_text[:self.cursorPosition()]
+        prefix = text.split(' ')[-1].strip()
+        self.completer.setCompletionPrefix(prefix)
+        if prefix != '':
+            self.completer.complete()
+
+    def complete_text(self, text):
+        cursor_pos = self.cursorPosition()
+        before_text = self.text()[:cursor_pos]
+        after_text = self.text()[cursor_pos:]
+        prefix_len = len(before_text.split(' ')[-1].strip())
+        self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
+        self.setCursorPosition(cursor_pos - prefix_len + len(text))
+        self.completer
+    
+    # textChangedX = Signal(str)
 
 class ReceiverLineEdit(QLineEdit):
     def __init__(self, mcs_dialog):
@@ -1103,3 +1155,146 @@ class ReceiverLineEdit(QLineEdit):
     def focusInEvent(self, event):
         super().focusInEvent(event)
         self.mcs_dialog.active_receiver = self
+       
+class StrainDesignComputationDialog(QDialog):
+    """A dialog that shows the status of an ongoing strain design computation"""
+    def __init__(self, appdata: AppData, sd_setup):
+        super().__init__()
+        self.setWindowTitle("Strain Design Computation")
+        self.setMinimumWidth(620)
+        
+        self.appdata = appdata
+        self.eng = appdata.engine
+        
+        self.layout = QVBoxLayout()
+        self.textbox = QTextEdit()
+        self.layout.addWidget(self.textbox)
+        self.lock = Lock() # use lock before appending text in text field 
+        self.log_queue = Queue() # use queue to communicate output between subthread and main one
+        
+        mcs_table = QTableWidget()
+        mcs_table.setHidden(True)
+        self.layout.addWidget(mcs_table)
+        
+        buttons_layout = QHBoxLayout()
+        explore = QPushButton("Explore MCS")
+        explore.clicked.connect(self.show_mcs)
+        explore.setMaximumWidth(120)
+        explore.setDisabled(True)
+        cancel = QPushButton("Cancel")
+        cancel.setMaximumWidth(120)
+        buttons_layout.addWidget(cancel)
+        buttons_layout.addWidget(explore)
+        self.layout.addItem(buttons_layout)
+
+        self.setLayout(self.layout)
+        self.show()
+        
+        self.sd_computation = SDComputationThread(self.appdata, sd_setup, self.log_queue)
+        cancel.clicked.connect(self.cancel)
+        self.sd_computation.output_connector.connect(self.receive_progress_text,Qt.QueuedConnection)
+        self.sd_computation.finished_computation.connect(self.conclude_computation)
+        self.sd_computation.start()
+    
+    @Slot(str)
+    def conclude_computation(self):
+        self.sd_computation.exit()
+        self.setCursor(Qt.ArrowCursor)
+        if self.sd_computation.abort:
+            pass
+            # self.accept()
+        else:
+            pass
+            self.explore.setEnabled(True)
+            # omcs = scipy.sparse.lil_matrix((len(mcs), len(reac_id)))
+            # for i,m in enumerate(mcs):
+            #     for j in m:
+            #         omcs[i, j] = -1.0
+            # # self.appdata.project.modes = omcs
+            # self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
+            # self.central_widget.mode_navigator.current = 0
+            # QMessageBox.information(self, 'Cut sets found',
+            #                             str(len(mcs))+' Cut sets have been calculated.')
+            # if self.sd_computation.ems is None:
+            #     # in this case the progress window should still be left open and the cancel button reappear
+            #     self.button.hide()
+            #     self.cancel.show()
+            #     QMessageBox.information(self, 'No modes',
+            #                             'An error occured and modes have not been calculated.')
+            # else:
+            #     self.accept()
+            #     if len(self.sd_computation.ems) == 0:
+            #         QMessageBox.information(self, 'No modes',
+            #                                 'No elementary modes exist.')
+            #     else:
+            #         self.appdata.project.modes = self.sd_computation.ems
+            #         self.central_widget.mode_navigator.current = 0
+            #         self.central_widget.mode_navigator.scenario = self.sd_computation.scenario
+            #         self.central_widget.mode_navigator.set_to_efm()
+            #         self.central_widget.update_mode()
+
+    @Slot()
+    def receive_progress_text(self):
+        self.lock.acquire()
+        self.textbox.append(self.log_queue.get())
+        self.lock.release()
+        
+    def show_mcs(self):
+        self.strain_designs
+        self.central_widget.mode_navigator.set_to_mcs()
+        self.central_widget.update_mode()
+        self.accept()
+        pass
+    
+    def cancel(self):
+        self.sd_computation.activate_abort()
+        self.reject()
+
+class SDComputationThread(QThread):
+    def __init__(self, appdata, sd_setup, queue):
+        super().__init__()
+        self.model = appdata.project.cobra_py_model
+        self.abort = False
+        self.sd_setup = json.loads(sd_setup)
+        self.queue = queue
+        self.errstrm = io.StringIO()
+        self.curr_threadID = self.currentThread()
+        self.modules = self.sd_setup.pop('modules')
+        if self.sd_setup.pop('use_scenario'):
+            for r in self.appdata.project.scen_values.keys():
+                self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
+        self.sd_setup.pop('model_id')
+        self.sd_setup.pop('advanced')
+        self.sd_setup.pop('gene_kos')
+        self.sd_setup['output_format'] = 'auto_kos'
+
+    def do_abort(self):
+        return self.abort
+
+    def activate_abort(self):
+        self.abort = True
+
+    def run(self):
+        try:
+            with redirect_stdout(self), redirect_stderr(self.errstrm):
+                rmcs, gmcs = compute_strain_designs(self.model, self.modules, **self.sd_setup)
+            self.finished_computation.emit(json.dumps((rmcs,gmcs)))
+        except Exception as e:
+            self.queue.put(e)
+            self.output_connector.emit()
+        
+    def write(self, input):
+        # avoid that other threads use this as an output
+        if input and input is not "\n" and self.curr_threadID == self.currentThread():
+            self.queue.put(input)
+            self.output_connector.emit()
+            
+    def flush(self):
+        self.output_connector.emit('')
+
+    # the output from the strain design computation needs to be passed as a signal because 
+    # all Qt widgets must run on the main thread and their methods cannot be safely called 
+    # from other threads
+    output_connector = Signal()
+    finished_computation = Signal(str)
+    
