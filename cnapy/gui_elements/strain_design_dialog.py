@@ -11,7 +11,7 @@ from typing import Dict
 from multiprocessing import Lock, Queue
 import traceback
 import scipy
-from time import sleep
+from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
 from qtpy.QtWidgets import QAbstractItemView
@@ -275,21 +275,21 @@ class SDDialog(QDialog):
         " Use scenario")
         checkboxes_layout.addWidget(self.use_scenario)
         
-        max_sols_layout = QHBoxLayout()
+        max_solutions_layout = QHBoxLayout()
         l = QLabel(" Max. Solutions")
-        self.max_sols = QLineEdit("inf")
-        self.max_sols.setMaximumWidth(50)
-        max_sols_layout.addWidget(self.max_sols)
-        max_sols_layout.addWidget(l)
-        checkboxes_layout.addItem(max_sols_layout)
+        self.max_solutions = QLineEdit("inf")
+        self.max_solutions.setMaximumWidth(50)
+        max_solutions_layout.addWidget(self.max_solutions)
+        max_solutions_layout.addWidget(l)
+        checkboxes_layout.addItem(max_solutions_layout)
         
-        max_size_layout = QHBoxLayout()
+        max_cost_layout = QHBoxLayout()
         l = QLabel(" Max. Size")
-        self.max_size = QLineEdit("7")
-        self.max_size.setMaximumWidth(50)
-        max_size_layout.addWidget(self.max_size)
-        max_size_layout.addWidget(l)
-        checkboxes_layout.addItem(max_size_layout)
+        self.max_cost = QLineEdit("7")
+        self.max_cost.setMaximumWidth(50)
+        max_cost_layout.addWidget(self.max_cost)
+        max_cost_layout.addWidget(l)
+        checkboxes_layout.addItem(max_cost_layout)
         
         time_limit_layout = QHBoxLayout()
         l = QLabel(" Time Limit [sec]")
@@ -543,7 +543,7 @@ class SDDialog(QDialog):
         
         ## main buttons
         buttons_layout = QHBoxLayout()
-        self.compute_mcs_button = QPushButton("Compute MCS")
+        self.compute_mcs_button = QPushButton("Compute")
         self.compute_mcs_button.clicked.connect(self.compute)
         buttons_layout.addWidget(self.compute_mcs_button)
         self.save_button = QPushButton("Save")
@@ -970,13 +970,13 @@ class SDDialog(QDialog):
         # other parameters
         sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
         sd_setup.update({'use_scenario' : self.use_scenario.isChecked()})
-        sd_setup.update({'max_sols' : self.max_sols.text()})
-        sd_setup.update({'max_size' : self.max_size.text()})
-        sd_setup.update({'time_limit' : self.time_limit.text()})
+        sd_setup.update({MAX_SOLUTIONS : self.max_solutions.text()})
+        sd_setup.update({MAX_COST : self.max_cost.text()})
+        sd_setup.update({TIME_LIMIT : self.time_limit.text()})
         sd_setup.update({'advanced' : self.advanced.isChecked()})
-        sd_setup.update({'solver' : \
+        sd_setup.update({SOLVER : \
             self.solver_buttons['group'].checkedButton().property('name')})
-        sd_setup.update({'search_type' : \
+        sd_setup.update({SOLUTION_APPROACH : \
             self.solution_buttons["group"].checkedButton().property('name')})
         # only save knockouts and knockins if advanced is selected
         if sd_setup['advanced']:
@@ -988,8 +988,8 @@ class SDDialog(QDialog):
                     koCost.update({r:float(self.reaction_itv[r]['cost'].text())})
                 elif but_id == 3:
                     kiCost.update({r:float(self.reaction_itv[r]['cost'].text())})
-            sd_setup.update({'koCost' : koCost})
-            sd_setup.update({'kiCost' : kiCost})
+            sd_setup.update({KOCOST : koCost})
+            sd_setup.update({KICOST : kiCost})
             # if gene-kos is selected, also save these
             if sd_setup['gene_kos']:
                 gkoCost = {}
@@ -1000,8 +1000,8 @@ class SDDialog(QDialog):
                         gkoCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
                     elif but_id == 3:
                         gkiCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
-                sd_setup.update({'gkoCost' : gkoCost})
-                sd_setup.update({'gkiCost' : gkiCost})
+                sd_setup.update({GKOCOST : gkoCost})
+                sd_setup.update({GKICOST : gkiCost})
         self.setCursor(Qt.ArrowCursor)
         return sd_setup
     
@@ -1049,15 +1049,15 @@ class SDDialog(QDialog):
             self.add_module()
         self.module_list.selectRow(len(self.modules)-1)
         for i,m in enumerate(sd_setup['modules']):
-            if m["module_type"] == MCS_LIN:
+            if m[MODULE_TYPE] == MCS_LIN:
                 self.module_list.cellWidget(i, 0).setCurrentText(MCS_STR)
-            elif m["module_type"] == MCS_BILVL:
+            elif m[MODULE_TYPE] == MCS_BILVL:
                 self.module_list.cellWidget(i, 0).setCurrentText(MCS_BILVL_STR)
-            elif m["module_type"] == OPTKNOCK:
+            elif m[MODULE_TYPE] == OPTKNOCK:
                 self.module_list.cellWidget(i, 0).setCurrentText(OPTKNOCK_STR)
-            elif m["module_type"] == ROBUSTKNOCK:
+            elif m[MODULE_TYPE] == ROBUSTKNOCK:
                 self.module_list.cellWidget(i, 0).setCurrentText(ROBUSTKNOCK_STR)
-            elif m["module_type"] == OPTCOUPLE:
+            elif m[MODULE_TYPE] == OPTCOUPLE:
                 self.module_list.cellWidget(i, 0).setCurrentText(OPTCOUPLE_STR)
         [m.update({'model':self.appdata.project.cobra_py_model}) for m in sd_setup['modules']]
         self.modules = sd_setup['modules']
@@ -1066,29 +1066,29 @@ class SDDialog(QDialog):
         # update checkboxes
         self.gen_kos.setChecked(sd_setup['gene_kos'])
         self.use_scenario.setChecked(sd_setup['use_scenario'])
-        self.max_sols.setText(sd_setup['max_sols'])
-        self.max_size.setText(sd_setup['max_size'])
-        self.time_limit.setText(sd_setup['time_limit'])
+        self.max_solutions.setText(sd_setup[MAX_SOLUTIONS])
+        self.max_cost.setText(sd_setup[MAX_COST])
+        self.time_limit.setText(sd_setup[TIME_LIMIT])
         self.advanced.setChecked(sd_setup['advanced'])
-        self.solver_buttons[sd_setup['solver']].setChecked(True)
-        self.solution_buttons[sd_setup['search_type']].setChecked(True)
+        self.solver_buttons[sd_setup[SOLVER]].setChecked(True)
+        self.solution_buttons[sd_setup[SOLUTION_APPROACH]].setChecked(True)
         # only load knockouts and knockins if advanced is selected
         self.gen_ko_checked()
         self.show_ko_ki()
         if sd_setup['advanced']:
             self.set_none_r_koable()
-            for r,v in sd_setup['koCost'].items():
+            for r,v in sd_setup[KOCOST].items():
                 self.reaction_itv[r]['button_group'].button(1).setChecked(True)
                 self.reaction_itv[r]['cost'].setText(str(v))
                 self.knock_changed(r,'reac')
-            for r,v in sd_setup['kiCost'].items():
+            for r,v in sd_setup[KICOST].items():
                 self.reaction_itv[r]['button_group'].button(3).setChecked(True)
                 self.reaction_itv[r]['cost'].setText(str(v))
                 self.knock_changed(r,'reac')
             # if gene-kos is selected, also load these
             if sd_setup['gene_kos']:
                 self.set_none_g_koable()
-                for k,v in sd_setup['gkoCost'].items():
+                for k,v in sd_setup[GKOCOST].items():
                     if k not in self.gene_ids:
                         g = self.gene_ids[self.gene_names.index(k)]
                     else:
@@ -1096,7 +1096,7 @@ class SDDialog(QDialog):
                     self.gene_itv[g]['button_group'].button(1).setChecked(True)
                     self.gene_itv[g]['cost'].setText(str(v))
                     self.knock_changed(g,'gene')
-                for k,v in sd_setup['gkiCost'].items():
+                for k,v in sd_setup[GKICOST].items():
                     if k not in self.gene_ids:
                             g = self.gene_ids[self.gene_names.index(k)]
                     else:
@@ -1260,13 +1260,23 @@ class SDComputationThread(QThread):
         self.errstrm = io.StringIO()
         self.curr_threadID = self.currentThread()
         self.modules = self.sd_setup.pop('modules')
+        self.t = time()
         if self.sd_setup.pop('use_scenario'):
             for r in self.appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
         self.sd_setup.pop('model_id')
-        self.sd_setup.pop('advanced')
-        self.sd_setup.pop('gene_kos')
+        adv = self.sd_setup.pop('advanced')
+        gkos = self.sd_setup.pop('gene_kos')
+        if not adv and gkos: # ensure that gene-kos are computed, even when the 
+            self.sd_setup[GKOCOST] = None # advanced-button wasn't clicked
+        
+        # for debugging purposes
         self.sd_setup['output_format'] = 'auto_kos'
+        self.sd_setup['modules'] = self.modules
+        with open('sd_computation.json', 'w') as fp:
+            json.dump(self.sd_setup,fp)
+        self.sd_setup.pop('output_format')
+        self.sd_setup.pop('modules')
 
     def do_abort(self):
         return self.abort
@@ -1277,20 +1287,24 @@ class SDComputationThread(QThread):
     def run(self):
         try:
             with redirect_stdout(self), redirect_stderr(self.errstrm):
+                self.curr_threadID = self.currentThread()
                 rmcs, gmcs = compute_strain_designs(self.model, self.modules, **self.sd_setup)
-            self.finished_computation.emit(json.dumps((rmcs,gmcs)))
+                self.finished_computation.emit(json.dumps((rmcs,gmcs)))
         except Exception as e:
-            self.queue.put(e)
-            self.output_connector.emit()
+            tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
+            self.write(tb_str)
         
     def write(self, input):
         # avoid that other threads use this as an output
         if input and input is not "\n" and self.curr_threadID == self.currentThread():
-            self.queue.put(input)
-            self.output_connector.emit()
+            
+            if time()-self.t > 0.1:
+                self.queue.put(input)
+                self.output_connector.emit()
+                self.t = time()
             
     def flush(self):
-        self.output_connector.emit('')
+        self.output_connector.emit()
 
     # the output from the strain design computation needs to be passed as a signal because 
     # all Qt widgets must run on the main thread and their methods cannot be safely called 

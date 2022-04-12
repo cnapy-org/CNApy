@@ -43,7 +43,8 @@ def excepthook(cls, exception, tb):
     output = io.StringIO()
     traceback.print_exception(cls, exception, tb, file=output)
     traceback.print_tb(tb, file=output)
-    exstr = output.getvalue()
+    # exstr = output.getvalue()
+    exstr = ''.join(traceback.format_exception(None, exception, exception.__traceback__))
     utils.show_unknown_error_box(exstr)
     excepthook2(cls, exception, tb)
 
