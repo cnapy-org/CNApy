@@ -10,6 +10,7 @@ from tkinter import E
 from typing import Dict
 from multiprocessing import Lock, Queue
 import traceback
+from mcs.strainDesignSolution import SD_Solution
 import scipy
 from time import sleep, time
 from random import randint
@@ -962,11 +963,11 @@ class SDDialog(QDialog):
     def parse_dialog_inputs(self):
         self.setCursor(Qt.BusyCursor)
         sd_setup = {} # strain design setup
-        sd_setup.update({'model_id' : self.appdata.project.cobra_py_model.id})
+        sd_setup.update({MODEL_ID : self.appdata.project.cobra_py_model.id})
         # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
         modules = [m.copy() for m in self.modules] # "deep" copy necessary
-        [m.pop('model_id') for m in modules]
-        sd_setup.update({'modules' : modules})
+        [m.pop(MODEL_ID) for m in modules]
+        sd_setup.update({MODULES : modules})
         # other parameters
         sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
         sd_setup.update({'use_scenario' : self.use_scenario.isChecked()})
@@ -1037,7 +1038,7 @@ class SDDialog(QDialog):
         with open(filename, 'r') as fp:
             sd_setup = json.load(fp)
         # warn if strain design setup was constructed for another model
-        if sd_setup['model_id'] != self.appdata.project.cobra_py_model.id:
+        if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:
             QMessageBox.information(self,"Model IDs not matching",\
                 "The strain design setup was specified for a different model. "+\
                 "Errors might occur due to non-matching reaction or gene-identifiers.")
@@ -1045,10 +1046,10 @@ class SDDialog(QDialog):
         for m in self.modules[::-1]:
             self.rem_module()
         self.modules = []
-        for m in sd_setup['modules']:
+        for m in sd_setup[MODULES]:
             self.add_module()
         self.module_list.selectRow(len(self.modules)-1)
-        for i,m in enumerate(sd_setup['modules']):
+        for i,m in enumerate(sd_setup[MODULES]):
             if m[MODULE_TYPE] == MCS_LIN:
                 self.module_list.cellWidget(i, 0).setCurrentText(MCS_STR)
             elif m[MODULE_TYPE] == MCS_BILVL:
@@ -1059,8 +1060,8 @@ class SDDialog(QDialog):
                 self.module_list.cellWidget(i, 0).setCurrentText(ROBUSTKNOCK_STR)
             elif m[MODULE_TYPE] == OPTCOUPLE:
                 self.module_list.cellWidget(i, 0).setCurrentText(OPTCOUPLE_STR)
-        [m.update({'model':self.appdata.project.cobra_py_model}) for m in sd_setup['modules']]
-        self.modules = sd_setup['modules']
+        [m.update({'model':self.appdata.project.cobra_py_model}) for m in sd_setup[MODULES]]
+        self.modules = sd_setup[MODULES]
         self.current_module = len(self.modules)-1
         self.update_module_edit()
         # update checkboxes
@@ -1160,6 +1161,7 @@ class StrainDesignComputationDialog(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
     def __init__(self, appdata: AppData, sd_setup):
         super().__init__()
+        self.sd_setup = sd_setup
         self.setWindowTitle("Strain Design Computation")
         self.setMinimumWidth(620)
         
@@ -1169,146 +1171,109 @@ class StrainDesignComputationDialog(QDialog):
         self.layout = QVBoxLayout()
         self.textbox = QTextEdit()
         self.layout.addWidget(self.textbox)
-        self.lock = Lock() # use lock before appending text in text field 
-        self.log_queue = Queue() # use queue to communicate output between subthread and main one
         
         mcs_table = QTableWidget()
         mcs_table.setHidden(True)
         self.layout.addWidget(mcs_table)
         
         buttons_layout = QHBoxLayout()
-        explore = QPushButton("Explore MCS")
-        explore.clicked.connect(self.show_mcs)
-        explore.setMaximumWidth(120)
-        explore.setDisabled(True)
+        self.explore = QPushButton("Explore strain designs")
+        self.explore.clicked.connect(self.show_sd)
+        self.explore.setMaximumWidth(200)
+        self.explore.setDisabled(True)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
         buttons_layout.addWidget(cancel)
-        buttons_layout.addWidget(explore)
+        buttons_layout.addWidget(self.explore)
         self.layout.addItem(buttons_layout)
 
         self.setLayout(self.layout)
         self.show()
         
-        self.sd_computation = SDComputationThread(self.appdata, sd_setup, self.log_queue)
+        self.sd_computation = SDComputationThread(self.appdata, sd_setup)
         cancel.clicked.connect(self.cancel)
         self.sd_computation.output_connector.connect(self.receive_progress_text,Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect(self.conclude_computation)
+        self.sd_computation.finished_computation.connect(self.conclude_computation,Qt.QueuedConnection)
         self.sd_computation.start()
     
     @Slot(str)
-    def conclude_computation(self):
+    def conclude_computation(self,results):
+        deserialized = json.loads(results)
+        sd = deserialized[0]
+        status = deserialized[1]
         self.sd_computation.exit()
         self.setCursor(Qt.ArrowCursor)
-        if self.sd_computation.abort:
-            pass
-            # self.accept()
-        else:
-            pass
-            self.explore.setEnabled(True)
-            # omcs = scipy.sparse.lil_matrix((len(mcs), len(reac_id)))
-            # for i,m in enumerate(mcs):
-            #     for j in m:
-            #         omcs[i, j] = -1.0
-            # # self.appdata.project.modes = omcs
-            # self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
-            # self.central_widget.mode_navigator.current = 0
-            # QMessageBox.information(self, 'Cut sets found',
-            #                             str(len(mcs))+' Cut sets have been calculated.')
-            # if self.sd_computation.ems is None:
-            #     # in this case the progress window should still be left open and the cancel button reappear
-            #     self.button.hide()
-            #     self.cancel.show()
-            #     QMessageBox.information(self, 'No modes',
-            #                             'An error occured and modes have not been calculated.')
-            # else:
-            #     self.accept()
-            #     if len(self.sd_computation.ems) == 0:
-            #         QMessageBox.information(self, 'No modes',
-            #                                 'No elementary modes exist.')
-            #     else:
-            #         self.appdata.project.modes = self.sd_computation.ems
-            #         self.central_widget.mode_navigator.current = 0
-            #         self.central_widget.mode_navigator.scenario = self.sd_computation.scenario
-            #         self.central_widget.mode_navigator.set_to_efm()
-            #         self.central_widget.update_mode()
+        self.explore.setEnabled(True)
 
-    @Slot()
-    def receive_progress_text(self):
-        self.lock.acquire()
-        self.textbox.append(self.log_queue.get())
-        self.lock.release()
+    @Slot(str)
+    def receive_progress_text(self,txt):
+        self.textbox.append(txt)
         
-    def show_mcs(self):
-        self.strain_designs
-        self.central_widget.mode_navigator.set_to_mcs()
-        self.central_widget.update_mode()
+    def show_sd(self):
         self.accept()
-        pass
     
     def cancel(self):
-        self.sd_computation.activate_abort()
         self.reject()
 
 class SDComputationThread(QThread):
-    def __init__(self, appdata, sd_setup, queue):
+    def __init__(self, appdata, sd_setup):
         super().__init__()
         self.model = appdata.project.cobra_py_model
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
-        self.queue = queue
-        self.errstrm = io.StringIO()
+        self.buffer = ""
         self.curr_threadID = self.currentThread()
-        self.modules = self.sd_setup.pop('modules')
+        self.finished.connect(self.deleteLater)
         self.t = time()
         if self.sd_setup.pop('use_scenario'):
             for r in self.appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
-        self.sd_setup.pop('model_id')
+        self.sd_setup.pop(MODEL_ID)
         adv = self.sd_setup.pop('advanced')
-        gkos = self.sd_setup.pop('gene_kos')
-        if not adv and gkos: # ensure that gene-kos are computed, even when the 
+        self.gkos = self.sd_setup.pop('gene_kos')
+        if not adv and self.gkos: # ensure that gene-kos are computed, even when the
             self.sd_setup[GKOCOST] = None # advanced-button wasn't clicked
         
         # for debugging purposes
-        self.sd_setup['output_format'] = 'auto_kos'
-        self.sd_setup['modules'] = self.modules
         with open('sd_computation.json', 'w') as fp:
             json.dump(self.sd_setup,fp)
-        self.sd_setup.pop('output_format')
-        self.sd_setup.pop('modules')
-
-    def do_abort(self):
-        return self.abort
-
-    def activate_abort(self):
-        self.abort = True
 
     def run(self):
         try:
-            with redirect_stdout(self), redirect_stderr(self.errstrm):
+            self.curr_threadID = self.currentThread()
+            with redirect_stdout(self), redirect_stderr(self):
                 self.curr_threadID = self.currentThread()
-                rmcs, gmcs = compute_strain_designs(self.model, self.modules, **self.sd_setup)
-                self.finished_computation.emit(json.dumps((rmcs,gmcs)))
+                sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
+                sleep(0.01)
+                self.output_connector.emit(self.buffer)
+                sleep(0.01)
+                self.finished_computation.emit(json.dumps((sd_solutions.get_sd(),sd_solutions.status)))
         except Exception as e:
             tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
             self.write(tb_str)
+            sleep(0.01)
+            sd_solutions = SD_Solution(self.model,[],ERROR,self.sd_setup)
+            self.output_connector.emit(self.buffer)
+            sleep(0.01)
+            self.finished_computation.emit(json.dumps(([],ERROR)))
         
     def write(self, input):
         # avoid that other threads use this as an output
-        if input and input is not "\n" and self.curr_threadID == self.currentThread():
-            
-            if time()-self.t > 0.1:
-                self.queue.put(input)
-                self.output_connector.emit()
-                self.t = time()
+        if self.curr_threadID == self.currentThread():
+            if input and (input is not "\n"):
+                if time()-self.t > 0.1: # Send updates at most 10 times per second
+                    self.output_connector.emit(self.buffer+input)
+                    self.buffer = ""
+                    self.t = time()  
+                else: # otherwise write to buffer
+                    self.buffer += input+"\n"
             
     def flush(self):
-        self.output_connector.emit()
+        self.buffer = ""
 
     # the output from the strain design computation needs to be passed as a signal because 
     # all Qt widgets must run on the main thread and their methods cannot be safely called 
     # from other threads
-    output_connector = Signal()
+    output_connector = Signal(str)
     finished_computation = Signal(str)
     
