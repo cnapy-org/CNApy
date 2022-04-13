@@ -1260,7 +1260,7 @@ class SDComputationThread(QThread):
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
-            if input and (input is not "\n"):
+            if input and (input != "\n"):
                 if time()-self.t > 0.1: # Send updates at most 10 times per second
                     self.output_connector.emit(self.buffer+input)
                     self.buffer = ""
