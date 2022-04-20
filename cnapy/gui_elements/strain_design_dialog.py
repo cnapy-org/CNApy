@@ -12,7 +12,9 @@ from typing import Dict
 from multiprocessing import Lock, Queue
 import pickle
 import traceback
-from mcs.strainDesignSolution import SD_Solution
+from straindesigner import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
+from straindesigner.names import *
+from straindesigner.strainDesignSolution import SD_Solution
 from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
@@ -25,8 +27,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QWidget, QFileDialog, QTextEdit)
 from cnapy.appdata import AppData
 import cnapy.utils as utils
-from mcs import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
-from mcs.names import *
+
 from cnapy.flux_vector_container import FluxVectorContainer
 
 MCS_STR = 'MCS'
@@ -1358,7 +1359,6 @@ class StrainDesignViewer(QDialog):
             self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
             self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
             self.sd_table.horizontalHeader().resizeSection(0, 70)
-            self.sd_table.horizontalHeader().resizeSection(2, 200)
             self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
             self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in rsd]
             self.gsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in gsd]
@@ -1367,6 +1367,12 @@ class StrainDesignViewer(QDialog):
                 entry_a = QLabel(str(a))
                 entry_g = QLabel(g)
                 entry_s = QLabel(self.rsd[a])
+                entry_a.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                entry_g.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                entry_s.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                # entry_a.setReadOnly(True)
+                # entry_g.setReadOnly(True)
+                # entry_s.setReadOnly(True)
                 entry_a.setMaximumWidth(80)
                 entry_g.setMaximumWidth(200)
                 entry_s.setMaximumWidth(200)
@@ -1384,6 +1390,8 @@ class StrainDesignViewer(QDialog):
             for i,s in enumerate(self.rsd):
                 self.sd_table.insertRow(i)
                 entry_s = QLabel(s)
+                entry_s.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                # entry_s.setReadOnly(True)
                 self.sd_table.setCellWidget(i, 0, entry_s)
                 
         self.setLayout(self.layout)

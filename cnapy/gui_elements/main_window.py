@@ -12,7 +12,6 @@ import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
-import mcs
 import numpy as np
 
 # from cobra.manipulation.delete import prune_unused_metabolites
