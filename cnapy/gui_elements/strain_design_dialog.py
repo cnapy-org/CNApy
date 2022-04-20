@@ -6,12 +6,13 @@ from mimetypes import guess_all_extensions
 import json
 import os
 from threading import currentThread
-from tkinter import E
+from scipy import sparse
+from numpy import nan, sign
 from typing import Dict
 from multiprocessing import Lock, Queue
+import pickle
 import traceback
 from mcs.strainDesignSolution import SD_Solution
-import scipy
 from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
@@ -22,8 +23,6 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
                             QWidget, QFileDialog, QTextEdit)
-import cobra
-from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
 from mcs import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
@@ -46,12 +45,11 @@ def BORDER_COLOR(HEX): # string that defines style sheet for changing the color 
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
 
-    def __init__(self, appdata: AppData, central_widget):
+    def __init__(self, appdata: AppData, sd_setup: Dict = {}):
         QDialog.__init__(self)
         self.setWindowTitle("Strain Design Computation")
 
         self.appdata = appdata
-        self.central_widget = central_widget
         self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
@@ -59,22 +57,19 @@ class SDDialog(QDialog):
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         
-        self.completer = QCompleter(self.reac_ids, self)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.reac_wordlist = self.reac_ids
         
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
                 len(self.appdata.project.cobra_py_model.genes) == 0:
-            self.completer_ko_ki = self.completer
+            self.gene_wordlist = self.reac_wordlist
             self.gene_ids = []
             self.gene_names = []
         else:
-            keywords = set( self.appdata.project.cobra_py_model.reactions.list_attr("id")+ \
-                            self.appdata.project.cobra_py_model.genes.list_attr("id")+
-                            self.appdata.project.cobra_py_model.genes.list_attr("name"))
-            if '' in keywords:
-                keywords.remove('')
-            self.completer_ko_ki = QCompleter(keywords, self)
-            self.completer_ko_ki.setCaseSensitivity(Qt.CaseInsensitive)
+            self.gene_wordlist = set(   self.appdata.project.cobra_py_model.reactions.list_attr("id")+ \
+                                        self.appdata.project.cobra_py_model.genes.list_attr("id")+
+                                        self.appdata.project.cobra_py_model.genes.list_attr("name"))
+            if '' in self.gene_wordlist:
+                self.gene_wordlist.remove('')
             
             self.gene_ids = self.appdata.project.cobra_py_model.genes.list_attr("id")
             if set(self.appdata.project.cobra_py_model.genes.list_attr("name")) != set(""):
@@ -159,8 +154,7 @@ class SDDialog(QDialog):
         # Outer objective
         self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[OUTER_OBJECTIVE] = ReceiverLineEdit(self)
-        self.module_edit[OUTER_OBJECTIVE].setCompleter(self.completer)
+        self.module_edit[OUTER_OBJECTIVE] = ComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[OUTER_OBJECTIVE].setHidden(True)
         module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE+"_label"] )
@@ -169,8 +163,7 @@ class SDDialog(QDialog):
         # Inner objective
         self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[INNER_OBJECTIVE] = ReceiverLineEdit(self)
-        self.module_edit[INNER_OBJECTIVE].setCompleter(self.completer)
+        self.module_edit[INNER_OBJECTIVE] = ComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[INNER_OBJECTIVE].setHidden(True)
         module_spec_layout.addWidget(self.module_edit[INNER_OBJECTIVE+"_label"])
@@ -181,8 +174,7 @@ class SDDialog(QDialog):
         optcouple_layout_prod = QVBoxLayout()
         self.module_edit[PROD_ID+"_label"]  = QLabel("Product synth. reac_id")
         self.module_edit[PROD_ID+"_label"].setHidden(True)
-        self.module_edit[PROD_ID] = ReceiverLineEdit(self)
-        self.module_edit[PROD_ID].setCompleter(self.completer)
+        self.module_edit[PROD_ID] = ComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[PROD_ID].setPlaceholderText(placeholder_rid)
         self.module_edit[PROD_ID].setHidden(True)
         optcouple_layout_prod.addWidget(self.module_edit[PROD_ID+"_label"])
@@ -193,9 +185,9 @@ class SDDialog(QDialog):
         optcouple_layout_mingcp = QVBoxLayout()
         self.module_edit[MIN_GCP+"_label"] = QLabel("Min. growth-coupling potential")
         self.module_edit[MIN_GCP+"_label"].setHidden(True)
-        self.module_edit[MIN_GCP] = ReceiverLineEdit(self)
+        self.module_edit[MIN_GCP] = QLineEdit(self)
         self.module_edit[MIN_GCP].setHidden(True)
-        self.module_edit[MIN_GCP].setPlaceholderText("(float) e.g.: 1.3")
+        self.module_edit[MIN_GCP].setPlaceholderText("optional: (float) e.g.: 1.3")
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP+"_label"])
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP])
         optcouple_layout.addItem(optcouple_layout_mingcp)
@@ -213,8 +205,7 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.module_edit[CONSTRAINTS].setHorizontalHeaderLabels([" "])
         # -> first entry in constraint list
-        # constr_entry = ReceiverLineEdit(self)
-        # constr_entry.setCompleter(self.completer)
+        # constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
         # constr_entry.setPlaceholderText(self.placeholder_eq)
         # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
         # self.active_receiver = constr_entry
@@ -401,8 +392,7 @@ class SDDialog(QDialog):
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
         l = QLabel("Filter: ")
-        self.ko_ki_filter = ReceiverLineEdit(self)
-        self.ko_ki_filter.setCompleter(self.completer_ko_ki)
+        self.ko_ki_filter = ComplReceivLineEdit(self,self.gene_wordlist)
         self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
         ko_ki_filter_layout.addWidget(l)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
@@ -544,9 +534,9 @@ class SDDialog(QDialog):
         
         ## main buttons
         buttons_layout = QHBoxLayout()
-        self.compute_mcs_button = QPushButton("Compute")
-        self.compute_mcs_button.clicked.connect(self.compute)
-        buttons_layout.addWidget(self.compute_mcs_button)
+        self.compute_sd_button = QPushButton("Compute")
+        self.compute_sd_button.clicked.connect(self.compute)
+        buttons_layout.addWidget(self.compute_sd_button)
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self.save)
         buttons_layout.addWidget(self.save_button)
@@ -561,16 +551,20 @@ class SDDialog(QDialog):
         # Finalize
         self.setLayout(self.layout)
         # Connecting signals
-        self.central_widget.broadcastReactionID.connect(self.receive_input)
+        self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
         self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
+        
+        # load strain design setup if passed to constructor
+        if sd_setup != {} and sd_setup != False:
+            self.load(sd_setup)
 
     @Slot(str)
     def receive_input(self, text):
-        completer_mode = self.active_receiver.completer().completionMode()
+        completer_mode = self.active_receiver.completer.completionMode()
         # temporarily disable completer popup
-        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
-        self.active_receiver.insert(text)
-        self.active_receiver.completer().setCompletionMode(completer_mode)
+        self.active_receiver.completer.setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+        self.active_receiver.insert(text+' ')
+        self.active_receiver.completer.setCompletionMode(completer_mode)
 
     def configure_solver_options(self):  # called when switching solver
         if self.solver_buttons['group'].checkedButton().property('name') in [CPLEX, GUROBI]:
@@ -639,9 +633,7 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        # constr_entry = ReceiverLineEdit(self)
-        # constr_entry.setCompleter(self.completer)
-        constr_entry = CompleterLineEdit(self, self.completer)
+        constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -704,8 +696,7 @@ class SDDialog(QDialog):
                 self.module_edit[CONSTRAINTS].removeRow(0)
             # uncomment this to add an empty constraint by default
             # self.module_edit[CONSTRAINTS].insertRow(0)
-            # constr_entry = ReceiverLineEdit(self)
-            # constr_entry.setCompleter(self.completer)
+            # constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
             # self.active_receiver = constr_entry
             # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
@@ -726,22 +717,21 @@ class SDDialog(QDialog):
             for i,c in enumerate(mod[CONSTRAINTS]):
                 text = lineqlist2str(c)
                 self.module_edit[CONSTRAINTS].insertRow(i)
-                constr_entry[i] = ReceiverLineEdit(self)
-                constr_entry[i].setText(text)
-                constr_entry[i].setCompleter(self.completer)
+                constr_entry[i] = ComplReceivLineEdit(self,self.reac_wordlist)
+                constr_entry[i].setText(text+' ')
                 self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry[i])
             # load other information from module
             if mod[MODULE_SENSE]:
                 self.module_edit[MODULE_SENSE].setCurrentText(mod[MODULE_SENSE])
             if mod[INNER_OBJECTIVE]:
                 self.module_edit[INNER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[INNER_OBJECTIVE]))
-            if mod[OUTER_OBJECTIVE]:
+                    linexprdict2str(mod[INNER_OBJECTIVE])+' ') # add space character to avoid 
+            if mod[OUTER_OBJECTIVE]:                           # word completion
                 self.module_edit[OUTER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[OUTER_OBJECTIVE]))
+                    linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
             if mod[PROD_ID]:
                 self.module_edit[PROD_ID].setText(\
-                    linexprdict2str(mod[PROD_ID]))
+                    linexprdict2str(mod[PROD_ID])+' ')
             if mod[MIN_GCP]:
                 self.module_edit[MIN_GCP].setText(str(mod[MIN_GCP]))
 
@@ -871,7 +861,7 @@ class SDDialog(QDialog):
     
     def ko_ki_filter_text_changed(self):
         self.setCursor(Qt.BusyCursor)
-        txt = self.ko_ki_filter.text().lower()
+        txt = self.ko_ki_filter.text().lower().strip()
         hide_reacs = [True if txt not in r.lower() else False for r in self.reac_ids]
         for i,h in enumerate(hide_reacs):
             self.reaction_itv_list.setRowHidden(i,h)
@@ -966,7 +956,7 @@ class SDDialog(QDialog):
         sd_setup.update({MODEL_ID : self.appdata.project.cobra_py_model.id})
         # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
         modules = [m.copy() for m in self.modules] # "deep" copy necessary
-        [m.pop(MODEL_ID) for m in modules]
+        [m.pop(MODEL_ID) for m in modules if MODEL_ID in m]
         sd_setup.update({MODULES : modules})
         # other parameters
         sd_setup.update({'gene_kos' : self.gen_kos.isChecked()})
@@ -1027,16 +1017,17 @@ class SDDialog(QDialog):
         with open(filename, 'w') as fp:
             json.dump(sd_setup, fp)
     
-    def load(self):
-        # open file dialog
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.last_scen_directory, filter="*.sd")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
-        # dump dictionary into json-file
-        with open(filename, 'r') as fp:
-            sd_setup = json.load(fp)
+    def load(self, sd_setup = {}):
+        if sd_setup == {} or sd_setup == False:
+            # open file dialog
+            dialog = QFileDialog(self)
+            filename: str = dialog.getOpenFileName(
+                directory=self.appdata.last_scen_directory, filter="*.sd")[0]
+            if not filename or len(filename) == 0 or not os.path.exists(filename):
+                return
+            # dump dictionary into json-file
+            with open(filename, 'r') as fp:
+                sd_setup = json.load(fp)
         # warn if strain design setup was constructed for another model
         if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:
             QMessageBox.information(self,"Model IDs not matching",\
@@ -1060,7 +1051,7 @@ class SDDialog(QDialog):
                 self.module_list.cellWidget(i, 0).setCurrentText(ROBUSTKNOCK_STR)
             elif m[MODULE_TYPE] == OPTCOUPLE:
                 self.module_list.cellWidget(i, 0).setCurrentText(OPTCOUPLE_STR)
-        [m.update({'model':self.appdata.project.cobra_py_model}) for m in sd_setup[MODULES]]
+        [m.update({MODEL_ID:self.appdata.project.cobra_py_model.id}) for m in sd_setup[MODULES]]
         self.modules = sd_setup[MODULES]
         self.current_module = len(self.modules)-1
         self.update_module_edit()
@@ -1073,6 +1064,7 @@ class SDDialog(QDialog):
         self.advanced.setChecked(sd_setup['advanced'])
         self.solver_buttons[sd_setup[SOLVER]].setChecked(True)
         self.solution_buttons[sd_setup[SOLUTION_APPROACH]].setChecked(True)
+        self.configure_solver_options()
         # only load knockouts and knockins if advanced is selected
         self.gen_ko_checked()
         self.show_ko_ki()
@@ -1105,36 +1097,57 @@ class SDDialog(QDialog):
                     self.gene_itv[g]['button_group'].button(3).setChecked(True)
                     self.gene_itv[g]['cost'].setText(str(v))
                     self.knock_changed(g,'gene')
+        self.compute_sd_button.setFocus()
     
     def compute(self):
         self.setCursor(Qt.BusyCursor)
         valid = self.module_apply()
         if not valid:
             return
+        if any([True for m in self.modules if m is None]):
+            QMessageBox.information(self,"Some modules were added to the strain design problem "\
+                                    "but not yet set up. Please use the Edit button(s) in the " \
+                                    "module list to ensure all modules were set up correctly.")
+            self.current_module = [i for i,m in enumerate(self.modules) if m is None][0]
+            self.module_edit()
+            return
+        bilvl_modules = [i for i,m in enumerate(self.modules) \
+                            if m[MODULE_TYPE] in [OPTKNOCK,ROBUSTKNOCK,OPTCOUPLE]]
+        if len(bilvl_modules) > 1:
+            QMessageBox.information(self,"Only one of the module types 'OptKnock', " \
+                                    "'RobustKnock' and 'OptCouple' can be defined per "\
+                                    "strain design setup.")
+            self.current_module = bilvl_modules[0]
+            self.module_edit()
+            return
         sd_setup = self.parse_dialog_inputs()
         self.launch_computation_signal.emit(json.dumps(sd_setup))
         self.setCursor(Qt.ArrowCursor)
         self.accept()
+        
+    def __del__(self):
+        self.appdata.window.centralWidget().broadcastReactionID.disconnect()
     
     launch_computation_signal = Signal(str)
 
 
-class CompleterLineEdit(QLineEdit):
+class ComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
-    def __init__(self, sd_dialog, completer):
-        super().__init__()
+    def __init__(self, sd_dialog, wordlist):
+        super().__init__("")
         self.sd_dialog = sd_dialog
-        self.completer = completer
-        self.completer.activated.connect(self.complete_text)
-        # self.setCompleter(self.completer)
+        self.completer = QCompleter(wordlist)
+        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setWidget(self)
         self.textChanged.connect(self.text_changed)
+        self.completer.activated.connect(self.complete_text)
 
     def text_changed(self, text):
         all_text = text
         text = all_text[:self.cursorPosition()]
         prefix = text.split(' ')[-1].strip()
-        self.completer.setCompletionPrefix(prefix)
         if prefix != '':
+            self.completer.setCompletionPrefix(prefix)
             self.completer.complete()
 
     def complete_text(self, text):
@@ -1142,20 +1155,20 @@ class CompleterLineEdit(QLineEdit):
         before_text = self.text()[:cursor_pos]
         after_text = self.text()[cursor_pos:]
         prefix_len = len(before_text.split(' ')[-1].strip())
-        self.setText(before_text[:cursor_pos - prefix_len] + text + after_text)
-        self.setCursorPosition(cursor_pos - prefix_len + len(text))
-        self.completer
+        self.setText(before_text[:cursor_pos - prefix_len] + text + " " + after_text)
+        self.setCursorPosition(cursor_pos - prefix_len + len(text) + 1)
     
-    # textChangedX = Signal(str)
-
-class ReceiverLineEdit(QLineEdit):
-    def __init__(self, mcs_dialog):
-        super().__init__()
-        self.mcs_dialog = mcs_dialog
-
+    def skip_completion(self):
+        self.completer.setCompletionPrefix('###') # dummy
+    
     def focusInEvent(self, event):
         super().focusInEvent(event)
-        self.mcs_dialog.active_receiver = self
+        self.sd_dialog.active_receiver = self
+    
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+    
+    # textChangedX = Signal(str)
        
 class StrainDesignComputationDialog(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
@@ -1172,10 +1185,6 @@ class StrainDesignComputationDialog(QDialog):
         self.textbox = QTextEdit()
         self.layout.addWidget(self.textbox)
         
-        mcs_table = QTableWidget()
-        mcs_table.setHidden(True)
-        self.layout.addWidget(mcs_table)
-        
         buttons_layout = QHBoxLayout()
         self.explore = QPushButton("Explore strain designs")
         self.explore.clicked.connect(self.show_sd)
@@ -1183,37 +1192,49 @@ class StrainDesignComputationDialog(QDialog):
         self.explore.setDisabled(True)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
-        buttons_layout.addWidget(cancel)
         buttons_layout.addWidget(self.explore)
+        buttons_layout.addWidget(cancel)
         self.layout.addItem(buttons_layout)
 
         self.setLayout(self.layout)
         self.show()
         
+        self.show_sd_signal.connect(self.appdata.window.show_strain_designs,Qt.QueuedConnection)
+        
+        self.solutions = None
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
         cancel.clicked.connect(self.cancel)
         self.sd_computation.output_connector.connect(self.receive_progress_text,Qt.QueuedConnection)
         self.sd_computation.finished_computation.connect(self.conclude_computation,Qt.QueuedConnection)
         self.sd_computation.start()
     
-    @Slot(str)
+    @Slot(bytes)
     def conclude_computation(self,results):
-        deserialized = json.loads(results)
-        sd = deserialized[0]
-        status = deserialized[1]
+        self.solutions = pickle.loads(results)
         self.sd_computation.exit()
         self.setCursor(Qt.ArrowCursor)
+        if self.solutions.get_num_sols() == 0:
+            self.explore.setText('Edit strain design setup')
+            self.explore.clicked.connect(self.open_strain_design_dialog)
         self.explore.setEnabled(True)
 
     @Slot(str)
     def receive_progress_text(self,txt):
         self.textbox.append(txt)
         
+    @Slot()
+    def open_strain_design_dialog(self):
+        self.appdata.window.strain_design_with_setup(self.sd_setup)
+        self.accept()
+        
     def show_sd(self):
+        self.show_sd_signal.emit(pickle.dumps(self.solutions))
         self.accept()
     
     def cancel(self):
         self.reject()
+        
+    show_sd_signal = Signal(bytes)
 
 class SDComputationThread(QThread):
     def __init__(self, appdata, sd_setup):
@@ -1247,7 +1268,7 @@ class SDComputationThread(QThread):
                 sleep(0.01)
                 self.output_connector.emit(self.buffer)
                 sleep(0.01)
-                self.finished_computation.emit(json.dumps((sd_solutions.get_sd(),sd_solutions.status)))
+                self.finished_computation.emit(pickle.dumps(sd_solutions))
         except Exception as e:
             tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
             self.write(tb_str)
@@ -1255,7 +1276,7 @@ class SDComputationThread(QThread):
             sd_solutions = SD_Solution(self.model,[],ERROR,self.sd_setup)
             self.output_connector.emit(self.buffer)
             sleep(0.01)
-            self.finished_computation.emit(json.dumps(([],ERROR)))
+            self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
         
     def write(self, input):
         # avoid that other threads use this as an output
@@ -1275,5 +1296,116 @@ class SDComputationThread(QThread):
     # all Qt widgets must run on the main thread and their methods cannot be safely called 
     # from other threads
     output_connector = Signal(str)
-    finished_computation = Signal(str)
+    finished_computation = Signal(bytes)
+
+class StrainDesignViewer(QDialog):
+    """A dialog that shows the results of the strain design computation"""
+    def __init__(self, appdata: AppData, solutions):
+        super().__init__()
+        self.solutions = pickle.loads(solutions)
+        self.setWindowTitle("Strain Design Solutions")
+        self.setMinimumWidth(620)
+        
+        self.eng = appdata.engine
+        
+        self.layout = QVBoxLayout()
+        
+        if self.solutions.is_gene_sd:
+            self.sd_table = QTableWidget(0, 3)
+        else:
+            self.sd_table = QTableWidget(0, 1)
+        self.sd_table.verticalHeader().setDefaultSectionSize(20)
+        self.layout.addWidget(self.sd_table)
+        
+        buttons_layout = QHBoxLayout()
+        self.close = QPushButton("Close")
+        self.close.clicked.connect(self.closediag)
+        self.close.setMaximumWidth(200)
+        buttons_layout.addWidget(self.close)
+        self.save = QPushButton("Save as tsv (tab separated values)")
+        self.save.clicked.connect(self.savesd)
+        self.save.setMaximumWidth(250)
+        buttons_layout.addWidget(self.save)
+        self.layout.addItem(buttons_layout)
+        
+        reac_id = appdata.project.cobra_py_model.reactions.list_attr('id')
+        if self.solutions.is_gene_sd:
+            (rsd,assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
+        else:
+            rsd = self.solutions.get_reaction_sd()
+        sd = sparse.lil_matrix((len(rsd), len(reac_id)))
+        for i,s in enumerate(rsd):
+            for k,v in s.items():
+                j = reac_id.index(k)
+                if v != 0:
+                    sd[i,j] = v
+                else:
+                    sd[i,j] = nan
+        appdata.project.modes = FluxVectorContainer(sd, reac_id=reac_id)
+        central_widget = appdata.window.centralWidget()
+        central_widget.mode_navigator.current = 0
+        central_widget.mode_navigator.set_to_strain_design()
+        central_widget.update_mode()
+        
+        # prepare strain designs
+        if self.solutions.is_gene_sd:
+            self.sd_table.verticalHeader().setVisible(False)
+            (rsd, self.assoc, gsd) = self.solutions.get_gene_reac_sd_assoc()
+            self.sd_table.setMinimumWidth(300)
+            self.sd_table.setMinimumHeight(150)
+            self.sd_table.setHorizontalHeaderLabels(["Phenotype","Intervention set",\
+                                                     "Reaction-phenotype interventions"])
+            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.sd_table.horizontalHeader().resizeSection(0, 70)
+            self.sd_table.horizontalHeader().resizeSection(2, 200)
+            self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+            self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in rsd]
+            self.gsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in gsd]
+            for i,a,g in zip(range(len(self.gsd)), self.assoc, self.gsd):
+                self.sd_table.insertRow(i)
+                entry_a = QLabel(str(a))
+                entry_g = QLabel(g)
+                entry_s = QLabel(self.rsd[a])
+                entry_a.setMaximumWidth(80)
+                entry_g.setMaximumWidth(200)
+                entry_s.setMaximumWidth(200)
+                self.sd_table.setCellWidget(i, 0, entry_a)
+                self.sd_table.setCellWidget(i, 1, entry_g)
+                self.sd_table.setCellWidget(i, 2, entry_s)
+        
+        else:
+            self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in \
+                        self.solutions.get_reaction_sd()]
+            self.sd_table.setMinimumWidth(300)
+            self.sd_table.setMinimumHeight(150)
+            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+            self.sd_table.setHorizontalHeaderLabels(["Intervention set"])
+            for i,s in enumerate(self.rsd):
+                self.sd_table.insertRow(i)
+                entry_s = QLabel(s)
+                self.sd_table.setCellWidget(i, 0, entry_s)
+                
+        self.setLayout(self.layout)
+        self.show()
+        
+    def closediag(self):
+        self.reject()
     
+    def savesd(self):
+        # open file dialog
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.tsv")[0]
+        if not filename or len(filename) == 0:
+            return
+        elif len(filename)<=3 or filename[-3:] != '.tsv':
+            filename += '.tsv'
+        # save strain design list to Excel file
+        if self.solutions.is_gene_sd:
+            sd_string = "\n".join(["\t".join([g,self.rsd[a]]) for a,g in zip(self.assoc, self.gsd)])
+        else:
+            sd_string = "\n".join(self.rsd)
+        with open(filename,'w') as fs:
+            fs.write(sd_string)
+        

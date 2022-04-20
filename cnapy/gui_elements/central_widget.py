@@ -16,6 +16,7 @@ from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
 from cnapy.gui_elements.reactions_list import ReactionList
 from cnapy.utils import SignalThrottler
+from cnapy.gui_elements.reactions_list import ReactionListColumn
 
 
 class CentralWidget(QWidget):
@@ -276,14 +277,48 @@ class CentralWidget(QWidget):
             self.appdata.project.comp_values.clear()
             self.parent.clear_status_bar()
             for i in values:
-                if self.mode_navigator.mode_type == 1 and values[i] == -1:
-                    values[i] = 0.0 # display cuts as zero flux
+                if self.mode_navigator.mode_type in [1,2] and values[i] < 0:
+                    values[i] = 0.0 # display KOs as zero flux
+                if self.mode_navigator.mode_type == 2 and numpy.isnan(values[i]):
+                    values[i] = 0.0 # display non-introduced KIs as 0, but with a different color
+                if self.mode_navigator.mode_type == 2 and values[i] > 0:
+                    continue # display KIs as empty colored box
                 self.appdata.project.comp_values[i] = (values[i], values[i])
             self.appdata.project.comp_values_type = 0
 
         self.appdata.modes_coloring = True
         self.update()
         self.appdata.modes_coloring = False
+        
+        # Set coloring of knock-ins (in case of strain design)
+        if self.mode_navigator.mode_type == 2:
+            values = self.appdata.project.modes[self.mode_navigator.current]
+            for i in values:
+                idx = self.appdata.window.centralWidget().tabs.currentIndex()
+                if idx == 0 and self.appdata.project.comp_values_type == 0:
+                    view = self.appdata.window.centralWidget().reaction_list
+                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
+                    root = view.reaction_list.invisibleRootItem()
+                    child_count = root.childCount()
+                    for i in range(child_count):
+                        item = root.child(i)
+                        if item.text(0) in values and numpy.isnan(values[item.text(0)]):
+                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                        if item.text(0) in values and (values[item.text(0)] > 0):
+                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
+                    view.reaction_list.blockSignals(False)
+
+                idx = self.appdata.window.centralWidget().map_tabs.currentIndex()
+                if idx < 0:
+                    return
+                name = self.appdata.window.centralWidget().map_tabs.tabText(idx)
+                view = self.appdata.window.centralWidget().map_tabs.widget(idx)
+                for key in self.appdata.project.maps[name]["boxes"]:
+                    if key in values:
+                        if numpy.isnan(values[key]):
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                        if values[key] > 0:
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_2)
 
     def reaction_participation(self):
         relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected

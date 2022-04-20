@@ -2,7 +2,7 @@ import io
 import json
 import os
 import traceback
-import pickle
+import json
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -34,7 +34,7 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
-from cnapy.gui_elements.strain_design_dialog import SDDialog, StrainDesignComputationDialog
+from cnapy.gui_elements.strain_design_dialog import SDDialog, StrainDesignComputationDialog, StrainDesignViewer
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -297,14 +297,19 @@ class MainWindow(QMainWindow):
         self.sd_menu.addAction(self.sd_action)
         self.mcs_dialog = None
 
-        load_sd_action = QAction("Load Minimal Cut Sets...", self)
-        self.sd_menu.addAction(load_sd_action)
-        load_sd_action.triggered.connect(self.load_mcs)
+        load_mcs_action = QAction("Load Minimal Cut Sets ...", self)
+        self.sd_menu.addAction(load_mcs_action)
+        load_mcs_action.triggered.connect(self.load_mcs)
            
         self.sd_action = QAction("Compute Strain Designs ...", self)
         self.sd_action.triggered.connect(self.strain_design)
         self.sd_menu.addAction(self.sd_action)
         self.sd_dialog = None
+        self.sd_sols = None
+        
+        load_sd_action = QAction("Load Strain Designs ...", self)
+        self.sd_menu.addAction(load_sd_action)
+        load_sd_action.triggered.connect(self.load_strain_designs)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -514,6 +519,11 @@ class MainWindow(QMainWindow):
         self.sd_dialog = StrainDesignComputationDialog(self.appdata, sd_setup)
         self.sd_dialog.exec()
         
+    @Slot(bytes)
+    def show_strain_designs(self,solutions):
+        self.sd_sols = StrainDesignViewer(self.appdata, solutions)
+        self.sd_sols.exec()
+        
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
@@ -685,6 +695,19 @@ class MainWindow(QMainWindow):
         # self.appdata.modes_coloring = True
         # self.centralWidget().update()
         # self.appdata.modes_coloring = False
+
+    @Slot()
+    def load_strain_designs(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.work_directory, filter="*.npz")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+
+        self.appdata.project.modes = FluxVectorContainer(filename)
+        self.centralWidget().mode_navigator.current = 0
+        self.centralWidget().mode_navigator.set_to_strain_design()
+        self.centralWidget().update_mode()
 
     @Slot()
     def change_background(self, caption="Select a SVG file", directory=None):
@@ -1599,8 +1622,12 @@ class MainWindow(QMainWindow):
         self.mcs_dialog.show()
         
     def strain_design(self):
-        self.sd_dialog = SDDialog(
-            self.appdata, self.centralWidget())
+        self.sd_dialog = SDDialog(self.appdata)
+        self.sd_dialog.show()
+    
+    @Slot(str)
+    def strain_design_with_setup(self, sd_setup):
+        self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
         self.sd_dialog.show()
 
     def set_onoff(self):

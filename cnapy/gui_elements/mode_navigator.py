@@ -112,6 +112,14 @@ class ModeNavigator(QWidget):
         if not filename or len(filename) == 0:
             return
         self.appdata.project.modes.save(filename)
+            
+    def save_sd(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.npz")[0]
+        if not filename or len(filename) == 0:
+            return
+        self.appdata.project.modes.save(filename)
 
     def update_completion_list(self):
         reac_id = self.appdata.project.cobra_py_model.reactions.list_attr("id")
@@ -136,6 +144,17 @@ class ModeNavigator(QWidget):
         self.save_button_connection = self.save_button.clicked.connect(self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
+        self.select_all()
+        self.update_completion_list()
+        
+    def set_to_strain_design(self):
+        self.mode_type = 2
+        self.title.setText("Strain Design Navigation")
+        if self.save_button_connection is not None:
+            self.save_button.clicked.disconnect(self.save_button_connection)
+        self.save_button_connection = self.save_button.clicked.connect(self.save_sd)
+        self.save_button.setToolTip("save strain designs")
+        self.clear_button.setToolTip("clear strain designs")
         self.select_all()
         self.update_completion_list()
 
