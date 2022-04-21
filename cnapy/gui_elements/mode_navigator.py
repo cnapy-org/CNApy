@@ -116,10 +116,12 @@ class ModeNavigator(QWidget):
     def save_sd(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.npz")[0]
+            directory=self.appdata.work_directory, filter="*.sds")[0]
         if not filename or len(filename) == 0:
             return
-        self.appdata.project.modes.save(filename)
+        elif len(filename)<=3 or filename[-3:] != '.sds':
+            filename += '.sds'
+        self.appdata.project.sd_solutions.save(filename)
 
     def update_completion_list(self):
         reac_id = self.appdata.project.cobra_py_model.reactions.list_attr("id")

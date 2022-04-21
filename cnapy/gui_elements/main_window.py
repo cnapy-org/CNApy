@@ -2,7 +2,6 @@ import io
 import json
 import os
 import traceback
-import json
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -699,14 +698,12 @@ class MainWindow(QMainWindow):
     def load_strain_designs(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.npz")[0]
+            directory=self.appdata.work_directory, filter="*.sds")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
-
-        self.appdata.project.modes = FluxVectorContainer(filename)
-        self.centralWidget().mode_navigator.current = 0
-        self.centralWidget().mode_navigator.set_to_strain_design()
-        self.centralWidget().update_mode()
+        with open(filename,'rb') as f:
+            solutions = f.read()
+        self.show_strain_designs(solutions)
 
     @Slot()
     def change_background(self, caption="Select a SVG file", directory=None):
@@ -1082,9 +1079,11 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        if self.sd_dialog is not None:
+        try:
             self.sd_dialog.close()
             self.sd_dialog = None
+        except:
+            pass
 
     def save_sbml(self, filename):
         '''Save model as SBML'''

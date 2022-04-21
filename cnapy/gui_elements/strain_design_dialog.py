@@ -12,9 +12,9 @@ from typing import Dict
 from multiprocessing import Lock, Queue
 import pickle
 import traceback
-from straindesigner import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
-from straindesigner.names import *
-from straindesigner.strainDesignSolution import SD_Solution
+from straindesign import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
+from straindesign.names import *
+from straindesign.strainDesignSolution import SD_Solution
 from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
@@ -24,7 +24,8 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog, QTextEdit)
+                            QWidget, QFileDialog, QTextEdit, QApplication,
+                            QTableWidgetItem)
 from cnapy.appdata import AppData
 import cnapy.utils as utils
 
@@ -51,7 +52,6 @@ class SDDialog(QDialog):
         self.setWindowTitle("Strain Design Computation")
 
         self.appdata = appdata
-        self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
         self.setMinimumWidth(620)
@@ -203,6 +203,7 @@ class SDDialog(QDialog):
         
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
+        self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(25)
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.module_edit[CONSTRAINTS].setHorizontalHeaderLabels([" "])
         # -> first entry in constraint list
@@ -227,9 +228,9 @@ class SDDialog(QDialog):
                         
         # validate module button
         module_buttons_layout = QHBoxLayout()
-        self.module_edit["module_apply_button"] = QPushButton("Apply")
+        self.module_edit["module_apply_button"] = QPushButton("Check module")
         self.module_edit["module_apply_button"].clicked.connect(self.module_apply)
-        self.module_edit["module_del_button"] = QPushButton("Delete")
+        self.module_edit["module_del_button"] = QPushButton("Delete module")
         self.module_edit["module_del_button"].clicked.connect(self.rem_module,True)
         module_buttons_layout.addWidget(self.module_edit["module_apply_button"])
         module_buttons_layout.addWidget(self.module_edit["module_del_button"])
@@ -407,11 +408,9 @@ class SDDialog(QDialog):
         reaction_interventions_layout.setAlignment(Qt.AlignTop)
         self.reaction_itv_list_widget = QWidget()
         self.reaction_itv_list_widget.setFixedWidth(270)
-        self.reaction_itv_list = QTableWidget(0, 3)
-        self.reaction_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
-        self.reaction_itv_list.setFocusPolicy(Qt.NoFocus)
-        self.reaction_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
+        self.reaction_itv_list = QTableCopyable(0, 3)
         self.reaction_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
         self.reaction_itv_list.setFixedWidth(260)
         self.reaction_itv_list.setMinimumHeight(150)
@@ -419,7 +418,7 @@ class SDDialog(QDialog):
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.reaction_itv_list.horizontalHeader().resizeSection(0, 100)
+        self.reaction_itv_list.horizontalHeader().resizeSection(0, 120)
         self.reaction_itv_list.horizontalHeader().resizeSection(1, 80)
         self.reaction_itv_list.horizontalHeader().resizeSection(2, 40)
         reaction_interventions_layout.addWidget(self.reaction_itv_list)
@@ -427,12 +426,13 @@ class SDDialog(QDialog):
         self.reaction_itv = {}
         for i,r in enumerate(self.reac_ids):
             self.reaction_itv_list.insertRow(i)
-            l = QLabel(r)
+            l = QTableItem(r)
             l.setToolTip(r)
-            l.setMaximumWidth(100)
-            self.reaction_itv.update({r:\
-                                        {'cost': QLineEdit("1.0"),
+            l.setEditable(False)
+            # l.setMaximumWidth(100)
+            self.reaction_itv.update({r:{'cost': QTableItem("1.0"),
                                          'button_group': QButtonGroup()}})
+            self.reaction_itv[r]['cost'].setEditable(True)
             r_ko_ki_button_widget = QWidget()
             r_ko_ki_button_layout = QHBoxLayout()
             r_ko_ki_button_layout.setAlignment(Qt.AlignCenter)
@@ -441,6 +441,10 @@ class SDDialog(QDialog):
             r_na_button = QRadioButton()
             r_ki_button = QRadioButton()
             r_ko_button.setChecked(True)
+            r_ko_ki_button_widget.setFocusPolicy(Qt.NoFocus)
+            # self.reaction_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
+            # self.reaction_itv_list.setFocusPolicy(Qt.NoFocus)
+            # self.reaction_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
             self.reaction_itv[r]['button_group'].addButton(r_ko_button,1)
             self.reaction_itv[r]['button_group'].addButton(r_na_button,2)
             self.reaction_itv[r]['button_group'].addButton(r_ki_button,3)
@@ -448,9 +452,13 @@ class SDDialog(QDialog):
             r_ko_ki_button_layout.addWidget(r_na_button)
             r_ko_ki_button_layout.addWidget(r_ki_button)
             r_ko_ki_button_widget.setLayout(r_ko_ki_button_layout)
-            self.reaction_itv_list.setCellWidget(i, 0, l)
+            self.reaction_itv_list.setItem(i, 0, l)
+            dummy_item = QTableItem()
+            dummy_item.setEnabled(False)
+            dummy_item.setSelectable(False)
+            self.reaction_itv_list.setItem(i, 1, dummy_item)
             self.reaction_itv_list.setCellWidget(i, 1, r_ko_ki_button_widget)
-            self.reaction_itv_list.setCellWidget(i, 2, self.reaction_itv[r]['cost'])
+            self.reaction_itv_list.setItem(i, 2, self.reaction_itv[r]['cost'])
             self.reaction_itv[r]['button_group'].buttonClicked.connect(\
                             lambda state, x=r: self.knock_changed(x,'reac'))
         # buttons
@@ -472,18 +480,19 @@ class SDDialog(QDialog):
         self.gene_itv_list_widget = QWidget()
         self.gene_itv_list_widget.setHidden(True)
         self.gene_itv_list_widget.setFixedWidth(270)
-        self.gene_itv_list = QTableWidget(0, 3)
-        self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
-        self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
-        self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
+        self.gene_itv_list = QTableCopyable(0, 3)
+        # self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
+        # self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
+        # self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
         self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.gene_itv_list.verticalHeader().setVisible(False)
         self.gene_itv_list.setFixedWidth(260)
         self.gene_itv_list.setMinimumHeight(150)
         self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.gene_itv_list.horizontalHeader().resizeSection(0, 90)
+        self.gene_itv_list.horizontalHeader().resizeSection(0, 120)
         self.gene_itv_list.horizontalHeader().resizeSection(1, 80)
         self.gene_itv_list.horizontalHeader().resizeSection(2, 40)
         gene_interventions_layout.addWidget(self.gene_itv_list)
@@ -491,11 +500,12 @@ class SDDialog(QDialog):
         self.gene_itv = {}
         for i,g in enumerate(self.gene_ids):
             self.gene_itv_list.insertRow(i)
-            l = QLabel(self.gene_names[i])
+            l = QTableItem(self.gene_names[i])
             l.setToolTip(g)
-            l.setMaximumWidth(80)
+            l.setEditable(False)
+            # l.setMaximumWidth(80)
             self.gene_itv.update({g:\
-                                        {'cost': QLineEdit("1.0"),
+                                        {'cost': QTableItem("1.0"),
                                          'button_group': QButtonGroup()}})
             g_ko_ki_button_widget = QWidget()
             g_ko_ki_button_layout = QHBoxLayout()
@@ -512,9 +522,13 @@ class SDDialog(QDialog):
             g_ko_ki_button_layout.addWidget(g_na_button)
             g_ko_ki_button_layout.addWidget(g_ki_button)
             g_ko_ki_button_widget.setLayout(g_ko_ki_button_layout)
-            self.gene_itv_list.setCellWidget(i, 0, l)
+            self.gene_itv_list.setItem(i, 0, l)
+            dummy_item = QTableItem()
+            dummy_item.setEnabled(False)
+            dummy_item.setSelectable(False)
+            self.gene_itv_list.setItem(i, 1, dummy_item)
             self.gene_itv_list.setCellWidget(i, 1, g_ko_ki_button_widget)
-            self.gene_itv_list.setCellWidget(i, 2, self.gene_itv[g]['cost'])
+            self.gene_itv_list.setItem(i, 2, self.gene_itv[g]['cost'])
             self.gene_itv[g]['button_group'].buttonClicked.connect(\
                             lambda state, x=g: self.knock_changed(x,'gene'))
         # buttons
@@ -545,7 +559,7 @@ class SDDialog(QDialog):
         self.load_button.clicked.connect(self.load)
         buttons_layout.addWidget(self.load_button)
         self.cancel_button = QPushButton("Close")
-        self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.clicked.connect(self.cancel)
         buttons_layout.addWidget(self.cancel_button)
         self.layout.addItem(buttons_layout)
 
@@ -561,11 +575,12 @@ class SDDialog(QDialog):
 
     @Slot(str)
     def receive_input(self, text):
-        completer_mode = self.active_receiver.completer.completionMode()
-        # temporarily disable completer popup
-        self.active_receiver.completer.setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
-        self.active_receiver.insert(text+' ')
-        self.active_receiver.completer.setCompletionMode(completer_mode)
+        if hasattr(self,'active_receiver') and hasattr(self.active_receiver,'completer'):
+            completer_mode = self.active_receiver.completer.completionMode()
+            # temporarily disable completer popup
+            self.active_receiver.completer.setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+            self.active_receiver.insert(text+' ')
+            self.active_receiver.completer.setCompletionMode(completer_mode)
 
     def configure_solver_options(self):  # called when switching solver
         if self.solver_buttons['group'].checkedButton().property('name') in [CPLEX, GUROBI]:
@@ -886,12 +901,12 @@ class SDDialog(QDialog):
                 for g in [self.gene_itv[s] for s in genes]:
                     g['cost'].setText('')
                     g['cost'].setEnabled(False)
-                    g['button_group'].button(1).setDisabled(True)
+                    g['button_group'].button(1).setEnabled(False)
                     g['button_group'].button(2).setChecked(True)
-                    g['button_group'].button(3).setDisabled(True)
+                    g['button_group'].button(3).setEnabled(False)
             else:
                 r['cost'].setText('')
-                r['cost'].setDisabled(True)
+                r['cost'].setEnabled(False)
                 for g,gid in zip([self.gene_itv[s] for s in genes],genes):
                     # reactivate only if all genes of this reaction have been deactivated
                     reacs = [t.id for t in self.appdata.project.cobra_py_model.genes.get_by_id(gid).reactions]
@@ -911,12 +926,12 @@ class SDDialog(QDialog):
                 for r in [self.reaction_itv[s] for s in reacs]:
                     r['cost'].setText('')
                     r['cost'].setEnabled(False)
-                    r['button_group'].button(1).setDisabled(True)
+                    r['button_group'].button(1).setEnabled(False)
                     r['button_group'].button(2).setChecked(True)
-                    r['button_group'].button(3).setDisabled(True)
+                    r['button_group'].button(3).setEnabled(False)
             else:
                 g['cost'].setText('')
-                g['cost'].setDisabled(True)
+                g['cost'].setEnabled(False)
                 for r,rid in zip([self.reaction_itv[s] for s in reacs],reacs):
                     # reactivate only if all genes of this reaction have been deactivated
                     genes = [t.id for t in self.appdata.project.cobra_py_model.reactions.get_by_id(rid).genes]
@@ -1007,11 +1022,11 @@ class SDDialog(QDialog):
         # open file dialog
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.sd")[0]
+            directory=self.appdata.work_directory, filter="*.sdc")[0]
         if not filename or len(filename) == 0:
             return
-        elif len(filename)<=3 or filename[-3:] != '.sd':
-            filename += '.sd'
+        elif len(filename)<=4 or filename[-4:] != '.sdc':
+            filename += '.sdc'
         # readout strain design setup from dialog
         sd_setup = self.parse_dialog_inputs()
         # dump dictionary into json-file
@@ -1023,7 +1038,7 @@ class SDDialog(QDialog):
             # open file dialog
             dialog = QFileDialog(self)
             filename: str = dialog.getOpenFileName(
-                directory=self.appdata.last_scen_directory, filter="*.sd")[0]
+                directory=self.appdata.last_scen_directory, filter="*.sdc")[0]
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
             # dump dictionary into json-file
@@ -1124,10 +1139,12 @@ class SDDialog(QDialog):
         sd_setup = self.parse_dialog_inputs()
         self.launch_computation_signal.emit(json.dumps(sd_setup))
         self.setCursor(Qt.ArrowCursor)
+        self.deleteLater()
         self.accept()
         
-    def __del__(self):
-        self.appdata.window.centralWidget().broadcastReactionID.disconnect()
+    def cancel(self):
+        self.deleteLater()
+        self.reject()
     
     launch_computation_signal = Signal(str)
 
@@ -1170,6 +1187,51 @@ class ComplReceivLineEdit(QLineEdit):
         super().focusOutEvent(event)
     
     # textChangedX = Signal(str)
+    
+
+class QTableCopyable(QTableWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() == Qt.Key_C and (event.modifiers() & Qt.ControlModifier):
+            copied_cells = sorted(self.selectedIndexes())
+            copy_text = ''
+            max_column = copied_cells[-1].column()
+            for c in copied_cells:
+                if self.item(c.row(), c.column()) is not None:
+                    copy_text += self.item(c.row(), c.column()).text()
+                    if c.column() == max_column:
+                        copy_text += '\n'
+                    else:
+                        copy_text += '\t'
+            QApplication.clipboard().setText(copy_text)
+            
+class QTableItem(QTableWidgetItem):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    def setEditable(self,b):
+        f = self.flags()
+        if b:
+            self.setFlags(f|Qt.ItemIsEditable)
+        else:
+            self.setFlags(f&~Qt.ItemIsEditable)
+            
+    def setSelectable(self,b):
+        f = self.flags()
+        if b:
+            self.setFlags(f|Qt.ItemIsSelectable)
+        else:
+            self.setFlags(f&~Qt.ItemIsSelectable)
+            
+    def setEnabled(self,b):
+        f = self.flags()
+        if b:
+            self.setFlags(f|Qt.ItemIsEnabled)
+        else:
+            self.setFlags(f&~Qt.ItemIsEnabled)
        
 class StrainDesignComputationDialog(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
@@ -1180,7 +1242,6 @@ class StrainDesignComputationDialog(QDialog):
         self.setMinimumWidth(620)
         
         self.appdata = appdata
-        self.eng = appdata.engine
         
         self.layout = QVBoxLayout()
         self.textbox = QTextEdit()
@@ -1190,7 +1251,7 @@ class StrainDesignComputationDialog(QDialog):
         self.explore = QPushButton("Explore strain designs")
         self.explore.clicked.connect(self.show_sd)
         self.explore.setMaximumWidth(200)
-        self.explore.setDisabled(True)
+        self.explore.setEnabled(False)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
         buttons_layout.addWidget(self.explore)
@@ -1216,6 +1277,7 @@ class StrainDesignComputationDialog(QDialog):
         self.setCursor(Qt.ArrowCursor)
         if self.solutions.get_num_sols() == 0:
             self.explore.setText('Edit strain design setup')
+            self.explore.clicked.disconnect()
             self.explore.clicked.connect(self.open_strain_design_dialog)
         self.explore.setEnabled(True)
 
@@ -1226,13 +1288,16 @@ class StrainDesignComputationDialog(QDialog):
     @Slot()
     def open_strain_design_dialog(self):
         self.appdata.window.strain_design_with_setup(self.sd_setup)
+        self.deleteLater()
         self.accept()
         
     def show_sd(self):
         self.show_sd_signal.emit(pickle.dumps(self.solutions))
+        self.deleteLater()
         self.accept()
     
     def cancel(self):
+        self.deleteLater()
         self.reject()
         
     show_sd_signal = Signal(bytes)
@@ -1248,7 +1313,7 @@ class SDComputationThread(QThread):
         self.finished.connect(self.deleteLater)
         self.t = time()
         if self.sd_setup.pop('use_scenario'):
-            for r in self.appdata.project.scen_values.keys():
+            for r in appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
         self.sd_setup.pop(MODEL_ID)
         adv = self.sd_setup.pop('advanced')
@@ -1297,7 +1362,7 @@ class SDComputationThread(QThread):
     # all Qt widgets must run on the main thread and their methods cannot be safely called 
     # from other threads
     output_connector = Signal(str)
-    finished_computation = Signal(bytes)
+    finished_computation = Signal(bytes)       
 
 class StrainDesignViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
@@ -1306,34 +1371,38 @@ class StrainDesignViewer(QDialog):
         self.solutions = pickle.loads(solutions)
         self.setWindowTitle("Strain Design Solutions")
         self.setMinimumWidth(620)
-        
-        self.eng = appdata.engine
+        self.appdata = appdata
+        appdata.project.sd_solutions = self.solutions
         
         self.layout = QVBoxLayout()
         
         if self.solutions.is_gene_sd:
-            self.sd_table = QTableWidget(0, 3)
+            self.sd_table = QTableCopyable(0, 3)
         else:
-            self.sd_table = QTableWidget(0, 1)
+            self.sd_table = QTableCopyable(0, 1)
         self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.layout.addWidget(self.sd_table)
         
         buttons_layout = QHBoxLayout()
         self.close = QPushButton("Close")
         self.close.clicked.connect(self.closediag)
-        self.close.setMaximumWidth(200)
+        self.close.setMaximumWidth(100)
         buttons_layout.addWidget(self.close)
-        self.save = QPushButton("Save as tsv (tab separated values)")
-        self.save.clicked.connect(self.savesd)
-        self.save.setMaximumWidth(250)
-        buttons_layout.addWidget(self.save)
+        self.savesds = QPushButton("Save solutions object")
+        self.savesds.clicked.connect(self.savesdsds)
+        self.savesds.setMaximumWidth(200)
+        buttons_layout.addWidget(self.savesds)
+        self.savetsv = QPushButton("Save as tsv (tab separated values)")
+        self.savetsv.clicked.connect(self.savesdtsv)
+        self.savetsv.setMaximumWidth(250)
+        buttons_layout.addWidget(self.savetsv)
         self.layout.addItem(buttons_layout)
         
         reac_id = appdata.project.cobra_py_model.reactions.list_attr('id')
         if self.solutions.is_gene_sd:
-            (rsd,assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
+            (rsd,self.assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
         else:
-            rsd = self.solutions.get_reaction_sd()
+            rsd = self.solutions.get_reaction_sd_mark_no_ki()
         sd = sparse.lil_matrix((len(rsd), len(reac_id)))
         for i,s in enumerate(rsd):
             for k,v in s.items():
@@ -1357,29 +1426,23 @@ class StrainDesignViewer(QDialog):
             self.sd_table.setHorizontalHeaderLabels(["Phenotype","Intervention set",\
                                                      "Reaction-phenotype interventions"])
             self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
             self.sd_table.horizontalHeader().resizeSection(0, 70)
-            self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+            self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
             self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in rsd]
             self.gsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in gsd]
             for i,a,g in zip(range(len(self.gsd)), self.assoc, self.gsd):
                 self.sd_table.insertRow(i)
-                entry_a = QLabel(str(a))
-                entry_g = QLabel(g)
-                entry_s = QLabel(self.rsd[a])
-                entry_a.setTextInteractionFlags(Qt.TextSelectableByMouse)
-                entry_g.setTextInteractionFlags(Qt.TextSelectableByMouse)
-                entry_s.setTextInteractionFlags(Qt.TextSelectableByMouse)
-                # entry_a.setReadOnly(True)
-                # entry_g.setReadOnly(True)
-                # entry_s.setReadOnly(True)
-                entry_a.setMaximumWidth(80)
-                entry_g.setMaximumWidth(200)
-                entry_s.setMaximumWidth(200)
-                self.sd_table.setCellWidget(i, 0, entry_a)
-                self.sd_table.setCellWidget(i, 1, entry_g)
-                self.sd_table.setCellWidget(i, 2, entry_s)
-        
+                item = QTableItem(str(a))
+                item.setEditable(False)
+                self.sd_table.setItem(i, 0, item)
+                # set non-editable
+                item = QTableItem(g)
+                item.setEditable(False)
+                self.sd_table.setItem(i, 1, item)
+                item = QTableItem(self.rsd[a])
+                item.setEditable(False)
+                self.sd_table.setItem(i, 2, item) 
         else:
             self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in \
                         self.solutions.get_reaction_sd()]
@@ -1389,25 +1452,25 @@ class StrainDesignViewer(QDialog):
             self.sd_table.setHorizontalHeaderLabels(["Intervention set"])
             for i,s in enumerate(self.rsd):
                 self.sd_table.insertRow(i)
-                entry_s = QLabel(s)
-                entry_s.setTextInteractionFlags(Qt.TextSelectableByMouse)
-                # entry_s.setReadOnly(True)
-                self.sd_table.setCellWidget(i, 0, entry_s)
+                item = QTableItem(s)
+                item.setEditable(False)
+                self.sd_table.setItem(i, 0, item)
                 
         self.setLayout(self.layout)
         self.show()
         
     def closediag(self):
+        self.deleteLater()
         self.reject()
     
-    def savesd(self):
+    def savesdtsv(self):
         # open file dialog
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.tsv")[0]
         if not filename or len(filename) == 0:
             return
-        elif len(filename)<=3 or filename[-3:] != '.tsv':
+        elif len(filename)<=4 or filename[-4:] != '.tsv':
             filename += '.tsv'
         # save strain design list to Excel file
         if self.solutions.is_gene_sd:
@@ -1416,4 +1479,14 @@ class StrainDesignViewer(QDialog):
             sd_string = "\n".join(self.rsd)
         with open(filename,'w') as fs:
             fs.write(sd_string)
-        
+
+    def savesdsds(self):
+        # open file dialog
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.sds")[0]
+        if not filename or len(filename) == 0:
+            return
+        elif len(filename)<=4 or filename[-4:] != '.sds':
+            filename += '.sds'
+        self.solutions.save(filename)
