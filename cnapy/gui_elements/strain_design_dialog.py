@@ -1233,16 +1233,17 @@ class QTableItem(QTableWidgetItem):
         else:
             self.setFlags(f&~Qt.ItemIsEnabled)
        
-class StrainDesignComputationDialog(QDialog):
+class SDComputationViewer(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
     def __init__(self, appdata: AppData, sd_setup):
         super().__init__()
-        self.sd_setup = sd_setup
-        self.setWindowTitle("Strain Design Computation")
-        self.setMinimumWidth(620)
         
+        self.sd_setup = sd_setup
+        self.solutions = None
         self.appdata = appdata
         
+        self.setWindowTitle("Strain Design Computation")
+        self.setMinimumWidth(620)
         self.layout = QVBoxLayout()
         self.textbox = QTextEdit()
         self.layout.addWidget(self.textbox)
@@ -1254,22 +1255,14 @@ class StrainDesignComputationDialog(QDialog):
         self.explore.setEnabled(False)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
+        cancel.clicked.connect(self.cancel)
         buttons_layout.addWidget(self.explore)
         buttons_layout.addWidget(cancel)
         self.layout.addItem(buttons_layout)
 
         self.setLayout(self.layout)
         self.show()
-        
-        self.show_sd_signal.connect(self.appdata.window.show_strain_designs,Qt.QueuedConnection)
-        
-        self.solutions = None
-        self.sd_computation = SDComputationThread(self.appdata, sd_setup)
-        cancel.clicked.connect(self.cancel)
-        self.sd_computation.output_connector.connect(self.receive_progress_text,Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect(self.conclude_computation,Qt.QueuedConnection)
-        self.sd_computation.start()
-    
+
     @Slot(bytes)
     def conclude_computation(self,results):
         self.solutions = pickle.loads(results)
@@ -1364,7 +1357,7 @@ class SDComputationThread(QThread):
     output_connector = Signal(str)
     finished_computation = Signal(bytes)       
 
-class StrainDesignViewer(QDialog):
+class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
     def __init__(self, appdata: AppData, solutions):
         super().__init__()
@@ -1433,7 +1426,7 @@ class StrainDesignViewer(QDialog):
             self.gsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in gsd]
             for i,a,g in zip(range(len(self.gsd)), self.assoc, self.gsd):
                 self.sd_table.insertRow(i)
-                item = QTableItem(str(a))
+                item = QTableItem(str(a+1))
                 item.setEditable(False)
                 self.sd_table.setItem(i, 0, item)
                 # set non-editable

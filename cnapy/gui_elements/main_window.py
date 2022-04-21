@@ -32,7 +32,7 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
-from cnapy.gui_elements.strain_design_dialog import SDDialog, StrainDesignComputationDialog, StrainDesignViewer
+from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -511,16 +511,45 @@ class MainWindow(QMainWindow):
     def phase_plane(self):
         self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
         self.phase_plane_dialog.show()
-
+    
+    # Strain design computation and viewing functions
+    def strain_design(self):
+        self.sd_dialog = SDDialog(self.appdata)
+        self.sd_dialog.show()
+    
+    @Slot(str)
+    def strain_design_with_setup(self, sd_setup):
+        self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
+        self.sd_dialog.show()
+        
     @Slot(str)
     def compute_strain_design(self,sd_setup):
-        self.sd_dialog = StrainDesignComputationDialog(self.appdata, sd_setup)
-        self.sd_dialog.exec()
+        # launch progress viewer and computation thread
+        self.sd_viewer = SDComputationViewer(self.appdata, sd_setup)
+        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs,Qt.QueuedConnection)
+        # connect signals to update progress
+        self.sd_computation = SDComputationThread(self.appdata, sd_setup)
+        self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
+        self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        # show dialog and launch process
+        self.sd_viewer.exec()
+        self.sd_computation.start()
         
     @Slot(bytes)
     def show_strain_designs(self,solutions):
-        self.sd_sols = StrainDesignViewer(self.appdata, solutions)
+        self.sd_sols = SDViewer(self.appdata, solutions)
         self.sd_sols.exec()
+        
+    @Slot()
+    def load_strain_designs(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.work_directory, filter="*.sds")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+        with open(filename,'rb') as f:
+            solutions = f.read()
+        self.show_strain_designs(solutions)
         
     @Slot()
     def optimize_yield(self):
@@ -693,17 +722,6 @@ class MainWindow(QMainWindow):
         # self.appdata.modes_coloring = True
         # self.centralWidget().update()
         # self.appdata.modes_coloring = False
-
-    @Slot()
-    def load_strain_designs(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getOpenFileName(
-            directory=self.appdata.work_directory, filter="*.sds")[0]
-        if not filename or len(filename) == 0 or not os.path.exists(filename):
-            return
-        with open(filename,'rb') as f:
-            solutions = f.read()
-        self.show_strain_designs(solutions)
 
     @Slot()
     def change_background(self, caption="Select a SVG file", directory=None):
@@ -1618,15 +1636,6 @@ class MainWindow(QMainWindow):
         self.mcs_dialog = MCSDialog(
             self.appdata, self.centralWidget())
         self.mcs_dialog.show()
-        
-    def strain_design(self):
-        self.sd_dialog = SDDialog(self.appdata)
-        self.sd_dialog.show()
-    
-    @Slot(str)
-    def strain_design_with_setup(self, sd_setup):
-        self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
-        self.sd_dialog.show()
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
