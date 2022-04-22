@@ -7,18 +7,18 @@ import json
 import os
 from threading import currentThread
 from scipy import sparse
-from numpy import nan, sign
+from numpy import nan, sign, inf
 from typing import Dict
 from multiprocessing import Lock, Queue
 import pickle
 import traceback
-from straindesign import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs
+from straindesign import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs, \
+                                    lineq2list, linexpr2dict
 from straindesign.names import *
 from straindesign.strainDesignSolution import SD_Solution
 from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
-from qtpy.QtWidgets import QAbstractItemView
 from qtpy.QtCore import Qt, Slot, Signal, QThread
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
@@ -28,8 +28,6 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QTableWidgetItem)
 from cnapy.appdata import AppData
 import cnapy.utils as utils
-
-from cnapy.flux_vector_container import FluxVectorContainer
 
 MCS_STR = 'MCS'
 MCS_BILVL_STR = 'MCS bilevel'
@@ -43,6 +41,10 @@ def BORDER_COLOR(HEX): # string that defines style sheet for changing the color 
                 "{ border: 1px solid "+HEX+";"+\
                 "  padding: 12 5 0 0 em ;"+\
                 "  margin: 0 0 0 0 em};"
+
+def BACKGROUND_COLOR(HEX,id): # string that defines style sheet for changing the color of the module-box
+    return "QLineEdit#"+id+" "+\
+                "{ background: "+HEX+"};"
             
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
@@ -111,6 +113,7 @@ class SDDialog(QDialog):
         self.module_list.setFixedWidth(190)
         self.module_list.setHorizontalHeaderLabels(["Module Type",""])
         # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # self.module_list.verticalHeader().setVisible(False)
         self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.module_list.horizontalHeader().resizeSection(0, 110)
@@ -204,8 +207,9 @@ class SDDialog(QDialog):
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
         self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(25)
+        self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.module_edit[CONSTRAINTS].setHorizontalHeaderLabels([" "])
+        self.module_edit[CONSTRAINTS].horizontalHeader().setVisible(False)
         # -> first entry in constraint list
         # constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
         # constr_entry.setPlaceholderText(self.placeholder_eq)
@@ -381,20 +385,70 @@ class SDDialog(QDialog):
         ## KO and KI costs
         # checkbox
         self.advanced = QCheckBox(
-            "Advanced: Define knockout/addition costs for genes/reactions")
+            "Advanced: Define Costs for genes/reactions knockout/addition and for regulatory interventions")
         self.layout.addWidget(self.advanced)
         self.advanced.clicked.connect(self.show_ko_ki)
         
+        self.advanced_layout = QHBoxLayout()
+        
+        # layout for regulatory constraint list and buttons
+        self.regulatory_box = QGroupBox("Regulatory interventions")
+        self.regulatory_box.setHidden(True)
+        self.regulatory_box.setObjectName("reg")
+        
+        self.regulatory_layout = QVBoxLayout()
+        self.regulatory_layout.setAlignment(Qt.AlignLeft)
+        # self.regulatory_itv_list_label = QLabel("")
+        # self.regulatory_layout.addWidget(self.regulatory_itv_list_label)
+        
+        self.regulatory_layout_table = QHBoxLayout()
+        self.regulatory_itv_list = QTableWidget(0, 2)
+        self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(25)
+        self.regulatory_itv_list.verticalHeader().setVisible(False)
+        # self.regulatory_itv_list.horizontalHeader().setVisible(False)
+        self.regulatory_itv_list.setHorizontalHeaderLabels(["Regulatory constraint","Cost"])
+        self.regulatory_itv_list.setMinimumWidth(110)
+        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.regulatory_itv_list.horizontalHeader().resizeSection(0, 50)
+        self.regulatory_itv_list.horizontalHeader().resizeSection(1, 40)
+        # # -> first entry in constraint list
+        # # regul_entry = ComplReceivLineEdit(self,self.reac_wordlist)
+        # # regul_entry.setPlaceholderText(self.placeholder_eq)
+        # # self.regulatory_itv_list.setCellWidget(0, 0, regul_entry)
+        # # self.regulatory_itv_list.setItem(0, 1, QTableItem())
+        # # self.active_receiver = regul_entry
+        self.regulatory_layout_table.addWidget(self.regulatory_itv_list)
+        
+        # buttons to add and remove regulatory constraints
+        reg_add_rem_buttons = QVBoxLayout()
+        self.add_reg_constr = QPushButton("+")
+        self.add_reg_constr.clicked.connect(self.add_reg)
+        self.add_reg_constr.setMaximumWidth(20)
+        self.rem_reg_constr = QPushButton("-")
+        self.rem_reg_constr.clicked.connect(self.rem_reg)
+        self.rem_reg_constr.setMaximumWidth(20)
+        reg_add_rem_buttons.addWidget(self.add_reg_constr)
+        reg_add_rem_buttons.addWidget(self.rem_reg_constr)
+        reg_add_rem_buttons.addStretch()
+        
+        self.regulatory_layout_table.addItem(reg_add_rem_buttons)
+        self.regulatory_layout.addItem(self.regulatory_layout_table)
+        self.regulatory_box.setLayout(self.regulatory_layout)
+        self.advanced_layout.addWidget(self.regulatory_box)
+                
         self.ko_ki_box = QGroupBox("Specify knockout and addition candidates")
         self.ko_ki_box.setHidden(True)
         self.ko_ki_box.setObjectName("ko_ki")
         ko_ki_layout = QVBoxLayout()
         ko_ki_layout.setAlignment(Qt.AlignLeft)
         
+        # ko_ki_lists_layout.addWidget(self.reaction_itv_list_widget)
+        
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
         l = QLabel("Filter: ")
-        self.ko_ki_filter = ComplReceivLineEdit(self,self.gene_wordlist)
+        self.ko_ki_filter = ComplReceivLineEdit(self,self.gene_wordlist,check=False)
         self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
         ko_ki_filter_layout.addWidget(l)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
@@ -412,13 +466,13 @@ class SDDialog(QDialog):
         self.reaction_itv_list.verticalHeader().setDefaultSectionSize(20)
         self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
-        self.reaction_itv_list.setFixedWidth(260)
+        self.reaction_itv_list.setFixedWidth(220)
         self.reaction_itv_list.setMinimumHeight(150)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.reaction_itv_list.horizontalHeader().resizeSection(0, 120)
+        self.reaction_itv_list.horizontalHeader().resizeSection(0, 80)
         self.reaction_itv_list.horizontalHeader().resizeSection(1, 80)
         self.reaction_itv_list.horizontalHeader().resizeSection(2, 40)
         reaction_interventions_layout.addWidget(self.reaction_itv_list)
@@ -486,13 +540,13 @@ class SDDialog(QDialog):
         # self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
         self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
         self.gene_itv_list.verticalHeader().setVisible(False)
-        self.gene_itv_list.setFixedWidth(260)
+        self.gene_itv_list.setFixedWidth(220)
         self.gene_itv_list.setMinimumHeight(150)
         self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.gene_itv_list.horizontalHeader().resizeSection(0, 120)
+        self.gene_itv_list.horizontalHeader().resizeSection(0, 80)
         self.gene_itv_list.horizontalHeader().resizeSection(1, 80)
         self.gene_itv_list.horizontalHeader().resizeSection(2, 40)
         gene_interventions_layout.addWidget(self.gene_itv_list)
@@ -543,7 +597,9 @@ class SDDialog(QDialog):
         
         ko_ki_layout.addItem(ko_ki_lists_layout)
         self.ko_ki_box.setLayout(ko_ki_layout)
-        self.layout.addWidget(self.ko_ki_box)
+        
+        self.advanced_layout.addWidget(self.ko_ki_box)
+        self.layout.addItem(self.advanced_layout)
                 
         splitter.addWidget(self.ko_ki_box)
         
@@ -566,8 +622,11 @@ class SDDialog(QDialog):
         # Finalize
         self.setLayout(self.layout)
         # Connecting signals
-        self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
-        self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
+        try:
+            self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
+            self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
+        except:
+            print('Signals to main window could not be connected.')
         
         # load strain design setup if passed to constructor
         if sd_setup != {} and sd_setup != False:
@@ -649,7 +708,7 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
+        constr_entry = ComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -662,6 +721,24 @@ class SDDialog(QDialog):
         else:
             i = self.module_edit[CONSTRAINTS].rowCount()-1
         self.module_edit[CONSTRAINTS].removeRow(i)
+    
+    def add_reg(self):
+        i = self.regulatory_itv_list.rowCount()
+        self.regulatory_itv_list.insertRow(i)
+        reg_entry = ComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+        reg_entry.setPlaceholderText(self.placeholder_eq)
+        self.active_receiver = reg_entry
+        self.regulatory_itv_list.setCellWidget(i, 0, reg_entry)
+        self.regulatory_itv_list.setItem(i, 1, QTableItem())
+
+    def rem_reg(self):
+        if self.regulatory_itv_list.rowCount() == 0:
+            return
+        if self.regulatory_itv_list.selectedIndexes():
+            i = self.regulatory_itv_list.selectedIndexes()[0].row()
+        else:
+            i = self.regulatory_itv_list.rowCount()-1
+        self.regulatory_itv_list.removeRow(i)
     
     def module_apply(self):
         valid, module = self.verify_module(self.current_module)
@@ -705,8 +782,11 @@ class SDDialog(QDialog):
         if not self.modules[self.current_module]:
             self.module_edit[MODULE_SENSE].setCurrentText("")
             self.module_edit[INNER_OBJECTIVE].setText("")
+            self.module_edit[INNER_OBJECTIVE].check_text(True)
             self.module_edit[OUTER_OBJECTIVE].setText("")
+            self.module_edit[OUTER_OBJECTIVE].check_text(True)
             self.module_edit[PROD_ID].setText("")
+            self.module_edit[PROD_ID].check_text(True)
             self.module_edit[MIN_GCP].setText("")
             for _ in range(self.module_edit[CONSTRAINTS].rowCount()):
                 self.module_edit[CONSTRAINTS].removeRow(0)
@@ -733,8 +813,10 @@ class SDDialog(QDialog):
             for i,c in enumerate(mod[CONSTRAINTS]):
                 text = lineqlist2str(c)
                 self.module_edit[CONSTRAINTS].insertRow(i)
-                constr_entry[i] = ComplReceivLineEdit(self,self.reac_wordlist)
+                constr_entry[i] = ComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
                 constr_entry[i].setText(text+' ')
+                constr_entry[i].check_text(True)
+                constr_entry[i].setPlaceholderText(self.placeholder_eq)
                 self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry[i])
             # load other information from module
             if mod[MODULE_SENSE]:
@@ -870,8 +952,10 @@ class SDDialog(QDialog):
         
     def show_ko_ki(self):
         if self.advanced.isChecked():
+            self.regulatory_box.setHidden(False)
             self.ko_ki_box.setHidden(False)
         else:
+            self.regulatory_box.setHidden(True)
             self.ko_ki_box.setHidden(True)
         self.adjustSize()
     
@@ -989,6 +1073,10 @@ class SDDialog(QDialog):
         if sd_setup['advanced']:
             koCost = {}
             kiCost = {}
+            regCost = {self.regulatory_itv_list.cellWidget(i,0).text(): \
+                        float(self.regulatory_itv_list.item(i,1).text()) \
+                        for i in range(self.regulatory_itv_list.rowCount())}
+            sd_setup.update({REGCOST : regCost})
             for r in self.reac_ids:
                 but_id = self.reaction_itv[r]['button_group'].checkedId()
                 if but_id == 1:
@@ -1044,6 +1132,8 @@ class SDDialog(QDialog):
             # dump dictionary into json-file
             with open(filename, 'r') as fp:
                 sd_setup = json.load(fp)
+        elif type(sd_setup) == str:
+            sd_setup = json.loads(sd_setup)
         # warn if strain design setup was constructed for another model
         if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:
             QMessageBox.information(self,"Model IDs not matching",\
@@ -1086,33 +1176,50 @@ class SDDialog(QDialog):
         self.show_ko_ki()
         if sd_setup['advanced']:
             self.set_none_r_koable()
-            for r,v in sd_setup[KOCOST].items():
-                self.reaction_itv[r]['button_group'].button(1).setChecked(True)
-                self.reaction_itv[r]['cost'].setText(str(v))
-                self.knock_changed(r,'reac')
-            for r,v in sd_setup[KICOST].items():
-                self.reaction_itv[r]['button_group'].button(3).setChecked(True)
-                self.reaction_itv[r]['cost'].setText(str(v))
-                self.knock_changed(r,'reac')
+            if REGCOST in sd_setup:
+                # remove all former regulatory constraints and refill again
+                for _ in range(self.regulatory_itv_list.rowCount()):
+                    self.regulatory_itv_list.removeRow(0)
+                reg_entry = [None for _ in range(len(sd_setup[REGCOST]))]
+                for i, (k, v) in enumerate(sd_setup[REGCOST].items()):
+                    self.regulatory_itv_list.insertRow(i)
+                    reg_entry[i] = ComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+                    reg_entry[i].setText(k+' ')
+                    reg_entry[i].check_text(True)
+                    reg_entry[i].setPlaceholderText(self.placeholder_eq)
+                    self.regulatory_itv_list.setCellWidget(i, 0, reg_entry[i])
+                    self.regulatory_itv_list.setItem(i, 1, QTableItem(str(v)))
+            if KOCOST in sd_setup:
+                for r,v in sd_setup[KOCOST].items():
+                    self.reaction_itv[r]['button_group'].button(1).setChecked(True)
+                    self.reaction_itv[r]['cost'].setText(str(v))
+                    self.knock_changed(r,'reac')
+            if KICOST in sd_setup:
+                for r,v in sd_setup[KICOST].items():
+                    self.reaction_itv[r]['button_group'].button(3).setChecked(True)
+                    self.reaction_itv[r]['cost'].setText(str(v))
+                    self.knock_changed(r,'reac')
             # if gene-kos is selected, also load these
             if sd_setup['gene_kos']:
                 self.set_none_g_koable()
-                for k,v in sd_setup[GKOCOST].items():
-                    if k not in self.gene_ids:
-                        g = self.gene_ids[self.gene_names.index(k)]
-                    else:
-                        g=k
-                    self.gene_itv[g]['button_group'].button(1).setChecked(True)
-                    self.gene_itv[g]['cost'].setText(str(v))
-                    self.knock_changed(g,'gene')
-                for k,v in sd_setup[GKICOST].items():
-                    if k not in self.gene_ids:
+                if GKOCOST in sd_setup:
+                    for k,v in sd_setup[GKOCOST].items():
+                        if k not in self.gene_ids:
                             g = self.gene_ids[self.gene_names.index(k)]
-                    else:
-                        g=k
-                    self.gene_itv[g]['button_group'].button(3).setChecked(True)
-                    self.gene_itv[g]['cost'].setText(str(v))
-                    self.knock_changed(g,'gene')
+                        else:
+                            g=k
+                        self.gene_itv[g]['button_group'].button(1).setChecked(True)
+                        self.gene_itv[g]['cost'].setText(str(v))
+                        self.knock_changed(g,'gene')
+                if GKICOST in sd_setup:
+                    for k,v in sd_setup[GKICOST].items():
+                        if k not in self.gene_ids:
+                                g = self.gene_ids[self.gene_names.index(k)]
+                        else:
+                            g=k
+                        self.gene_itv[g]['button_group'].button(3).setChecked(True)
+                        self.gene_itv[g]['cost'].setText(str(v))
+                        self.knock_changed(g,'gene')
         self.compute_sd_button.setFocus()
     
     def compute(self):
@@ -1148,17 +1255,20 @@ class SDDialog(QDialog):
     
     launch_computation_signal = Signal(str)
 
-
 class ComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
-    def __init__(self, sd_dialog, wordlist):
+    def __init__(self, sd_dialog, wordlist, check=True, is_constr=False):
         super().__init__("")
         self.sd_dialog = sd_dialog
+        self.wordlist = wordlist
         self.completer = QCompleter(wordlist)
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.completer.setWidget(self)
         self.textChanged.connect(self.text_changed)
         self.completer.activated.connect(self.complete_text)
+        self.setObjectName("EditField")
+        self.check = check
+        self.is_constr = is_constr
 
     def text_changed(self, text):
         all_text = text
@@ -1167,7 +1277,8 @@ class ComplReceivLineEdit(QLineEdit):
         if prefix != '':
             self.completer.setCompletionPrefix(prefix)
             self.completer.complete()
-
+        self.check_text(False)
+        
     def complete_text(self, text):
         cursor_pos = self.cursorPosition()
         before_text = self.text()[:cursor_pos]
@@ -1185,7 +1296,30 @@ class ComplReceivLineEdit(QLineEdit):
     
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
+        self.check_text(True)
     
+    def check_text(self,final):
+        if self.check:
+            if self.text().strip() == "":
+                self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                return None
+            else:
+                try:
+                    if self.is_constr:
+                        lineq2list([self.text()], self.wordlist)
+                    else:
+                        linexpr2dict(self.text(), self.wordlist)
+                    if final:
+                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                    else:
+                        self.setStyleSheet(BACKGROUND_COLOR("#f0fff1",self.objectName()))
+                    return True
+                except:
+                    if final:
+                        self.setStyleSheet(BACKGROUND_COLOR("#fff0f0",self.objectName()))
+                    else:
+                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                    return False
     # textChangedX = Signal(str)
     
 
@@ -1245,7 +1379,7 @@ class SDComputationViewer(QDialog):
         self.setWindowTitle("Strain Design Computation")
         self.setMinimumWidth(620)
         self.layout = QVBoxLayout()
-        self.textbox = QTextEdit()
+        self.textbox = QTextEdit("Strain design computation progress:")
         self.layout.addWidget(self.textbox)
         
         buttons_layout = QHBoxLayout()
@@ -1266,7 +1400,6 @@ class SDComputationViewer(QDialog):
     @Slot(bytes)
     def conclude_computation(self,results):
         self.solutions = pickle.loads(results)
-        self.sd_computation.exit()
         self.setCursor(Qt.ArrowCursor)
         if self.solutions.get_num_sols() == 0:
             self.explore.setText('Edit strain design setup')
@@ -1391,20 +1524,13 @@ class SDViewer(QDialog):
         buttons_layout.addWidget(self.savetsv)
         self.layout.addItem(buttons_layout)
         
-        reac_id = appdata.project.cobra_py_model.reactions.list_attr('id')
         if self.solutions.is_gene_sd:
             (rsd,self.assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
         else:
             rsd = self.solutions.get_reaction_sd_mark_no_ki()
-        sd = sparse.lil_matrix((len(rsd), len(reac_id)))
-        for i,s in enumerate(rsd):
-            for k,v in s.items():
-                j = reac_id.index(k)
-                if v != 0:
-                    sd[i,j] = v
-                else:
-                    sd[i,j] = nan
-        appdata.project.modes = FluxVectorContainer(sd, reac_id=reac_id)
+        itv_bounds = self.solutions.get_reaction_sd_bnds()
+
+        appdata.project.modes = [itv_bounds[self.assoc.index(i)] for i in set(self.assoc)]
         central_widget = appdata.window.centralWidget()
         central_widget.mode_navigator.current = 0
         central_widget.mode_navigator.set_to_strain_design()
@@ -1422,8 +1548,26 @@ class SDViewer(QDialog):
             self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
             self.sd_table.horizontalHeader().resizeSection(0, 70)
             self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-            self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in rsd]
-            self.gsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in gsd]
+            self.rsd = ["" for _ in range(len(rsd))]
+            for i,s in enumerate(rsd):
+                for k,v in s.items():
+                    if (type(v) == bool) and v:
+                        self.rsd[i] += k
+                    elif (type(v) != bool) and sign(v)==1:
+                        self.rsd[i] += "+"+k
+                    elif (type(v) != bool) and sign(v)==-1:
+                        self.rsd[i] += "-"+k
+                    self.rsd[i] += ", "
+            self.gsd = ["" for _ in range(len(gsd))]
+            for i,s in enumerate(gsd):
+                for k,v in s.items():
+                    if (type(v) == bool) and v:
+                        self.gsd[i] += k
+                    elif (type(v) != bool) and sign(v)==1:
+                        self.gsd[i] += "+"+k
+                    elif (type(v) != bool) and sign(v)==-1:
+                        self.gsd[i] += "-"+k
+                    self.gsd[i] += ", "
             for i,a,g in zip(range(len(self.gsd)), self.assoc, self.gsd):
                 self.sd_table.insertRow(i)
                 item = QTableItem(str(a+1))
@@ -1437,8 +1581,17 @@ class SDViewer(QDialog):
                 item.setEditable(False)
                 self.sd_table.setItem(i, 2, item) 
         else:
-            self.rsd = [", ".join(["+"+k if sign(v)==1 else "-"+k for k,v in s.items()]) for s in \
-                        self.solutions.get_reaction_sd()]
+            rsd = self.solutions.get_reaction_sd()
+            self.rsd = ["" for _ in range(len(rsd))]
+            for i,s in enumerate(rsd):
+                for k,v in s.items():
+                    if (type(v) == bool) and v:
+                        self.rsd[i] += k
+                    elif (type(v) != bool) and sign(v)==1:
+                        self.rsd[i] += "+"+k
+                    elif (type(v) != bool) and sign(v)==-1:
+                        self.rsd[i] += "-"+k
+                    self.rsd[i] += ", "
             self.sd_table.setMinimumWidth(300)
             self.sd_table.setMinimumHeight(150)
             self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -1451,7 +1604,10 @@ class SDViewer(QDialog):
                 
         self.setLayout(self.layout)
         self.show()
-        
+        if self.solutions.has_complex_regul_itv:
+            QMessageBox.information(self,"The strain design contains 'complex' " +\
+                                         "regulatory interventions that cannot be shown " +\
+                                         "in the network map. Please refer to table.")
     def closediag(self):
         self.deleteLater()
         self.reject()

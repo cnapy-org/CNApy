@@ -5,6 +5,7 @@ import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
@@ -264,61 +265,80 @@ class CentralWidget(QWidget):
             m.update_selected(x)
 
     def update_mode(self):
-        if len(self.appdata.project.modes) > self.mode_navigator.current:
-            values = self.appdata.project.modes[self.mode_navigator.current]
-            if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
-                self.mode_navigator.current, self.appdata.rounding):
-                # normalize non-integer EFM for better display
-                mean = sum(abs(v) for v in values.values())/len(values)
-                for r,v in values.items():
-                    values[r] = v/mean
+        if self.mode_navigator.mode_type <= 1:
+            if len(self.appdata.project.modes) > self.mode_navigator.current:
+                values = self.appdata.project.modes[self.mode_navigator.current]
+                if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
+                    self.mode_navigator.current, self.appdata.rounding):
+                    # normalize non-integer EFM for better display
+                    mean = sum(abs(v) for v in values.values())/len(values)
+                    for r,v in values.items():
+                        values[r] = v/mean
 
-            # set values
-            self.appdata.project.comp_values.clear()
-            self.parent.clear_status_bar()
-            for i in values:
-                if self.mode_navigator.mode_type in [1,2] and values[i] < 0:
-                    values[i] = 0.0 # display KOs as zero flux
-                if self.mode_navigator.mode_type == 2 and numpy.isnan(values[i]):
-                    values[i] = 0.0 # display non-introduced KIs as 0, but with a different color
-                if self.mode_navigator.mode_type == 2 and values[i] > 0:
-                    continue # display KIs as empty colored box
-                self.appdata.project.comp_values[i] = (values[i], values[i])
-            self.appdata.project.comp_values_type = 0
+                # set values
+                self.appdata.project.comp_values.clear()
+                self.parent.clear_status_bar()
+                if self.mode_navigator.mode_type == 1:
+                    for i in values:
+                        if values[i] < 0:
+                            values[i] = 0.0 # display KOs as zero flux
+                    self.appdata.project.comp_values[i] = (values[i], values[i])
+                self.appdata.project.comp_values_type = 0
 
-        self.appdata.modes_coloring = True
-        self.update()
-        self.appdata.modes_coloring = False
+            self.appdata.modes_coloring = True
+            self.update()
+            self.appdata.modes_coloring = False
         
-        # Set coloring of knock-ins (in case of strain design)
-        if self.mode_navigator.mode_type == 2:
-            values = self.appdata.project.modes[self.mode_navigator.current]
-            for i in values:
-                idx = self.appdata.window.centralWidget().tabs.currentIndex()
-                if idx == 0 and self.appdata.project.comp_values_type == 0:
-                    view = self.appdata.window.centralWidget().reaction_list
-                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-                    root = view.reaction_list.invisibleRootItem()
-                    child_count = root.childCount()
-                    for i in range(child_count):
-                        item = root.child(i)
-                        if item.text(0) in values and numpy.isnan(values[item.text(0)]):
-                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
-                        if item.text(0) in values and (values[item.text(0)] > 0):
-                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
-                    view.reaction_list.blockSignals(False)
-
+        elif self.mode_navigator.mode_type == 2:
+            if len(self.appdata.project.modes) > self.mode_navigator.current:
+                # clear previous coloring
+                self.appdata.project.comp_values.clear()   
+                self.parent.clear_status_bar()        
+                self.appdata.project.comp_values_type = 0      
+                # Set values
+                bnd_dict = self.appdata.project.modes[self.mode_navigator.current]
+                for k,v in bnd_dict.items():
+                    if numpy.any(numpy.isnan(v)):
+                        self.appdata.project.comp_values[k] = (0,0)
+                    else:
+                        self.appdata.project.comp_values[k] = v
+                self.appdata.modes_coloring = True
+                self.update()
+                self.appdata.modes_coloring = False
+                for k,v in bnd_dict.items():
+                    idx = self.appdata.window.centralWidget().tabs.currentIndex()
+                    if idx == 0 and self.appdata.project.comp_values_type == 0:
+                        view = self.appdata.window.centralWidget().reaction_list
+                        view.reaction_list.blockSignals(True) # block itemChanged while recoloring
+                        root = view.reaction_list.invisibleRootItem()
+                        child_count = root.childCount()
+                        for i in range(child_count):
+                            item = root.child(i)
+                            if item.text(0) == k and numpy.any(numpy.isnan(v)):
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                            elif item.text(0) == k and (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
+                            elif item.text(0) == k and v[0] == 0.0 and v[1] == 0.0:
+                                item.setBackground(ReactionListColumn.Flux,QColor.fromRgb(255, 0, 0))
+                            else:
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                        view.reaction_list.blockSignals(False)
                 idx = self.appdata.window.centralWidget().map_tabs.currentIndex()
                 if idx < 0:
                     return
                 name = self.appdata.window.centralWidget().map_tabs.tabText(idx)
                 view = self.appdata.window.centralWidget().map_tabs.widget(idx)
                 for key in self.appdata.project.maps[name]["boxes"]:
-                    if key in values:
-                        if numpy.isnan(values[key]):
+                    if key in bnd_dict:
+                        v = bnd_dict[key]
+                        if numpy.any(numpy.isnan(v)):
                             view.reaction_boxes[key].set_color(self.appdata.special_color_1)
-                        if values[key] > 0:
+                        elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
                             view.reaction_boxes[key].set_color(self.appdata.special_color_2)
+                        elif v[0] == 0.0 and v[1] == 0.0:
+                            item.setBackground(ReactionListColumn.Flux,QColor.fromRgb(255, 0, 0))
+                        else:
+                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
 
     def reaction_participation(self):
         relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected

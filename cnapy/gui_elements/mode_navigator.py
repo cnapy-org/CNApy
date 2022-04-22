@@ -119,7 +119,7 @@ class ModeNavigator(QWidget):
             directory=self.appdata.work_directory, filter="*.sds")[0]
         if not filename or len(filename) == 0:
             return
-        elif len(filename)<=3 or filename[-3:] != '.sds':
+        elif len(filename)<=4 or filename[-4:] != '.sds':
             filename += '.sds'
         self.appdata.project.sd_solutions.save(filename)
 

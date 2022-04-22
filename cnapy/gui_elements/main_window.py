@@ -532,7 +532,8 @@ class MainWindow(QMainWindow):
         self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
         self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
         # show dialog and launch process
-        self.sd_viewer.exec()
+        # self.sd_viewer.exec()
+        self.sd_viewer.show()
         self.sd_computation.start()
         
     @Slot(bytes)
