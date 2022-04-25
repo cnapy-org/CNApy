@@ -2,6 +2,7 @@
 
 import numpy
 import cobra
+from pandas import read_csv
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
@@ -301,28 +302,32 @@ class CentralWidget(QWidget):
                     if numpy.any(numpy.isnan(v)):
                         self.appdata.project.comp_values[k] = (0,0)
                     else:
-                        self.appdata.project.comp_values[k] = v
+                        mod_bnds = self.appdata.project.cobra_py_model.reactions.get_by_id(k).bounds
+                        self.appdata.project.comp_values[k] = (numpy.max((v[0],mod_bnds[0])),numpy.min((v[1],mod_bnds[1])))
                 self.appdata.modes_coloring = True
                 self.update()
                 self.appdata.modes_coloring = False
-                for k,v in bnd_dict.items():
-                    idx = self.appdata.window.centralWidget().tabs.currentIndex()
-                    if idx == 0 and self.appdata.project.comp_values_type == 0:
-                        view = self.appdata.window.centralWidget().reaction_list
-                        view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-                        root = view.reaction_list.invisibleRootItem()
-                        child_count = root.childCount()
-                        for i in range(child_count):
-                            item = root.child(i)
-                            if item.text(0) == k and numpy.any(numpy.isnan(v)):
+                idx = self.appdata.window.centralWidget().tabs.currentIndex()
+                if idx == 0 and self.appdata.project.comp_values_type == 0:
+                    view = self.appdata.window.centralWidget().reaction_list
+                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
+                    root = view.reaction_list.invisibleRootItem()
+                    child_count = root.childCount()
+                    for i in range(child_count):
+                        item = root.child(i)
+                        if item.text(0) in bnd_dict:
+                            v = bnd_dict[item.text(0)]
+                            if numpy.any(numpy.isnan(v)):
                                 item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
-                            elif item.text(0) == k and (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
+                            elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
                                 item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
-                            elif item.text(0) == k and v[0] == 0.0 and v[1] == 0.0:
-                                item.setBackground(ReactionListColumn.Flux,QColor.fromRgb(255, 0, 0))
-                            else:
+                            elif v[0] == 0.0 and v[1] == 0.0:
+                                item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 0, 0))
+                            elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
                                 item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
-                        view.reaction_list.blockSignals(False)
+                        else:
+                            item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 255, 255))
+                    view.reaction_list.blockSignals(False)
                 idx = self.appdata.window.centralWidget().map_tabs.currentIndex()
                 if idx < 0:
                     return
@@ -336,17 +341,30 @@ class CentralWidget(QWidget):
                         elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
                             view.reaction_boxes[key].set_color(self.appdata.special_color_2)
                         elif v[0] == 0.0 and v[1] == 0.0:
-                            item.setBackground(ReactionListColumn.Flux,QColor.fromRgb(255, 0, 0))
-                        else:
-                            item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                            view.reaction_boxes[key].set_color(QColor.fromRgb(255, 0, 0))
+                        elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                    else:
+                        view.reaction_boxes[key].set_color(QColor.fromRgb(255, 255, 255))
 
     def reaction_participation(self):
-        relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
-        if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values.clear()
         self.parent.clear_status_bar()
-        self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
+            self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            reacs = self.appdata.project.cobra_py_model.reactions.list_attr('id')
+            abund = [0 for _ in reacs]
+            for i,r in enumerate(reacs):
+                for s in [self.appdata.project.modes[l] for l,t in enumerate(self.mode_navigator.selection) if t]:
+                    if r in s:
+                        if not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            abund[i] += 1
+            relative_participation = [a/self.mode_navigator.num_selected for a in abund]
+            self.appdata.project.comp_values = {r: (p,p) for r,p in zip(reacs,relative_participation)}
+        if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+            relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values_type = 0
         self.update()
         self.parent.set_heaton()

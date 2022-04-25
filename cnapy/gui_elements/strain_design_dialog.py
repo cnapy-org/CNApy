@@ -191,7 +191,7 @@ class SDDialog(QDialog):
         self.module_edit[MIN_GCP+"_label"].setHidden(True)
         self.module_edit[MIN_GCP] = QLineEdit(self)
         self.module_edit[MIN_GCP].setHidden(True)
-        self.module_edit[MIN_GCP].setPlaceholderText("optional: (float) e.g.: 1.3")
+        self.module_edit[MIN_GCP].setPlaceholderText("optional: (float) e.g.: 0.2")
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP+"_label"])
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP])
         optcouple_layout.addItem(optcouple_layout_mingcp)
@@ -326,6 +326,9 @@ class SDDialog(QDialog):
         self.solver_buttons[CPLEX].setProperty('name',CPLEX)
         if CPLEX not in avail_solvers:
             self.solver_buttons[CPLEX].setEnabled(False)
+            self.solver_buttons[CPLEX].setToolTip('CPLEX is not set up with your python environment. '+\
+                'Install CPLEX and follow the steps of the python setup \n'+\
+                r'(https://www.ibm.com/docs/en/icos/22.1.0?topic=cplex-setting-up-python-api)')
         solver_buttons_layout.addWidget(self.solver_buttons[CPLEX])
         self.solver_buttons["group"].addButton(self.solver_buttons[CPLEX])
         # Gurobi
@@ -333,6 +336,9 @@ class SDDialog(QDialog):
         self.solver_buttons[GUROBI].setProperty('name',GUROBI)
         if GUROBI not in avail_solvers:
             self.solver_buttons[GUROBI].setEnabled(False)
+            self.solver_buttons[GUROBI].setToolTip('Gurobi is not set up with your python environment. '+\
+            'Install Gurobi and follow the steps of the python setup (preferably option 3) \n'+\
+            r'(https://support.gurobi.com/hc/en-us/articles/360044290292-How-do-I-install-Gurobi-for-Python-)')
         solver_buttons_layout.addWidget(self.solver_buttons[GUROBI])
         self.solver_buttons["group"].addButton(self.solver_buttons[GUROBI])
         # GLPK
@@ -340,6 +346,9 @@ class SDDialog(QDialog):
         self.solver_buttons[GLPK].setProperty('name',GLPK)
         if GLPK not in avail_solvers:
             self.solver_buttons[GLPK].setEnabled(False)
+            self.solver_buttons[GLPK].setToolTip('GLPK is not set up with your python environment. '+\
+            'GLPK should have been installed together with the COBRA toolbox. \n'\
+            'Reinstall the COBRA toolbox for your Python environment.')
         solver_buttons_layout.addWidget(self.solver_buttons[GLPK])
         self.solver_buttons["group"].addButton(self.solver_buttons[GLPK])
         # SCIP
@@ -347,6 +356,9 @@ class SDDialog(QDialog):
         self.solver_buttons[SCIP].setProperty('name',SCIP)
         if SCIP not in avail_solvers:
             self.solver_buttons[SCIP].setEnabled(False)
+            self.solver_buttons[SCIP].setToolTip('SCIP is not set up with your python environment. '+\
+            'Install SCIP following the steps of the PySCIPOpt manual \n'+\
+            r'(https://github.com/scipopt/PySCIPOpt')
         solver_buttons_layout.addWidget(self.solver_buttons[SCIP])
         self.solver_buttons["group"].addButton(self.solver_buttons[SCIP])
         self.solver_buttons["group"].buttonClicked.connect(self.configure_solver_options)
@@ -358,16 +370,16 @@ class SDDialog(QDialog):
         solution_buttons_layout = QVBoxLayout()
         self.solution_buttons = {}
         self.solution_buttons["group"] = QButtonGroup()
-        self.solution_buttons["any"] = QRadioButton("any MCS (fast)")
+        self.solution_buttons["any"] = QRadioButton("any solution(s) (fast)")
         self.solution_buttons["any"].setProperty('name',"any")
         self.solution_buttons["any"].setChecked(True)
         self.solution_buttons["group"].addButton(self.solution_buttons["any"])
         solution_buttons_layout.addWidget(self.solution_buttons["any"])
-        self.solution_buttons["smallest"] = QRadioButton("smallest MCS first")
+        self.solution_buttons["smallest"] = QRadioButton("optimal solution(s) first")
         self.solution_buttons["smallest"].setProperty('name',"smallest")
         self.solution_buttons["group"].addButton(self.solution_buttons["smallest"])
         solution_buttons_layout.addWidget(self.solution_buttons["smallest"])
-        self.solution_buttons["cardinality"] = QRadioButton("by cardinality")
+        self.solution_buttons["cardinality"] = QRadioButton("populate")
         self.solution_buttons["cardinality"].setProperty('name',"cardinality")
         self.solution_buttons["group"].addButton(self.solution_buttons["cardinality"])
         solution_buttons_layout.addWidget(self.solution_buttons["cardinality"])
@@ -693,7 +705,7 @@ class SDDialog(QDialog):
         if valid:
             self.modules[self.current_module] = module
         else:
-            self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#de332a"))
             return
         selected_module = self.module_list.selectedIndexes()[0].row()
         self.current_module = selected_module
@@ -729,7 +741,7 @@ class SDDialog(QDialog):
         reg_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = reg_entry
         self.regulatory_itv_list.setCellWidget(i, 0, reg_entry)
-        self.regulatory_itv_list.setItem(i, 1, QTableItem())
+        self.regulatory_itv_list.setItem(i, 1, QTableItem('1.0'))
 
     def rem_reg(self):
         if self.regulatory_itv_list.rowCount() == 0:
@@ -744,9 +756,9 @@ class SDDialog(QDialog):
         valid, module = self.verify_module(self.current_module)
         if valid and module:
             self.modules[self.current_module] = module
-            self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#66ba63"))
         elif not valid:
-            self.module_spec_box.setStyleSheet(BORDER_COLOR("#ff726b"))
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#de332a"))
         return valid
     
     def update_module_edit(self):
@@ -797,7 +809,7 @@ class SDDialog(QDialog):
             # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
         else:
-            self.module_spec_box.setStyleSheet(BORDER_COLOR("#8bff87"))
+            self.module_spec_box.setStyleSheet(BORDER_COLOR("#66ba63"))
             mod = {}
             mod[MODULE_SENSE]    = self.modules[self.current_module][MODULE_SENSE]
             mod[CONSTRAINTS]     = self.modules[self.current_module][CONSTRAINTS]
@@ -823,13 +835,16 @@ class SDDialog(QDialog):
                 self.module_edit[MODULE_SENSE].setCurrentText(mod[MODULE_SENSE])
             if mod[INNER_OBJECTIVE]:
                 self.module_edit[INNER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[INNER_OBJECTIVE])+' ') # add space character to avoid 
-            if mod[OUTER_OBJECTIVE]:                           # word completion
+                    linexprdict2str(mod[INNER_OBJECTIVE])+' ')     # add space character to avoid 
+                self.module_edit[INNER_OBJECTIVE].check_text(True) # word completion
+            if mod[OUTER_OBJECTIVE]:                           
                 self.module_edit[OUTER_OBJECTIVE].setText(\
                     linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
+                self.module_edit[OUTER_OBJECTIVE].check_text(True)
             if mod[PROD_ID]:
                 self.module_edit[PROD_ID].setText(\
                     linexprdict2str(mod[PROD_ID])+' ')
+                self.module_edit[PROD_ID].check_text(True)
             if mod[MIN_GCP]:
                 self.module_edit[MIN_GCP].setText(str(mod[MIN_GCP]))
 
@@ -1136,7 +1151,7 @@ class SDDialog(QDialog):
             sd_setup = json.loads(sd_setup)
         # warn if strain design setup was constructed for another model
         if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:
-            QMessageBox.information(self,"Model IDs not matching",\
+            QMessageBox.information(self,"Model IDs not matching" +\
                 "The strain design setup was specified for a different model. "+\
                 "Errors might occur due to non-matching reaction or gene-identifiers.")
         # write back content to dialog
@@ -1174,14 +1189,14 @@ class SDDialog(QDialog):
         # only load knockouts and knockins if advanced is selected
         self.gen_ko_checked()
         self.show_ko_ki()
+        # remove all former regulatory constraints and refill again
+        for _ in range(self.regulatory_itv_list.rowCount()):
+            self.regulatory_itv_list.removeRow(0)
         if sd_setup['advanced']:
             self.set_none_r_koable()
             if REGCOST in sd_setup:
-                # remove all former regulatory constraints and refill again
-                for _ in range(self.regulatory_itv_list.rowCount()):
-                    self.regulatory_itv_list.removeRow(0)
                 reg_entry = [None for _ in range(len(sd_setup[REGCOST]))]
-                for i, (k, v) in enumerate(sd_setup[REGCOST].items()):
+                for i, (k, v) in enumerate(sd_setup[REGCOST].items()):  
                     self.regulatory_itv_list.insertRow(i)
                     reg_entry[i] = ComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
                     reg_entry[i].setText(k+' ')
@@ -1228,8 +1243,8 @@ class SDDialog(QDialog):
         if not valid:
             return
         if any([True for m in self.modules if m is None]):
-            QMessageBox.information(self,"Some modules were added to the strain design problem "\
-                                    "but not yet set up. Please use the Edit button(s) in the " \
+            QMessageBox.information(self,"Some modules were added to the strain design problem "+\
+                                    "but not yet set up. Please use the Edit button(s) in the " +\
                                     "module list to ensure all modules were set up correctly.")
             self.current_module = [i for i,m in enumerate(self.modules) if m is None][0]
             self.module_edit()
@@ -1237,8 +1252,8 @@ class SDDialog(QDialog):
         bilvl_modules = [i for i,m in enumerate(self.modules) \
                             if m[MODULE_TYPE] in [OPTKNOCK,ROBUSTKNOCK,OPTCOUPLE]]
         if len(bilvl_modules) > 1:
-            QMessageBox.information(self,"Only one of the module types 'OptKnock', " \
-                                    "'RobustKnock' and 'OptCouple' can be defined per "\
+            QMessageBox.information(self,"Only one of the module types 'OptKnock', " +\
+                                    "'RobustKnock' and 'OptCouple' can be defined per " +\
                                     "strain design setup.")
             self.current_module = bilvl_modules[0]
             self.module_edit()
@@ -1410,7 +1425,8 @@ class SDComputationViewer(QDialog):
     @Slot(str)
     def receive_progress_text(self,txt):
         self.textbox.append(txt)
-        
+        self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
+
     @Slot()
     def open_strain_design_dialog(self):
         self.appdata.window.strain_design_with_setup(self.sd_setup)
@@ -1446,10 +1462,9 @@ class SDComputationThread(QThread):
         self.gkos = self.sd_setup.pop('gene_kos')
         if not adv and self.gkos: # ensure that gene-kos are computed, even when the
             self.sd_setup[GKOCOST] = None # advanced-button wasn't clicked
-        
-        # for debugging purposes
-        with open('sd_computation.json', 'w') as fp:
-            json.dump(self.sd_setup,fp)
+        # for debugging purposes write computation setup to file
+        # with open('sd_computation.json', 'w') as fp:
+        #     json.dump(self.sd_setup,fp)
 
     def run(self):
         try:
@@ -1505,8 +1520,9 @@ class SDViewer(QDialog):
         if self.solutions.is_gene_sd:
             self.sd_table = QTableCopyable(0, 3)
         else:
-            self.sd_table = QTableCopyable(0, 1)
+            self.sd_table = QTableCopyable(0, 2)
         self.sd_table.verticalHeader().setDefaultSectionSize(20)
+        self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
         
         buttons_layout = QHBoxLayout()
@@ -1528,8 +1544,8 @@ class SDViewer(QDialog):
             (rsd,self.assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
         else:
             rsd = self.solutions.get_reaction_sd_mark_no_ki()
+            self.assoc = [i for i in range(len(rsd))]
         itv_bounds = self.solutions.get_reaction_sd_bnds()
-
         appdata.project.modes = [itv_bounds[self.assoc.index(i)] for i in set(self.assoc)]
         central_widget = appdata.window.centralWidget()
         central_widget.mode_navigator.current = 0
@@ -1538,8 +1554,6 @@ class SDViewer(QDialog):
         
         # prepare strain designs
         if self.solutions.is_gene_sd:
-            self.sd_table.verticalHeader().setVisible(False)
-            (rsd, self.assoc, gsd) = self.solutions.get_gene_reac_sd_assoc()
             self.sd_table.setMinimumWidth(300)
             self.sd_table.setMinimumHeight(150)
             self.sd_table.setHorizontalHeaderLabels(["Phenotype","Intervention set",\
@@ -1551,23 +1565,25 @@ class SDViewer(QDialog):
             self.rsd = ["" for _ in range(len(rsd))]
             for i,s in enumerate(rsd):
                 for k,v in s.items():
-                    if (type(v) == bool) and v:
-                        self.rsd[i] += k
-                    elif (type(v) != bool) and sign(v)==1:
+                    if v > 0:
                         self.rsd[i] += "+"+k
-                    elif (type(v) != bool) and sign(v)==-1:
+                    elif v < 0:
                         self.rsd[i] += "-"+k
+                    elif v == 0:
+                        self.rsd[i] += u'\u2205'+k
                     self.rsd[i] += ", "
+                self.rsd[i] = self.rsd[i][0:-2]
             self.gsd = ["" for _ in range(len(gsd))]
             for i,s in enumerate(gsd):
                 for k,v in s.items():
-                    if (type(v) == bool) and v:
-                        self.gsd[i] += k
-                    elif (type(v) != bool) and sign(v)==1:
+                    if v > 0:
                         self.gsd[i] += "+"+k
-                    elif (type(v) != bool) and sign(v)==-1:
+                    elif v < 0:
                         self.gsd[i] += "-"+k
+                    elif v == 0:
+                        self.gsd[i] += u'\u2205'+k
                     self.gsd[i] += ", "
+                self.gsd[i] = self.gsd[i][0:-2]
             for i,a,g in zip(range(len(self.gsd)), self.assoc, self.gsd):
                 self.sd_table.insertRow(i)
                 item = QTableItem(str(a+1))
@@ -1581,33 +1597,44 @@ class SDViewer(QDialog):
                 item.setEditable(False)
                 self.sd_table.setItem(i, 2, item) 
         else:
-            rsd = self.solutions.get_reaction_sd()
             self.rsd = ["" for _ in range(len(rsd))]
             for i,s in enumerate(rsd):
                 for k,v in s.items():
-                    if (type(v) == bool) and v:
-                        self.rsd[i] += k
-                    elif (type(v) != bool) and sign(v)==1:
+                    if v > 0:
                         self.rsd[i] += "+"+k
-                    elif (type(v) != bool) and sign(v)==-1:
+                    elif v < 0:
                         self.rsd[i] += "-"+k
+                    elif v == 0:
+                        self.rsd[i] += u'\u2205'+k
                     self.rsd[i] += ", "
+                self.rsd[i] = self.rsd[i][0:-2]
             self.sd_table.setMinimumWidth(300)
             self.sd_table.setMinimumHeight(150)
-            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-            self.sd_table.setHorizontalHeaderLabels(["Intervention set"])
+            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.sd_table.horizontalHeader().resizeSection(0, 70)
+            self.sd_table.setHorizontalHeaderLabels(["Phenotype","Intervention set"])               
             for i,s in enumerate(self.rsd):
                 self.sd_table.insertRow(i)
-                item = QTableItem(s)
+                item = QTableItem(str(i+1))
                 item.setEditable(False)
                 self.sd_table.setItem(i, 0, item)
-                
+                item = QTableItem(s)
+                item.setEditable(False)
+                self.sd_table.setItem(i, 1, item)
+        self.sd_table.doubleClicked.connect(self.clicked_row)
         self.setLayout(self.layout)
         self.show()
         if self.solutions.has_complex_regul_itv:
             QMessageBox.information(self,"The strain design contains 'complex' " +\
                                          "regulatory interventions that cannot be shown " +\
                                          "in the network map. Please refer to table.")
+    def clicked_row(self,cell):
+        row = cell.row()
+        selection = int(self.sd_table.item(row,0).text())-1
+        self.appdata.window.centralWidget().mode_navigator.current = selection
+        self.appdata.window.centralWidget().update_mode()
+    
     def closediag(self):
         self.deleteLater()
         self.reject()
@@ -1623,7 +1650,7 @@ class SDViewer(QDialog):
             filename += '.tsv'
         # save strain design list to Excel file
         if self.solutions.is_gene_sd:
-            sd_string = "\n".join(["\t".join([g,self.rsd[a]]) for a,g in zip(self.assoc, self.gsd)])
+            sd_string = "\n".join(["\t".join([str(a),g,self.rsd[a]]) for a,g in zip(self.assoc, self.gsd)])
         else:
             sd_string = "\n".join(self.rsd)
         with open(filename,'w') as fs:

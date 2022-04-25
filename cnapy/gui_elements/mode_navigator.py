@@ -234,24 +234,42 @@ class ModeNavigator(QWidget):
 
     def select(self, must_occur=None, must_not_occur=None):
         self.selection[:] = True  # reset selection
-        if must_occur is not None:
-            for r in must_occur:
-                r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i, selected in enumerate(self.selection):
-                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
-                        self.selection[i] = False
-        if must_not_occur is not None:
-            for r in must_not_occur:
-                r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i, selected in enumerate(self.selection):
-                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
-                        self.selection[i] = False
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            if must_occur is not None:
+                for r in must_occur:
+                    r_idx = self.appdata.project.modes.reac_id.index(r)
+                    for i, selected in enumerate(self.selection):
+                        if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
+                            self.selection[i] = False
+            if must_not_occur is not None:
+                for r in must_not_occur:
+                    r_idx = self.appdata.project.modes.reac_id.index(r)
+                    for i, selected in enumerate(self.selection):
+                        if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
+                            self.selection[i] = False
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            if must_occur is not None:
+                for r in must_occur:
+                    for i, selected in enumerate(self.selection):
+                        s = self.appdata.project.modes[i] 
+                        if selected and r not in s or numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            self.selection[i] = False
+            if must_not_occur is not None:
+                for r in must_not_occur:
+                    for i, selected in enumerate(self.selection):
+                        s = self.appdata.project.modes[i] 
+                        if selected and r in s and not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            self.selection[i] = False
         self.num_selected = numpy.sum(self.selection)
 
     def size_histogram(self):
-        sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
-        if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            sizes = sizes.A1 # flatten into 1D array
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
+            if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+                sizes = sizes.A1 # flatten into 1D array
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            sizes = [numpy.sum([not numpy.any(numpy.isnan(v)) or numpy.all((v == 0)) \
+                                for v in self.appdata.project.modes[i].values()]) for i,s in enumerate(self.selection) if s]
         plt.hist(sizes, bins="auto")
         plt.show()
 
