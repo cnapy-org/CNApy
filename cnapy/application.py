@@ -23,7 +23,6 @@ from configparser import NoOptionError, NoSectionError
 from pathlib import Path
 
 import cobra
-from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication, QMessageBox
 
@@ -32,19 +31,12 @@ from cnapy.gui_elements.main_window import MainWindow
 from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
 import cnapy.utils as utils
 
-# ensuring compatibility with high resolution displays
-if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True) 
-
 
 def excepthook(cls, exception, tb):
     output = io.StringIO()
     traceback.print_exception(cls, exception, tb, file=output)
     traceback.print_tb(tb, file=output)
-    # exstr = output.getvalue()
-    exstr = ''.join(traceback.format_exception(None, exception, exception.__traceback__))
+    exstr = output.getvalue()
     utils.show_unknown_error_box(exstr)
     excepthook2(cls, exception, tb)
 
