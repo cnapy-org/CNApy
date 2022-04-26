@@ -6,10 +6,11 @@ from pkg_resources import VersionConflict
 
 try:
     if system() == "Linux":
-        octave_version = re.search(r'(?<=version).*?(?=\n|$|\.)',os.popen("octave -v").read())
-        octave_version = int(octave_version.group(0))
-        if octave_version <= 4:
-            raise VersionConflict()
+        octave_version = re.search(r'(?<=version)(\s|\d)*?(?=\n|$|\.)',os.popen("octave -v").read())
+        if octave_version is not None:
+            octave_version = int(octave_version.group(0))
+            if octave_version <= 4:
+                raise VersionConflict()
     
     from oct2py import Oct2Py # calls Oct2Py() in __init__ which creates a temporary directory that is not deleted
     from oct2py.utils import Oct2PyError
