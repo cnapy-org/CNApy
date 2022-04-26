@@ -16,7 +16,6 @@ from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strai
                                     lineq2list, linexpr2dict
 from straindesign.names import *
 from straindesign.strainDesignSolution import SDSolution
-from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot, Signal, QThread
@@ -1450,10 +1449,8 @@ class SDComputationThread(QThread):
         self.model = appdata.project.cobra_py_model
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
-        self.buffer = ""
         self.curr_threadID = self.currentThread()
         self.finished.connect(self.deleteLater)
-        self.t = time()
         if self.sd_setup.pop('use_scenario'):
             for r in appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
@@ -1472,32 +1469,21 @@ class SDComputationThread(QThread):
             with redirect_stdout(self), redirect_stderr(self):
                 self.curr_threadID = self.currentThread()
                 sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
-                sleep(0.01)
-                self.output_connector.emit(self.buffer)
-                sleep(0.01)
                 self.finished_computation.emit(pickle.dumps(sd_solutions))
         except Exception as e:
             tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
             self.write(tb_str)
-            sleep(0.01)
             sd_solutions = SDSolution(self.model,[],ERROR,self.sd_setup)
-            self.output_connector.emit(self.buffer)
-            sleep(0.01)
             self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
         
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
             if input and (input != "\n"):
-                if time()-self.t > 0.1: # Send updates at most 10 times per second
-                    self.output_connector.emit(self.buffer+input)
-                    self.buffer = ""
-                    self.t = time()  
-                else: # otherwise write to buffer
-                    self.buffer += input+"\n"
+                self.output_connector.emit(input)
             
     def flush(self):
-        self.buffer = ""
+        pass
 
     # the output from the strain design computation needs to be passed as a signal because 
     # all Qt widgets must run on the main thread and their methods cannot be safely called 
