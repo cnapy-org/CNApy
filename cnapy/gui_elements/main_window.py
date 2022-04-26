@@ -2,7 +2,6 @@ import io
 import json
 import os
 import traceback
-import pickle
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -33,6 +32,7 @@ from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
+from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -289,15 +289,25 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(load_modes_action)
         load_modes_action.triggered.connect(self.load_modes)
 
-        self.mcs_menu = self.analysis_menu.addMenu("Minimal Cut Sets")
-        self.mcs_action = QAction("Compute Minimal Cut Sets ...", self)
-        self.mcs_action.triggered.connect(self.mcs)
-        self.mcs_menu.addAction(self.mcs_action)
+        self.sd_menu = self.analysis_menu.addMenu("Strain Design")
+        self.sd_action = QAction("Compute Minimal Cut Sets ...", self)
+        self.sd_action.triggered.connect(self.mcs)
+        self.sd_menu.addAction(self.sd_action)
         self.mcs_dialog = None
 
-        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
-        self.mcs_menu.addAction(load_mcs_action)
+        load_mcs_action = QAction("Load Minimal Cut Sets ...", self)
+        self.sd_menu.addAction(load_mcs_action)
         load_mcs_action.triggered.connect(self.load_mcs)
+           
+        self.sd_action = QAction("Compute Strain Designs ...", self)
+        self.sd_action.triggered.connect(self.strain_design)
+        self.sd_menu.addAction(self.sd_action)
+        self.sd_dialog = None
+        self.sd_sols = None
+        
+        load_sd_action = QAction("Load Strain Designs ...", self)
+        self.sd_menu.addAction(load_sd_action)
+        load_sd_action.triggered.connect(self.load_strain_designs)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
@@ -466,13 +476,13 @@ class MainWindow(QMainWindow):
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
-                self.mcs_action.setEnabled(True)
+                self.sd_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
         elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
-                self.mcs_action.setEnabled(True)
+                self.sd_action.setEnabled(True)
                 self.yield_optimization_action.setEnabled(True)
 
     @Slot()
@@ -501,7 +511,47 @@ class MainWindow(QMainWindow):
     def phase_plane(self):
         self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
         self.phase_plane_dialog.show()
-
+    
+    # Strain design computation and viewing functions
+    def strain_design(self):
+        self.sd_dialog = SDDialog(self.appdata)
+        self.sd_dialog.show()
+    
+    @Slot(str)
+    def strain_design_with_setup(self, sd_setup):
+        self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
+        self.sd_dialog.show()
+        
+    @Slot(str)
+    def compute_strain_design(self,sd_setup):
+        # launch progress viewer and computation thread
+        self.sd_viewer = SDComputationViewer(self.appdata, sd_setup)
+        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs,Qt.QueuedConnection)
+        # connect signals to update progress
+        self.sd_computation = SDComputationThread(self.appdata, sd_setup)
+        self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
+        self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        # show dialog and launch process
+        # self.sd_viewer.exec()
+        self.sd_viewer.show()
+        self.sd_computation.start()
+        
+    @Slot(bytes)
+    def show_strain_designs(self,solutions):
+        self.sd_sols = SDViewer(self.appdata, solutions)
+        self.sd_sols.exec()
+        
+    @Slot()
+    def load_strain_designs(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.work_directory, filter="*.sds")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+        with open(filename,'rb') as f:
+            solutions = f.read()
+        self.show_strain_designs(solutions)
+        
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
@@ -1048,6 +1098,11 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
+        try:
+            self.sd_dialog.close()
+            self.sd_dialog = None
+        except:
+            pass
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
