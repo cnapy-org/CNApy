@@ -2,7 +2,6 @@
 
 import numpy
 import cobra
-from pandas import read_csv
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
@@ -16,9 +15,8 @@ from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
-from cnapy.gui_elements.reactions_list import ReactionList
+from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
 from cnapy.utils import SignalThrottler
-from cnapy.gui_elements.reactions_list import ReactionListColumn
 
 
 class CentralWidget(QWidget):
