@@ -12,10 +12,10 @@ from typing import Dict
 from multiprocessing import Lock, Queue
 import pickle
 import traceback
-from straindesign import SD_Module, lineqlist2str, linexprdict2str, compute_strain_designs, \
+from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
                                     lineq2list, linexpr2dict
 from straindesign.names import *
-from straindesign.strainDesignSolution import SD_Solution
+from straindesign.strainDesignSolution import SDSolution
 from time import sleep, time
 from random import randint
 from importlib import find_loader as module_exists
@@ -929,22 +929,22 @@ class SDDialog(QDialog):
                     for r in self.appdata.project.scen_values.keys():
                         model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
                 if module_type == MCS_STR:
-                    module = SD_Module(model,module_type=MCS_LIN, \
+                    module = SDModule(model,module_type=MCS_LIN, \
                                         module_sense=module_sense, constraints=constraints)
                 elif module_type == MCS_BILVL_STR:
-                    module = SD_Module(model,module_type=MCS_BILVL, inner_objective=inner_objective,\
+                    module = SDModule(model,module_type=MCS_BILVL, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, module_sense=module_sense, \
                                         constraints=constraints)
                 elif module_type == OPTKNOCK_STR:
-                    module = SD_Module(model,module_type=OPTKNOCK, inner_objective=inner_objective,\
+                    module = SDModule(model,module_type=OPTKNOCK, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
                                         outer_opt_sense=MAXIMIZE, constraints=constraints)
                 elif module_type == ROBUSTKNOCK_STR:
-                    module = SD_Module(model,module_type=ROBUSTKNOCK, inner_objective=inner_objective,\
+                    module = SDModule(model,module_type=ROBUSTKNOCK, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
                                         outer_opt_sense=MAXIMIZE, constraints=constraints)
                 elif module_type == OPTCOUPLE_STR:
-                    module = SD_Module(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
+                    module = SDModule(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
                                         min_gcp=min_gcp, constraints=constraints)
             self.setCursor(Qt.ArrowCursor)
@@ -1480,7 +1480,7 @@ class SDComputationThread(QThread):
             tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
             self.write(tb_str)
             sleep(0.01)
-            sd_solutions = SD_Solution(self.model,[],ERROR,self.sd_setup)
+            sd_solutions = SDSolution(self.model,[],ERROR,self.sd_setup)
             self.output_connector.emit(self.buffer)
             sleep(0.01)
             self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
