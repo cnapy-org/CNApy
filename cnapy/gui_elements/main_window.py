@@ -539,7 +539,8 @@ class MainWindow(QMainWindow):
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)
-        self.sd_sols.exec()
+        self.sd_sols.show()
+        self.centralWidget().update_mode()
         
     @Slot()
     def load_strain_designs(self):

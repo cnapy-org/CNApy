@@ -5,7 +5,7 @@ import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
@@ -344,6 +344,19 @@ class CentralWidget(QWidget):
                             view.reaction_boxes[key].set_color(self.appdata.special_color_1)
                     else:
                         view.reaction_boxes[key].set_color(QColor.fromRgb(255, 255, 255))
+                if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
+                    self.mode_navigator.current
+                    for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
+                        if self.mode_navigator.current == int(self.appdata.window.sd_sols.sd_table.item(i,0).text())-1:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(230,230,230)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(230,230,230)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(230,230,230)))
+                        else:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(255, 255, 255)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
 
     def reaction_participation(self):
         self.appdata.project.comp_values.clear()
