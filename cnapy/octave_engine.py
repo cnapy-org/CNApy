@@ -46,5 +46,5 @@ try:
                 print("CNA not availabe ... continue with CNA disabled.")
                 return False
 
-except: #(VersionConflict, OSError, EOFError):
+except (VersionConflict, OSError, EOFError):
     pass

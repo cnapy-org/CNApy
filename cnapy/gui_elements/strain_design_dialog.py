@@ -378,19 +378,19 @@ class SDDialog(QDialog):
         solution_buttons_layout = QVBoxLayout()
         self.solution_buttons = {}
         self.solution_buttons["group"] = QButtonGroup()
-        self.solution_buttons["any"] = QRadioButton("any solution(s) (fast)")
-        self.solution_buttons["any"].setProperty('name',"any")
-        self.solution_buttons["group"].addButton(self.solution_buttons["any"])
-        solution_buttons_layout.addWidget(self.solution_buttons["any"])
-        self.solution_buttons["smallest"] = QRadioButton("best solution(s) first")
-        self.solution_buttons["smallest"].setProperty('name',"smallest")
-        self.solution_buttons["smallest"].setChecked(True)
-        self.solution_buttons["group"].addButton(self.solution_buttons["smallest"])
-        solution_buttons_layout.addWidget(self.solution_buttons["smallest"])
-        self.solution_buttons["cardinality"] = QRadioButton("populate")
-        self.solution_buttons["cardinality"].setProperty('name',"cardinality")
-        self.solution_buttons["group"].addButton(self.solution_buttons["cardinality"])
-        solution_buttons_layout.addWidget(self.solution_buttons["cardinality"])
+        self.solution_buttons[ANY] = QRadioButton("any solution(s) (fast)")
+        self.solution_buttons[ANY].setProperty('name',ANY)
+        self.solution_buttons["group"].addButton(self.solution_buttons[ANY])
+        solution_buttons_layout.addWidget(self.solution_buttons[ANY])
+        self.solution_buttons[BEST] = QRadioButton("best solution(s) first")
+        self.solution_buttons[BEST].setProperty('name',BEST)
+        self.solution_buttons[BEST].setChecked(True)
+        self.solution_buttons["group"].addButton(self.solution_buttons[BEST])
+        solution_buttons_layout.addWidget(self.solution_buttons[BEST])
+        self.solution_buttons[POPULATE] = QRadioButton("populate")
+        self.solution_buttons[POPULATE].setProperty('name',POPULATE)
+        self.solution_buttons["group"].addButton(self.solution_buttons[POPULATE])
+        solution_buttons_layout.addWidget(self.solution_buttons[POPULATE])
         solver_and_solution_layout.addItem(solution_buttons_layout)
                 
         solver_and_solution_group.setLayout(solver_and_solution_layout)
@@ -663,11 +663,11 @@ class SDDialog(QDialog):
 
     def configure_solver_options(self):  # called when switching solver
         if self.solver_buttons['group'].checkedButton().property('name') in [CPLEX, GUROBI]:
-            self.solution_buttons["cardinality"].setEnabled(True)
+            self.solution_buttons[POPULATE].setEnabled(True)
         else:
-            self.solution_buttons["cardinality"].setEnabled(False)
-            if self.solution_buttons["cardinality"].isChecked():
-                self.solution_buttons["any"].setChecked(True)
+            self.solution_buttons[POPULATE].setEnabled(False)
+            if self.solution_buttons[POPULATE].isChecked():
+                self.solution_buttons[ANY].setChecked(True)
 
     def add_module(self):
         i = self.module_list.rowCount()

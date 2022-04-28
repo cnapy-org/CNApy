@@ -1099,11 +1099,10 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        try:
-            self.sd_dialog.close()
+        if self.sd_dialog:
+            if self.sd_dialog.__weakref__:
+                self.sd_dialog.close()
             self.sd_dialog = None
-        except:
-            pass
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
