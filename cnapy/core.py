@@ -2,9 +2,10 @@
 
 from typing import Dict, Tuple
 
-import cobra
 import numpy
+import cobra
 from cobra.util.array import create_stoichiometric_matrix
+from optlang.symbolics import Zero
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
@@ -54,3 +55,56 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
             ems.fv_mat[:, irrev_backwards_idx] *= -1
 
     return (ems, scenario)
+
+class QPnotSupportedException(Exception):
+    pass
+
+def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], use_QP: bool=False,
+                default_weight: float=1.0, abs_flux_weights: bool=False, weights_key: str=None):
+    # default_weight must be a number > 0
+    with cobra_model as model:
+        model.objective = model.problem.Objective(Zero, direction='min')
+        reactions_in_objective = []
+        for reaction_id, scen_val in scen_values.items():
+            try:
+                reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
+            except KeyError:
+                print('reaction', reaction_id, 'not found!')
+                continue
+            if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
+                reactions_in_objective.append(reaction_id)
+                if abs_flux_weights:
+                    weight = abs(scen_val[0])
+                else:
+                    if isinstance(weights_key, str):
+                        try:
+                            weight = float(reaction.annotation.get(weights_key, default_weight))
+                        except ValueError: # the value from annotation cannot be converted to float
+                            weight = 0
+                        if weight <= 0:
+                            print("The value of annotation key '"+weights_key+"' of reaction'"+reaction_id+"' is not a positive number, using default weight.")
+                            weight = default_weight
+                    else:
+                        weight = default_weight
+                #print(reaction_id, weight)
+
+                if use_QP:
+                    try:
+                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/weight
+                    except ValueError: # solver does not support QP
+                        raise QPnotSupportedException
+                else:
+                    pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
+                    neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
+                    elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
+                    model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
+                    elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
+                                                            pos_slack: 1.0, neg_slack: -1.0})
+                    # model.objective += pos_slack + neg_slack # does not build valid expressions for CPLEX/Gurobi?!?
+                    model.objective.set_linear_coefficients({pos_slack: 1.0/weight, neg_slack: 1.0/weight}) # for each pair one slack will always be zero
+            else:
+                reaction.lower_bound = scen_val[0]
+                reaction.upper_bound = scen_val[1]
+        solution = model.optimize()
+
+        return solution, reactions_in_objective

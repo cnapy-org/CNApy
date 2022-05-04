@@ -2,7 +2,6 @@ import io
 import json
 import os
 import traceback
-import pickle
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -19,7 +18,7 @@ from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
+                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
 
 from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -31,6 +30,7 @@ from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
+from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
@@ -268,9 +268,13 @@ class MainWindow(QMainWindow):
         make_feasible_linear_action = QAction("Linear objective (LP)", self)
         make_feasible_linear_action.triggered.connect(self.make_feasible_linear)
         self.make_feasible_menu.addAction(make_feasible_linear_action)
-        make_feasible_quadratic_action = QAction("Quadratic objective (QLP)", self)
-        make_feasible_quadratic_action.triggered.connect(self.make_feasible_quadratic)
+        make_feasible_quadratic_action = QAction("Quadratic objective (QP)", self)
+        make_feasible_quadratic_action.triggered.connect(self.make_feasible_quadratic_slot)
         self.make_feasible_menu.addAction(make_feasible_quadratic_action)
+
+        make_scenario_feasible_action = QAction("Make scenario feasible...", self)
+        make_scenario_feasible_action.triggered.connect(self.make_scenario_feasible)
+        self.analysis_menu.addAction(make_scenario_feasible_action)
 
         self.analysis_menu.addSeparator()
 
@@ -1268,6 +1272,16 @@ class MainWindow(QMainWindow):
         if update:
             self.centralWidget().update()
 
+    def make_scenario_feasible(self):
+        make_scenario_feasible_dialog = FluxFeasibilityDialog(self.appdata)
+        if make_scenario_feasible_dialog.exec_() == QDialog.Accepted:
+            self.appdata.project.solution = make_scenario_feasible_dialog.solution
+            self.process_fba_solution(update=False)
+            if self.appdata.project.solution.status == 'optimal' and len(make_scenario_feasible_dialog.reactions_in_objective) > 0:
+                self.appdata.scen_values_set_multiple(make_scenario_feasible_dialog.reactions_in_objective,
+                            [self.appdata.project.comp_values[r] for r in make_scenario_feasible_dialog.reactions_in_objective])
+            self.centralWidget().update()
+
     def make_feasible_linear(self):
         with self.appdata.project.cobra_py_model as model:
             model.objective = model.problem.Objective(Zero, direction='min')
@@ -1300,7 +1314,14 @@ class MainWindow(QMainWindow):
                         [self.appdata.project.comp_values[r] for r in reactions_in_objective])
         self.centralWidget().update()
 
-    def make_feasible_quadratic(self):
+    @Slot()
+    def make_feasible_quadratic_slot(self):
+        # wrapper to drop signal parameters
+        self.make_feasible_quadratic()
+
+    def make_feasible_quadratic(self, default_weight: float=None, weight_key: str=None):
+        if isinstance(weight_key, str) and default_weight is None:
+            default_weight = 1.0
         with self.appdata.project.cobra_py_model as model:
             model.objective = model.problem.Objective(Zero, direction='min')
             reactions_in_objective = []
@@ -1313,7 +1334,18 @@ class MainWindow(QMainWindow):
                 if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
                     reactions_in_objective.append(reaction_id)
                     try:
-                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/abs(scen_val[0])
+                        if isinstance(weight_key, str):
+                            try:
+                                weight = float(reaction.annotation.get(weight_key, default_weight))
+                            except ValueError: # the value from annotation cannot be converted to float
+                                print("The value of annotation key '"+weight_key+"' cannot be converted to a number.")
+                                weight = default_weight
+                        else:
+                            if default_weight is None:
+                                weight = abs(scen_val[0])
+                            else:
+                                weight = default_weight
+                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/weight
                     except ValueError:
                         QMessageBox.critical(self, "Solver with support for quadratic objectives required",
                                 "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
@@ -1321,6 +1353,7 @@ class MainWindow(QMainWindow):
                 else:
                     reaction.lower_bound = scen_val[0]
                     reaction.upper_bound = scen_val[1]
+            print(model.objective)
             self.appdata.project.solution = model.optimize()
         self.process_fba_solution(update=False)
         if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
