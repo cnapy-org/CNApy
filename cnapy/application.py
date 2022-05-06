@@ -27,17 +27,16 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication, QMessageBox
 
-from cnapy.appdata import AppData
-from cnapy.gui_elements.main_window import MainWindow
-from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
-import cnapy.utils as utils
-
 # ensuring compatibility with high resolution displays
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
 if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True) 
 
+from cnapy.appdata import AppData
+from cnapy.gui_elements.main_window import MainWindow
+# from cnapy.legacy import try_cna, try_matlab_engine, try_octave_engine
+import cnapy.utils as utils
 
 def excepthook(cls, exception, tb):
     output = io.StringIO()
@@ -73,24 +72,24 @@ class Application:
             cobra.Configuration().processes = 1
         self.read_cobrapy_config()
 
-        if config_file_version != self.appdata.version:
-            if not os.path.exists(self.appdata.work_directory):
-                self.window.show_download_dialog()
-            QMessageBox.information(self.window, 'CNA bridge',
-                'If you want to use the CNA legacy functions you can set up the CNA configuration under:\n'+
-                'Config -> Configure CNA bridge')
-        if self.appdata.selected_engine == "matlab":
-            self.appdata.matlab_engine = try_matlab_engine()
-            if self.appdata.matlab_engine is not None:
-                self.appdata.cna_ok = try_cna(self.appdata.matlab_engine, self.appdata.cna_path)
-        elif self.appdata.selected_engine == "octave":
-            self.appdata.octave_engine = try_octave_engine(
-                self.appdata.octave_executable)
-            if self.appdata.octave_engine is not None:
-                self.appdata.cna_ok = try_cna(self.appdata.octave_engine, self.appdata.cna_path)
-        self.appdata.select_engine()
+        # if config_file_version != self.appdata.version:
+        #     if not os.path.exists(self.appdata.work_directory):
+        #         self.window.show_download_dialog()
+        #     QMessageBox.information(self.window, 'CNA bridge',
+        #         'If you want to use the CNA legacy functions you can set up the CNA configuration under:\n'+
+        #         'Config -> Configure CNA bridge')
+        # if self.appdata.selected_engine == "matlab":
+        #     self.appdata.matlab_engine = try_matlab_engine()
+        #     if self.appdata.matlab_engine is not None:
+        #         self.appdata.cna_ok = try_cna(self.appdata.matlab_engine, self.appdata.cna_path)
+        # elif self.appdata.selected_engine == "octave":
+        #     self.appdata.octave_engine = try_octave_engine(
+        #         self.appdata.octave_executable)
+        #     if self.appdata.octave_engine is not None:
+        #         self.appdata.cna_ok = try_cna(self.appdata.octave_engine, self.appdata.cna_path)
+        # self.appdata.select_engine()
 
-        self.window.disable_enable_dependent_actions()
+        # self.window.disable_enable_dependent_actions()
 
         # Execute application
 
@@ -117,30 +116,30 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find version in cnapy-config.txt")
 
-            try:
-                self.appdata.matlab_path = config_parser.get(
-                    'cnapy-config', 'matlab_path')
-            except (KeyError, NoOptionError):
-                self.appdata.matlab_path = ""
-            try:
-                self.appdata.octave_executable = config_parser.get(
-                    'cnapy-config', 'OCTAVE_EXECUTABLE')
-            except (KeyError, NoOptionError):
-                self.appdata.octave_executable = ""
+            # try:
+            #     self.appdata.matlab_path = config_parser.get(
+            #         'cnapy-config', 'matlab_path')
+            # except (KeyError, NoOptionError):
+            #     self.appdata.matlab_path = ""
+            # try:
+            #     self.appdata.octave_executable = config_parser.get(
+            #         'cnapy-config', 'OCTAVE_EXECUTABLE')
+            # except (KeyError, NoOptionError):
+            #     self.appdata.octave_executable = ""
 
-            try:
-                selected_engine = config_parser.get(
-                    'cnapy-config', 'selected_engine')
-                self.appdata.selected_engine = selected_engine
-            except (KeyError, NoOptionError):
-                print("Could not find selected_engine in cnapy-config.txt")
-                self.appdata.selected_engine = "None"
+            # try:
+            #     selected_engine = config_parser.get(
+            #         'cnapy-config', 'selected_engine')
+            #     self.appdata.selected_engine = selected_engine
+            # except (KeyError, NoOptionError):
+            #     print("Could not find selected_engine in cnapy-config.txt")
+            #     self.appdata.selected_engine = "None"
 
-            try:
-                self.appdata.cna_path = config_parser.get(
-                    'cnapy-config', 'cna_path')
-            except (KeyError, NoOptionError):
-                self.appdata.cna_path = ""
+            # try:
+            #     self.appdata.cna_path = config_parser.get(
+            #         'cnapy-config', 'cna_path')
+            # except (KeyError, NoOptionError):
+            #     self.appdata.cna_path = ""
 
             try:
                 self.appdata.work_directory = config_parser.get(

@@ -2,6 +2,8 @@
 
 import numpy
 import cobra
+import io
+from contextlib import redirect_stdout, redirect_stderr
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
@@ -11,12 +13,13 @@ from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
-from cnapy.gui_elements.metabolite_list import MetaboliteList
-from cnapy.gui_elements.gene_list import GeneList
-from cnapy.gui_elements.mode_navigator import ModeNavigator
-from cnapy.gui_elements.model_info import ModelInfo
-from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
-from cnapy.utils import SignalThrottler
+with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()): # suppress output from jpype
+    from cnapy.gui_elements.metabolite_list import MetaboliteList
+    from cnapy.gui_elements.gene_list import GeneList
+    from cnapy.gui_elements.mode_navigator import ModeNavigator
+    from cnapy.gui_elements.model_info import ModelInfo
+    from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
+    from cnapy.utils import SignalThrottler
 
 
 class CentralWidget(QWidget):

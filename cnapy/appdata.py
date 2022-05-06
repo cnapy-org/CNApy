@@ -9,6 +9,7 @@ import hashlib
 import pickle
 import appdirs
 import cobra
+
 from optlang_enumerator.cobra_cnapy import CNApyModel
 import pkg_resources
 from qtpy.QtCore import Qt

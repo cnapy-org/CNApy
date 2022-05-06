@@ -26,7 +26,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QWidget, QFileDialog, QTextEdit, QApplication,
                             QTableWidgetItem)
 from cnapy.appdata import AppData
-import cnapy.utils as utils
+from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
 
 PROTECT_STR = 'Protect'
 SUPPRESS_STR = 'Suppress'
@@ -160,7 +160,7 @@ class SDDialog(QDialog):
         # Outer objective
         self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[OUTER_OBJECTIVE] = ComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[OUTER_OBJECTIVE].setHidden(True)
         self.module_edit[OUTER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -170,7 +170,7 @@ class SDDialog(QDialog):
         # Inner objective
         self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[INNER_OBJECTIVE] = ComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[INNER_OBJECTIVE].setHidden(True)
         self.module_edit[INNER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -182,7 +182,7 @@ class SDDialog(QDialog):
         optcouple_layout_prod = QVBoxLayout()
         self.module_edit[PROD_ID+"_label"]  = QLabel("Product synth. reac_id")
         self.module_edit[PROD_ID+"_label"].setHidden(True)
-        self.module_edit[PROD_ID] = ComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[PROD_ID] = QComplReceivLineEdit(self,self.reac_wordlist)
         self.module_edit[PROD_ID].setPlaceholderText(placeholder_rid)
         self.module_edit[PROD_ID].setHidden(True)
         self.module_edit[PROD_ID].textCorrect.connect(self.update_global_objective)
@@ -468,7 +468,7 @@ class SDDialog(QDialog):
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
         l = QLabel("Filter: ")
-        self.ko_ki_filter = ComplReceivLineEdit(self,self.gene_wordlist,check=False)
+        self.ko_ki_filter = QComplReceivLineEdit(self,self.gene_wordlist,check=False)
         self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
         ko_ki_filter_layout.addWidget(l)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
@@ -731,7 +731,7 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        constr_entry = ComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
+        constr_entry = QComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -748,7 +748,7 @@ class SDDialog(QDialog):
     def add_reg(self):
         i = self.regulatory_itv_list.rowCount()
         self.regulatory_itv_list.insertRow(i)
-        reg_entry = ComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+        reg_entry = QComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
         reg_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = reg_entry
         self.regulatory_itv_list.setCellWidget(i, 0, reg_entry)
@@ -834,7 +834,7 @@ class SDDialog(QDialog):
             for i,c in enumerate(mod[CONSTRAINTS]):
                 text = lineqlist2str(c)
                 self.module_edit[CONSTRAINTS].insertRow(i)
-                constr_entry[i] = ComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
+                constr_entry[i] = QComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
                 constr_entry[i].setText(text+' ')
                 constr_entry[i].check_text(True)
                 constr_entry[i].setPlaceholderText(self.placeholder_eq)
@@ -940,8 +940,7 @@ class SDDialog(QDialog):
         try:
             with self.appdata.project.cobra_py_model as model:
                 if self.use_scenario.isChecked():  # integrate scenario into model bounds
-                    for r in self.appdata.project.scen_values.keys():
-                        model.reactions.get_by_id(r).bounds = self.appdata.project.scen_values[r]
+                    self.appdata.project.load_scenario_into_model(model)
                 if module_type == PROTECT_STR:
                     module = SDModule(model,module_type=PROTECT, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, constraints=constraints)
@@ -970,8 +969,8 @@ class SDDialog(QDialog):
             self.setCursor(Qt.ArrowCursor)
             return False, None
     
-    @Slot()
-    def update_global_objective(self):
+    @Slot(bool)
+    def update_global_objective(self,b=True):
         modules = []
         for i in range(self.module_list.rowCount()):
             modules.append(self.module_list.cellWidget(i,0).currentText())
@@ -1286,7 +1285,7 @@ class SDDialog(QDialog):
                 reg_entry = [None for _ in range(len(sd_setup[REGCOST]))]
                 for i, (k, v) in enumerate(sd_setup[REGCOST].items()):  
                     self.regulatory_itv_list.insertRow(i)
-                    reg_entry[i] = ComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+                    reg_entry[i] = QComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
                     reg_entry[i].setText(k+' ')
                     reg_entry[i].check_text(True)
                     reg_entry[i].setPlaceholderText(self.placeholder_eq)
@@ -1364,122 +1363,6 @@ class SDDialog(QDialog):
         self.reject()
     
     launch_computation_signal = Signal(str)
-
-class ComplReceivLineEdit(QLineEdit):
-    '''# does new completion after SPACE'''
-    def __init__(self, sd_dialog, wordlist, check=True, is_constr=False):
-        super().__init__("")
-        self.sd_dialog = sd_dialog
-        self.wordlist = wordlist
-        self.completer = QCompleter(wordlist)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.completer.setWidget(self)
-        self.textChanged.connect(self.text_changed)
-        self.completer.activated.connect(self.complete_text)
-        self.setObjectName("EditField")
-        self.check = check
-        self.is_constr = is_constr
-
-    def text_changed(self, text):
-        all_text = text
-        text = all_text[:self.cursorPosition()]
-        prefix = text.split(' ')[-1].strip()
-        if prefix != '':
-            self.completer.setCompletionPrefix(prefix)
-            self.completer.complete()
-        self.check_text(False)
-        
-    def complete_text(self, text):
-        cursor_pos = self.cursorPosition()
-        before_text = self.text()[:cursor_pos]
-        after_text = self.text()[cursor_pos:]
-        prefix_len = len(before_text.split(' ')[-1].strip())
-        self.setText(before_text[:cursor_pos - prefix_len] + text + " " + after_text)
-        self.setCursorPosition(cursor_pos - prefix_len + len(text) + 1)
-    
-    def skip_completion(self):
-        self.completer.setCompletionPrefix('###') # dummy
-    
-    def focusInEvent(self, event):
-        super().focusInEvent(event)
-        self.sd_dialog.active_receiver = self
-    
-    def focusOutEvent(self, event):
-        super().focusOutEvent(event)
-        self.check_text(True)
-    
-    def check_text(self,final):
-        if self.check:
-            if self.text().strip() == "":
-                self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
-                self.textCorrect.emit()
-                return None
-            else:
-                try:
-                    if self.is_constr:
-                        lineq2list([self.text()], self.wordlist)
-                    else:
-                        linexpr2dict(self.text(), self.wordlist)
-                    if final:
-                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
-                    else:
-                        self.setStyleSheet(BACKGROUND_COLOR("#f0fff1",self.objectName()))
-                    self.textCorrect.emit()
-                    return True
-                except:
-                    if final:
-                        self.setStyleSheet(BACKGROUND_COLOR("#fff0f0",self.objectName()))
-                    else:
-                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
-                    self.textCorrect.emit()
-                    return False
-                
-    textCorrect = Signal()
-    
-
-class QTableCopyable(QTableWidget):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def keyPressEvent(self, event):
-        super().keyPressEvent(event)
-        if event.key() == Qt.Key_C and (event.modifiers() & Qt.ControlModifier):
-            copied_cells = sorted(self.selectedIndexes())
-            copy_text = ''
-            max_column = copied_cells[-1].column()
-            for c in copied_cells:
-                if self.item(c.row(), c.column()) is not None:
-                    copy_text += self.item(c.row(), c.column()).text()
-                    if c.column() == max_column:
-                        copy_text += '\n'
-                    else:
-                        copy_text += '\t'
-            QApplication.clipboard().setText(copy_text)
-            
-class QTableItem(QTableWidgetItem):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-    def setEditable(self,b):
-        f = self.flags()
-        if b:
-            self.setFlags(f|Qt.ItemIsEditable)
-        else:
-            self.setFlags(f&~Qt.ItemIsEditable)
-            
-    def setSelectable(self,b):
-        f = self.flags()
-        if b:
-            self.setFlags(f|Qt.ItemIsSelectable)
-        else:
-            self.setFlags(f&~Qt.ItemIsSelectable)
-            
-    def setEnabled(self,b):
-        f = self.flags()
-        if b:
-            self.setFlags(f|Qt.ItemIsEnabled)
-        else:
-            self.setFlags(f&~Qt.ItemIsEnabled)
        
 class SDComputationViewer(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""

@@ -5,9 +5,11 @@ from typing import Dict, Tuple
 import cobra
 import numpy
 from cobra.util.array import create_stoichiometric_matrix
-
-import efmtool_link.efmtool4cobra as efmtool4cobra
-import efmtool_link.efmtool_extern as efmtool_extern
+from contextlib import redirect_stdout, redirect_stderr
+import io
+with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()): # suppress output from jpype
+    import efmtool_link.efmtool4cobra as efmtool4cobra
+    import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool,
