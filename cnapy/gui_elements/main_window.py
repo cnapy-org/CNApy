@@ -39,6 +39,7 @@ from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
+from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 # from cnapy.legacy import try_cna
 import cnapy.utils as utils
 
@@ -308,19 +309,24 @@ class MainWindow(QMainWindow):
         load_sd_action = QAction("Load Strain Designs ...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
+        
+        self.flux_optimization_action = QAction(
+            "Flux optimization ...", self)
+        self.flux_optimization_action.triggered.connect(self.optimize_flux)
+        self.analysis_menu.addAction(self.flux_optimization_action)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
-        
-        yield_space_action = QAction("Yield space analysis ...", self)
-        yield_space_action.triggered.connect(self.yield_space)
-        self.analysis_menu.addAction(yield_space_action)
 
         self.yield_optimization_action = QAction(
             "Yield optimization ...", self)
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
+
+        yield_space_action = QAction("Yield space analysis ...", self)
+        yield_space_action.triggered.connect(self.yield_space)
+        self.analysis_menu.addAction(yield_space_action)
 
         self.analysis_menu.addSeparator()
 
@@ -563,18 +569,23 @@ class MainWindow(QMainWindow):
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
+        
+    @Slot()
+    def optimize_flux(self):
+        dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
+        dialog.exec_()
 
     @Slot()
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
-    @Slot()
-    def show_config_cna_dialog(self):
-        self.setCursor(Qt.BusyCursor)
-        dialog = ConfigCNADialog(self.appdata)
-        self.setCursor(Qt.ArrowCursor)
-        dialog.exec_()
+    # @Slot()
+    # def show_config_cna_dialog(self):
+    #     self.setCursor(Qt.BusyCursor)
+    #     dialog = ConfigCNADialog(self.appdata)
+    #     self.setCursor(Qt.ArrowCursor)
+    #     dialog.exec_()
 
     def show_download_dialog(self):
         dialog = DownloadDialog(self.appdata)

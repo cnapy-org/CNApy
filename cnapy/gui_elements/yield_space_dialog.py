@@ -2,12 +2,13 @@
 
 import matplotlib.pyplot as plt
 from random import randint
+import re
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QGroupBox,
                             QPushButton, QVBoxLayout, QFrame)
 import numpy
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
-from straindesign import linexpr2dict, linexprdict2str, yopt
+from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers
 from straindesign.names import *
 
 class YieldSpaceDialog(QDialog):
@@ -27,48 +28,48 @@ class YieldSpaceDialog(QDialog):
             r3 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
             r4 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
         else:
-            r1 = 'r_product_horz'
-            r2 = 'r_substrate_horz'
-            r3 = 'r_product_vert'
-            r4 = 'r_substrate_vert'
+            r1 = 'r_product_x'
+            r2 = 'r_substrate_x'
+            r3 = 'r_product_y'
+            r4 = 'r_substrate_y'
 
         self.layout = QVBoxLayout()
-        text = QLabel('Specify the yield terms that should be used for the horizontal and vertical axis.\n'+
+        text = QLabel('Specify the yield terms that should be used for the horizontal and yical axis.\n'+
                       'Keep in mind that exchange reactions are often defined in the direction of export.\n'+
                       'Consider changing signs.')
         self.layout.addWidget(text)
         
         editor_layout = QHBoxLayout()
         # Define for horizontal axis
-        horz_groupbox = QGroupBox('Horizontal axis')
-        horz_num_den_layout = QVBoxLayout()
-        self.horz_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.horz_numerator.setPlaceholderText('numerator (e.g. 1.0 '+r1+')')
-        self.horz_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.horz_denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
-        horz_num_den_layout.addWidget(self.horz_numerator)
+        x_groupbox = QGroupBox('x-axis')
+        x_num_den_layout = QVBoxLayout()
+        self.x_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_numerator.setPlaceholderText('numerator (e.g. 1.0 '+r1+')')
+        self.x_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
+        x_num_den_layout.addWidget(self.x_numerator)
         sep = QHSeperationLine()
         sep.setFrameShadow(QFrame.Plain)
         sep.setLineWidth(3)
-        horz_num_den_layout.addWidget(sep)
-        horz_num_den_layout.addWidget(self.horz_denominator)
-        horz_groupbox.setLayout(horz_num_den_layout)
-        editor_layout.addWidget(horz_groupbox)
+        x_num_den_layout.addWidget(sep)
+        x_num_den_layout.addWidget(self.x_denominator)
+        x_groupbox.setLayout(x_num_den_layout)
+        editor_layout.addWidget(x_groupbox)
         # Define for vertical axis
-        vert_groupbox = QGroupBox('Vertical axis')
-        vert_num_den_layout = QVBoxLayout()
-        self.vert_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.vert_numerator.setPlaceholderText('numerator (e.g. '+r3+')')
-        self.vert_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.vert_denominator.setPlaceholderText('denominator (e.g. '+r4+')')
-        vert_num_den_layout.addWidget(self.vert_numerator)
+        y_groupbox = QGroupBox('y-axis')
+        y_num_den_layout = QVBoxLayout()
+        self.y_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_numerator.setPlaceholderText('numerator (e.g. '+r3+')')
+        self.y_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_denominator.setPlaceholderText('denominator (e.g. '+r4+')')
+        y_num_den_layout.addWidget(self.y_numerator)
         sep = QHSeperationLine()
         sep.setFrameShadow(QFrame.Plain)
         sep.setLineWidth(3)
-        vert_num_den_layout.addWidget(sep)
-        vert_num_den_layout.addWidget(self.vert_denominator)
-        vert_groupbox.setLayout(vert_num_den_layout)
-        editor_layout.addWidget(vert_groupbox)
+        y_num_den_layout.addWidget(sep)
+        y_num_den_layout.addWidget(self.y_denominator)
+        y_groupbox.setLayout(y_num_den_layout)
+        editor_layout.addWidget(y_groupbox)
         self.layout.addItem(editor_layout)
         # buttons
         button_layout = QHBoxLayout()
@@ -87,17 +88,20 @@ class YieldSpaceDialog(QDialog):
         self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            horz_axis = '('+self.horz_numerator.text()+') / ('+self.horz_denominator.text()+')'
-            vert_axis = '('+self.vert_numerator.text()+') / ('+self.vert_denominator.text()+')'
-            horz_num = linexpr2dict(self.horz_numerator.text(),self.reac_ids)
-            horz_den = linexpr2dict(self.horz_denominator.text(),self.reac_ids)
-            vert_num = linexpr2dict(self.vert_numerator.text(),self.reac_ids)
-            vert_den = linexpr2dict(self.vert_denominator.text(),self.reac_ids)
+            solver = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
+            if solver is not None:
+                solver = solver[0]
+            x_axis = '('+self.x_numerator.text()+') / ('+self.x_denominator.text()+')'
+            y_axis = '('+self.y_numerator.text()+') / ('+self.y_denominator.text()+')'
+            x_num = linexpr2dict(self.x_numerator.text(),self.reac_ids)
+            x_den = linexpr2dict(self.x_denominator.text(),self.reac_ids)
+            y_num = linexpr2dict(self.y_numerator.text(),self.reac_ids)
+            y_den = linexpr2dict(self.y_denominator.text(),self.reac_ids)
             # get outmost points
-            sol_hmin = yopt(model,obj_num=horz_num,obj_den=horz_den,obj_sense='minimize')
-            sol_hmax = yopt(model,obj_num=horz_num,obj_den=horz_den,obj_sense='maximize')
-            sol_vmin = yopt(model,obj_num=vert_num,obj_den=vert_den,obj_sense='minimize')
-            sol_vmax = yopt(model,obj_num=vert_num,obj_den=vert_den,obj_sense='maximize')
+            sol_hmin = yopt(model,obj_num=x_num,obj_den=x_den,solver=solver,obj_sense='minimize')
+            sol_hmax = yopt(model,obj_num=x_num,obj_den=x_den,solver=solver,obj_sense='maximize')
+            sol_vmin = yopt(model,obj_num=y_num,obj_den=y_den,solver=solver,obj_sense='minimize')
+            sol_vmax = yopt(model,obj_num=y_num,obj_den=y_den,solver=solver,obj_sense='maximize')
             hmin = min((0,sol_hmin.objective_value))
             hmax = max((0,sol_hmax.objective_value))
             vmin = min((0,sol_vmin.objective_value))
@@ -114,15 +118,15 @@ class YieldSpaceDialog(QDialog):
             lb = numpy.full(points, numpy.nan)
             ub = numpy.full(points, numpy.nan)
             for i in range(points):
-                constr = [{**horz_num, **{k:-v*vals[i, 0] for k,v in horz_den.items()}},'=',0]
-                sol_vmin = yopt(model,constraints=constr,obj_num=vert_num,obj_den=vert_den,obj_sense='minimize')
+                constr = [{**x_num, **{k:-v*vals[i, 0] for k,v in x_den.items()}},'=',0]
+                sol_vmin = yopt(model,constraints=constr,obj_num=y_num,obj_den=y_den,solver=solver,obj_sense='minimize')
                 lb[i] = sol_vmin.objective_value
-                sol_vmax = yopt(model,constraints=constr,obj_num=vert_num,obj_den=vert_den,obj_sense='maximize')
+                sol_vmax = yopt(model,constraints=constr,obj_num=y_num,obj_den=y_den,solver=solver,obj_sense='maximize')
                 ub[i] = sol_vmax.objective_value
 
             _fig, axes = plt.subplots()
-            axes.set_xlabel(horz_axis)
-            axes.set_ylabel(vert_axis)
+            axes.set_xlabel(x_axis)
+            axes.set_ylabel(y_axis)
             axes.set_xlim(hmin*1.05,hmax*1.05)
             axes.set_ylim(vmin*1.05,vmax*1.05)
             x = [v for v in var] + [v for v in reversed(var)]
