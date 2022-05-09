@@ -7,11 +7,10 @@ dependencies:
   - pytest
   - pylint
   - autopep8
-  - oct2py=5.2
   - openjdk=8
   - matplotlib-base
   - pip
-  - python=3.7
+  - python=3.8
   - qtpy=1.9
   - pyside2
   - appdirs
