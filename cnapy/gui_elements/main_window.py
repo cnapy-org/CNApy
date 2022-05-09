@@ -1118,7 +1118,7 @@ class MainWindow(QMainWindow):
             self.mcs_dialog = None
         if self.sd_dialog:
             if self.sd_dialog.__weakref__:
-                self.sd_dialog.close()
+                del self.sd_dialog
             self.sd_dialog = None
 
     def save_sbml(self, filename):

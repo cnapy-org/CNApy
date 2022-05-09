@@ -13,7 +13,7 @@ from multiprocessing import Lock, Queue
 import pickle
 import traceback
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
-                                    lineq2list, linexpr2dict
+                                    lineq2list, linexpr2dict, select_solver
 from straindesign.names import *
 from straindesign.strainDesignSolution import SDSolution
 from random import randint
@@ -48,7 +48,7 @@ def BACKGROUND_COLOR(HEX,id): # string that defines style sheet for changing the
                 
 def FONT_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
     return "QLabel { color: "+HEX+"};"
-            
+
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
 
@@ -373,7 +373,8 @@ class SDDialog(QDialog):
         solver_and_solution_layout.addItem(solver_buttons_layout)
         # check best available solver
         if avail_solvers:
-            self.solver_buttons[avail_solvers[0]].setChecked(True)
+            solver = select_solver(None,self.appdata.project.cobra_py_model)
+            self.solver_buttons[solver].setChecked(True)
         
         solution_buttons_layout = QVBoxLayout()
         self.solution_buttons = {}
@@ -1270,7 +1271,8 @@ class SDDialog(QDialog):
         self.max_cost.setText(sd_setup[MAX_COST])
         self.time_limit.setText(sd_setup[TIME_LIMIT])
         self.advanced.setChecked(sd_setup['advanced'])
-        self.solver_buttons[sd_setup[SOLVER]].setChecked(True)
+        solver = select_solver(sd_setup[SOLVER],self.appdata.project.cobra_py_model)
+        self.solver_buttons[solver].setChecked(True)
         self.solution_buttons[sd_setup[SOLUTION_APPROACH]].setChecked(True)
         self.configure_solver_options()
         # only load knockouts and knockins if advanced is selected
