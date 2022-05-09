@@ -27,6 +27,7 @@ requirements:
     - requests
     - efmtool_link=0.0.4
     - optlang_enumerator=0.0.7
+    - straindesign
 
 build:
   number: 0  # NOTE: increment for new build/set to zero for new version

@@ -12,13 +12,13 @@ requirements:
   build:
     - setuptools
     - pip
-    - python=3.7
+    - python=3.8
   run:
     - oct2py=5.2
     - openjdk=8
     - matplotlib-base
     - pip
-    - python=3.7
+    - python=3.8
     - qtpy=1.9
     - pyside2
     - appdirs
@@ -27,6 +27,7 @@ requirements:
     - requests
     - efmtool_link=0.0.4
     - optlang_enumerator=0.0.7
+    - straindesign
 
 build:
   noarch: python
