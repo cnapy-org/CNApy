@@ -25,21 +25,22 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
-from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
+# from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
-from cnapy.gui_elements.efm_dialog import EFMDialog
+# from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+from cnapy.gui_elements.yield_space_dialog import YieldSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
-from cnapy.gui_elements.yield_optimization_dialog import \
-    YieldOptimizationDialog
-from cnapy.legacy import try_cna
+from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
+from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
+# from cnapy.legacy import try_cna
 import cnapy.utils as utils
 
 
@@ -275,10 +276,10 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        self.efm_action = QAction(
-            "Compute Elementary Flux Modes/Vectors via CNA ...", self)
-        self.efm_action.triggered.connect(self.efm)
-        self.efm_menu.addAction(self.efm_action)
+        # self.efm_action = QAction(
+        #     "Compute Elementary Flux Modes/Vectors via CNA ...", self)
+        # self.efm_action.triggered.connect(self.efm)
+        # self.efm_menu.addAction(self.efm_action)
 
         self.efmtool_action = QAction(
             "Compute Elementary Flux Modes via EFMtool ...", self)
@@ -308,15 +309,24 @@ class MainWindow(QMainWindow):
         load_sd_action = QAction("Load Strain Designs ...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
+        
+        self.flux_optimization_action = QAction(
+            "Flux optimization ...", self)
+        self.flux_optimization_action.triggered.connect(self.optimize_flux)
+        self.analysis_menu.addAction(self.flux_optimization_action)
 
         phase_plane_action = QAction("Phase plane analysis ...", self)
         phase_plane_action.triggered.connect(self.phase_plane)
         self.analysis_menu.addAction(phase_plane_action)
 
         self.yield_optimization_action = QAction(
-            "Yield optimization via CNA ...", self)
+            "Yield optimization ...", self)
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
+
+        yield_space_action = QAction("Yield space analysis ...", self)
+        yield_space_action.triggered.connect(self.yield_space)
+        self.analysis_menu.addAction(yield_space_action)
 
         self.analysis_menu.addSeparator()
 
@@ -352,9 +362,9 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
-        config_action = QAction("Configure CNA bridge ...", self)
-        self.config_menu.addAction(config_action)
-        config_action.triggered.connect(self.show_config_cna_dialog)
+        # config_action = QAction("Configure CNA bridge ...", self)
+        # self.config_menu.addAction(config_action)
+        # config_action.triggered.connect(self.show_config_cna_dialog)
 
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
@@ -471,19 +481,16 @@ class MainWindow(QMainWindow):
     def disable_enable_dependent_actions(self):
 
         self.efm_action.setEnabled(False)
-        self.yield_optimization_action.setEnabled(False)
 
         if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.sd_action.setEnabled(True)
-                self.yield_optimization_action.setEnabled(True)
 
         elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
             if self.appdata.cna_ok:
                 self.efm_action.setEnabled(True)
                 self.sd_action.setEnabled(True)
-                self.yield_optimization_action.setEnabled(True)
 
     @Slot()
     def exit_app(self):
@@ -511,6 +518,11 @@ class MainWindow(QMainWindow):
     def phase_plane(self):
         self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
         self.phase_plane_dialog.show()
+        
+    @Slot()
+    def yield_space(self):
+        self.yield_space_dialog = YieldSpaceDialog(self.appdata)
+        self.yield_space_dialog.show()
     
     # Strain design computation and viewing functions
     def strain_design(self):
@@ -539,7 +551,8 @@ class MainWindow(QMainWindow):
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)
-        self.sd_sols.exec()
+        self.sd_sols.show()
+        self.centralWidget().update_mode()
         
     @Slot()
     def load_strain_designs(self):
@@ -556,18 +569,23 @@ class MainWindow(QMainWindow):
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
+        
+    @Slot()
+    def optimize_flux(self):
+        dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
+        dialog.exec_()
 
     @Slot()
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
-    @Slot()
-    def show_config_cna_dialog(self):
-        self.setCursor(Qt.BusyCursor)
-        dialog = ConfigCNADialog(self.appdata)
-        self.setCursor(Qt.ArrowCursor)
-        dialog.exec_()
+    # @Slot()
+    # def show_config_cna_dialog(self):
+    #     self.setCursor(Qt.BusyCursor)
+    #     dialog = ConfigCNADialog(self.appdata)
+    #     self.setCursor(Qt.ArrowCursor)
+    #     dialog.exec_()
 
     def show_download_dialog(self):
         dialog = DownloadDialog(self.appdata)
@@ -1098,11 +1116,10 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        try:
-            self.sd_dialog.close()
+        if self.sd_dialog:
+            if self.sd_dialog.__weakref__:
+                self.sd_dialog.close()
             self.sd_dialog = None
-        except:
-            pass
 
     def save_sbml(self, filename):
         '''Save model as SBML'''

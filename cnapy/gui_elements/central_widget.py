@@ -2,21 +2,24 @@
 
 import numpy
 import cobra
+import io
+from contextlib import redirect_stdout, redirect_stderr
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
-from cnapy.gui_elements.metabolite_list import MetaboliteList
-from cnapy.gui_elements.gene_list import GeneList
-from cnapy.gui_elements.mode_navigator import ModeNavigator
-from cnapy.gui_elements.model_info import ModelInfo
-from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
-from cnapy.utils import SignalThrottler
+with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()): # suppress output from jpype
+    from cnapy.gui_elements.metabolite_list import MetaboliteList
+    from cnapy.gui_elements.gene_list import GeneList
+    from cnapy.gui_elements.mode_navigator import ModeNavigator
+    from cnapy.gui_elements.model_info import ModelInfo
+    from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
+    from cnapy.utils import SignalThrottler
 
 
 class CentralWidget(QWidget):
@@ -344,6 +347,19 @@ class CentralWidget(QWidget):
                             view.reaction_boxes[key].set_color(self.appdata.special_color_1)
                     else:
                         view.reaction_boxes[key].set_color(QColor.fromRgb(255, 255, 255))
+                if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
+                    self.mode_navigator.current
+                    for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
+                        if self.mode_navigator.current == int(self.appdata.window.sd_sols.sd_table.item(i,0).text())-1:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(230,230,230)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(230,230,230)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(230,230,230)))
+                        else:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(255, 255, 255)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
 
     def reaction_participation(self):
         self.appdata.project.comp_values.clear()

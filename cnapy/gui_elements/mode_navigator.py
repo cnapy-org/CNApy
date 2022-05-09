@@ -2,7 +2,7 @@ import numpy
 import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, Signal, Slot, QStringListModel
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QIcon, QBrush, QColor
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
 
@@ -260,6 +260,19 @@ class ModeNavigator(QWidget):
                         s = self.appdata.project.modes[i] 
                         if selected and r in s and not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
                             self.selection[i] = False
+            if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
+                for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
+                    r_sd_idx = int(self.appdata.window.sd_sols.sd_table.item(i,0).text())-1
+                    if self.selection[r_sd_idx]:
+                        self.appdata.window.sd_sols.sd_table.item(i,0).setForeground(QBrush(QColor(0, 0, 0)))
+                        self.appdata.window.sd_sols.sd_table.item(i,1).setForeground(QBrush(QColor(0, 0, 0)))
+                        if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                            self.appdata.window.sd_sols.sd_table.item(i,2).setForeground(QBrush(QColor(0, 0, 0)))
+                    else:
+                        self.appdata.window.sd_sols.sd_table.item(i,0).setForeground(QBrush(QColor(200, 200, 200)))
+                        self.appdata.window.sd_sols.sd_table.item(i,1).setForeground(QBrush(QColor(200, 200, 200)))
+                        if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                            self.appdata.window.sd_sols.sd_table.item(i,2).setForeground(QBrush(QColor(200, 200, 200)))
         self.num_selected = numpy.sum(self.selection)
 
     def size_histogram(self):

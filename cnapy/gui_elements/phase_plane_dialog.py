@@ -125,8 +125,9 @@ class PhasePlaneDialog(QDialog):
             if lb[0] != ub[0]:
                 x.extend([var[0], var[0]])
                 y.extend([lb[0], ub[0]])
-
-            plt.plot(x, y)
+            axes.set_xlim(min(([0]+x))*1.05,max(([0]+x))*1.05)
+            axes.set_ylim(min(([0]+y))*1.05,max(([0]+y))*1.05)
+            plt.fill(x, y)
             plt.show()
 
         self.appdata.window.centralWidget().show_bottom_of_console()
