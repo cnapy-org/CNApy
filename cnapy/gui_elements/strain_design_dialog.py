@@ -575,8 +575,11 @@ class SDDialog(QDialog):
         self.gene_itv = {}
         for i,g in enumerate(self.gene_ids):
             self.gene_itv_list.insertRow(i)
-            l = QTableItem(self.gene_names[i])
-            l.setToolTip(g)
+            if self.gene_names[i] != '':
+                l = QTableItem(self.gene_names[i])
+                l.setToolTip(g)
+            else:
+                l = QTableItem(g)
             l.setEditable(False)
             # l.setMaximumWidth(80)
             self.gene_itv.update({g:\
