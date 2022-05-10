@@ -277,8 +277,8 @@ class CentralWidget(QWidget):
                 # set values
                 self.appdata.project.comp_values.clear()
                 self.parent.clear_status_bar()
-                if self.mode_navigator.mode_type == 1:
-                    for i in values:
+                for i in values:
+                    if self.mode_navigator.mode_type == 1:
                         if values[i] < 0:
                             values[i] = 0.0 # display KOs as zero flux
                     self.appdata.project.comp_values[i] = (values[i], values[i])
