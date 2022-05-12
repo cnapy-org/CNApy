@@ -363,7 +363,7 @@ class CentralWidget(QWidget):
         self.parent.clear_status_bar()
         if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
             relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
-            self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+            self.appdata.project.comp_values = {r: (relative_participation[0,i], relative_participation[0,i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
         elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
             reacs = self.appdata.project.cobra_py_model.reactions.list_attr('id')
             abund = [0 for _ in reacs]
