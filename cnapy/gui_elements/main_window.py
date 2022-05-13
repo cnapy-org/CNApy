@@ -2,7 +2,6 @@ import io
 import json
 import os
 import traceback
-import pickle
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import ZipFile
@@ -19,7 +18,7 @@ from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
+                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
 
 from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -31,6 +30,7 @@ from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
+from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
@@ -264,13 +264,9 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        self.make_feasible_menu = self.analysis_menu.addMenu("Make scenario feasible")
-        make_feasible_linear_action = QAction("Linear objective (LP)", self)
-        make_feasible_linear_action.triggered.connect(self.make_feasible_linear)
-        self.make_feasible_menu.addAction(make_feasible_linear_action)
-        make_feasible_quadratic_action = QAction("Quadratic objective (QLP)", self)
-        make_feasible_quadratic_action.triggered.connect(self.make_feasible_quadratic)
-        self.make_feasible_menu.addAction(make_feasible_quadratic_action)
+        make_scenario_feasible_action = QAction("Make scenario feasible ...", self)
+        make_scenario_feasible_action.triggered.connect(self.make_scenario_feasible)
+        self.analysis_menu.addAction(make_scenario_feasible_action)
 
         self.analysis_menu.addSeparator()
 
@@ -1268,65 +1264,15 @@ class MainWindow(QMainWindow):
         if update:
             self.centralWidget().update()
 
-    def make_feasible_linear(self):
-        with self.appdata.project.cobra_py_model as model:
-            model.objective = model.problem.Objective(Zero, direction='min')
-            reactions_in_objective = []
-            for reaction_id, scen_val in self.appdata.project.scen_values.items():
-                try:
-                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
-                except KeyError:
-                    print('reaction', reaction_id, 'not found!')
-                    continue
-                if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
-                    reactions_in_objective.append(reaction_id)
-                    pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
-                    neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
-                    # elastic_constr = model.problem.Constraint(add([reaction.forward_variable, -reaction.reverse_variable, 
-                    #                                             pos_slack, -neg_slack]), lb=scen_val[0], ub=scen_val[0])
-                    elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
-                    model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
-                    elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
-                                                            pos_slack: 1.0, neg_slack: -1.0})
-                    # model.objective += pos_slack + neg_slack # does not build valid expressions for CPLEX/Gurobi?!?
-                    model.objective.set_linear_coefficients({pos_slack: 1.0, neg_slack: 1.0})
-                else:
-                    reaction.lower_bound = scen_val[0]
-                    reaction.upper_bound = scen_val[1]
-            self.appdata.project.solution = model.optimize()
-        self.process_fba_solution(update=False)
-        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
-            self.appdata.scen_values_set_multiple(reactions_in_objective,
-                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
-        self.centralWidget().update()
-
-    def make_feasible_quadratic(self):
-        with self.appdata.project.cobra_py_model as model:
-            model.objective = model.problem.Objective(Zero, direction='min')
-            reactions_in_objective = []
-            for reaction_id, scen_val in self.appdata.project.scen_values.items():
-                try:
-                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
-                except KeyError:
-                    print('reaction', reaction_id, 'not found!')
-                    continue
-                if scen_val[0] == scen_val[1] and scen_val[0] != 0: # reactions set to 0 are still considered off
-                    reactions_in_objective.append(reaction_id)
-                    try:
-                        model.objective += ((reaction.flux_expression - scen_val[0])**2)/abs(scen_val[0])
-                    except ValueError:
-                        QMessageBox.critical(self, "Solver with support for quadratic objectives required",
-                                "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
-                        return
-                else:
-                    reaction.lower_bound = scen_val[0]
-                    reaction.upper_bound = scen_val[1]
-            self.appdata.project.solution = model.optimize()
-        self.process_fba_solution(update=False)
-        if self.appdata.project.solution.status == 'optimal' and len(reactions_in_objective) > 0:
-            self.appdata.scen_values_set_multiple(reactions_in_objective,
-                        [self.appdata.project.comp_values[r] for r in reactions_in_objective])
-        self.centralWidget().update()
+    def make_scenario_feasible(self):
+        make_scenario_feasible_dialog = FluxFeasibilityDialog(self.appdata)
+        if make_scenario_feasible_dialog.exec_() == QDialog.Accepted:
+            self.appdata.project.solution = make_scenario_feasible_dialog.solution
+            self.process_fba_solution(update=False)
+            if self.appdata.project.solution.status == 'optimal' and len(make_scenario_feasible_dialog.reactions_in_objective) > 0:
+                self.appdata.scen_values_set_multiple(make_scenario_feasible_dialog.reactions_in_objective,
+                            [self.appdata.project.comp_values[r] for r in make_scenario_feasible_dialog.reactions_in_objective])
+            self.centralWidget().update()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:
