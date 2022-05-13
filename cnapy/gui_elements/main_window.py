@@ -34,7 +34,7 @@ from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
 from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
-from cnapy.gui_elements.yield_space_dialog import YieldSpaceDialog
+from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
@@ -324,9 +324,9 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
-        yield_space_action = QAction("Yield space analysis ...", self)
-        yield_space_action.triggered.connect(self.yield_space)
-        self.analysis_menu.addAction(yield_space_action)
+        plot_space_action = QAction("Plot flux space ...", self)
+        plot_space_action.triggered.connect(self.plot_space)
+        self.analysis_menu.addAction(plot_space_action)
 
         self.analysis_menu.addSeparator()
 
@@ -520,9 +520,9 @@ class MainWindow(QMainWindow):
         self.phase_plane_dialog.show()
         
     @Slot()
-    def yield_space(self):
-        self.yield_space_dialog = YieldSpaceDialog(self.appdata)
-        self.yield_space_dialog.show()
+    def plot_space(self):
+        self.plot_space = PlotSpaceDialog(self.appdata)
+        self.plot_space.show()
     
     # Strain design computation and viewing functions
     def strain_design(self):
