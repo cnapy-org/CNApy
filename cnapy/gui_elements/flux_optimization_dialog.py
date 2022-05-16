@@ -13,11 +13,11 @@ from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
 from straindesign.names import *
 
 class FluxOptimizationDialog(QDialog):
-    """A dialog to perform yield optimization"""
+    """A dialog to perform flux optimization"""
 
     def __init__(self, appdata: AppData, central_widget: CentralWidget):
         QDialog.__init__(self)
-        self.setWindowTitle("Yield optimization")
+        self.setWindowTitle("Flux optimization")
 
         self.appdata = appdata
         self.central_widget = central_widget

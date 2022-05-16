@@ -1,4 +1,4 @@
-"""The yield space plot dialog"""
+"""The flux space plot dialog"""
 
 from random import randint
 from qtpy.QtCore import Qt, Signal, Slot, QTimer
@@ -9,11 +9,11 @@ from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers, plo
 from straindesign.names import *
 
 class PlotSpaceDialog(QDialog):
-    """A dialog to create yield space plots"""
+    """A dialog to create Flux space plots"""
 
     def __init__(self, appdata):
         QDialog.__init__(self)
-        self.setWindowTitle("Yield space plotting")
+        self.setWindowTitle("Flux space plotting")
         self.setMinimumWidth(500)
         
         self.appdata = appdata
@@ -159,7 +159,7 @@ class PlotSpaceDialog(QDialog):
                     axes[2] = (self.z_numerator.text(),self.z_denominator.text())
                 else:
                     axes[2] = (self.z_numerator.text())
-            plot_flux_space(model,axes,points=int(self.numpoints.text()),plt_backend='Qt5Agg')
+            plot_flux_space(model,axes,points=int(self.numpoints.text()))
             
         self.appdata.window.centralWidget().show_bottom_of_console()
         self.setCursor(Qt.ArrowCursor)

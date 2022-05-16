@@ -63,7 +63,10 @@ class CentralWidget(QWidget):
 
         # Check if client is working
         self.kernel_client.execute('import matplotlib.pyplot as plt')
-        self.kernel_client.execute('%matplotlib inline')
+        # Maybe add selection for inline or separate Qt window plotting in configure menu:
+        # "Show plots in separate window" - Checkbox
+        # self.kernel_client.execute('%matplotlib inline')
+        self.kernel_client.execute('%matplotlib qt')
         self.kernel_client.execute(
             "%config InlineBackend.figure_format = 'svg'")
         self.console = RichJupyterWidget()
@@ -125,7 +128,7 @@ class CentralWidget(QWidget):
 
     def show_bottom_of_console(self):
         (_, r) = self.splitter2.getRange(1)
-        self.splitter2.moveSplitter(round(r*0.5), 1)
+        self.splitter2.moveSplitter(r*0.5, 1)
 
         vSB = self.console.children()[2].verticalScrollBar()
         max_scroll = vSB.maximum()
