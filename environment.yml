@@ -10,14 +10,15 @@ dependencies:
   - openjdk=8
   - matplotlib-base
   - pip
-  - python=3.8
+  - python>=3.7
   - qtpy=1.9
   - pyside2
   - appdirs
-  - cobra=0.22
+  - cobra
   - qtconsole=5.0
   - requests
   - psutil
   - efmtool_link=0.0.4
   - optlang_enumerator=0.0.7
+  - straindesign
 prefix: /home/user/miniconda3/envs/cnapy
