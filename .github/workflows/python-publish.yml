@@ -1,0 +1,110 @@
+# This workflow will upload a Python Package using Twine when a release is created
+
+name: Build and Upload Python Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      description:
+        description: 'Description'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: build_and_publish
+    steps:
+    - uses: actions/checkout@v3
+    - name: Print version number
+      run: echo ${{ github.event.inputs.version }}
+    - name: Update version number
+      run: |
+        python ./.github/update_version.py setup.py ${{ github.event.inputs.version }}
+        python ./.github/update_version.py constructor/linux/construct.yaml ${{ github.event.inputs.version }}
+        python ./.github/update_version.py constructor/win/construct.yaml ${{ github.event.inputs.version }}
+        python ./.github/update_version.py constructor/win/post_install.bat ${{ github.event.inputs.version }}
+        python ./.github/update_version.py recipes/linux/meta.yaml ${{ github.event.inputs.version }}
+        python ./.github/update_version.py recipes/noarch/meta.yaml ${{ github.event.inputs.version }}
+        python ./.github/update_version.py recipes/win/meta.yaml ${{ github.event.inputs.version }}
+        python ./.github/update_version.py cnapy/appdata.py ${{ github.event.inputs.version }}
+        python ./.github/update_version.py cnapy/appdata.py ${{ github.event.inputs.version }}
+        python ./.github/update_version.py README.md ${{ github.event.inputs.version }}
+#    - name: Name and E-Mail configuration
+#      run: |
+#        git config --global user.name ${{ secrets.NAME_GITHUB }}
+#        git config --global user.email ${{ secrets.MAIL_GITHUB }}
+    - name: check for changes
+      run: git status
+#    - name: stage changed files
+#      run: git add .
+#    - name: commit changed files
+#      run: git commit -m "Updated version number"
+#    - name: fetch
+#      run: git fetch
+#    - name: push code to main
+#      run: git push
+#    - name: Create Release
+#      uses: actions/create-release@v1
+#      id: create_release
+#      with:
+#        draft: false
+#        prerelease: false
+#        release_name: v${{ github.event.inputs.version }}
+#        tag_name: v${{ github.event.inputs.version }}
+#        body: ${{ github.event.inputs.description }}
+#      env:
+#        GITHUB_TOKEN: ${{ github.token }}
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+    - name: Install PyPi dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build setuptools wheel twine
+    - name: Clean PyPi build directories
+      run: rm -rf dist
+    - name: Build PyPi package and show build directory
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
+        cd dist
+        ls
+        cd ..
+#    - name: Publish on PyPi
+#      env:
+#        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+#        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+#      run: |
+#        twine upload dist/*
+    - name: Install conda dependencies
+      run: conda install anaconda-client conda-build
+    - name: Clean Anaconda build directories
+      run: rm -rf conda-bld    
+    - name: Build Anaconda package and show build directory
+        conda build recipes/noarch/. -c conda-forge --croot conda-bld
+        conda build recipes/win/. -c conda-forge --croot conda-bld
+        cd conda-bld
+        ls
+        cd ..
+#    - name: Publish on Anaconda
+#      env:
+#        ANCONDA_USERNAME: ${{ secrets.ANACONDA_USERNAME }}
+#        ANACONDA_PASSWORD: ${{ secrets.ANACONDA_PASSWORD }}
+#      run: |
+#        /usr/share/miniconda/bin/anaconda login --username $ANCONDA_USERNAME --password $ANACONDA_PASSWORD
+#        /usr/share/miniconda/bin/anaconda upload -u cnapy conda-bld/noarch/cnapy*
+#        /usr/share/miniconda/bin/anaconda upload -u cnapy conda-bld/win/cnapy*
+#    - name: Construct windows installer
+#      run: |
+#        constructor/win/constructor constructor/win
+    - name: Final clean up
+      run: |
+        rm -rf dist
+        rm -rf conda-bld
