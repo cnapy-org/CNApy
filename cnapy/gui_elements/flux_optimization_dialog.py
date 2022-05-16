@@ -101,8 +101,8 @@ class FluxOptimizationDialog(QDialog):
             elif sol.status == OPTIMAL:
                 self.set_boxes(sol)
                 QMessageBox.information(self, 'Solution',
-                                    'Maximum yield ('+linexprdict2str(linexpr2dict(self.expr.text(),self.reac_ids))+\
-                                    '): '+str(sol.objective_value) + \
+                                    'Optimum ('+linexprdict2str(linexpr2dict(self.expr.text(),self.reac_ids))+\
+                                    '): '+str(round(sol.objective_value,9)) + \
                                     '\nShowing optimal example flux distribution.')
             else:
                 QMessageBox.warning(self, 'Problem infeasible.',
@@ -120,3 +120,4 @@ class FluxOptimizationDialog(QDialog):
             idx = idx+1
         self.appdata.project.comp_values_type = 0
         self.central_widget.update()
+        

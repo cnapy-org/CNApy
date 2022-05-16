@@ -1,12 +1,9 @@
 """The yield space plot dialog"""
 
-import matplotlib.pyplot as plt
 from random import randint
-import re
-from qtpy.QtCore import Qt, Signal
-from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QGroupBox, QComboBox,
-                            QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit)
-import numpy
+from qtpy.QtCore import Qt, Signal, Slot, QTimer
+from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QGroupBox, QComboBox, QLayout,
+                            QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit, QSizePolicy)
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
 from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers, plot_flux_space
 from straindesign.names import *
@@ -17,7 +14,8 @@ class PlotSpaceDialog(QDialog):
     def __init__(self, appdata):
         QDialog.__init__(self)
         self.setWindowTitle("Yield space plotting")
-
+        self.setMinimumWidth(500)
+        
         self.appdata = appdata
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
@@ -34,6 +32,8 @@ class PlotSpaceDialog(QDialog):
             self.r[5] = 'r_substrate_z'
 
         self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         text = QLabel('Specify the yield terms that should be used for the different axes.\n'+
                       'Keep in mind that exchange reactions are often defined in the direction of export.\n'+
                       'Consider changing signs.')
@@ -142,7 +142,6 @@ class PlotSpaceDialog(QDialog):
         self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            solver = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
             if self.third_axis.isChecked():
                 axes = [[] for _ in range(3)]
             else:
@@ -160,7 +159,7 @@ class PlotSpaceDialog(QDialog):
                     axes[2] = (self.z_numerator.text(),self.z_denominator.text())
                 else:
                     axes[2] = (self.z_numerator.text())
-            plot_flux_space(model,axes,points=int(self.numpoints.text()))
+            plot_flux_space(model,axes,points=int(self.numpoints.text()),plt_backend='Qt5Agg')
             
         self.appdata.window.centralWidget().show_bottom_of_console()
         self.setCursor(Qt.ArrowCursor)
@@ -171,7 +170,7 @@ class PlotSpaceDialog(QDialog):
         else:
             self.z_groupbox.setHidden(True)
         self.adjustSize()
-    
+ 
     def x_combo_changed(self):
         if self.x_combobox.currentText() == 'yield':
             self.x_numerator.setPlaceholderText('numerator (e.g. 1.0 '+self.r[0]+')')
