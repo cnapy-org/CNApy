@@ -57,7 +57,7 @@ class YieldOptimizationDialog(QDialog):
         num_den_layout.addWidget(self.numerator)
         sep = QHSeperationLine()
         sep.setFrameShadow(QFrame.Plain)
-        sep.setLineWidth(3)
+        sep.setLineWidth(2)
         num_den_layout.addWidget(sep)
         num_den_layout.addWidget(self.denominator)
         editor_layout.addItem(num_den_layout)
