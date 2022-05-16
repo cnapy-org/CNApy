@@ -104,7 +104,6 @@ class SDDialog(QDialog):
         self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.modules_box = QGroupBox("Strain design module(s)")
-        self.modules_box.setMinimumHeight(300)
         
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
@@ -207,11 +206,12 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
         module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
         constr_list_layout = QHBoxLayout()
-        constr_list_layout.setAlignment(Qt.AlignLeft)
+        constr_list_layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         module_spec_layout.addItem(constr_list_layout)
         
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
+        self.module_edit[CONSTRAINTS].setMaximumHeight(80)
         self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(25)
         self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -646,6 +646,7 @@ class SDDialog(QDialog):
 
         # Finalize
         self.setLayout(self.layout)
+        self.adjustSize()
         # Connecting signals
         try:
             self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)

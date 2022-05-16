@@ -1087,7 +1087,7 @@ class MainWindow(QMainWindow):
                     # if project contains maps move splitter and fit mapview
                     if len(self.appdata.project.maps) > 0:
                         (_, r) = self.centralWidget().splitter2.getRange(1)
-                        self.centralWidget().splitter2.moveSplitter(r*0.8, 1)
+                        self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                         self.centralWidget().fit_mapview()
 
                     self.centralWidget().update(rebuild=True)
@@ -1623,10 +1623,10 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
         self.setCursor(Qt.ArrowCursor)
 
-    def efm(self):
-        self.efm_dialog = EFMDialog(
-            self.appdata, self.centralWidget())
-        self.efm_dialog.exec_()
+    # def efm(self):
+    #     self.efm_dialog = EFMDialog(
+    #         self.appdata, self.centralWidget())
+    #     self.efm_dialog.exec_()
 
     def in_out_flux(self):
         in_out_flux_dialog = InOutFluxDialog(
@@ -1799,14 +1799,14 @@ class MainWindow(QMainWindow):
         if x < 50:
             self.show_model_view()
         (_, r) = self.centralWidget().splitter2.getRange(1)
-        self.centralWidget().splitter2.moveSplitter(r*0.5, 1)
+        self.centralWidget().splitter2.moveSplitter(round(r*0.5), 1)
 
     def show_map_view(self):
         self.show_console()
 
     def show_model_view(self):
         (_, r) = self.centralWidget().splitter.getRange(1)
-        self.centralWidget().splitter.moveSplitter(r*0.5, 1)
+        self.centralWidget().splitter.moveSplitter(round(r*0.5), 1)
 
     def clear_status_bar(self):
         self.solver_status_display.setText("")

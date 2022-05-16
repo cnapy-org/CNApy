@@ -129,7 +129,7 @@ class YieldOptimizationDialog(QDialog):
                 QMessageBox.information(self, 'Solution',
                                     'Maximum yield ('+linexprdict2str(linexpr2dict(self.numerator.text(),self.reac_ids))+\
                                     ') / ('+linexprdict2str(linexpr2dict(self.denominator.text(),self.reac_ids))+\
-                                    '): '+str(sol.objective_value) + \
+                                    '): '+str(round(sol.objective_value,9)) + \
                                     '\nShowing yield-optimal example flux distribution.' + txt_scalable)
             else:
                 QMessageBox.warning(self, 'Problem infeasible.',
