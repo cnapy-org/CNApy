@@ -125,7 +125,7 @@ class CentralWidget(QWidget):
 
     def show_bottom_of_console(self):
         (_, r) = self.splitter2.getRange(1)
-        self.splitter2.moveSplitter(r*0.5, 1)
+        self.splitter2.moveSplitter(round(r*0.5), 1)
 
         vSB = self.console.children()[2].verticalScrollBar()
         max_scroll = vSB.maximum()
