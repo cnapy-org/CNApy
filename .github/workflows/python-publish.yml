@@ -18,7 +18,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: build_and_publish
+#    environment: build_and_publish
     steps:
     - uses: actions/checkout@v3
     - name: Print version number
