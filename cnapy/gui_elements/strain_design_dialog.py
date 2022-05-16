@@ -23,8 +23,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog, QTextEdit, QApplication,
-                            QTableWidgetItem)
+                            QWidget, QFileDialog, QTextEdit, QLayout)
 from cnapy.appdata import AppData
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
 
@@ -102,6 +101,8 @@ class SDDialog(QDialog):
         self.modules = []
         self.current_module = 0
         self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.modules_box = QGroupBox("Strain design module(s)")
         self.modules_box.setMinimumHeight(300)
         

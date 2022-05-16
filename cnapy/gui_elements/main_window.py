@@ -33,7 +33,7 @@ from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
-from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
+# from cnapy.gui_elements.phase_plane_dialog import PhasePlaneDialog
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
@@ -315,9 +315,9 @@ class MainWindow(QMainWindow):
         self.flux_optimization_action.triggered.connect(self.optimize_flux)
         self.analysis_menu.addAction(self.flux_optimization_action)
 
-        phase_plane_action = QAction("Phase plane analysis ...", self)
-        phase_plane_action.triggered.connect(self.phase_plane)
-        self.analysis_menu.addAction(phase_plane_action)
+        # phase_plane_action = QAction("Phase plane analysis ...", self)
+        # phase_plane_action.triggered.connect(self.phase_plane)
+        # self.analysis_menu.addAction(phase_plane_action)
 
         self.yield_optimization_action = QAction(
             "Yield optimization ...", self)
@@ -514,10 +514,10 @@ class MainWindow(QMainWindow):
         dialog = AboutDialog(self.appdata)
         dialog.exec_()
 
-    @Slot()
-    def phase_plane(self):
-        self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
-        self.phase_plane_dialog.show()
+    # @Slot()
+    # def phase_plane(self):
+    #     self.phase_plane_dialog = PhasePlaneDialog(self.appdata)
+    #     self.phase_plane_dialog.show()
         
     @Slot()
     def plot_space(self):
