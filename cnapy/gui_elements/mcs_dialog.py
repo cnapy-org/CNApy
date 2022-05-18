@@ -1,7 +1,6 @@
 """The dialog for calculating minimal cut sets"""
 
 import io
-import os
 import traceback
 import scipy
 
@@ -27,7 +26,6 @@ class MCSDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
-        self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
 
@@ -150,22 +148,6 @@ class MCSDialog(QDialog):
             "Change solver in COBRApy configuration.")
         s33.addWidget(self.solver_optlang)
         self.bg1.addButton(self.solver_optlang)
-        self.solver_cplex_matlab = QRadioButton("CPLEX (MATLAB)")
-        self.solver_cplex_matlab.setToolTip(
-            "Only enabled with MATLAB and CPLEX")
-        s33.addWidget(self.solver_cplex_matlab)
-        self.bg1.addButton(self.solver_cplex_matlab)
-        self.solver_cplex_java = QRadioButton("CPLEX (Octave)")
-        self.solver_cplex_java.setToolTip("Only enabled with Octave and CPLEX")
-        s33.addWidget(self.solver_cplex_java)
-        self.bg1.addButton(self.solver_cplex_java)
-        self.solver_intlinprog = QRadioButton("intlinprog (MATLAB)")
-        self.solver_intlinprog.setToolTip("Only enabled with MATLAB")
-        s33.addWidget(self.solver_intlinprog)
-        self.bg1.addButton(self.solver_intlinprog)
-        self.solver_glpk = QRadioButton("GLPK (Octave/MATLAB)")
-        s33.addWidget(self.solver_glpk)
-        self.bg1.addButton(self.solver_glpk)
         self.bg1.buttonClicked.connect(self.configure_solver_options)
         g3.setLayout(s33)
         s3.addWidget(g3)
@@ -198,36 +180,6 @@ class MCSDialog(QDialog):
 
         # Disable incompatible combinations
         self.solver_optlang.setChecked(True)
-        deactivate_external_solvers = False
-        if (appdata.selected_engine == 'None') or (self.eng is None) or (not appdata.cna_ok):  # Hotfix
-            deactivate_external_solvers = True
-
-        if not deactivate_external_solvers:
-            # The following try-except block is added as a workaround as long as the
-            # current CNA version cannot be directly read.
-            try:
-                self.solver_cplex_matlab.setEnabled(
-                    self.eng.is_cplex_matlab_ready())
-                self.solver_cplex_java.setEnabled(self.eng.is_cplex_java_ready())
-                self.solver_intlinprog.setEnabled(self.appdata.is_matlab_set())
-            except Exception:  # Either a Matlab or an Octave error due to a wrong configuration of CellNetAnalyzer
-                msgBox = QMessageBox()
-                msgBox.setWindowTitle("CellNetAnalyzer error!")
-                msgBox.setTextFormat(Qt.RichText)
-                msgBox.setText("<p>Error when loading CellNetAnalyzer. MCS calculation only possible with cobrapy solvers.<br>"
-                               "This error may be resolved in one of the following ways:<br>"
-                               "1. Check that you have the latest CellNetAnalyzer version and that you have set in in CNApy's configuration correctly.<br>"
-                               "2. If CellNetAnalyzer is up-to-date and correctly set in CNApy and this error still occurs, check that you can successfully run CellNetAnalyzer using MATLAB or Octave. "
-                               "</p>")
-                msgBox.setIcon(QMessageBox.Warning)
-                msgBox.exec()
-                deactivate_external_solvers = True
-
-        if deactivate_external_solvers:
-            self.solver_cplex_matlab.setEnabled(False)
-            self.solver_cplex_java.setEnabled(False)
-            self.solver_glpk.setEnabled(False)
-            self.solver_intlinprog.setEnabled(False)
 
         self.configure_solver_options()
 
@@ -242,10 +194,6 @@ class MCSDialog(QDialog):
         self.layout.addItem(s4)
 
         buttons = QHBoxLayout()
-        # self.save = QPushButton("save")
-        # buttons.addWidget(self.save)
-        # self.load = QPushButton("load")
-        # buttons.addWidget(self.load)
         self.compute_mcs = QPushButton("Compute MCS")
         buttons.addWidget(self.compute_mcs)
         self.cancel = QPushButton("Close")
@@ -296,13 +244,9 @@ class MCSDialog(QDialog):
         else:
             self.gen_kos.setEnabled(True)
             self.exclude_boundary.setChecked(False)
-            self.exclude_boundary.setEnabled(False)
-            if self.solver_cplex_matlab.isChecked() or self.solver_cplex_java.isChecked():
-                self.mcs_by_cardinality.setEnabled(True)
-            else:
-                self.mcs_by_cardinality.setEnabled(False)
-                if self.mcs_by_cardinality.isChecked():
-                    self.any_mcs.setChecked(True)
+            self.mcs_by_cardinality.setEnabled(False)
+            if self.mcs_by_cardinality.isChecked():
+                self.any_mcs.setChecked(True)
             self.mcs_continuous_search.setEnabled(False)
             if self.mcs_continuous_search.isChecked():
                 self.any_mcs.setChecked(True)
@@ -358,10 +302,7 @@ class MCSDialog(QDialog):
     def compute(self):
         mcs_equation_errors = self.check_for_mcs_equation_errors()
         if mcs_equation_errors == "":
-            if self.solver_optlang.isChecked():
-                self.compute_optlang()
-            else:
-                self.compute_legacy()
+            self.compute_optlang()
         else:
             QMessageBox.warning(
                 self,
@@ -371,176 +312,6 @@ class MCSDialog(QDialog):
                 f"{mcs_equation_errors}"
             )
 
-    def compute_legacy(self):
-        self.setCursor(Qt.BusyCursor)
-        # create CobraModel for matlab
-        with self.appdata.project.cobra_py_model as model:
-            if self.consider_scenario.isChecked():  # integrate scenario into model bounds
-                for r in self.appdata.project.scen_values.keys():
-                    model.reactions.get_by_id(
-                        r).bounds = self.appdata.project.scen_values[r]
-            cobra.io.save_matlab_model(model, os.path.join(
-                self.appdata.cna_path, "cobra_model.mat"), varname="cbmodel")
-        self.eng.eval("load('cobra_model.mat')",
-                      nargout=0)
-
-        try:
-            self.eng.eval("cnap = CNAcobra2cna(cbmodel);",
-                          nargout=0,
-                          stdout=self.out, stderr=self.err)
-        except Exception:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
-            print(exstr)
-            utils.show_unknown_error_box(exstr)
-            return
-
-        self.eng.eval("genes = [];", nargout=0,
-                      stdout=self.out, stderr=self.err)
-        cmd = "maxSolutions = " + str(float(self.max_solu.text())) + ";"
-        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
-
-        cmd = "maxSize = " + str(int(self.max_size.text())) + ";"
-        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
-
-        cmd = "milp_time_limit = " + str(float(self.time_limit.text())) + ";"
-        self.eng.eval(cmd, nargout=0, stdout=self.out, stderr=self.err)
-
-        if self.gen_kos.isChecked():
-            self.eng.eval("gKOs = 1;", nargout=0)
-        else:
-            self.eng.eval("gKOs = 0;", nargout=0)
-        if self.advanced.isChecked():
-            self.eng.eval("advanced_on = 1;", nargout=0)
-        else:
-            self.eng.eval("advanced_on = 0;", nargout=0)
-
-        if self.solver_intlinprog.isChecked():
-            self.eng.eval("solver = 'intlinprog';", nargout=0)
-        if self.solver_cplex_java.isChecked():
-            self.eng.eval("solver = 'java_cplex_new';", nargout=0)
-        if self.solver_cplex_matlab.isChecked():
-            self.eng.eval("solver = 'matlab_cplex';", nargout=0)
-        if self.solver_glpk.isChecked():
-            self.eng.eval("solver = 'glpk';", nargout=0)
-        if self.any_mcs.isChecked():
-            self.eng.eval("mcs_search_mode = 'search_1';", nargout=0)
-        elif self.mcs_by_cardinality.isChecked():
-            self.eng.eval("mcs_search_mode = 'search_2';", nargout=0)
-        elif self.smalles_mcs_first.isChecked():
-            self.eng.eval("mcs_search_mode = 'search_3';", nargout=0)
-
-        rows = self.target_list.rowCount()
-        for i in range(0, rows):
-            p1 = self.target_list.cellWidget(i, 0).text()
-            p2 = self.target_list.cellWidget(i, 1).text()
-            if self.target_list.cellWidget(i, 2).currentText() == '≤':
-                p3 = "<="
-            else:
-                p3 = ">="
-            p4 = self.target_list.cellWidget(i, 3).text()
-            cmd = "dg_T = {[" + p1+"], '" + p2 + \
-                "', '" + p3 + "', [" + p4 + "']};"
-            self.eng.eval(cmd, nargout=0,
-                          stdout=self.out, stderr=self.err)
-
-        rows = self.desired_list.rowCount()
-        for i in range(0, rows):
-            p1 = self.desired_list.cellWidget(i, 0).text()
-            p2 = self.desired_list.cellWidget(i, 1).text()
-            if self.desired_list.cellWidget(i, 2).currentText() == '≤':
-                p3 = "<="
-            else:
-                p3 = ">="
-            p4 = self.desired_list.cellWidget(i, 3).text()
-            cmd = "dg_D = {[" + p1+"], '" + p2 + \
-                "', '" + p3 + "', [" + p4 + "']};"
-            self.eng.eval(cmd, nargout=0)
-
-        # get some data
-        self.eng.eval("reac_id = cellstr(cnap.reacID).';",
-                      nargout=0, stdout=self.out, stderr=self.err)
-
-        mcs = []
-        values = []
-        reactions = []
-        reac_id = []
-        if self.appdata.is_matlab_set():
-            reac_id = self.eng.workspace['reac_id']
-            try:
-                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
-                              nargout=0)
-            except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
-                return
-            else:
-                self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
-                              stdout=self.out, stderr=self.err)
-                reactions = self.eng.workspace['reaction']
-                mcs = self.eng.workspace['mcs']
-                values = self.eng.workspace['value']
-        elif self.appdata.is_octave_ready():
-            reac_id = self.eng.pull('reac_id')
-            reac_id = reac_id[0].tolist()
-            try:
-                self.eng.eval("[mcs] = cnapy_compute_mcs(cnap, genes, maxSolutions, maxSize, milp_time_limit, gKOs, advanced_on, solver, mcs_search_mode, dg_T,dg_D);",
-                              nargout=0)
-            except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
-                return
-            else:
-                self.eng.eval("[reaction, mcs, value] = find(mcs);", nargout=0,
-                              stdout=self.out, stderr=self.err)
-                reactions = self.eng.pull('reaction')
-                mcs = self.eng.pull('mcs')
-                values = self.eng.pull('value')
-
-        if len(mcs) == 0:
-            QMessageBox.information(self, 'No cut sets',
-                                          'Cut sets have not been calculated or do not exist.')
-        else:
-            last_mcs = 1
-            # omcs = []
-            # print(mcs, type(mcs), type(reac_id))
-            # print(mcs[-1][0])
-            num_mcs = int(mcs[-1][0])
-            omcs = scipy.sparse.lil_matrix((num_mcs, len(reac_id)))
-            # current_mcs = {}
-            for i, reaction in enumerate(reactions):
-                # print(mcs[i][0], reaction[0], values[i][0])
-                omcs[mcs[i][0]-1, reaction[0]-1] = values[i][0]
-            #     reacid = int(reaction[0])
-            #     reaction = reac_id[reacid-1]
-            #     c_mcs = int(mcs[i][0])
-            #     c_value = int(values[i][0])
-            #     if c_value == -1:  # -1 stands for removed which is 0 in the ui
-            #         c_value = -1.0
-            #     if c_mcs > last_mcs:
-            #         omcs.append(current_mcs)
-            #         last_mcs = c_mcs
-            #         current_mcs = {}
-            #     current_mcs[reaction] = c_value
-            # omcs.append(current_mcs)
-            # self.appdata.project.modes = omcs
-            self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
-            self.central_widget.mode_navigator.current = 0
-            QMessageBox.information(self, 'Cut sets found',
-                                          str(num_mcs)+' Cut sets have been calculated.')
-                                        #   str(len(omcs))+' Cut sets have been calculated.')
-
-        self.central_widget.mode_navigator.set_to_mcs()
-        self.central_widget.update_mode()
-
-        self.setCursor(Qt.ArrowCursor)
 
     def compute_optlang(self):
         max_mcs_num = float(self.max_solu.text())
@@ -659,7 +430,6 @@ class MCSDialog(QDialog):
         for i,m in enumerate(mcs):
             for j in m:
                 omcs[i, j] = -1.0
-        # self.appdata.project.modes = omcs
         self.appdata.project.modes = FluxVectorContainer(omcs, reac_id=reac_id)
         self.central_widget.mode_navigator.current = 0
         QMessageBox.information(self, 'Cut sets found',

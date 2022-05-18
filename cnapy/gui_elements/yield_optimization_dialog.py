@@ -21,8 +21,7 @@ class YieldOptimizationDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
-        self.eng = appdata.engine
-        
+
         numr = len(self.appdata.project.cobra_py_model.reactions)
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         if numr > 2:
@@ -67,7 +66,7 @@ class YieldOptimizationDialog(QDialog):
         # close_bracket.setFont(font)
         # editor_layout.addWidget(close_bracket)
         self.layout.addItem(editor_layout)
-        
+
         l3 = QHBoxLayout()
         self.button = QPushButton("Compute")
         self.cancel = QPushButton("Close")

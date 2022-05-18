@@ -9,7 +9,6 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.appdata import AppData
-import cnapy.legacy as legacy
 from cnapy.flux_vector_container import FluxVectorContainer
 import cnapy.utils as utils
 
@@ -23,7 +22,6 @@ class EFMDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
-        self.eng = appdata.engine
         self.out = io.StringIO()
         self.err = io.StringIO()
 
@@ -97,7 +95,6 @@ class EFMDialog(QDialog):
 
         # create CobraModel for matlab
         self.appdata.create_cobra_model()
-        legacy.read_cnapy_model(self.eng)
 
         # get some data
         reac_id = self.eng.get_reacID()
@@ -204,47 +201,6 @@ class EFMDialog(QDialog):
             a = self.eng.eval("efmtool_options = {};",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        if self.appdata.is_matlab_set():
-            try:
-                a = self.eng.eval(
-                    "[ems, irrev_ems, ems_idx, ray] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
-
-            except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
-
-                return
-            else:
-                ems = self.eng.workspace['ems']
-                idx = self.eng.workspace['ems_idx']
-                irreversible = numpy.squeeze(self.eng.workspace['irrev_ems'])
-                unbounded = numpy.squeeze(self.eng.workspace['ray'])
-                ems = numpy.array(ems)
-                self.result2ui(ems, idx, reac_id, irreversible,
-                               unbounded, scenario)
-                self.accept()
-        elif self.appdata.is_octave_ready():
-            try:
-                a = self.eng.eval(
-                    "[ems, irrev_ems, ems_idx, ray] = CNAcomputeEFM(cnap, constraints,solver,irrev_flag,conv_basis_flag,iso_flag,c_macro,display,efmtool_options);", nargout=0)
-            except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
-                return
-            else:
-                ems = self.eng.pull('ems')
-                idx = self.eng.pull('ems_idx')
-                irreversible = numpy.squeeze(self.eng.pull('irrev_ems'))
-                unbounded = numpy.squeeze(self.eng.pull('ray'))
-                self.result2ui(ems, idx, reac_id, irreversible,
-                               unbounded, scenario)
-                self.accept()
 
     def result2ui(self, ems, idx, reac_id, irreversible, unbounded, scenario):
         if len(ems) == 0:

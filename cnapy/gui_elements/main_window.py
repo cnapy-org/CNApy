@@ -33,14 +33,13 @@ from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
-from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
+from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
-# from cnapy.legacy import try_cna
 import cnapy.utils as utils
 
 
@@ -295,17 +294,17 @@ class MainWindow(QMainWindow):
         load_mcs_action = QAction("Load Minimal Cut Sets ...", self)
         self.sd_menu.addAction(load_mcs_action)
         load_mcs_action.triggered.connect(self.load_mcs)
-           
+
         self.sd_action = QAction("Compute Strain Designs ...", self)
         self.sd_action.triggered.connect(self.strain_design)
         self.sd_menu.addAction(self.sd_action)
         self.sd_dialog = None
         self.sd_sols = None
-        
+
         load_sd_action = QAction("Load Strain Designs ...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
-        
+
         self.flux_optimization_action = QAction(
             "Flux optimization ...", self)
         self.flux_optimization_action.triggered.connect(self.optimize_flux)
@@ -471,16 +470,7 @@ class MainWindow(QMainWindow):
             self.setWindowTitle("CNApy - " + shown_name)
 
     def disable_enable_dependent_actions(self):
-
         self.efm_action.setEnabled(False)
-
-        if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
-            if self.appdata.cna_ok:
-                self.efm_action.setEnabled(True)
-
-        elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
-            if self.appdata.cna_ok:
-                self.efm_action.setEnabled(True)
 
     @Slot()
     def exit_app(self):
@@ -503,22 +493,22 @@ class MainWindow(QMainWindow):
     def show_about(self):
         dialog = AboutDialog(self.appdata)
         dialog.exec_()
-        
+
     @Slot()
     def plot_space(self):
         self.plot_space = PlotSpaceDialog(self.appdata)
         self.plot_space.show()
-    
+
     # Strain design computation and viewing functions
     def strain_design(self):
         self.sd_dialog = SDDialog(self.appdata)
         self.sd_dialog.show()
-    
+
     @Slot(str)
     def strain_design_with_setup(self, sd_setup):
         self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
         self.sd_dialog.show()
-        
+
     @Slot(str)
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
@@ -532,13 +522,13 @@ class MainWindow(QMainWindow):
         # self.sd_viewer.exec()
         self.sd_viewer.show()
         self.sd_computation.start()
-        
+
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)
         self.sd_sols.show()
         self.centralWidget().update_mode()
-        
+
     @Slot()
     def load_strain_designs(self):
         dialog = QFileDialog(self)
@@ -549,12 +539,12 @@ class MainWindow(QMainWindow):
         with open(filename,'rb') as f:
             solutions = f.read()
         self.show_strain_designs(solutions)
-        
+
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
-        
+
     @Slot()
     def optimize_flux(self):
         dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
@@ -564,13 +554,6 @@ class MainWindow(QMainWindow):
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
-
-    # @Slot()
-    # def show_config_cna_dialog(self):
-    #     self.setCursor(Qt.BusyCursor)
-    #     dialog = ConfigCNADialog(self.appdata)
-    #     self.setCursor(Qt.ArrowCursor)
-    #     dialog.exec_()
 
     def show_download_dialog(self):
         dialog = DownloadDialog(self.appdata)
@@ -1110,7 +1093,7 @@ class MainWindow(QMainWindow):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
-        # remove unused species - > cleanup disabled for now because of issues 
+        # remove unused species - > cleanup disabled for now because of issues
         # with prune_unused_metabolites
         # (clean_model, unused_mets) = prune_unused_metabolites(
         #     self.appdata.project.cobra_py_model)
@@ -1547,7 +1530,7 @@ class MainWindow(QMainWindow):
             try:
                 solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
                     results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
-                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None, 
+                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None,
                     print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
