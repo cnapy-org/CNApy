@@ -7,7 +7,6 @@ from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
 
 
-import cnapy.resources
 from cnapy.flux_vector_container import FluxVectorContainer
 
 
@@ -112,7 +111,7 @@ class ModeNavigator(QWidget):
         if not filename or len(filename) == 0:
             return
         self.appdata.project.modes.save(filename)
-            
+
     def save_sd(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -148,7 +147,7 @@ class ModeNavigator(QWidget):
         self.clear_button.setToolTip("clear modes")
         self.select_all()
         self.update_completion_list()
-        
+
     def set_to_strain_design(self):
         self.mode_type = 2
         self.title.setText("Strain Design Navigation")
@@ -251,13 +250,13 @@ class ModeNavigator(QWidget):
             if must_occur is not None:
                 for r in must_occur:
                     for i, selected in enumerate(self.selection):
-                        s = self.appdata.project.modes[i] 
+                        s = self.appdata.project.modes[i]
                         if selected and r not in s or numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
                             self.selection[i] = False
             if must_not_occur is not None:
                 for r in must_not_occur:
                     for i, selected in enumerate(self.selection):
-                        s = self.appdata.project.modes[i] 
+                        s = self.appdata.project.modes[i]
                         if selected and r in s and not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
                             self.selection[i] = False
             if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
@@ -288,7 +287,7 @@ class ModeNavigator(QWidget):
 
     def __del__(self):
         self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
-    
+
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()
 

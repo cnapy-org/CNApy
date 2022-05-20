@@ -2,9 +2,8 @@
 
 import cobra
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
-                            QLineEdit, QMenu, QMessageBox, QPushButton,
-                            QSplitter, QTableWidget, QTableWidgetItem,
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
+                            QLineEdit, QMenu, QMessageBox, QSplitter,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 PSB & ST
+# Copyright 2022 CNApy organization
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 """The Application class"""
 import configparser
 import io
-import os
 import sys
 import traceback
 from configparser import NoOptionError, NoSectionError
@@ -25,7 +24,7 @@ from pathlib import Path
 import cobra
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QApplication, QMessageBox
+from qtpy.QtWidgets import QApplication
 
 # ensuring compatibility with high resolution displays
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
@@ -41,7 +40,6 @@ def excepthook(cls, exception, tb):
     output = io.StringIO()
     traceback.print_exception(cls, exception, tb, file=output)
     traceback.print_tb(tb, file=output)
-    # exstr = output.getvalue()
     exstr = ''.join(traceback.format_exception(None, exception, exception.__traceback__))
     utils.show_unknown_error_box(exstr)
     excepthook2(cls, exception, tb)

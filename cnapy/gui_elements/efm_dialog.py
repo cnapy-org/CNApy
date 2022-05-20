@@ -1,7 +1,5 @@
 """The cnapy elementary flux modes calculator dialog"""
 import io
-import traceback
-import numpy
 
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QIntValidator
@@ -10,7 +8,6 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QGroupBox, QHBoxLayout, QLabel,
 
 from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
-import cnapy.utils as utils
 
 
 class EFMDialog(QDialog):
