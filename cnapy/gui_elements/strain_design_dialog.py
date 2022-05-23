@@ -27,8 +27,8 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
 from cnapy.appdata import AppData
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
 
-PROTECT_STR = 'Protect'
-SUPPRESS_STR = 'Suppress'
+PROTECT_STR = 'Protect (MCS)'
+SUPPRESS_STR = 'Suppress (MCS)'
 OPTKNOCK_STR = 'OptKnock'
 ROBUSTKNOCK_STR = 'RobustKnock'
 OPTCOUPLE_STR = 'OptCouple'
