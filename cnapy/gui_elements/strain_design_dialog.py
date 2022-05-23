@@ -113,13 +113,13 @@ class SDDialog(QDialog):
         modules_layout.addItem(module_add_rem_buttons)
         
         # modules list
-        self.module_list.setFixedWidth(190)
+        self.module_list.setFixedWidth(195)
         self.module_list.setHorizontalHeaderLabels(["Module Type",""])
         # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         # self.module_list.verticalHeader().setVisible(False)
         self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.module_list.horizontalHeader().resizeSection(0, 110)
+        self.module_list.horizontalHeader().resizeSection(0, 115)
         self.module_list.horizontalHeader().resizeSection(1, 60)
         # -> first entry in module list
         # self.modules = [None]
