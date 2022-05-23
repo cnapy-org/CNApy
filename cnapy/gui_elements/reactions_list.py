@@ -46,10 +46,11 @@ class ReactionListItem(QTreeWidgetItem):
         # although QTreeWidgetItem is constructed with the reaction_list as parent this
         # will not be its parent() which is None because it is a top-level item
         QTreeWidgetItem.__init__(self, parent)
-        self.reaction = reaction
+        self.reaction: cobra.Reaction = reaction
         self.flux_sort_val = -float('inf')
         self.lb_val = -float('inf')
         self.ub_val = float('inf')
+        self.pin_at_top = False
 
     def set_flux_data(self, text, value):
         self.setText(ReactionListColumn.Flux, text)
@@ -66,6 +67,11 @@ class ReactionListItem(QTreeWidgetItem):
 
     def __lt__(self, other):
         """ overrides QTreeWidgetItem::operator< """
+        if self.pin_at_top != other.pin_at_top:
+            if self.treeWidget().header().sortIndicatorOrder() == Qt.DescendingOrder:
+                return self.pin_at_top < other.pin_at_top
+            else:
+                return other.pin_at_top < self.pin_at_top
         column = self.treeWidget().sortColumn()
         if column == ReactionListColumn.Flux:
             return self.flux_sort_val < other.flux_sort_val
@@ -156,8 +162,8 @@ class ReactionList(QWidget):
         self.reaction_list.clearSelection()
         item = ReactionListItem(reaction, self.reaction_list)
         item.setFlags(item.flags() | Qt.ItemIsEditable)
-        item.setText(0, reaction.id)
-        item.setText(1, reaction.name)
+        item.setText(ReactionListColumn.Id, reaction.id)
+        item.setText(ReactionListColumn.Name, reaction.name)
         text = "Id: " + reaction.id + "\nName: " + reaction.name \
             + "\nEquation: " + reaction.build_reaction_string()\
             + "\nLowerbound: " + str(reaction.lower_bound) \
@@ -330,9 +336,9 @@ class ReactionList(QWidget):
         for i in range(child_count):
             item = root.child(i)
             if item.reaction == reaction:
-                old_id = item.text(0)
-                item.setText(0, reaction.id)
-                item.setText(1, reaction.name)
+                old_id = item.text(ReactionListColumn.Id)
+                item.setText(ReactionListColumn.Id, reaction.id)
+                item.setText(ReactionListColumn.Name, reaction.name)
                 break
 
         self.last_selected = self.reaction_mask.id.text()
@@ -436,6 +442,10 @@ class ReactionList(QWidget):
         item: ReactionListItem = self.reaction_list.currentItem()
         if item:
             menu = QMenu(self.reaction_list)
+            pin_action = menu.addAction("pin at top of list")
+            pin_action.setCheckable(True)
+            pin_action.setChecked(item.pin_at_top)
+            pin_action.triggered.connect(self.change_pinned)
             maximize_action = menu.addAction("maximize flux for this reaction")
             maximize_action.triggered.connect(self.maximize_reaction)
             minimize_action = menu.addAction("minimize flux for this reaction")
@@ -443,6 +453,12 @@ class ReactionList(QWidget):
             set_scen_value_action = menu.addAction("add computed value to scenario")
             set_scen_value_action.triggered.connect(self.set_scen_value_action)
             menu.exec_(self.reaction_list.mapToGlobal(position))
+
+    @Slot(bool)
+    def change_pinned(self, checked: bool):
+        self.reaction_list.currentItem().pin_at_top = checked
+        if checked:
+            self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.header().sortIndicatorOrder())
 
     @Slot()
     def maximize_reaction(self):
