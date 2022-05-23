@@ -159,7 +159,7 @@ class PlotSpaceDialog(QDialog):
                     axes[2] = (self.z_numerator.text(),self.z_denominator.text())
                 else:
                     axes[2] = (self.z_numerator.text())
-            plot_flux_space(model,axes,points=int(self.numpoints.text()))
+            plot_flux_space(model,axes,points=int(self.numpoints.text()),plt_backend='Qt5Agg')
             
         self.appdata.window.centralWidget().show_bottom_of_console()
         self.setCursor(Qt.ArrowCursor)
