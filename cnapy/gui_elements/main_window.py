@@ -13,11 +13,9 @@ from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
 
-# from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
+from qtpy.QtGui import QColor, QIcon, QKeySequence
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
 
 from cnapy.appdata import AppData, ProjectData
@@ -25,10 +23,8 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
-# from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
-# from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView

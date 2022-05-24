@@ -12,7 +12,6 @@ from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
-import cnapy.resources
 from cnapy.appdata import AppData
 
 

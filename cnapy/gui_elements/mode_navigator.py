@@ -101,9 +101,6 @@ class ModeNavigator(QWidget):
             return
         self.appdata.project.modes.save(filename)
 
-        # with open(filename, 'w') as fp:
-        #     json.dump(self.appdata.project.modes, fp)
-
     def save_efm(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -320,12 +317,10 @@ class CustomCompleter(QCompleter):
     def pathFromIndex(self, index): # overrides Qcompleter method
         path = QCompleter.pathFromIndex(self, index)
         lst = str(self.widget().text()).split(',')
-        # print("pathFromIndex", lst)
         if len(lst) > 1:
             path = '%s, %s' % (','.join(lst[:-1]), path)
         return path
 
     def splitPath(self, path): # overrides Qcompleter method
         path = str(path.split(',')[-1]).lstrip(' ')
-        # print("splitPath", path)
         return [path]

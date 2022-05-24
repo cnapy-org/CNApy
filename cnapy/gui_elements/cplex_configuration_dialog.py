@@ -2,9 +2,8 @@
 import os
 import subprocess
 
-from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
 from qtpy.QtWidgets import (QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QMessageBox, QPushButton,
+                            QLabel, QMessageBox, QPushButton,
                             QVBoxLayout)
 from cnapy.appdata import AppData
 
