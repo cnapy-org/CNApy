@@ -40,6 +40,7 @@ from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
+from cnapy.gui_elements.cplex_configuration_dialog import CplexConfigurationDialog
 import cnapy.utils as utils
 
 
@@ -353,9 +354,10 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
-        # config_action = QAction("Configure CNA bridge ...", self)
-        # self.config_menu.addAction(config_action)
-        # config_action.triggered.connect(self.show_config_cna_dialog)
+
+        config_action = QAction("Configure IBM CPLEX Full Version...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_cplex_configuration_dialog)
 
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
@@ -565,6 +567,11 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+        dialog.exec_()
+
+    @Slot()
+    def show_cplex_configuration_dialog(self):
+        dialog = CplexConfigurationDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
