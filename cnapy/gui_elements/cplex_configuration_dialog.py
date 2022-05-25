@@ -112,8 +112,8 @@ class CplexConfigurationDialog(QDialog):
                     "The script is going to run as you press 'OK'.\nPlease wait for an error or success message which appears\nafter the script running has finished."
                 )
                 has_run_error = subprocess.check_call(
-                    "python " + self.cplex_directory.text() + "python/setup.py install"
-                )
+                    'python "' + self.cplex_directory.text() + '" python/setup.py install'
+                )  # The " are introduces in order to handle paths with blank spaces
             except subprocess.CalledProcessError:
                 has_run_error = True
             if has_run_error:
