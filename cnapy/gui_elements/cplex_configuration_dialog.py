@@ -1,6 +1,8 @@
 """The CPLEX configuration dialog"""
 import os
 import subprocess
+import sys
+import platform
 
 from qtpy.QtWidgets import (QDialog, QFileDialog,
                             QLabel, QMessageBox, QPushButton,
@@ -53,18 +55,19 @@ class CplexConfigurationDialog(QDialog):
         self.layout.addWidget(self.environmental_variable_label)
 
         label = QLabel(
-            "...In order the set this environmental variable, you have to know which operating system runs on your computer.\n"
-            "It might me e.g. Linux, Windows or MacOS. After you've found this out, perform one of the following steps:\n"
-            "> Only if you use Windows: Press START in your task bar and open the settings (wheel). In the settings menu, write 'variable' in the search bar.\n"
+            "...In order the set this environmental variable, you have to look in the next line which operating system you use:\n"
+            f"{platform.system()}\n"
+            "Depending on what is said in the previous line, you have to do the following in order to set the environmental variable:\n"
+            "> Only if you use Windows: Press Start (the Windows logo) in your task bar and open the settings (the wheel logo). In the settings menu, write 'variable' in the search bar.\n"
             "Select 'edit environmental variables for this account' (or similar) and, in the newly opened window, click the 'New' button. Write 'PYTHONPATH' as the\n"
             "variable's name and write, as a value, the path given above in this step 5. Then, click 'OK' and again 'OK'.\n"
-            "> Only if you use Linux or MacOS: In your console, run 'export PYTHONPATH=PATH' (without the quotation marks) where PATH has to be the path\n"
+            "> Only if you use Linux or MacOS (MacOS is also called Darwin): In your console, run 'export PYTHONPATH=PATH' (without the quotation marks) where PATH has to be the path\n"
             "given under this step 5 above."
         )
         self.layout.addWidget(label)
 
         label = QLabel(
-            "6. After you've finished all tasks, restart your computer and IBM CPLEX should be correctly configured for CNApy!"
+            "6. After you've finished all previous tasks 1 to 5, restart your computer and IBM CPLEX should be correctly configured for CNApy!"
         )
         self.layout.addWidget(label)
 
@@ -111,8 +114,9 @@ class CplexConfigurationDialog(QDialog):
                     "Running",
                     "The script is going to run as you press 'OK'.\nPlease wait for an error or success message which appears\nafter the script running has finished."
                 )
+                current_python_exe = sys.executable
                 has_run_error = subprocess.check_call(
-                    'python "' + self.cplex_directory.text() + 'python/setup.py" install'
+                    f'{current_python_exe} "{self.cplex_directory.text()}python/setup.py" install'
                 )  # The " are introduces in order to handle paths with blank spaces
             except subprocess.CalledProcessError:
                 has_run_error = True
@@ -122,7 +126,9 @@ class CplexConfigurationDialog(QDialog):
                     "Run Error",
                     "ERROR: IBM CPLEX's setup.py run failed! "
                     "Please check that you use a recent IBM CPLEX version. CNApy isn't compatible with older IBM CPLEX versions.\n"
-                    "Additionally, please check that you have followed the previous steps 1 to 3."
+                    "Additionally, please check that you have followed the previous steps 1 to 3.\n"
+                    "If this error keeps going even though you've checked the previous error,\n"
+                    "try to run CNApy with administrator rights."
                 )
             else:
                 QMessageBox.information(
@@ -144,5 +150,8 @@ class CplexConfigurationDialog(QDialog):
         else:
             folders_str = ""
         folders_str += "\n".join(folders_list)
+
+        if platform.system() == "Windows":
+            folders_str = folders_str.replace("/", "\\")
 
         self.environmental_variable_label.setText(folders_str)
