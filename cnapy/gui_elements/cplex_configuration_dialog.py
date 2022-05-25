@@ -114,9 +114,13 @@ class CplexConfigurationDialog(QDialog):
                     "Running",
                     "The script is going to run as you press 'OK'.\nPlease wait for an error or success message which appears\nafter the script running has finished."
                 )
-                current_python_exe = sys.executable
+                python_exe_path = sys.executable
+                python_dir = os.path.dirname(python_exe_path)
+                python_exe_name = os.path.split(python_exe_path)[-1]
+                command = f'cd {python_dir} && {python_exe_name} "{self.cplex_directory.text()}python/setup.py" install'
                 has_run_error = subprocess.check_call(
-                    f'{current_python_exe} "{self.cplex_directory.text()}python/setup.py" install'
+                    command,
+                    shell=True
                 )  # The " are introduces in order to handle paths with blank spaces
             except subprocess.CalledProcessError:
                 has_run_error = True
