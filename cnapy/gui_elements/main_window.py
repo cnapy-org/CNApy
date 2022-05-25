@@ -12,6 +12,7 @@ from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
+import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -50,11 +51,11 @@ class MainWindow(QMainWindow):
 
         # self.heaton_action and self.onoff_action need to be defined before CentralWidget
         self.heaton_action = QAction("Heatmap coloring", self)
-        self.heaton_action.setIcon(QIcon("./cnapy/data/heat.png"))
+        self.heaton_action.setIcon(QIcon(":/icons/heat.png"))
         self.heaton_action.triggered.connect(self.set_heaton)
 
         self.onoff_action = QAction("On/Off coloring", self)
-        self.onoff_action.setIcon(QIcon("./cnapy/data/onoff.png"))
+        self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         self.onoff_action.triggered.connect(self.set_onoff)
 
         central_widget = CentralWidget(self)
@@ -102,7 +103,7 @@ class MainWindow(QMainWindow):
 
         load_default_scenario_action = QAction("Apply default scenario", self)
         self.scenario_menu.addAction(load_default_scenario_action)
-        load_default_scenario_action.setIcon(QIcon("./cnapy/data/d-font.png"))
+        load_default_scenario_action.setIcon(QIcon(":/icons/d-font.png"))
         load_default_scenario_action.triggered.connect(
             self.load_default_scenario)
 
@@ -123,17 +124,17 @@ class MainWindow(QMainWindow):
         clear_scenario_action.triggered.connect(self.clear_scenario)
 
         clear_all_action = QAction("Clear all", self)
-        clear_all_action.setIcon(QIcon("./cnapy/data/clear.png"))
+        clear_all_action.setIcon(QIcon(":/icons/clear.png"))
         self.scenario_menu.addAction(clear_all_action)
         clear_all_action.triggered.connect(self.clear_all)
 
         undo_scenario_action = QAction("Undo scenario edit", self)
-        undo_scenario_action.setIcon(QIcon("./cnapy/data/undo.png"))
+        undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
         self.scenario_menu.addAction(undo_scenario_action)
         undo_scenario_action.triggered.connect(self.undo_scenario_edit)
 
         redo_scenario_action = QAction("Redo scenario edit", self)
-        redo_scenario_action.setIcon(QIcon("./cnapy/data/redo.png"))
+        redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
         self.scenario_menu.addAction(redo_scenario_action)
         redo_scenario_action.triggered.connect(self.redo_scenario_edit)
 
@@ -162,7 +163,7 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addSeparator()
 
         update_action = QAction("Default Coloring", self)
-        update_action.setIcon(QIcon("./cnapy/data/default-color.png"))
+        update_action.setIcon(QIcon(":/icons/default-color.png"))
         update_action.triggered.connect(central_widget.update)
 
         self.scenario_menu.addAction(self.heaton_action)
@@ -372,11 +373,11 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
         zoom_in_action = QAction("Zoom in Map", self)
-        zoom_in_action.setIcon(QIcon("./cnapy/data/zoom-in.png"))
+        zoom_in_action.setIcon(QIcon(":/icons/zoom-in.png"))
         zoom_in_action.triggered.connect(self.zoom_in)
 
         zoom_out_action = QAction("Zoom out Map", self)
-        zoom_out_action.setIcon(QIcon("./cnapy/data/zoom-out.png"))
+        zoom_out_action.setIcon(QIcon(":/icons/zoom-out.png"))
         zoom_out_action.triggered.connect(self.zoom_out)
 
         self.set_current_filename("Untitled project")
