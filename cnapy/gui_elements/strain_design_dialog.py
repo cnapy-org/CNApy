@@ -2,18 +2,13 @@
 
 from contextlib import redirect_stdout, redirect_stderr
 import io
-from mimetypes import guess_all_extensions
 import json
 import os
-from threading import currentThread
-from scipy import sparse
-from numpy import nan, sign, inf
 from typing import Dict
-from multiprocessing import Lock, Queue
 import pickle
 import traceback
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
-                                    lineq2list, linexpr2dict, select_solver
+                                    linexpr2dict, select_solver
 from straindesign.names import *
 from straindesign.strainDesignSolution import SDSolution
 from random import randint
@@ -21,11 +16,12 @@ from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot, Signal, QThread
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
-                            QLabel, QLineEdit, QMessageBox, QPushButton,
+                            QLabel, QLineEdit, QMessageBox, QPushButton, QApplication,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog, QTextEdit, QLayout)
+                            QWidget, QFileDialog, QTextEdit, QLayout, QScrollArea)
 from cnapy.appdata import AppData
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
+import logging
 
 PROTECT_STR = 'Protect (MCS)'
 SUPPRESS_STR = 'Suppress (MCS)'
@@ -59,6 +55,9 @@ class SDDialog(QDialog):
         self.out = io.StringIO()
         self.err = io.StringIO()
         self.setMinimumWidth(620)
+        screen_geometry = QApplication.desktop().screen().geometry()
+        self.setMaximumWidth(screen_geometry.width()-10)
+        self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         
@@ -100,11 +99,13 @@ class SDDialog(QDialog):
         ## Upper box of the dialog (for defining modules)
         self.modules = []
         self.current_module = 0
+        self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
-        
+                
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
         self.module_list = QTableWidget(0, 2)
@@ -489,7 +490,7 @@ class SDDialog(QDialog):
         self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
         self.reaction_itv_list.setFixedWidth(220)
-        self.reaction_itv_list.setMinimumHeight(150)
+        self.reaction_itv_list.setMinimumHeight(50)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -563,7 +564,7 @@ class SDDialog(QDialog):
         self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
         self.gene_itv_list.verticalHeader().setVisible(False)
         self.gene_itv_list.setFixedWidth(220)
-        self.gene_itv_list.setMinimumHeight(150)
+        self.gene_itv_list.setMinimumHeight(50)
         self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -646,7 +647,9 @@ class SDDialog(QDialog):
 
         # Finalize
         self.setLayout(self.layout)
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         # Connecting signals
         try:
             self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
@@ -1065,7 +1068,9 @@ class SDDialog(QDialog):
         else:
             self.regulatory_box.setHidden(True)
             self.ko_ki_box.setHidden(True)
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
     
     def ko_ki_filter_text_changed(self):
         self.setCursor(Qt.BusyCursor)
@@ -1413,7 +1418,7 @@ class SDComputationViewer(QDialog):
 
     @Slot(str)
     def receive_progress_text(self,txt):
-        self.textbox.append(txt)
+        self.textbox.append(txt.strip("\n\t\r "))
         self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
 
     @Slot()
@@ -1455,9 +1460,13 @@ class SDComputationThread(QThread):
 
     def run(self):
         try:
-            self.curr_threadID = self.currentThread()
             with redirect_stdout(self), redirect_stderr(self):
                 self.curr_threadID = self.currentThread()
+                logger = logging.getLogger()
+                handler = logging.StreamHandler(stream=self)
+                handler.setFormatter(logging.Formatter('%(message)s'))
+                logger.addHandler(handler)
+                logger.setLevel('DEBUG')
                 sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
                 self.finished_computation.emit(pickle.dumps(sd_solutions))
         except Exception as e:
@@ -1469,7 +1478,7 @@ class SDComputationThread(QThread):
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
-            if input and (input != "\n"):
+            if input and (input != "\n") and (input != "\r") and (input != "\n\r"):
                 self.output_connector.emit(input)
             
     def flush(self):
