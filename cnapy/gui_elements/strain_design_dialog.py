@@ -295,7 +295,7 @@ class SDDialog(QDialog):
         checkboxes_layout.addItem(max_solutions_layout)
         
         max_cost_layout = QHBoxLayout()
-        l = QLabel(" Max. Size")
+        l = QLabel(" Max. Cost")
         self.max_cost = QLineEdit("7")
         self.max_cost.setMaximumWidth(50)
         max_cost_layout.addWidget(self.max_cost)
@@ -1400,10 +1400,14 @@ class SDComputationViewer(QDialog):
         self.explore.clicked.connect(self.show_sd)
         self.explore.setMaximumWidth(200)
         self.explore.setEnabled(False)
+        edit = QPushButton("Edit strain design setup")
+        edit.clicked.connect(self.open_strain_design_dialog)
+        edit.setMaximumWidth(200)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
         cancel.clicked.connect(self.cancel)
         buttons_layout.addWidget(self.explore)
+        buttons_layout.addWidget(edit)
         buttons_layout.addWidget(cancel)
         self.layout.addItem(buttons_layout)
 
@@ -1414,11 +1418,8 @@ class SDComputationViewer(QDialog):
     def conclude_computation(self,results):
         self.solutions = pickle.loads(results)
         self.setCursor(Qt.ArrowCursor)
-        if self.solutions.get_num_sols() == 0:
-            self.explore.setText('Edit strain design setup')
-            self.explore.clicked.disconnect()
-            self.explore.clicked.connect(self.open_strain_design_dialog)
-        self.explore.setEnabled(True)
+        if self.solutions.get_num_sols() > 0:
+            self.explore.setEnabled(True)
 
     @Slot(str)
     def receive_progress_text(self,txt):
@@ -1429,6 +1430,7 @@ class SDComputationViewer(QDialog):
 
     @Slot()
     def open_strain_design_dialog(self):
+        self.cancel_computation.emit()
         self.appdata.window.strain_design_with_setup(self.sd_setup)
         self.deleteLater()
         self.accept()
@@ -1439,10 +1441,12 @@ class SDComputationViewer(QDialog):
         self.accept()
     
     def cancel(self):
+        self.cancel_computation.emit()
         self.deleteLater()
         self.reject()
         
     show_sd_signal = Signal(bytes)
+    cancel_computation = Signal()
 
 class SDComputationThread(QThread):
     def __init__(self, appdata, sd_setup):
@@ -1451,7 +1455,6 @@ class SDComputationThread(QThread):
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
         self.curr_threadID = self.currentThread()
-        self.finished.connect(self.deleteLater)
         if self.sd_setup.pop('use_scenario'):
             for r in appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
@@ -1472,7 +1475,7 @@ class SDComputationThread(QThread):
                 handler = logging.StreamHandler(stream=self)
                 handler.setFormatter(logging.Formatter('%(message)s'))
                 logger.addHandler(handler)
-                logger.setLevel('DEBUG')
+                logger.setLevel('INFO')
                 sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
                 self.finished_computation.emit(pickle.dumps(sd_solutions))
         except Exception as e:
@@ -1484,7 +1487,10 @@ class SDComputationThread(QThread):
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
-            self.output_connector.emit(input)
+            if isinstance(input,str):
+                self.output_connector.emit(input)
+            else:
+                self.output_connector.emit(str(input))
             
     def flush(self):
         pass
@@ -1493,7 +1499,7 @@ class SDComputationThread(QThread):
     # all Qt widgets must run on the main thread and their methods cannot be safely called 
     # from other threads
     output_connector = Signal(str)
-    finished_computation = Signal(bytes)       
+    finished_computation = Signal(bytes)
 
 class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
