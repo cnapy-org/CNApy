@@ -56,8 +56,8 @@ class SDDialog(QDialog):
         self.err = io.StringIO()
         self.setMinimumWidth(620)
         screen_geometry = QApplication.desktop().screen().geometry()
-        self.setMaximumWidth(screen_geometry.width()-10)
-        self.setMaximumHeight(screen_geometry.height()-50)
+        # self.setMaximumWidth(screen_geometry.width()-10)
+        # self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         
@@ -101,7 +101,7 @@ class SDDialog(QDialog):
         self.current_module = 0
         self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        # self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
@@ -115,6 +115,7 @@ class SDDialog(QDialog):
         
         # modules list
         self.module_list.setFixedWidth(195)
+        self.module_list.setMinimumHeight(40)
         self.module_list.setHorizontalHeaderLabels(["Module Type",""])
         # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         # self.module_list.verticalHeader().setVisible(False)
@@ -213,7 +214,8 @@ class SDDialog(QDialog):
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
         self.module_edit[CONSTRAINTS].setMaximumHeight(80)
-        self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(25)
+        self.module_edit[CONSTRAINTS].setMinimumHeight(40)
+        self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(18)
         self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.module_edit[CONSTRAINTS].horizontalHeader().setVisible(False)
@@ -426,7 +428,7 @@ class SDDialog(QDialog):
         
         self.regulatory_layout_table = QHBoxLayout()
         self.regulatory_itv_list = QTableWidget(0, 2)
-        self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(25)
+        self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.regulatory_itv_list.verticalHeader().setVisible(False)
         # self.regulatory_itv_list.horizontalHeader().setVisible(False)
         self.regulatory_itv_list.setHorizontalHeaderLabels(["Regulatory constraint","Cost"])
@@ -486,11 +488,12 @@ class SDDialog(QDialog):
         self.reaction_itv_list_widget = QWidget()
         self.reaction_itv_list_widget.setFixedWidth(270)
         self.reaction_itv_list = QTableCopyable(0, 3)
-        self.reaction_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.reaction_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
         self.reaction_itv_list.setFixedWidth(220)
         self.reaction_itv_list.setMinimumHeight(50)
+        self.reaction_itv_list.setMaximumHeight(150)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -561,7 +564,7 @@ class SDDialog(QDialog):
         # self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
         # self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
         # self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
-        self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.gene_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.gene_itv_list.verticalHeader().setVisible(False)
         self.gene_itv_list.setFixedWidth(220)
         self.gene_itv_list.setMinimumHeight(50)
@@ -1507,7 +1510,7 @@ class SDViewer(QDialog):
             self.sd_table = QTableCopyable(0, 3)
         else:
             self.sd_table = QTableCopyable(0, 2)
-        self.sd_table.verticalHeader().setDefaultSectionSize(20)
+        self.sd_table.verticalHeader().setDefaultSectionSize(18)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
         
