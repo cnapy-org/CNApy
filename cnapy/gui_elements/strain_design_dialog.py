@@ -262,6 +262,7 @@ class SDDialog(QDialog):
         self.global_objective = QLabel("Please add strain design module(s) ...")
         self.global_objective.setProperty("prefix", "Current global objective: ")
         self.global_objective.setWordWrap(True)
+        self.global_objective.setMaximumHeight(40)
         self.layout.addWidget(self.global_objective)
         
         # self.layout.addWidget(self.modules_box)
@@ -492,7 +493,7 @@ class SDDialog(QDialog):
         self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
         self.reaction_itv_list.setFixedWidth(220)
-        self.reaction_itv_list.setMinimumHeight(50)
+        self.reaction_itv_list.setMinimumHeight(35)
         self.reaction_itv_list.setMaximumHeight(150)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
