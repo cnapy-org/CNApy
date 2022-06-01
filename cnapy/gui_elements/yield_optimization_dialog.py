@@ -60,11 +60,6 @@ class YieldOptimizationDialog(QDialog):
         num_den_layout.addWidget(sep)
         num_den_layout.addWidget(self.denominator)
         editor_layout.addItem(num_den_layout)
-        # close_bracket = QLabel(')')
-        # font = close_bracket.font()
-        # font.setPointSize(30)
-        # close_bracket.setFont(font)
-        # editor_layout.addWidget(close_bracket)
         self.layout.addItem(editor_layout)
 
         l3 = QHBoxLayout()

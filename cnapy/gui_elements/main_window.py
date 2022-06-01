@@ -269,10 +269,6 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        # self.efm_action = QAction(
-        #     "Compute Elementary Flux Modes/Vectors via CNA ...", self)
-        # self.efm_action.triggered.connect(self.efm)
-        # self.efm_menu.addAction(self.efm_action)
 
         self.efmtool_action = QAction(
             "Compute Elementary Flux Modes via EFMtool ...", self)
@@ -671,17 +667,9 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.modes = FluxVectorContainer(filename)
         self.centralWidget().mode_navigator.current = 0
-        # values = self.appdata.project.modes[0]
-        # self.appdata.project.scen_values.clear()
-        # self.appdata.project.comp_values.clear()
-        # for i in values:
-        #     self.appdata.project.comp_values[i] = (values[i], values[i])
 
         self.centralWidget().mode_navigator.set_to_efm()
         self.centralWidget().update_mode()
-        # self.appdata.modes_coloring = True
-        # self.centralWidget().update()
-        # self.appdata.modes_coloring = False
 
     @Slot()
     def load_mcs(self):
@@ -695,24 +683,6 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.current = 0
         self.centralWidget().mode_navigator.set_to_mcs()
         self.centralWidget().update_mode()
-        # dialog = QFileDialog(self)
-        # filename: str = dialog.getOpenFileName(
-        #     directory=self.appdata.work_directory, filter="*.mcs")[0]
-        # if not filename or len(filename) == 0 or not os.path.exists(filename):
-        #     return
-
-        # with open(filename, 'r') as fp:
-        #     self.appdata.project.modes = json.load(fp)
-        #     self.centralWidget().mode_navigator.current = 0
-        #     values = self.appdata.project.modes[0].copy()
-        #     self.appdata.project.scen_values.clear()
-        #     self.appdata.project.comp_values.clear()
-        #     for i in values:
-        #         self.appdata.project.comp_values[i] = (values[i], values[i])
-        # self.centralWidget().mode_navigator.set_to_mcs()
-        # self.appdata.modes_coloring = True
-        # self.centralWidget().update()
-        # self.appdata.modes_coloring = False
 
     @Slot()
     def change_background(self, caption="Select a SVG file", directory=None):
