@@ -24,10 +24,28 @@ class CplexConfigurationDialog(QDialog):
             "By default, right after CNApy's installation, you have only access to the IBM CPLEX Community Edition\n"
             "which can only handle up to 1000 variables simultaneously.\n"
             "In order to use the full version of IBM CPLEX, with no variable number limit, follow the next steps in the given order:\n"
-            "1. (if not already done) Obtain an IBM CPLEX license and download it onto your computer.\n"
-            "Note: CNApy only works with recent IBM CPLEX versions (not older than version 20.1.0)!\n"
-            "2. (if not already done) Install IBM CPLEX by following the IBM CPLEX installer's instructions. Remember where you installed IBM CPLEX.\n"
-            "3. Select the folder in which you've installed IBM CPLEX by pressing the following button:"
+            "1. (if not already done and only necessary if you encounter problems with the following steps despite the installation tips in step 3) "
+            "Restart CNApy with administrator privileges as follows:\n"
+            " i) Close this session of CNApy\n"
+            " ii) Find out your operating system by looking at the next line:\n"
+            f" {platform.system()}\n"
+            " iii) Depending on your operating system, do the following:\n"
+            "     >Only if you use Windows: If you used CNApy's exe installer: Right click on cnapy.exe or the CNApy desktop icon\n"
+            "       or the CNApy entry in the start menu's program list and select 'Run as adminstrator'.\n"
+            "       If you didn't use CNApy's .exe installer: Search for 'cmd.exe', right-click on its symbol and\n"
+            "       select 'Run as administrator'. Then, move to CNApy's folder with the cd command, activate CNApy's\n"
+            "       Anaconda environment with 'conda activate cnapy-dev' and run 'python cnapy.py'.\n"
+            "     >Only if you use Linux or MacOS (MacOS is also called Darwin): The most common way is by using the 'sudo' command. To do this, \n"
+            "       open your system's terminal, move to CNApy's folder with the cd command, activate CNApy's Anaconda\n"
+            "       environment with 'conda activate cnapy-dev' and run 'sudo python cnapy.py'. For the last part, you may need to enter an adminstrator\n"
+            "       password.\n"
+            " NOTE: It may be possible that you're not allowed to get administrator rights on your computer. If this is the case, contact your system's administrator to resolve the problem.\n"
+            "2. (if not already done) Obtain an IBM CPLEX license and download IBM CPLEX itself onto your computer.\n"
+            "    NOTE: CNApy only works with recent IBM CPLEX versions (not older than version 20.1.0)!\n"
+            "3. (if not already done) Install IBM CPLEX by following the IBM CPLEX installer's instructions. Remember where you installed IBM CPLEX.\n"
+            "   If given and possible, try to install CPLEX only for the 'local user' (or similar). By doing this, you might avoid the need for\n"
+            "   administrator rights."
+            "4. Select the folder in which you've installed IBM CPLEX by pressing the following button:"
         )
         self.layout.addWidget(label)
 
@@ -38,14 +56,14 @@ class CplexConfigurationDialog(QDialog):
         self.layout.addWidget(self.cplex_directory)
 
         label = QLabel(
-            "4. (only if step 3 was successful) Run the IBM CPLEX Python connection script by pressing the following button:"
+            "5. (only if step 3 was successful) Run the IBM CPLEX Python connection script by pressing the following button:"
         )
         self.python_run_button = QPushButton("Run Python connection script")
         self.layout.addWidget(label)
         self.layout.addWidget(self.python_run_button)
 
         label = QLabel(
-            "5. (only if step 4 was successful) Set an environmental variable called PYTHONPATH to the following folder..."
+            "6. (only if step 4 was successful) Set an environmental variable called PYTHONPATH to the following folder..."
         )
         self.layout.addWidget(label)
 
@@ -67,7 +85,7 @@ class CplexConfigurationDialog(QDialog):
         self.layout.addWidget(label)
 
         label = QLabel(
-            "6. After you've finished all previous tasks 1 to 5, restart your computer and IBM CPLEX should be correctly configured for CNApy!"
+            "7. After you've finished all previous steps 1 to 5, restart your computer and IBM CPLEX should be correctly configured for CNApy!"
         )
         self.layout.addWidget(label)
 
@@ -117,7 +135,7 @@ class CplexConfigurationDialog(QDialog):
                 python_exe_path = sys.executable
                 python_dir = os.path.dirname(python_exe_path)
                 python_exe_name = os.path.split(python_exe_path)[-1]
-                command = f'cd {python_dir} && {python_exe_name} "{self.cplex_directory.text()}python/setup.py" install'
+                command = f'cd "{python_dir}" && {python_exe_name} "{self.cplex_directory.text()}python/setup.py" install'
                 has_run_error = subprocess.check_call(
                     command,
                     shell=True
