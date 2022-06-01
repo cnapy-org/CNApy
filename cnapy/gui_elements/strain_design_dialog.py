@@ -1418,8 +1418,10 @@ class SDComputationViewer(QDialog):
 
     @Slot(str)
     def receive_progress_text(self,txt):
-        self.textbox.append(txt.strip("\n\t\r "))
-        self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
+        txt = txt.strip("\n\t\r ")
+        if txt != "":
+            self.textbox.append(txt)
+            self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
 
     @Slot()
     def open_strain_design_dialog(self):
@@ -1478,8 +1480,7 @@ class SDComputationThread(QThread):
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
-            if input and (input != "\n") and (input != "\r") and (input != "\n\r"):
-                self.output_connector.emit(input)
+            self.output_connector.emit(input)
             
     def flush(self):
         pass
