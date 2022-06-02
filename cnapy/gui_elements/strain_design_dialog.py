@@ -295,7 +295,7 @@ class SDDialog(QDialog):
         checkboxes_layout.addItem(max_solutions_layout)
         
         max_cost_layout = QHBoxLayout()
-        l = QLabel(" Max. Cost")
+        l = QLabel(" Max. Σ intervention costs")
         self.max_cost = QLineEdit("7")
         self.max_cost.setMaximumWidth(50)
         max_cost_layout.addWidget(self.max_cost)
@@ -1400,7 +1400,7 @@ class SDComputationViewer(QDialog):
         self.explore.clicked.connect(self.show_sd)
         self.explore.setMaximumWidth(200)
         self.explore.setEnabled(False)
-        edit = QPushButton("Edit strain design setup")
+        edit = QPushButton("Cancel && Edit strain design setup")
         edit.clicked.connect(self.open_strain_design_dialog)
         edit.setMaximumWidth(200)
         cancel = QPushButton("Cancel")
@@ -1436,7 +1436,7 @@ class SDComputationViewer(QDialog):
         self.accept()
         
     def show_sd(self):
-        self.show_sd_signal.emit(pickle.dumps(self.solutions))
+        self.show_sd_signal.emit(pickle.dumps((self.solutions,self.sd_setup)))
         self.deleteLater()
         self.accept()
     
@@ -1505,7 +1505,7 @@ class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
     def __init__(self, appdata: AppData, solutions):
         super().__init__()
-        self.solutions = pickle.loads(solutions)
+        (self.solutions,self.sd_setup) = pickle.loads(solutions)
         self.setWindowTitle("Strain Design Solutions")
         self.setMinimumWidth(620)
         self.appdata = appdata
@@ -1522,18 +1522,22 @@ class SDViewer(QDialog):
         self.layout.addWidget(self.sd_table)
         
         buttons_layout = QHBoxLayout()
-        self.close = QPushButton("Close")
-        self.close.clicked.connect(self.closediag)
-        self.close.setMaximumWidth(100)
-        buttons_layout.addWidget(self.close)
         self.savesds = QPushButton("Save solutions")
         self.savesds.clicked.connect(self.savesdsds)
-        self.savesds.setMaximumWidth(150)
-        buttons_layout.addWidget(self.savesds)
+        self.savesds.setMaximumWidth(120)
         self.savetsv = QPushButton("Save as tsv (tab separated values)")
         self.savetsv.clicked.connect(self.savesdtsv)
-        self.savetsv.setMaximumWidth(250)
+        self.savetsv.setMaximumWidth(230)
+        self.edit = QPushButton("Discard solutions and edit setup")
+        self.edit.clicked.connect(self.open_strain_design_dialog)
+        self.edit.setMaximumWidth(200)
+        self.close = QPushButton("Close")
+        self.close.clicked.connect(self.closediag)
+        self.close.setMaximumWidth(75)
+        buttons_layout.addWidget(self.savesds)
         buttons_layout.addWidget(self.savetsv)
+        buttons_layout.addWidget(self.edit)
+        buttons_layout.addWidget(self.close)
         self.layout.addItem(buttons_layout)
         
         if self.solutions.is_gene_sd:
@@ -1665,3 +1669,9 @@ class SDViewer(QDialog):
         elif len(filename)<=4 or filename[-4:] != '.sds':
             filename += '.sds'
         self.solutions.save(filename)
+
+    @Slot()
+    def open_strain_design_dialog(self):
+        self.appdata.window.strain_design_with_setup(json.dumps(self.sd_setup))
+        self.deleteLater()
+        self.accept()
