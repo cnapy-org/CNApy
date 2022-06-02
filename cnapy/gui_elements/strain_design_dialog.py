@@ -411,7 +411,7 @@ class SDDialog(QDialog):
         ## KO and KI costs
         # checkbox
         self.advanced = QCheckBox(
-            "Advanced: Define Costs for genes/reactions knockout/addition and for regulatory interventions")
+            "Advanced: Take into account costs for genes/reactions knockout/addition and for regulatory interventions")
         self.layout.addWidget(self.advanced)
         self.advanced.clicked.connect(self.show_ko_ki)
         
