@@ -1517,7 +1517,7 @@ class SDViewer(QDialog):
             self.sd_table = QTableCopyable(0, 3)
         else:
             self.sd_table = QTableCopyable(0, 2)
-        self.sd_table.verticalHeader().setDefaultSectionSize(18)
+        self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
         
@@ -1628,7 +1628,7 @@ class SDViewer(QDialog):
         self.setLayout(self.layout)
         self.show()
         if self.solutions.has_complex_regul_itv:
-            QMessageBox.information(self,"Non-trivial regulatory interventions"+\
+            QMessageBox.information(self,"Non-trivial regulatory interventions",\
                                          "The strain design contains 'complex' " +\
                                          "regulatory interventions that cannot be shown " +\
                                          "in the network map. Please refer to table.")
