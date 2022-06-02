@@ -37,7 +37,8 @@ from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
-from cnapy.gui_elements.cplex_configuration_dialog import CplexConfigurationDialog
+from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
+from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 import cnapy.utils as utils
 
 
@@ -352,6 +353,11 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_cplex_configuration_dialog)
 
+
+        config_action = QAction("Configure Gurobi Full Version...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_gurobi_configuration_dialog)
+
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
         show_console_action.triggered.connect(self.show_console)
@@ -565,6 +571,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_cplex_configuration_dialog(self):
         dialog = CplexConfigurationDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_gurobi_configuration_dialog(self):
+        dialog = GurobiConfigurationDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
