@@ -192,7 +192,8 @@ class MetabolitesMask(QWidget):
         l = QHBoxLayout()
         self.delete_button = QPushButton("Delete metabolite")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
-        self.delete_button.setToolTip("Delete this metabolite and remove it from associated reactions.")
+        self.delete_button.setToolTip(
+            "Delete this metabolite and remove it from associated reactions.")
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
@@ -295,10 +296,11 @@ class MetabolitesMask(QWidget):
         # in C++ the currentItem can just be destructed but in Python this is more convoluted
         current_row_index = self.metabolite_list.metabolite_list.currentIndex().row()
         self.metabolite_list.metabolite_list.setCurrentItem(None)
-        affected_reactions = self.metabolite.reactions # remember these before removal
+        affected_reactions = self.metabolite.reactions  # remember these before removal
         self.metabolite.remove_from_model()
         self.metabolite_list.last_selected = None
-        self.metabolite_list.metabolite_list.takeTopLevelItem(current_row_index)
+        self.metabolite_list.metabolite_list.takeTopLevelItem(
+            current_row_index)
         self.appdata.window.unsaved_changes()
         self.appdata.window.setFocus()
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
@@ -336,7 +338,8 @@ class MetabolitesMask(QWidget):
                 self.metabolite.annotation[key] = value
 
             self.changed = False
-            self.metaboliteChanged.emit(self.metabolite, self.metabolite.reactions)
+            self.metaboliteChanged.emit(
+                self.metabolite, self.metabolite.reactions)
 
     def validate_id(self):
         with self.appdata.project.cobra_py_model as model:
@@ -381,21 +384,23 @@ class MetabolitesMask(QWidget):
                 values = [values]
 
             for value in values:
-                identifiers_org_result = check_identifiers_org_entry(key, value)
+                identifiers_org_result = check_identifiers_org_entry(
+                    key, value)
 
                 if identifiers_org_result.connection_error:
                     msgBox = QMessageBox()
                     msgBox.setWindowTitle("Connection error!")
                     msgBox.setTextFormat(Qt.RichText)
-                    msgBox.setText("<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
+                    msgBox.setText(
+                        "<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
                     msgBox.setIcon(QMessageBox.Warning)
                     msgBox.exec()
                     break
 
                 if (not identifiers_org_result.is_key_value_pair_valid) and (":" in value):
                     split_value = value.split(":")
-                    identifiers_org_result = check_identifiers_org_entry(split_value[0], split_value[1])
-
+                    identifiers_org_result = check_identifiers_org_entry(
+                        split_value[0], split_value[1])
 
                 if not identifiers_org_result.is_key_valid:
                     self.annotation.item(i, 0).setBackground(invalid_red)
@@ -448,7 +453,8 @@ class MetabolitesMask(QWidget):
         else:
             turn_white(self.compartment)
             if self.compartment.text() != "" and self.compartment.text() not in self.appdata.project.cobra_py_model.compartments:
-                self.compartment.blockSignals(True) # block signals triggered by appearance of message_box
+                # block signals triggered by appearance of message_box
+                self.compartment.blockSignals(True)
                 message_box = QMessageBox()
                 message_box.setText(
                     "The compartment "+self.compartment.text() + " does not yet exist.")
@@ -462,7 +468,7 @@ class MetabolitesMask(QWidget):
 
                 if ret == QMessageBox.Cancel:
                     metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
-                                    self.id.text())
+                        self.id.text())
                     self.compartment.setText(metabolite.compartment)
 
             return True
@@ -497,7 +503,8 @@ class MetabolitesMask(QWidget):
                 text = "Name: " + r.name
                 item.setToolTip(0, text)
                 item.setToolTip(1, text)
-                reaction_string_widget = ReactionString(r, self.metabolite_list)
+                reaction_string_widget = ReactionString(
+                    r, self.metabolite_list)
                 self.reactions.setItemWidget(item, 1, reaction_string_widget)
 
     def emit_jump_to_reaction(self, reaction):
@@ -507,12 +514,13 @@ class MetabolitesMask(QWidget):
     metaboliteChanged = Signal(cobra.Metabolite, object)
     metaboliteDeleted = Signal(cobra.Metabolite, object)
 
+
 class ReactionString(QLineEdit):
     def __init__(self, reaction, metabolite_list):
         super().__init__(reaction.build_reaction_string())
         self.model = reaction.model
         self.metabolite_list = metabolite_list
-        self.setCursorPosition(0) # to get proper left justification
+        self.setCursorPosition(0)  # to get proper left justification
         self.selectionChanged.connect(self.switch_metabolite)
 
     @Slot()

@@ -38,7 +38,7 @@ class YieldSpaceDialog(QDialog):
                       'Keep in mind that exchange reactions are often defined in the direction of export.\n'+
                       'Consider changing signs.')
         self.layout.addWidget(text)
-        
+
         editor_layout = QHBoxLayout()
         # Define for horizontal axis
         x_groupbox = QGroupBox('x-axis')
