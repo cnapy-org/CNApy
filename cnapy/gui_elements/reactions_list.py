@@ -1,7 +1,5 @@
 """The reactions list"""
 from math import isclose
-import io
-import traceback
 from enum import IntEnum
 
 import cobra

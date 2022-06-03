@@ -1,14 +1,13 @@
 """Functions which will be later added to CNAPy's API"""
 import requests
 from dataclasses import dataclass
-from typing import Tuple
 
 
 @dataclass()
 class IdentifiersOrgResult:
     connection_error: bool
     is_key_valid: bool
-    is_key_value_pair_valid :bool
+    is_key_value_pair_valid: bool
 
 
 def check_identifiers_org_entry(key: str, value: str) -> IdentifiersOrgResult:

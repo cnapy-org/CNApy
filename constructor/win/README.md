@@ -37,7 +37,6 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
     cnapy
     ```
 
-**IMPORTANT**: To use the CNA Matlab functions you need atleast Matlab 2019b and the Python API for the Matlab engine installed and of course CNA. Alternatively to Matlab you can also use Octave.
 
 ## How to run a script in the CNApy terminal
 

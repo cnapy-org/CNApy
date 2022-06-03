@@ -290,13 +290,13 @@ class CentralWidget(QWidget):
             self.appdata.modes_coloring = True
             self.update()
             self.appdata.modes_coloring = False
-        
+
         elif self.mode_navigator.mode_type == 2:
             if len(self.appdata.project.modes) > self.mode_navigator.current:
                 # clear previous coloring
-                self.appdata.project.comp_values.clear()   
-                self.parent.clear_status_bar()        
-                self.appdata.project.comp_values_type = 0      
+                self.appdata.project.comp_values.clear()
+                self.parent.clear_status_bar()
+                self.appdata.project.comp_values_type = 0
                 # Set values
                 bnd_dict = self.appdata.project.modes[self.mode_navigator.current]
                 for k,v in bnd_dict.items():

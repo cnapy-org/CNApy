@@ -21,8 +21,7 @@ class FluxOptimizationDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
-        self.eng = appdata.engine
-        
+
         numr = len(self.appdata.project.cobra_py_model.reactions)
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         if numr > 1:
@@ -56,7 +55,7 @@ class FluxOptimizationDialog(QDialog):
         # close_bracket.setFont(font)
         # editor_layout.addWidget(close_bracket)
         self.layout.addItem(editor_layout)
-        
+
         l3 = QHBoxLayout()
         self.button = QPushButton("Compute")
         self.cancel = QPushButton("Close")
@@ -120,4 +119,3 @@ class FluxOptimizationDialog(QDialog):
             idx = idx+1
         self.appdata.project.comp_values_type = 0
         self.central_widget.update()
-        

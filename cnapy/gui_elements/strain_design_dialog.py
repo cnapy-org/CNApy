@@ -40,7 +40,7 @@ def BORDER_COLOR(HEX): # string that defines style sheet for changing the color 
 def BACKGROUND_COLOR(HEX,id): # string that defines style sheet for changing the color of the module-box
     return "QLineEdit#"+id+" "+\
                 "{ background: "+HEX+"};"
-                
+
 def FONT_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
     return "QLabel { color: "+HEX+"};"
 
@@ -60,9 +60,9 @@ class SDDialog(QDialog):
         # self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
-        
+
         self.reac_wordlist = self.reac_ids
-        
+
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
                 len(self.appdata.project.cobra_py_model.genes) == 0:
             self.gene_wordlist = self.reac_wordlist
@@ -74,14 +74,14 @@ class SDDialog(QDialog):
                                         self.appdata.project.cobra_py_model.genes.list_attr("name"))
             if '' in self.gene_wordlist:
                 self.gene_wordlist.remove('')
-            
+
             self.gene_ids = self.appdata.project.cobra_py_model.genes.list_attr("id")
             if set(self.appdata.project.cobra_py_model.genes.list_attr("name")) != set(""):
                 self.gene_names = self.appdata.project.cobra_py_model.genes.list_attr("name")
             else:
                 self.gene_names = self.gene_ids
-                
-        
+
+
         # Define placeholder strings for text edit fields
         numr = len(self.appdata.project.cobra_py_model.reactions)
         if numr > 2:
@@ -95,7 +95,7 @@ class SDDialog(QDialog):
             self.placeholder_eq = 'e.g.: "R1 - R2 <= 2" or "R3 = -1.5"'
             placeholder_expr = 'e.g.: "R1" or "-0.75 R2 + R3"'
             placeholder_rid = 'e.g.: "R1"'
-        
+
         ## Upper box of the dialog (for defining modules)
         self.modules = []
         self.current_module = 0
@@ -112,7 +112,7 @@ class SDDialog(QDialog):
         module_add_rem_buttons = QVBoxLayout()
         modules_layout.addWidget(self.module_list)
         modules_layout.addItem(module_add_rem_buttons)
-        
+
         # modules list
         self.module_list.setFixedWidth(195)
         self.module_list.setMinimumHeight(40)
@@ -144,7 +144,7 @@ class SDDialog(QDialog):
         module_add_rem_buttons.addWidget(add_module_button)
         module_add_rem_buttons.addWidget(rem_module_button)
         module_add_rem_buttons.addStretch()
-        
+
         # edit module area
         self.module_spec_box = QGroupBox("Module 1 specifications (MCS)")
         self.module_spec_box.setObjectName("EditModule")
@@ -152,13 +152,13 @@ class SDDialog(QDialog):
         module_spec_layout = QVBoxLayout()
         module_spec_layout.setAlignment(Qt.AlignTop)
         self.module_edit = {}
-        
+
         # module sense
         self.module_edit[NESTED_OPT] = QCheckBox(" At optimum of an (inner) objective funciton")
         self.module_edit[NESTED_OPT].setChecked(False)
         self.module_edit[NESTED_OPT].clicked.connect(self.nested_opt_checked)
         module_spec_layout.addWidget(self.module_edit[NESTED_OPT])
-        
+
         # Outer objective
         self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
@@ -168,7 +168,7 @@ class SDDialog(QDialog):
         self.module_edit[OUTER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
         module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE+"_label"] )
         module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE])
-        
+
         # Inner objective
         self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
@@ -178,7 +178,7 @@ class SDDialog(QDialog):
         self.module_edit[INNER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
         module_spec_layout.addWidget(self.module_edit[INNER_OBJECTIVE+"_label"])
         module_spec_layout.addWidget(self.module_edit[INNER_OBJECTIVE])
-        
+
         optcouple_layout = QHBoxLayout()
         # Product ID
         optcouple_layout_prod = QVBoxLayout()
@@ -203,14 +203,14 @@ class SDDialog(QDialog):
         optcouple_layout_mingcp.addWidget(self.module_edit[MIN_GCP])
         optcouple_layout.addItem(optcouple_layout_mingcp)
         module_spec_layout.addItem(optcouple_layout)
-        
+
         # module constraints
         self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
         module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
         constr_list_layout = QHBoxLayout()
         constr_list_layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         module_spec_layout.addItem(constr_list_layout)
-        
+
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
         self.module_edit[CONSTRAINTS].setMaximumHeight(80)
@@ -225,7 +225,7 @@ class SDDialog(QDialog):
         # self.module_edit[CONSTRAINTS].setCellWidget(0, 0, constr_entry)
         # self.active_receiver = constr_entry
         constr_list_layout.addWidget(self.module_edit[CONSTRAINTS])
-        
+
         # buttons to add and remove constraint
         constraint_add_rem_buttons = QVBoxLayout()
         self.module_edit["add_constr_button"] = QPushButton("+")
@@ -238,7 +238,7 @@ class SDDialog(QDialog):
         constraint_add_rem_buttons.addWidget(self.module_edit["rem_constr_button"])
         constraint_add_rem_buttons.addStretch()
         constr_list_layout.addItem(constraint_add_rem_buttons)
-                        
+
         # validate module button
         module_buttons_layout = QHBoxLayout()
         self.module_edit["module_apply_button"] = QPushButton("Check module")
@@ -248,7 +248,7 @@ class SDDialog(QDialog):
         module_buttons_layout.addWidget(self.module_edit["module_apply_button"])
         module_buttons_layout.addWidget(self.module_edit["module_del_button"])
         module_spec_layout.addItem(module_buttons_layout)
-        
+
         # connect module edit layout to module edit box
         self.module_spec_box.setLayout(module_spec_layout)
         # connect module edit box to the overall module layout
@@ -264,13 +264,13 @@ class SDDialog(QDialog):
         self.global_objective.setWordWrap(True)
         self.global_objective.setMaximumHeight(40)
         self.layout.addWidget(self.global_objective)
-        
+
         # self.layout.addWidget(self.modules_box)
         # refresh modules -> remove in case you want default entries in module constraint list
         self.update_module_edit()
-        
+
         params_layout = QHBoxLayout()
-        
+
         ## Checkboxes for gene-mcs, entries in network map, solvers, kos and kis
         checkboxes = QWidget()
         checkboxes.setObjectName("Checkboxes")
@@ -281,11 +281,11 @@ class SDDialog(QDialog):
             self.gen_kos.setEnabled(False)
         self.gen_kos.clicked.connect(self.gen_ko_checked)
         checkboxes_layout.addWidget(self.gen_kos)
-        
+
         self.use_scenario = QCheckBox(
         " Use scenario")
         checkboxes_layout.addWidget(self.use_scenario)
-        
+
         max_solutions_layout = QHBoxLayout()
         l = QLabel(" Max. Solutions")
         self.max_solutions = QLineEdit("3")
@@ -293,7 +293,7 @@ class SDDialog(QDialog):
         max_solutions_layout.addWidget(self.max_solutions)
         max_solutions_layout.addWidget(l)
         checkboxes_layout.addItem(max_solutions_layout)
-        
+
         max_cost_layout = QHBoxLayout()
         l = QLabel(" Max. Σ intervention costs")
         self.max_cost = QLineEdit("7")
@@ -301,7 +301,7 @@ class SDDialog(QDialog):
         max_cost_layout.addWidget(self.max_cost)
         max_cost_layout.addWidget(l)
         checkboxes_layout.addItem(max_cost_layout)
-        
+
         time_limit_layout = QHBoxLayout()
         l = QLabel(" Time Limit [sec]")
         self.time_limit = QLineEdit("inf")
@@ -309,12 +309,12 @@ class SDDialog(QDialog):
         time_limit_layout.addWidget(self.time_limit)
         time_limit_layout.addWidget(l)
         checkboxes_layout.addItem(time_limit_layout)
-        
+
         # add all edit and checkbox-items to dialog
         checkboxes.setLayout(checkboxes_layout)
         checkboxes.setStyleSheet("QWidget#Checkboxes { max-height: 10em };")
-        params_layout.addWidget(checkboxes)        
-        
+        params_layout.addWidget(checkboxes)
+
         ## Solver and solving options
         # find available solvers
         avail_solvers = []
@@ -326,11 +326,11 @@ class SDDialog(QDialog):
             avail_solvers += [GLPK]
         if module_exists('pyscipopt'):
             avail_solvers += [SCIP]
-            
+
         solver_and_solution_group = QGroupBox("Solver and solution approach")
         solver_and_solution_group.setObjectName("Solver_and_solution")
         solver_and_solution_layout = QHBoxLayout()
-        
+
         solver_buttons_layout = QVBoxLayout()
         self.solver_buttons = {}
         self.solver_buttons["group"] = QButtonGroup()
@@ -380,7 +380,7 @@ class SDDialog(QDialog):
         if avail_solvers:
             solver = select_solver(None,self.appdata.project.cobra_py_model)
             self.solver_buttons[solver].setChecked(True)
-        
+
         solution_buttons_layout = QVBoxLayout()
         self.solution_buttons = {}
         self.solution_buttons["group"] = QButtonGroup()
@@ -398,14 +398,14 @@ class SDDialog(QDialog):
         self.solution_buttons["group"].addButton(self.solution_buttons[POPULATE])
         solution_buttons_layout.addWidget(self.solution_buttons[POPULATE])
         solver_and_solution_layout.addItem(solution_buttons_layout)
-                
+
         solver_and_solution_group.setLayout(solver_and_solution_layout)
         solver_and_solution_group.setStyleSheet("QGroupBox#Solver_and_solution { max-height: 10em };")
         solver_and_solution_group.setMinimumWidth(300)
         params_layout.addWidget(solver_and_solution_group)
 
         self.configure_solver_options()
-        
+
         self.layout.addItem(params_layout)
 
         ## KO and KI costs
@@ -414,19 +414,19 @@ class SDDialog(QDialog):
             "Advanced: Take into account costs for genes/reactions knockout/addition and for regulatory interventions")
         self.layout.addWidget(self.advanced)
         self.advanced.clicked.connect(self.show_ko_ki)
-        
+
         self.advanced_layout = QHBoxLayout()
-        
+
         # layout for regulatory constraint list and buttons
         self.regulatory_box = QGroupBox("Regulatory interventions")
         self.regulatory_box.setHidden(True)
         self.regulatory_box.setObjectName("reg")
-        
+
         self.regulatory_layout = QVBoxLayout()
         self.regulatory_layout.setAlignment(Qt.AlignLeft)
         # self.regulatory_itv_list_label = QLabel("")
         # self.regulatory_layout.addWidget(self.regulatory_itv_list_label)
-        
+
         self.regulatory_layout_table = QHBoxLayout()
         self.regulatory_itv_list = QTableWidget(0, 2)
         self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(18)
@@ -445,7 +445,7 @@ class SDDialog(QDialog):
         # # self.regulatory_itv_list.setItem(0, 1, QTableItem())
         # # self.active_receiver = regul_entry
         self.regulatory_layout_table.addWidget(self.regulatory_itv_list)
-        
+
         # buttons to add and remove regulatory constraints
         reg_add_rem_buttons = QVBoxLayout()
         self.add_reg_constr = QPushButton("+")
@@ -457,20 +457,20 @@ class SDDialog(QDialog):
         reg_add_rem_buttons.addWidget(self.add_reg_constr)
         reg_add_rem_buttons.addWidget(self.rem_reg_constr)
         reg_add_rem_buttons.addStretch()
-        
+
         self.regulatory_layout_table.addItem(reg_add_rem_buttons)
         self.regulatory_layout.addItem(self.regulatory_layout_table)
         self.regulatory_box.setLayout(self.regulatory_layout)
         self.advanced_layout.addWidget(self.regulatory_box)
-                
+
         self.ko_ki_box = QGroupBox("Specify knockout and addition candidates")
         self.ko_ki_box.setHidden(True)
         self.ko_ki_box.setObjectName("ko_ki")
         ko_ki_layout = QVBoxLayout()
         ko_ki_layout.setAlignment(Qt.AlignLeft)
-        
+
         # ko_ki_lists_layout.addWidget(self.reaction_itv_list_widget)
-        
+
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
         l = QLabel("Filter: ")
@@ -479,10 +479,10 @@ class SDDialog(QDialog):
         ko_ki_filter_layout.addWidget(l)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
         ko_ki_layout.addItem(ko_ki_filter_layout)
-        
+
         # Tables
         ko_ki_lists_layout = QHBoxLayout()
-        
+
         # reaction list
         reaction_interventions_layout = QVBoxLayout()
         reaction_interventions_layout.setAlignment(Qt.AlignTop)
@@ -554,7 +554,7 @@ class SDDialog(QDialog):
         reaction_interventions_layout.addWidget(self.none_koable)
         self.reaction_itv_list_widget.setLayout(reaction_interventions_layout)
         ko_ki_lists_layout.addWidget(self.reaction_itv_list_widget)
-        
+
         # gene list
         gene_interventions_layout = QVBoxLayout()
         gene_interventions_layout.setAlignment(Qt.AlignTop)
@@ -624,15 +624,15 @@ class SDDialog(QDialog):
         gene_interventions_layout.addWidget(self.none_koable)
         self.gene_itv_list_widget.setLayout(gene_interventions_layout)
         ko_ki_lists_layout.addWidget(self.gene_itv_list_widget)
-        
+
         ko_ki_layout.addItem(ko_ki_lists_layout)
         self.ko_ki_box.setLayout(ko_ki_layout)
-        
+
         self.advanced_layout.addWidget(self.ko_ki_box)
         self.layout.addItem(self.advanced_layout)
-                
+
         splitter.addWidget(self.ko_ki_box)
-        
+
         ## main buttons
         buttons_layout = QHBoxLayout()
         self.compute_sd_button = QPushButton("Compute")
@@ -660,7 +660,7 @@ class SDDialog(QDialog):
             self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
         except:
             print('Signals to main window could not be connected.')
-        
+
         # load strain design setup if passed to constructor
         if sd_setup != {} and sd_setup != False:
             self.load(sd_setup)
@@ -685,7 +685,7 @@ class SDDialog(QDialog):
     def add_module(self):
         i = self.module_list.rowCount()
         self.module_list.insertRow(i)
-        
+
         combo = QComboBox(self.module_list)
         combo.insertItems(0,MODULE_TYPES)
         combo.currentTextChanged.connect(self.sel_module_type)
@@ -721,7 +721,7 @@ class SDDialog(QDialog):
             self.current_module -=1
             self.update_module_edit()
         self.update_global_objective()
-        
+
     def edit_module(self):
         # if current module is valid, load the module that was newly selected
         valid, module = self.verify_module(self.current_module)
@@ -733,14 +733,14 @@ class SDDialog(QDialog):
         selected_module = self.module_list.selectedIndexes()[0].row()
         self.current_module = selected_module
         self.update_module_edit()
-        
+
     def sel_module_type(self):
         i = self.module_list.selectedIndexes()[0].row()
         self.modules[i] = None
         self.update_global_objective()
         if i == self.current_module:
             self.update_module_edit()
-        
+
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
@@ -757,7 +757,7 @@ class SDDialog(QDialog):
         else:
             i = self.module_edit[CONSTRAINTS].rowCount()-1
         self.module_edit[CONSTRAINTS].removeRow(i)
-    
+
     def add_reg(self):
         i = self.regulatory_itv_list.rowCount()
         self.regulatory_itv_list.insertRow(i)
@@ -775,7 +775,7 @@ class SDDialog(QDialog):
         else:
             i = self.regulatory_itv_list.rowCount()-1
         self.regulatory_itv_list.removeRow(i)
-    
+
     def module_apply(self):
         valid, module = self.verify_module(self.current_module)
         if valid and module:
@@ -785,7 +785,7 @@ class SDDialog(QDialog):
             self.module_spec_box.setStyleSheet(BORDER_COLOR("#de332a"))
         self.update_global_objective()
         return valid
-    
+
     def update_module_edit(self):
         if not self.modules: # remove everything
             self.module_spec_box.setTitle('Please add a module')
@@ -839,7 +839,7 @@ class SDDialog(QDialog):
             mod[OUTER_OBJECTIVE] = self.modules[self.current_module][OUTER_OBJECTIVE]
             mod[PROD_ID]         = self.modules[self.current_module][PROD_ID]
             mod[MIN_GCP]         = self.modules[self.current_module][MIN_GCP]
-            
+
             # remove all former constraints and refill again from module
             for _ in range(self.module_edit[CONSTRAINTS].rowCount()):
                 self.module_edit[CONSTRAINTS].removeRow(0)
@@ -859,9 +859,9 @@ class SDDialog(QDialog):
                 self.module_edit[NESTED_OPT].setChecked(False)
             if mod[INNER_OBJECTIVE]:
                 self.module_edit[INNER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[INNER_OBJECTIVE])+' ')     # add space character to avoid 
+                    linexprdict2str(mod[INNER_OBJECTIVE])+' ')     # add space character to avoid
                 self.module_edit[INNER_OBJECTIVE].check_text(True) # word completion
-            if mod[OUTER_OBJECTIVE]:                           
+            if mod[OUTER_OBJECTIVE]:
                 self.module_edit[OUTER_OBJECTIVE].setText(\
                     linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
                 self.module_edit[OUTER_OBJECTIVE].check_text(True)
@@ -928,7 +928,7 @@ class SDDialog(QDialog):
             self.module_edit[MIN_GCP+"_label"].setHidden( 			False)
             self.module_edit[MIN_GCP].setHidden( 					False)
         self.update_global_objective()
-    
+
     def verify_module(self,*args):
         self.setCursor(Qt.BusyCursor)
         if not self.modules:
@@ -981,7 +981,7 @@ class SDDialog(QDialog):
                 "Exception details: \n\n"+str(e))
             self.setCursor(Qt.ArrowCursor)
             return False, None
-    
+
     @Slot(bool)
     def update_global_objective(self,b=True):
         modules = []
@@ -1048,7 +1048,7 @@ class SDDialog(QDialog):
             self.global_objective.setText(self.global_objective.property('prefix')+\
                 "Global/Outer objective invalid or missing (module "+str(main_module[1]+1)+": "+main_module[2]+")")
 
-    
+
     def nested_opt_checked(self):
         if self.module_edit[NESTED_OPT].isChecked():
             self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
@@ -1056,7 +1056,7 @@ class SDDialog(QDialog):
         else:
             self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	True)
             self.module_edit[INNER_OBJECTIVE].setHidden(			True)
-    
+
     def gen_ko_checked(self):
         if self.gen_kos.isChecked():
             self.gene_itv_list_widget.setHidden(False)
@@ -1064,7 +1064,7 @@ class SDDialog(QDialog):
         else:
             self.gene_itv_list_widget.setHidden(True)
             self.set_all_r_koable()
-        
+
     def show_ko_ki(self):
         if self.advanced.isChecked():
             self.regulatory_box.setHidden(False)
@@ -1087,7 +1087,7 @@ class SDDialog(QDialog):
         for i,h in enumerate(hide_genes):
             self.gene_itv_list.setRowHidden(i,h)
         self.setCursor(Qt.ArrowCursor)
-    
+
     def knock_changed(self,id,gene_or_reac):
         if gene_or_reac == 'reac':
             genes = [g.id for g in self.appdata.project.cobra_py_model.reactions.get_by_id(id).genes]
@@ -1139,24 +1139,24 @@ class SDDialog(QDialog):
                     if all([self.gene_itv[k]['button_group'].button(2).isChecked() for k in genes]):
                         r['button_group'].button(1).setEnabled(True)
                         r['button_group'].button(3).setEnabled(True)
-    
+
     def set_deactivate_ex(self):
         ex_reacs = [r.id for r in self.appdata.project.cobra_py_model.reactions \
                         if not r.products or not r.reactants]
         for r in ex_reacs:
             self.reaction_itv[r]['button_group'].button(2).setChecked(True)
             self.knock_changed(r,'reac')
-    
+
     def set_all_r_koable(self):
         for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
             self.reaction_itv[r]['button_group'].button(1).setChecked(True)
             self.knock_changed(r,'reac')
-    
+
     def set_none_r_koable(self):
         for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
             self.reaction_itv[r]['button_group'].button(2).setChecked(True)
             self.knock_changed(r,'reac')
-    
+
     def set_all_g_koable(self):
         for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
             self.gene_itv[r]['button_group'].button(1).setChecked(True)
@@ -1166,7 +1166,7 @@ class SDDialog(QDialog):
         for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
             self.gene_itv[r]['button_group'].button(2).setChecked(True)
             self.knock_changed(r,'gene')
-            
+
     def parse_dialog_inputs(self):
         self.setCursor(Qt.BusyCursor)
         sd_setup = {} # strain design setup
@@ -1216,7 +1216,7 @@ class SDDialog(QDialog):
                 sd_setup.update({GKICOST : gkiCost})
         self.setCursor(Qt.ArrowCursor)
         return sd_setup
-    
+
     def save(self):
         # if current module is invalid, abort
         self.setCursor(Qt.BusyCursor)
@@ -1237,7 +1237,7 @@ class SDDialog(QDialog):
         # dump dictionary into json-file
         with open(filename, 'w') as fp:
             json.dump(sd_setup, fp)
-    
+
     def load(self, sd_setup = {}):
         if sd_setup == {} or sd_setup == False:
             # open file dialog
@@ -1299,7 +1299,7 @@ class SDDialog(QDialog):
             self.set_none_r_koable()
             if REGCOST in sd_setup:
                 reg_entry = [None for _ in range(len(sd_setup[REGCOST]))]
-                for i, (k, v) in enumerate(sd_setup[REGCOST].items()):  
+                for i, (k, v) in enumerate(sd_setup[REGCOST].items()):
                     self.regulatory_itv_list.insertRow(i)
                     reg_entry[i] = QComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
                     reg_entry[i].setText(k+' ')
@@ -1339,7 +1339,7 @@ class SDDialog(QDialog):
                         self.gene_itv[g]['cost'].setText(str(v))
                         self.knock_changed(g,'gene')
         self.compute_sd_button.setFocus()
-    
+
     def compute(self):
         self.setCursor(Qt.BusyCursor)
         valid = self.module_apply()
@@ -1373,28 +1373,28 @@ class SDDialog(QDialog):
         self.setCursor(Qt.ArrowCursor)
         self.deleteLater()
         self.accept()
-        
+
     def cancel(self):
         self.deleteLater()
         self.reject()
-    
+
     launch_computation_signal = Signal(str)
-       
+
 class SDComputationViewer(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
     def __init__(self, appdata: AppData, sd_setup):
         super().__init__()
-        
+
         self.sd_setup = sd_setup
         self.solutions = None
         self.appdata = appdata
-        
+
         self.setWindowTitle("Strain Design Computation")
         self.setMinimumWidth(620)
         self.layout = QVBoxLayout()
         self.textbox = QTextEdit("Strain design computation progress:")
         self.layout.addWidget(self.textbox)
-        
+
         buttons_layout = QHBoxLayout()
         self.explore = QPushButton("Explore strain designs")
         self.explore.clicked.connect(self.show_sd)
@@ -1434,17 +1434,17 @@ class SDComputationViewer(QDialog):
         self.appdata.window.strain_design_with_setup(self.sd_setup)
         self.deleteLater()
         self.accept()
-        
+
     def show_sd(self):
         self.show_sd_signal.emit(pickle.dumps((self.solutions,self.sd_setup)))
         self.deleteLater()
         self.accept()
-    
+
     def cancel(self):
         self.cancel_computation.emit()
         self.deleteLater()
         self.reject()
-        
+
     show_sd_signal = Signal(bytes)
     cancel_computation = Signal()
 
@@ -1483,7 +1483,7 @@ class SDComputationThread(QThread):
             self.write(tb_str)
             sd_solutions = SDSolution(self.model,[],ERROR,self.sd_setup)
             self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
-        
+
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
@@ -1495,8 +1495,8 @@ class SDComputationThread(QThread):
     def flush(self):
         pass
 
-    # the output from the strain design computation needs to be passed as a signal because 
-    # all Qt widgets must run on the main thread and their methods cannot be safely called 
+    # the output from the strain design computation needs to be passed as a signal because
+    # all Qt widgets must run on the main thread and their methods cannot be safely called
     # from other threads
     output_connector = Signal(str)
     finished_computation = Signal(bytes)
@@ -1510,9 +1510,9 @@ class SDViewer(QDialog):
         self.setMinimumWidth(620)
         self.appdata = appdata
         appdata.project.sd_solutions = self.solutions
-        
+
         self.layout = QVBoxLayout()
-        
+
         if self.solutions.is_gene_sd:
             self.sd_table = QTableCopyable(0, 3)
         else:
@@ -1520,7 +1520,7 @@ class SDViewer(QDialog):
         self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
-        
+
         buttons_layout = QHBoxLayout()
         self.savesds = QPushButton("Save solutions")
         self.savesds.clicked.connect(self.savesdsds)
@@ -1539,7 +1539,7 @@ class SDViewer(QDialog):
         buttons_layout.addWidget(self.edit)
         buttons_layout.addWidget(self.close)
         self.layout.addItem(buttons_layout)
-        
+
         if self.solutions.is_gene_sd:
             (rsd,self.assoc,gsd) = self.solutions.get_gene_reac_sd_assoc_mark_no_ki()
         else:
@@ -1551,7 +1551,7 @@ class SDViewer(QDialog):
         central_widget.mode_navigator.current = 0
         central_widget.mode_navigator.set_to_strain_design()
         central_widget.update_mode()
-        
+
         # prepare strain designs
         if self.solutions.is_gene_sd:
             self.sd_table.setMinimumWidth(320)
@@ -1596,7 +1596,7 @@ class SDViewer(QDialog):
                 self.sd_table.setItem(i, 1, item)
                 item = QTableItem(self.rsd[a])
                 item.setEditable(False)
-                self.sd_table.setItem(i, 2, item) 
+                self.sd_table.setItem(i, 2, item)
         else:
             self.rsd = ["" for _ in range(len(rsd))]
             for i,s in enumerate(rsd):
@@ -1614,7 +1614,7 @@ class SDViewer(QDialog):
             self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
             self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
             self.sd_table.horizontalHeader().resizeSection(0, 90)
-            self.sd_table.setHorizontalHeaderLabels(["Equiv. class","Intervention set"])               
+            self.sd_table.setHorizontalHeaderLabels(["Equiv. class","Intervention set"])
             for i,s in enumerate(self.rsd):
                 self.sd_table.insertRow(i)
                 item = QTableItem(str(i+1))
@@ -1637,11 +1637,11 @@ class SDViewer(QDialog):
         selection = int(self.sd_table.item(row,0).text())-1
         self.appdata.window.centralWidget().mode_navigator.current = selection
         self.appdata.window.centralWidget().update_mode()
-    
+
     def closediag(self):
         self.deleteLater()
         self.reject()
-    
+
     def savesdtsv(self):
         # open file dialog
         dialog = QFileDialog(self)
