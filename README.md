@@ -37,17 +37,23 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
    Under Windows systems, you can do this by searching for your system's "environmental variables" and adding
    the variable PYTHONNOUSERSITE with the value True using Window's environmental variables setting window.
 
-2. Create a conda environment with all dependencies
+2. Add the additional channels used by CNApy to conda:
+    ```sh
+    conda config --add channels IBMDecisionOptimization
+    conda config --add channels Gurobi
+    ```
+
+3. Create a conda environment with all dependencies
     ```sh
     conda create -n cnapy-1.0.7 -c conda-forge -c cnapy cnapy=1.0.7
     ```
 
-3. Activate the cnapy conda environment
+4. Activate the cnapy conda environment
     ```sh
     conda activate cnapy-1.0.7
     ```
 
-4. Run CNApy
+5. Run CNApy
     ```sh
     cnapy
     ```
