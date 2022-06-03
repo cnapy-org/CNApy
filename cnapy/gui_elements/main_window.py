@@ -519,11 +519,12 @@ class MainWindow(QMainWindow):
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
         self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
         self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        self.sd_viewer.cancel_computation.connect(self.terminate_strain_design_computation)
         # show dialog and launch process
         # self.sd_viewer.exec()
         self.sd_viewer.show()
         self.sd_computation.start()
-
+        
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)

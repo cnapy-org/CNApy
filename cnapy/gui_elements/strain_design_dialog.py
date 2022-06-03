@@ -2,18 +2,13 @@
 
 from contextlib import redirect_stdout, redirect_stderr
 import io
-from mimetypes import guess_all_extensions
 import json
 import os
-from threading import currentThread
-from scipy import sparse
-from numpy import nan, sign, inf
 from typing import Dict
-from multiprocessing import Lock, Queue
 import pickle
 import traceback
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
-                                    lineq2list, linexpr2dict, select_solver
+                                    linexpr2dict, select_solver
 from straindesign.names import *
 from straindesign.strainDesignSolution import SDSolution
 from random import randint
@@ -21,14 +16,15 @@ from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot, Signal, QThread
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
-                            QLabel, QLineEdit, QMessageBox, QPushButton,
+                            QLabel, QLineEdit, QMessageBox, QPushButton, QApplication,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog, QTextEdit, QLayout)
+                            QWidget, QFileDialog, QTextEdit, QLayout, QScrollArea)
 from cnapy.appdata import AppData
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
+import logging
 
-PROTECT_STR = 'Protect'
-SUPPRESS_STR = 'Suppress'
+PROTECT_STR = 'Protect (MCS)'
+SUPPRESS_STR = 'Suppress (MCS)'
 OPTKNOCK_STR = 'OptKnock'
 ROBUSTKNOCK_STR = 'RobustKnock'
 OPTCOUPLE_STR = 'OptCouple'
@@ -59,6 +55,9 @@ class SDDialog(QDialog):
         self.out = io.StringIO()
         self.err = io.StringIO()
         self.setMinimumWidth(620)
+        screen_geometry = QApplication.desktop().screen().geometry()
+        # self.setMaximumWidth(screen_geometry.width()-10)
+        # self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
 
@@ -100,11 +99,13 @@ class SDDialog(QDialog):
         ## Upper box of the dialog (for defining modules)
         self.modules = []
         self.current_module = 0
+        self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        # self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
-
+                
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
         self.module_list = QTableWidget(0, 2)
@@ -113,13 +114,14 @@ class SDDialog(QDialog):
         modules_layout.addItem(module_add_rem_buttons)
 
         # modules list
-        self.module_list.setFixedWidth(190)
+        self.module_list.setFixedWidth(195)
+        self.module_list.setMinimumHeight(40)
         self.module_list.setHorizontalHeaderLabels(["Module Type",""])
         # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         # self.module_list.verticalHeader().setVisible(False)
         self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.module_list.horizontalHeader().resizeSection(0, 110)
+        self.module_list.horizontalHeader().resizeSection(0, 115)
         self.module_list.horizontalHeader().resizeSection(1, 60)
         # -> first entry in module list
         # self.modules = [None]
@@ -212,7 +214,8 @@ class SDDialog(QDialog):
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
         self.module_edit[CONSTRAINTS].setMaximumHeight(80)
-        self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(25)
+        self.module_edit[CONSTRAINTS].setMinimumHeight(40)
+        self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(18)
         self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
         self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.module_edit[CONSTRAINTS].horizontalHeader().setVisible(False)
@@ -259,6 +262,7 @@ class SDDialog(QDialog):
         self.global_objective = QLabel("Please add strain design module(s) ...")
         self.global_objective.setProperty("prefix", "Current global objective: ")
         self.global_objective.setWordWrap(True)
+        self.global_objective.setMaximumHeight(40)
         self.layout.addWidget(self.global_objective)
 
         # self.layout.addWidget(self.modules_box)
@@ -291,7 +295,7 @@ class SDDialog(QDialog):
         checkboxes_layout.addItem(max_solutions_layout)
 
         max_cost_layout = QHBoxLayout()
-        l = QLabel(" Max. Size")
+        l = QLabel(" Max. Σ intervention costs")
         self.max_cost = QLineEdit("7")
         self.max_cost.setMaximumWidth(50)
         max_cost_layout.addWidget(self.max_cost)
@@ -407,7 +411,7 @@ class SDDialog(QDialog):
         ## KO and KI costs
         # checkbox
         self.advanced = QCheckBox(
-            "Advanced: Define Costs for genes/reactions knockout/addition and for regulatory interventions")
+            "Advanced: Take into account costs for genes/reactions knockout/addition and for regulatory interventions")
         self.layout.addWidget(self.advanced)
         self.advanced.clicked.connect(self.show_ko_ki)
 
@@ -425,7 +429,7 @@ class SDDialog(QDialog):
 
         self.regulatory_layout_table = QHBoxLayout()
         self.regulatory_itv_list = QTableWidget(0, 2)
-        self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(25)
+        self.regulatory_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.regulatory_itv_list.verticalHeader().setVisible(False)
         # self.regulatory_itv_list.horizontalHeader().setVisible(False)
         self.regulatory_itv_list.setHorizontalHeaderLabels(["Regulatory constraint","Cost"])
@@ -485,11 +489,12 @@ class SDDialog(QDialog):
         self.reaction_itv_list_widget = QWidget()
         self.reaction_itv_list_widget.setFixedWidth(270)
         self.reaction_itv_list = QTableCopyable(0, 3)
-        self.reaction_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.reaction_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.reaction_itv_list.verticalHeader().setVisible(False)
         # self.reaction_itv_list.setStyleSheet("QTableWidget#ko_ki_table::item { padding: 0 0 0 0 px; margin: 0 0 0 0 px }");
         self.reaction_itv_list.setFixedWidth(220)
-        self.reaction_itv_list.setMinimumHeight(150)
+        self.reaction_itv_list.setMinimumHeight(35)
+        self.reaction_itv_list.setMaximumHeight(150)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -560,10 +565,10 @@ class SDDialog(QDialog):
         # self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
         # self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
         # self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
-        self.gene_itv_list.verticalHeader().setDefaultSectionSize(20)
+        self.gene_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.gene_itv_list.verticalHeader().setVisible(False)
         self.gene_itv_list.setFixedWidth(220)
-        self.gene_itv_list.setMinimumHeight(150)
+        self.gene_itv_list.setMinimumHeight(50)
         self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -646,7 +651,9 @@ class SDDialog(QDialog):
 
         # Finalize
         self.setLayout(self.layout)
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         # Connecting signals
         try:
             self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
@@ -1065,8 +1072,10 @@ class SDDialog(QDialog):
         else:
             self.regulatory_box.setHidden(True)
             self.ko_ki_box.setHidden(True)
+        self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
-
+        self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
+    
     def ko_ki_filter_text_changed(self):
         self.setCursor(Qt.BusyCursor)
         txt = self.ko_ki_filter.text().lower().strip()
@@ -1391,10 +1400,14 @@ class SDComputationViewer(QDialog):
         self.explore.clicked.connect(self.show_sd)
         self.explore.setMaximumWidth(200)
         self.explore.setEnabled(False)
+        edit = QPushButton("Cancel && Edit strain design setup")
+        edit.clicked.connect(self.open_strain_design_dialog)
+        edit.setMaximumWidth(200)
         cancel = QPushButton("Cancel")
         cancel.setMaximumWidth(120)
         cancel.clicked.connect(self.cancel)
         buttons_layout.addWidget(self.explore)
+        buttons_layout.addWidget(edit)
         buttons_layout.addWidget(cancel)
         self.layout.addItem(buttons_layout)
 
@@ -1405,33 +1418,35 @@ class SDComputationViewer(QDialog):
     def conclude_computation(self,results):
         self.solutions = pickle.loads(results)
         self.setCursor(Qt.ArrowCursor)
-        if self.solutions.get_num_sols() == 0:
-            self.explore.setText('Edit strain design setup')
-            self.explore.clicked.disconnect()
-            self.explore.clicked.connect(self.open_strain_design_dialog)
-        self.explore.setEnabled(True)
+        if self.solutions.get_num_sols() > 0:
+            self.explore.setEnabled(True)
 
     @Slot(str)
     def receive_progress_text(self,txt):
-        self.textbox.append(txt)
-        self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
+        txt = txt.strip("\n\t\r ")
+        if txt != "":
+            self.textbox.append(txt)
+            self.textbox.verticalScrollBar().setValue(self.textbox.verticalScrollBar().maximum())
 
     @Slot()
     def open_strain_design_dialog(self):
+        self.cancel_computation.emit()
         self.appdata.window.strain_design_with_setup(self.sd_setup)
         self.deleteLater()
         self.accept()
 
     def show_sd(self):
-        self.show_sd_signal.emit(pickle.dumps(self.solutions))
+        self.show_sd_signal.emit(pickle.dumps((self.solutions,self.sd_setup)))
         self.deleteLater()
         self.accept()
 
     def cancel(self):
+        self.cancel_computation.emit()
         self.deleteLater()
         self.reject()
 
     show_sd_signal = Signal(bytes)
+    cancel_computation = Signal()
 
 class SDComputationThread(QThread):
     def __init__(self, appdata, sd_setup):
@@ -1440,7 +1455,6 @@ class SDComputationThread(QThread):
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
         self.curr_threadID = self.currentThread()
-        self.finished.connect(self.deleteLater)
         if self.sd_setup.pop('use_scenario'):
             for r in appdata.project.scen_values.keys():
                 self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
@@ -1455,9 +1469,13 @@ class SDComputationThread(QThread):
 
     def run(self):
         try:
-            self.curr_threadID = self.currentThread()
             with redirect_stdout(self), redirect_stderr(self):
                 self.curr_threadID = self.currentThread()
+                logger = logging.getLogger()
+                handler = logging.StreamHandler(stream=self)
+                handler.setFormatter(logging.Formatter('%(message)s'))
+                logger.addHandler(handler)
+                logger.setLevel('INFO')
                 sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
                 self.finished_computation.emit(pickle.dumps(sd_solutions))
         except Exception as e:
@@ -1469,9 +1487,11 @@ class SDComputationThread(QThread):
     def write(self, input):
         # avoid that other threads use this as an output
         if self.curr_threadID == self.currentThread():
-            if input and (input != "\n"):
+            if isinstance(input,str):
                 self.output_connector.emit(input)
-
+            else:
+                self.output_connector.emit(str(input))
+            
     def flush(self):
         pass
 
@@ -1485,7 +1505,7 @@ class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
     def __init__(self, appdata: AppData, solutions):
         super().__init__()
-        self.solutions = pickle.loads(solutions)
+        (self.solutions,self.sd_setup) = pickle.loads(solutions)
         self.setWindowTitle("Strain Design Solutions")
         self.setMinimumWidth(620)
         self.appdata = appdata
@@ -1502,18 +1522,22 @@ class SDViewer(QDialog):
         self.layout.addWidget(self.sd_table)
 
         buttons_layout = QHBoxLayout()
-        self.close = QPushButton("Close")
-        self.close.clicked.connect(self.closediag)
-        self.close.setMaximumWidth(100)
-        buttons_layout.addWidget(self.close)
         self.savesds = QPushButton("Save solutions")
         self.savesds.clicked.connect(self.savesdsds)
-        self.savesds.setMaximumWidth(150)
-        buttons_layout.addWidget(self.savesds)
+        self.savesds.setMaximumWidth(120)
         self.savetsv = QPushButton("Save as tsv (tab separated values)")
         self.savetsv.clicked.connect(self.savesdtsv)
-        self.savetsv.setMaximumWidth(250)
+        self.savetsv.setMaximumWidth(230)
+        self.edit = QPushButton("Discard solutions and edit setup")
+        self.edit.clicked.connect(self.open_strain_design_dialog)
+        self.edit.setMaximumWidth(200)
+        self.close = QPushButton("Close")
+        self.close.clicked.connect(self.closediag)
+        self.close.setMaximumWidth(75)
+        buttons_layout.addWidget(self.savesds)
         buttons_layout.addWidget(self.savetsv)
+        buttons_layout.addWidget(self.edit)
+        buttons_layout.addWidget(self.close)
         self.layout.addItem(buttons_layout)
 
         if self.solutions.is_gene_sd:
@@ -1604,7 +1628,7 @@ class SDViewer(QDialog):
         self.setLayout(self.layout)
         self.show()
         if self.solutions.has_complex_regul_itv:
-            QMessageBox.information(self,"Non-trivial regulatory interventions"+\
+            QMessageBox.information(self,"Non-trivial regulatory interventions",\
                                          "The strain design contains 'complex' " +\
                                          "regulatory interventions that cannot be shown " +\
                                          "in the network map. Please refer to table.")
@@ -1645,3 +1669,9 @@ class SDViewer(QDialog):
         elif len(filename)<=4 or filename[-4:] != '.sds':
             filename += '.sds'
         self.solutions.save(filename)
+
+    @Slot()
+    def open_strain_design_dialog(self):
+        self.appdata.window.strain_design_with_setup(json.dumps(self.sd_setup))
+        self.deleteLater()
+        self.accept()
