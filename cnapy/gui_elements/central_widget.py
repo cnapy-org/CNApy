@@ -5,6 +5,7 @@ import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
@@ -14,7 +15,7 @@ from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
-from cnapy.gui_elements.reactions_list import ReactionList
+from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
 from cnapy.utils import SignalThrottler
 
 
@@ -62,7 +63,10 @@ class CentralWidget(QWidget):
 
         # Check if client is working
         self.kernel_client.execute('import matplotlib.pyplot as plt')
-        self.kernel_client.execute('%matplotlib inline')
+        # Maybe add selection for inline or separate Qt window plotting in configure menu:
+        # "Show plots in separate window" - Checkbox
+        # self.kernel_client.execute('%matplotlib inline')
+        self.kernel_client.execute('%matplotlib qt')
         self.kernel_client.execute(
             "%config InlineBackend.figure_format = 'svg'")
         self.console = RichJupyterWidget()
@@ -263,35 +267,118 @@ class CentralWidget(QWidget):
             m.update_selected(x)
 
     def update_mode(self):
-        if len(self.appdata.project.modes) > self.mode_navigator.current:
-            values = self.appdata.project.modes[self.mode_navigator.current]
-            if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
-                self.mode_navigator.current, self.appdata.rounding):
-                # normalize non-integer EFM for better display
-                mean = sum(abs(v) for v in values.values())/len(values)
-                for r,v in values.items():
-                    values[r] = v/mean
+        if self.mode_navigator.mode_type <= 1:
+            if len(self.appdata.project.modes) > self.mode_navigator.current:
+                values = self.appdata.project.modes[self.mode_navigator.current]
+                if self.mode_navigator.mode_type == 0 and not self.appdata.project.modes.is_integer_vector_rounded(
+                    self.mode_navigator.current, self.appdata.rounding):
+                    # normalize non-integer EFM for better display
+                    mean = sum(abs(v) for v in values.values())/len(values)
+                    for r,v in values.items():
+                        values[r] = v/mean
 
-            # set values
-            self.appdata.project.comp_values.clear()
-            self.parent.clear_status_bar()
-            for i in values:
-                if self.mode_navigator.mode_type == 1 and values[i] == -1:
-                    values[i] = 0.0 # display cuts as zero flux
-                self.appdata.project.comp_values[i] = (values[i], values[i])
-            self.appdata.project.comp_values_type = 0
+                # set values
+                self.appdata.project.comp_values.clear()
+                self.parent.clear_status_bar()
+                for i in values:
+                    if self.mode_navigator.mode_type == 1:
+                        if values[i] < 0:
+                            values[i] = 0.0 # display KOs as zero flux
+                    self.appdata.project.comp_values[i] = (values[i], values[i])
+                self.appdata.project.comp_values_type = 0
 
-        self.appdata.modes_coloring = True
-        self.update()
-        self.appdata.modes_coloring = False
+            self.appdata.modes_coloring = True
+            self.update()
+            self.appdata.modes_coloring = False
+
+        elif self.mode_navigator.mode_type == 2:
+            if len(self.appdata.project.modes) > self.mode_navigator.current:
+                # clear previous coloring
+                self.appdata.project.comp_values.clear()
+                self.parent.clear_status_bar()
+                self.appdata.project.comp_values_type = 0
+                # Set values
+                bnd_dict = self.appdata.project.modes[self.mode_navigator.current]
+                for k,v in bnd_dict.items():
+                    if numpy.any(numpy.isnan(v)):
+                        self.appdata.project.comp_values[k] = (0,0)
+                    else:
+                        mod_bnds = self.appdata.project.cobra_py_model.reactions.get_by_id(k).bounds
+                        self.appdata.project.comp_values[k] = (numpy.max((v[0],mod_bnds[0])),numpy.min((v[1],mod_bnds[1])))
+                self.appdata.modes_coloring = True
+                self.update()
+                self.appdata.modes_coloring = False
+                idx = self.appdata.window.centralWidget().tabs.currentIndex()
+                if idx == 0 and self.appdata.project.comp_values_type == 0:
+                    view = self.appdata.window.centralWidget().reaction_list
+                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
+                    root = view.reaction_list.invisibleRootItem()
+                    child_count = root.childCount()
+                    for i in range(child_count):
+                        item = root.child(i)
+                        if item.text(0) in bnd_dict:
+                            v = bnd_dict[item.text(0)]
+                            if numpy.any(numpy.isnan(v)):
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                            elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
+                            elif v[0] == 0.0 and v[1] == 0.0:
+                                item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 0, 0))
+                            elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
+                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                        else:
+                            item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 255, 255))
+                    view.reaction_list.blockSignals(False)
+                idx = self.appdata.window.centralWidget().map_tabs.currentIndex()
+                if idx < 0:
+                    return
+                name = self.appdata.window.centralWidget().map_tabs.tabText(idx)
+                view = self.appdata.window.centralWidget().map_tabs.widget(idx)
+                for key in self.appdata.project.maps[name]["boxes"]:
+                    if key in bnd_dict:
+                        v = bnd_dict[key]
+                        if numpy.any(numpy.isnan(v)):
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                        elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_2)
+                        elif v[0] == 0.0 and v[1] == 0.0:
+                            view.reaction_boxes[key].set_color(QColor.fromRgb(255, 0, 0))
+                        elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
+                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                    else:
+                        view.reaction_boxes[key].set_color(QColor.fromRgb(255, 255, 255))
+                if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
+                    self.mode_navigator.current
+                    for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
+                        if self.mode_navigator.current == int(self.appdata.window.sd_sols.sd_table.item(i,0).text())-1:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(230,230,230)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(230,230,230)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(230,230,230)))
+                        else:
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(255, 255, 255)))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
+                            if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
 
     def reaction_participation(self):
-        relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
-        if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values.clear()
         self.parent.clear_status_bar()
-        self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
+            self.appdata.project.comp_values = {r: (relative_participation[0,i], relative_participation[0,i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            reacs = self.appdata.project.cobra_py_model.reactions.list_attr('id')
+            abund = [0 for _ in reacs]
+            for i,r in enumerate(reacs):
+                for s in [self.appdata.project.modes[l] for l,t in enumerate(self.mode_navigator.selection) if t]:
+                    if r in s:
+                        if not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            abund[i] += 1
+            relative_participation = [a/self.mode_navigator.num_selected for a in abund]
+            self.appdata.project.comp_values = {r: (p,p) for r,p in zip(reacs,relative_participation)}
+        if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+            relative_participation = relative_participation.A1 # flatten into 1D array
         self.appdata.project.comp_values_type = 0
         self.update()
         self.parent.set_heaton()

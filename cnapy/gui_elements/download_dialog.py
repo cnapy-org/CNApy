@@ -4,7 +4,8 @@ import urllib.request
 from zipfile import ZipFile
 
 from qtpy.QtWidgets import (
-    QLabel, QDialog, QHBoxLayout, QPushButton,  QVBoxLayout)
+    QLabel, QDialog, QHBoxLayout, QPushButton,  QVBoxLayout
+)
 
 from cnapy.appdata import AppData
 

@@ -2,12 +2,11 @@ import numpy
 import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, Signal, Slot, QStringListModel
-from qtpy.QtGui import QIcon
+from qtpy.QtGui import QIcon, QBrush, QColor
 from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
 
 
-import cnapy.resources
 from cnapy.flux_vector_container import FluxVectorContainer
 
 
@@ -102,9 +101,6 @@ class ModeNavigator(QWidget):
             return
         self.appdata.project.modes.save(filename)
 
-        # with open(filename, 'w') as fp:
-        #     json.dump(self.appdata.project.modes, fp)
-
     def save_efm(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -112,6 +108,16 @@ class ModeNavigator(QWidget):
         if not filename or len(filename) == 0:
             return
         self.appdata.project.modes.save(filename)
+
+    def save_sd(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.sds")[0]
+        if not filename or len(filename) == 0:
+            return
+        elif len(filename)<=4 or filename[-4:] != '.sds':
+            filename += '.sds'
+        self.appdata.project.sd_solutions.save(filename)
 
     def update_completion_list(self):
         reac_id = self.appdata.project.cobra_py_model.reactions.list_attr("id")
@@ -136,6 +142,17 @@ class ModeNavigator(QWidget):
         self.save_button_connection = self.save_button.clicked.connect(self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
+        self.select_all()
+        self.update_completion_list()
+
+    def set_to_strain_design(self):
+        self.mode_type = 2
+        self.title.setText("Strain Design Navigation")
+        if self.save_button_connection is not None:
+            self.save_button.clicked.disconnect(self.save_button_connection)
+        self.save_button_connection = self.save_button.clicked.connect(self.save_sd)
+        self.save_button.setToolTip("save strain designs")
+        self.clear_button.setToolTip("clear strain designs")
         self.select_all()
         self.update_completion_list()
 
@@ -213,30 +230,61 @@ class ModeNavigator(QWidget):
 
     def select(self, must_occur=None, must_not_occur=None):
         self.selection[:] = True  # reset selection
-        if must_occur is not None:
-            for r in must_occur:
-                r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i, selected in enumerate(self.selection):
-                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
-                        self.selection[i] = False
-        if must_not_occur is not None:
-            for r in must_not_occur:
-                r_idx = self.appdata.project.modes.reac_id.index(r)
-                for i, selected in enumerate(self.selection):
-                    if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
-                        self.selection[i] = False
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            if must_occur is not None:
+                for r in must_occur:
+                    r_idx = self.appdata.project.modes.reac_id.index(r)
+                    for i, selected in enumerate(self.selection):
+                        if selected and self.appdata.project.modes.fv_mat[i, r_idx] == 0:
+                            self.selection[i] = False
+            if must_not_occur is not None:
+                for r in must_not_occur:
+                    r_idx = self.appdata.project.modes.reac_id.index(r)
+                    for i, selected in enumerate(self.selection):
+                        if selected and self.appdata.project.modes.fv_mat[i, r_idx] != 0:
+                            self.selection[i] = False
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            if must_occur is not None:
+                for r in must_occur:
+                    for i, selected in enumerate(self.selection):
+                        s = self.appdata.project.modes[i]
+                        if selected and r not in s or numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            self.selection[i] = False
+            if must_not_occur is not None:
+                for r in must_not_occur:
+                    for i, selected in enumerate(self.selection):
+                        s = self.appdata.project.modes[i]
+                        if selected and r in s and not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
+                            self.selection[i] = False
+            if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
+                for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
+                    r_sd_idx = int(self.appdata.window.sd_sols.sd_table.item(i,0).text())-1
+                    if self.selection[r_sd_idx]:
+                        self.appdata.window.sd_sols.sd_table.item(i,0).setForeground(QBrush(QColor(0, 0, 0)))
+                        self.appdata.window.sd_sols.sd_table.item(i,1).setForeground(QBrush(QColor(0, 0, 0)))
+                        if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                            self.appdata.window.sd_sols.sd_table.item(i,2).setForeground(QBrush(QColor(0, 0, 0)))
+                    else:
+                        self.appdata.window.sd_sols.sd_table.item(i,0).setForeground(QBrush(QColor(200, 200, 200)))
+                        self.appdata.window.sd_sols.sd_table.item(i,1).setForeground(QBrush(QColor(200, 200, 200)))
+                        if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
+                            self.appdata.window.sd_sols.sd_table.item(i,2).setForeground(QBrush(QColor(200, 200, 200)))
         self.num_selected = numpy.sum(self.selection)
 
     def size_histogram(self):
-        sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
-        if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
-            sizes = sizes.A1 # flatten into 1D array
+        if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
+            sizes = numpy.sum(self.appdata.project.modes.fv_mat[self.selection, :] != 0, axis=1)
+            if isinstance(sizes, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+                sizes = sizes.A1 # flatten into 1D array
+        elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
+            sizes = [numpy.sum([not numpy.any(numpy.isnan(v)) or numpy.all((v == 0)) \
+                                for v in self.appdata.project.modes[i].values()]) for i,s in enumerate(self.selection) if s]
         plt.hist(sizes, bins="auto")
         plt.show()
 
     def __del__(self):
         self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
-    
+
     changedCurrentMode = Signal(int)
     modeNavigatorClosed = Signal()
 
@@ -269,12 +317,10 @@ class CustomCompleter(QCompleter):
     def pathFromIndex(self, index): # overrides Qcompleter method
         path = QCompleter.pathFromIndex(self, index)
         lst = str(self.widget().text()).split(',')
-        # print("pathFromIndex", lst)
         if len(lst) > 1:
             path = '%s, %s' % (','.join(lst[:-1]), path)
         return path
 
     def splitPath(self, path): # overrides Qcompleter method
         path = str(path.split(',')[-1]).lstrip(' ')
-        # print("splitPath", path)
         return [path]

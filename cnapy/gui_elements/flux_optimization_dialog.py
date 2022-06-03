@@ -1,4 +1,4 @@
-"""The cnapy yield optimization dialog"""
+"""The cnapy flux optimization dialog"""
 from random import randint
 from numpy import isnan, isinf
 import re
@@ -9,34 +9,30 @@ from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
-from straindesign import yopt, linexpr2dict, linexprdict2str, avail_solvers
+from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
 from straindesign.names import *
 
-class YieldOptimizationDialog(QDialog):
-    """A dialog to perform yield optimization"""
+class FluxOptimizationDialog(QDialog):
+    """A dialog to perform flux optimization"""
 
     def __init__(self, appdata: AppData, central_widget: CentralWidget):
         QDialog.__init__(self)
-        self.setWindowTitle("Yield optimization")
+        self.setWindowTitle("Flux optimization")
 
         self.appdata = appdata
         self.central_widget = central_widget
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
-        if numr > 2:
+        if numr > 1:
             r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
-            r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
         else:
             r1 = 'r_product'
-            r2 = 'r_substrate'
 
         self.layout = QVBoxLayout()
-        l = QLabel("Maximize (or minimize) a yield function. \n"+ \
-                   "Numerator and denominator are specified as linear expressions \n"+ \
-                   "with reaction identifiers and (optionally) coefficients.\n"+\
-                   "Keep in mind that exchange reactions are often defined in the direction of export.\n"+
-                   "Consider changing signs.")
+        l = QLabel("Maximize (or minimize) a linear flux expression with reaction identifiers and \n"+ \
+                   "(optionally) coefficients. Keep in mind that exchange reactions are often defined \n"+\
+                   "in the direction of export. Consider changing coefficient signs.")
         self.layout.addWidget(l)
         editor_layout = QHBoxLayout()
         self.sense_combo = QComboBox()
@@ -48,18 +44,16 @@ class YieldOptimizationDialog(QDialog):
         font.setPointSize(30)
         open_bracket.setFont(font)
         editor_layout.addWidget(open_bracket)
-        num_den_layout = QVBoxLayout()
-        self.numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.numerator.setPlaceholderText('numerator (e.g. 1.0 '+r1+')')
-        self.denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
-        self.denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
-        num_den_layout.addWidget(self.numerator)
-        sep = QHSeperationLine()
-        sep.setFrameShadow(QFrame.Plain)
-        sep.setLineWidth(2)
-        num_den_layout.addWidget(sep)
-        num_den_layout.addWidget(self.denominator)
-        editor_layout.addItem(num_den_layout)
+        flux_expr_layout = QVBoxLayout()
+        self.expr = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.expr.setPlaceholderText('flux expression (e.g. 1.0 '+r1+')')
+        flux_expr_layout.addWidget(self.expr)
+        editor_layout.addItem(flux_expr_layout)
+        # close_bracket = QLabel(')')
+        # font = close_bracket.font()
+        # font.setPointSize(30)
+        # close_bracket.setFont(font)
+        # editor_layout.addWidget(close_bracket)
         self.layout.addItem(editor_layout)
 
         l3 = QHBoxLayout()
@@ -71,8 +65,7 @@ class YieldOptimizationDialog(QDialog):
         self.setLayout(self.layout)
 
         # Connecting the signal
-        self.numerator.textCorrect.connect(self.validate_dialog)
-        self.denominator.textCorrect.connect(self.validate_dialog)
+        self.expr.textCorrect.connect(self.validate_dialog)
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.compute)
 
@@ -80,7 +73,7 @@ class YieldOptimizationDialog(QDialog):
 
     @Slot(bool)
     def validate_dialog(self,b=True):
-        if self.numerator.is_valid and self.denominator.is_valid:
+        if self.expr.is_valid:
             self.button.setEnabled(True)
         else:
             self.button.setEnabled(False)
@@ -96,35 +89,20 @@ class YieldOptimizationDialog(QDialog):
             solver = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
             if solver is not None:
                 solver = solver[0]
-            sol = yopt(model,
-                       obj_num=self.numerator.text(),
-                       obj_den=self.denominator.text(),
-                       obj_sense=self.sense_combo.currentText(),
-                       solver=solver)
+            sol = fba(model,
+                       obj=self.expr.text(),
+                       obj_sense=self.sense_combo.currentText())
             if sol.status == UNBOUNDED and isinf(sol.objective_value):
                 self.set_boxes(sol)
-                QMessageBox.warning(self, sense+' yield is unbounded. ',
-                                    'Yield unbounded. \n'+\
-                                    'Parts of the shown example flux distribution can be scaled indefinitely. The numerator "'+\
-                                     linexprdict2str(linexpr2dict(self.numerator.text(),self.reac_ids))+'" is unbounded.',)
-            elif sol.status == UNBOUNDED and isnan(sol.objective_value):
-                self.set_boxes(sol)
-                QMessageBox.warning(self, sense+' yield is undefined. ',
-                                    'Yield undefined. \n'+\
-                                    'The denominator "'+\
-                                     linexprdict2str(linexpr2dict(self.denominator.text(),self.reac_ids))+\
-                                    '" can take the value 0, as shown in the example flux distibution.',)
+                QMessageBox.warning(self, sense+' unbounded. ',
+                                    'Flux expression "'+linexprdict2str(linexpr2dict(self.expr.text(),self.reac_ids))+\
+                                    '" is unbounded. \nParts of the shown example flux distribution can be scaled indefinitely.',)
             elif sol.status == OPTIMAL:
                 self.set_boxes(sol)
-                if sol.scalable:
-                    txt_scalable = '\nThe shown example flux distribution can be scaled indefinitely.'
-                else:
-                    txt_scalable = ''
                 QMessageBox.information(self, 'Solution',
-                                    'Maximum yield ('+linexprdict2str(linexpr2dict(self.numerator.text(),self.reac_ids))+\
-                                    ') / ('+linexprdict2str(linexpr2dict(self.denominator.text(),self.reac_ids))+\
+                                    'Optimum ('+linexprdict2str(linexpr2dict(self.expr.text(),self.reac_ids))+\
                                     '): '+str(round(sol.objective_value,9)) + \
-                                    '\nShowing yield-optimal example flux distribution.' + txt_scalable)
+                                    '\nShowing optimal example flux distribution.')
             else:
                 QMessageBox.warning(self, 'Problem infeasible.',
                                     'The scenario seems to be infeasible.',)
