@@ -50,7 +50,7 @@ class DownloadDialog(QDialog):
         for t in targets:
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
-                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.5/' + t
+                url = 'https://github.com/cnapy-org/CNApy-projects/releases/download/0.0.6/' + t
                 print("Downloading", url, "to", target, "...")
                 urllib.request.urlretrieve(url, target)
                 print("Done!")
