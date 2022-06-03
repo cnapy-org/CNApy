@@ -525,6 +525,12 @@ class MainWindow(QMainWindow):
         self.sd_viewer.show()
         self.sd_computation.start()
         
+    @Slot()
+    def terminate_strain_design_computation(self):
+        self.sd_computation.output_connector.disconnect()
+        self.sd_computation.finished_computation.disconnect()
+        self.sd_computation.terminate()
+        
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)

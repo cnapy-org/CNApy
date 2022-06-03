@@ -378,7 +378,7 @@ class SDDialog(QDialog):
         solver_and_solution_layout.addItem(solver_buttons_layout)
         # check best available solver
         if avail_solvers:
-            solver = select_solver(None,self.appdata.project.cobra_py_model)
+            solver = select_solver(GLPK,self.appdata.project.cobra_py_model)
             self.solver_buttons[solver].setChecked(True)
 
         solution_buttons_layout = QVBoxLayout()
@@ -1517,7 +1517,7 @@ class SDViewer(QDialog):
             self.sd_table = QTableCopyable(0, 3)
         else:
             self.sd_table = QTableCopyable(0, 2)
-        self.sd_table.verticalHeader().setDefaultSectionSize(20)
+        self.sd_table.verticalHeader().setDefaultSectionSize(18)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
 
