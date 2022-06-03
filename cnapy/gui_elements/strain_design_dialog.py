@@ -1517,7 +1517,7 @@ class SDViewer(QDialog):
             self.sd_table = QTableCopyable(0, 3)
         else:
             self.sd_table = QTableCopyable(0, 2)
-        self.sd_table.verticalHeader().setDefaultSectionSize(18)
+        self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
 
