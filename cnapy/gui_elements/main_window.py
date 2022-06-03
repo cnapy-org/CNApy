@@ -12,12 +12,11 @@ from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
+import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 
-# from cobra.manipulation.delete import prune_unused_metabolites
 from qtpy.QtCore import QFileInfo, Qt, Slot
-from qtpy.QtGui import QColor, QIcon, QPalette, QKeySequence
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QGraphicsItem,
+from qtpy.QtGui import QColor, QIcon, QKeySequence
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
 
 from cnapy.appdata import AppData, ProjectData
@@ -25,22 +24,21 @@ from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
-# from cnapy.gui_elements.config_cna_dialog import ConfigCNADialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
-# from cnapy.gui_elements.efm_dialog import EFMDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
-from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread 
+from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
-# from cnapy.legacy import try_cna
+from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
+from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 import cnapy.utils as utils
 
 
@@ -272,10 +270,6 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addSeparator()
 
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
-        # self.efm_action = QAction(
-        #     "Compute Elementary Flux Modes/Vectors via CNA ...", self)
-        # self.efm_action.triggered.connect(self.efm)
-        # self.efm_menu.addAction(self.efm_action)
 
         self.efmtool_action = QAction(
             "Compute Elementary Flux Modes via EFMtool ...", self)
@@ -295,17 +289,17 @@ class MainWindow(QMainWindow):
         load_mcs_action = QAction("Load Minimal Cut Sets ...", self)
         self.sd_menu.addAction(load_mcs_action)
         load_mcs_action.triggered.connect(self.load_mcs)
-           
+
         self.sd_action = QAction("Compute Strain Designs ...", self)
         self.sd_action.triggered.connect(self.strain_design)
         self.sd_menu.addAction(self.sd_action)
         self.sd_dialog = None
         self.sd_sols = None
-        
+
         load_sd_action = QAction("Load Strain Designs ...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
-        
+
         self.flux_optimization_action = QAction(
             "Flux optimization ...", self)
         self.flux_optimization_action.triggered.connect(self.optimize_flux)
@@ -354,9 +348,15 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
-        # config_action = QAction("Configure CNA bridge ...", self)
-        # self.config_menu.addAction(config_action)
-        # config_action.triggered.connect(self.show_config_cna_dialog)
+
+        config_action = QAction("Configure IBM CPLEX Full Version...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_cplex_configuration_dialog)
+
+
+        config_action = QAction("Configure Gurobi Full Version...", self)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_gurobi_configuration_dialog)
 
         show_console_action = QAction("Show Console", self)
         self.config_menu.addAction(show_console_action)
@@ -471,16 +471,7 @@ class MainWindow(QMainWindow):
             self.setWindowTitle("CNApy - " + shown_name)
 
     def disable_enable_dependent_actions(self):
-
         self.efm_action.setEnabled(False)
-
-        if self.appdata.selected_engine == "matlab" and self.appdata.is_matlab_ready():
-            if self.appdata.cna_ok:
-                self.efm_action.setEnabled(True)
-
-        elif self.appdata.selected_engine == "octave" and self.appdata.is_octave_ready():
-            if self.appdata.cna_ok:
-                self.efm_action.setEnabled(True)
 
     @Slot()
     def exit_app(self):
@@ -503,22 +494,22 @@ class MainWindow(QMainWindow):
     def show_about(self):
         dialog = AboutDialog(self.appdata)
         dialog.exec_()
-        
+
     @Slot()
     def plot_space(self):
         self.plot_space = PlotSpaceDialog(self.appdata)
         self.plot_space.show()
-    
+
     # Strain design computation and viewing functions
     def strain_design(self):
         self.sd_dialog = SDDialog(self.appdata)
         self.sd_dialog.show()
-    
+
     @Slot(str)
     def strain_design_with_setup(self, sd_setup):
         self.sd_dialog = SDDialog(self.appdata, json.loads(sd_setup))
         self.sd_dialog.show()
-        
+
     @Slot(str)
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
@@ -545,7 +536,7 @@ class MainWindow(QMainWindow):
         self.sd_sols = SDViewer(self.appdata, solutions)
         self.sd_sols.show()
         self.centralWidget().update_mode()
-        
+
     @Slot()
     def load_strain_designs(self):
         dialog = QFileDialog(self)
@@ -556,12 +547,12 @@ class MainWindow(QMainWindow):
         with open(filename,'rb') as f:
             solutions = f.read()
         self.show_strain_designs(solutions)
-        
+
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
         dialog.exec_()
-        
+
     @Slot()
     def optimize_flux(self):
         dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
@@ -571,13 +562,6 @@ class MainWindow(QMainWindow):
     def show_config_dialog(self):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
-
-    # @Slot()
-    # def show_config_cna_dialog(self):
-    #     self.setCursor(Qt.BusyCursor)
-    #     dialog = ConfigCNADialog(self.appdata)
-    #     self.setCursor(Qt.ArrowCursor)
-    #     dialog.exec_()
 
     def show_download_dialog(self):
         dialog = DownloadDialog(self.appdata)
@@ -589,6 +573,16 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+        dialog.exec_()
+
+    @Slot()
+    def show_cplex_configuration_dialog(self):
+        dialog = CplexConfigurationDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_gurobi_configuration_dialog(self):
+        dialog = GurobiConfigurationDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
@@ -691,17 +685,9 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.modes = FluxVectorContainer(filename)
         self.centralWidget().mode_navigator.current = 0
-        # values = self.appdata.project.modes[0]
-        # self.appdata.project.scen_values.clear()
-        # self.appdata.project.comp_values.clear()
-        # for i in values:
-        #     self.appdata.project.comp_values[i] = (values[i], values[i])
 
         self.centralWidget().mode_navigator.set_to_efm()
         self.centralWidget().update_mode()
-        # self.appdata.modes_coloring = True
-        # self.centralWidget().update()
-        # self.appdata.modes_coloring = False
 
     @Slot()
     def load_mcs(self):
@@ -715,24 +701,6 @@ class MainWindow(QMainWindow):
         self.centralWidget().mode_navigator.current = 0
         self.centralWidget().mode_navigator.set_to_mcs()
         self.centralWidget().update_mode()
-        # dialog = QFileDialog(self)
-        # filename: str = dialog.getOpenFileName(
-        #     directory=self.appdata.work_directory, filter="*.mcs")[0]
-        # if not filename or len(filename) == 0 or not os.path.exists(filename):
-        #     return
-
-        # with open(filename, 'r') as fp:
-        #     self.appdata.project.modes = json.load(fp)
-        #     self.centralWidget().mode_navigator.current = 0
-        #     values = self.appdata.project.modes[0].copy()
-        #     self.appdata.project.scen_values.clear()
-        #     self.appdata.project.comp_values.clear()
-        #     for i in values:
-        #         self.appdata.project.comp_values[i] = (values[i], values[i])
-        # self.centralWidget().mode_navigator.set_to_mcs()
-        # self.appdata.modes_coloring = True
-        # self.centralWidget().update()
-        # self.appdata.modes_coloring = False
 
     @Slot()
     def change_background(self, caption="Select a SVG file", directory=None):
@@ -1117,7 +1085,7 @@ class MainWindow(QMainWindow):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
-        # remove unused species - > cleanup disabled for now because of issues 
+        # remove unused species - > cleanup disabled for now because of issues
         # with prune_unused_metabolites
         # (clean_model, unused_mets) = prune_unused_metabolites(
         #     self.appdata.project.cobra_py_model)
@@ -1554,7 +1522,7 @@ class MainWindow(QMainWindow):
             try:
                 solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
                     results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
-                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None, 
+                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None,
                     print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(

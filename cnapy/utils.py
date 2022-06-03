@@ -1,22 +1,27 @@
 ''' CNApy utilities '''
 from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer
 from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, \
-                           QCompleter, QApplication, QFrame, QSizePolicy
+    QCompleter, QApplication, QFrame, QSizePolicy
 from straindesign import lineq2list, linexpr2dict
 import re
 
-def BORDER_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
-    return "QGroupBox#EditModule "+\
-                "{ border: 1px solid "+HEX+";"+\
-                "  padding: 12 5 0 0 em ;"+\
-                "  margin: 0 0 0 0 em};"
 
-def BACKGROUND_COLOR(HEX,id): # string that defines style sheet for changing the color of the module-box
-    return "QLineEdit#"+id+" "+\
-                "{ background: "+HEX+"};"
-                
-def FONT_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
+def BORDER_COLOR(HEX):  # string that defines style sheet for changing the color of the module-box
+    return "QGroupBox#EditModule " +\
+        "{ border: 1px solid "+HEX+";" +\
+        "  padding: 12 5 0 0 em ;" +\
+        "  margin: 0 0 0 0 em};"
+
+
+# string that defines style sheet for changing the color of the module-box
+def BACKGROUND_COLOR(HEX, id):
+    return "QLineEdit#"+id+" " +\
+        "{ background: "+HEX+"};"
+
+
+def FONT_COLOR(HEX):  # string that defines style sheet for changing the color of the module-box
     return "QLabel { color: "+HEX+"};"
+
 
 def show_unknown_error_box(exstr):
     msgBox = QMessageBox()
@@ -80,8 +85,10 @@ class SignalThrottler(QObject):
     timeoutChanged = Signal(int)
     timerTypeChanged = Signal(Qt.TimerType)
 
+
 class QComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
+
     def __init__(self, sd_dialog, wordlist, check=True, is_constr=False):
         super().__init__("")
         self.sd_dialog = sd_dialog
@@ -99,35 +106,37 @@ class QComplReceivLineEdit(QLineEdit):
     def text_changed(self, text):
         all_text = text
         text = all_text[:self.cursorPosition()]
-        prefix = re.split('\s|,|-',text)[-1].strip()
+        prefix = re.split('\s|,|-', text)[-1].strip()
         if prefix != '':
             self.completer.setCompletionPrefix(prefix)
             self.completer.complete()
         self.check_text(False)
-        
+
     def complete_text(self, text):
         cursor_pos = self.cursorPosition()
         before_text = self.text()[:cursor_pos]
         after_text = self.text()[cursor_pos:]
-        prefix_len = len(re.split('\s|,|-',before_text)[-1].strip())
-        self.setText(before_text[:cursor_pos - prefix_len] + text + " " + after_text)
+        prefix_len = len(re.split('\s|,|-', before_text)[-1].strip())
+        self.setText(before_text[:cursor_pos -
+                     prefix_len] + text + " " + after_text)
         self.setCursorPosition(cursor_pos - prefix_len + len(text) + 1)
-    
+
     def skip_completion(self):
-        self.completer.setCompletionPrefix('###') # dummy
-    
+        self.completer.setCompletionPrefix('###')  # dummy
+
     def focusInEvent(self, event):
         super().focusInEvent(event)
         self.sd_dialog.active_receiver = self
-    
+
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
         self.check_text(True)
-    
-    def check_text(self,final):
+
+    def check_text(self, final):
         if self.check:
             if self.text().strip() == "":
-                self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                self.setStyleSheet(BACKGROUND_COLOR(
+                    "#ffffff", self.objectName()))
                 self.textCorrect.emit(False)
                 self.is_valid = None
                 return None
@@ -138,23 +147,27 @@ class QComplReceivLineEdit(QLineEdit):
                     else:
                         linexpr2dict(self.text(), self.wordlist)
                     if final:
-                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                        self.setStyleSheet(BACKGROUND_COLOR(
+                            "#ffffff", self.objectName()))
                     else:
-                        self.setStyleSheet(BACKGROUND_COLOR("#f0fff1",self.objectName()))
+                        self.setStyleSheet(BACKGROUND_COLOR(
+                            "#f0fff1", self.objectName()))
                     self.is_valid = True
                     self.textCorrect.emit(True)
                     return True
                 except:
                     if final:
-                        self.setStyleSheet(BACKGROUND_COLOR("#fff0f0",self.objectName()))
+                        self.setStyleSheet(BACKGROUND_COLOR(
+                            "#fff0f0", self.objectName()))
                     else:
-                        self.setStyleSheet(BACKGROUND_COLOR("#ffffff",self.objectName()))
+                        self.setStyleSheet(BACKGROUND_COLOR(
+                            "#ffffff", self.objectName()))
                     self.is_valid = False
                     self.textCorrect.emit(False)
                     return False
-                
+
     textCorrect = Signal(bool)
-    
+
 
 class QTableCopyable(QTableWidget):
     def __init__(self, *args, **kwargs):
@@ -174,54 +187,59 @@ class QTableCopyable(QTableWidget):
                     else:
                         copy_text += '\t'
             QApplication.clipboard().setText(copy_text)
-            
+
+
 class QTableItem(QTableWidgetItem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-    def setEditable(self,b):
+
+    def setEditable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f|Qt.ItemIsEditable)
+            self.setFlags(f | Qt.ItemIsEditable)
         else:
-            self.setFlags(f&~Qt.ItemIsEditable)
-            
-    def setSelectable(self,b):
+            self.setFlags(f & ~Qt.ItemIsEditable)
+
+    def setSelectable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f|Qt.ItemIsSelectable)
+            self.setFlags(f | Qt.ItemIsSelectable)
         else:
-            self.setFlags(f&~Qt.ItemIsSelectable)
-            
-    def setEnabled(self,b):
+            self.setFlags(f & ~Qt.ItemIsSelectable)
+
+    def setEnabled(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f|Qt.ItemIsEnabled)
+            self.setFlags(f | Qt.ItemIsEnabled)
         else:
-            self.setFlags(f&~Qt.ItemIsEnabled)
-            
+            self.setFlags(f & ~Qt.ItemIsEnabled)
+
+
 class QHSeperationLine(QFrame):
-  '''
-  a horizontal seperation line\n
-  '''
-  def __init__(self):
-    super().__init__()
-    self.setMinimumWidth(1)
-    self.setFixedHeight(20)
-    self.setFrameShape(QFrame.HLine)
-    self.setFrameShadow(QFrame.Sunken)
-    self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-    return
+    '''
+    a horizontal seperation line\n
+    '''
+
+    def __init__(self):
+        super().__init__()
+        self.setMinimumWidth(1)
+        self.setFixedHeight(20)
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        return
+
 
 class QVSeperationLine(QFrame):
-  '''
-  a vertical seperation line\n
-  '''
-  def __init__(self):
-    super().__init__()
-    self.setFixedWidth(20)
-    self.setMinimumHeight(1)
-    self.setFrameShape(QFrame.VLine)
-    self.setFrameShadow(QFrame.Sunken)
-    self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-    return
+    '''
+    a vertical seperation line\n
+    '''
+
+    def __init__(self):
+        super().__init__()
+        self.setFixedWidth(20)
+        self.setMinimumHeight(1)
+        self.setFrameShape(QFrame.VLine)
+        self.setFrameShadow(QFrame.Sunken)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        return

@@ -15,7 +15,7 @@ class PlotSpaceDialog(QDialog):
         QDialog.__init__(self)
         self.setWindowTitle("Flux space plotting")
         self.setMinimumWidth(500)
-        
+
         self.appdata = appdata
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
@@ -49,7 +49,7 @@ class PlotSpaceDialog(QDialog):
         points_layout.addWidget(numpoints_text)
         points_layout.addWidget(self.numpoints)
         self.layout.addLayout(points_layout)
-        
+
         editor_layout = QHBoxLayout()
         # Define for horizontal axis
         x_groupbox = QGroupBox('x-axis')
@@ -163,14 +163,14 @@ class PlotSpaceDialog(QDialog):
             
         self.appdata.window.centralWidget().show_bottom_of_console()
         self.setCursor(Qt.ArrowCursor)
-        
+
     def box_3d_clicked(self):
         if self.third_axis.isChecked():
             self.z_groupbox.setHidden(False)
         else:
             self.z_groupbox.setHidden(True)
         self.adjustSize()
- 
+
     def x_combo_changed(self):
         if self.x_combobox.currentText() == 'yield':
             self.x_numerator.setPlaceholderText('numerator (e.g. 1.0 '+self.r[0]+')')
@@ -181,7 +181,7 @@ class PlotSpaceDialog(QDialog):
             self.x_sep.setHidden(True)
             self.x_denominator.setHidden(True)
         self.adjustSize()
-            
+
     def y_combo_changed(self):
         if self.y_combobox.currentText() == 'yield':
             self.y_numerator.setPlaceholderText('numerator (e.g. 1.0 '+self.r[2]+')')

@@ -19,16 +19,10 @@ class AppData:
     ''' The application data '''
 
     def __init__(self):
-        self.version = "cnapy-1.0.6"
+        self.version = "cnapy-1.0.7"
         self.format_version = 1
         self.unsaved = False
         self.project = ProjectData()
-        self.octave_executable = ""
-        self.matlab_path = ""
-        self.engine = None
-        self.matlab_engine = None
-        self.cna_ok = False
-        self.octave_engine = None
         self.modes_coloring = False
         self.scen_color = QColor(255, 0, 127)
         # more scencolors
@@ -45,7 +39,6 @@ class AppData:
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
-        self.selected_engine = "None"
         self.work_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
         self.use_results_cache = False
@@ -104,47 +97,6 @@ class AppData:
     def format_flux_value(self, flux_value):
         return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
 
-    def create_cobra_model(self):
-        if self.engine is not None:  # matlab or octave:
-            cobra.io.save_matlab_model(
-                self.project.cobra_py_model, os.path.join(self.cna_path+"/cobra_model.mat"), varname="cbmodel")
-        else:
-            print("Could not create a CobraModel because no engine is selected")
-
-    def is_matlab_ready(self):
-        return self.matlab_engine is not None
-
-    def is_octave_ready(self):
-        return self.octave_engine is not None
-
-    def is_matlab_set(self):
-        return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAMatlabEngine'>"
-
-    def is_octave_set(self):
-        return str(type(self.engine)) == "<class 'cnapy.CNA_MEngine.CNAoctaveEngine'>"
-
-    def select_engine(self):
-        """
-        select Engine
-        """
-        if self.selected_engine == "matlab":
-            if self.matlab_engine is not None:
-                self.engine = self.matlab_engine
-                print("Using Matlab engine!")
-            else:
-                self.selected_engine = "None"
-                print("No engine selected!")
-        elif self.selected_engine == "octave":
-            if self.octave_engine is not None:
-                self.engine = self.octave_engine
-                print("Using Octave engine!")
-            else:
-                self.selected_engine = "None"
-                print("No engine selected!")
-        else:
-            self.selected_engine = "None"
-            print("No engine selected!")
-
     def save_cnapy_config(self):
         try:
             fp = open(self.conf_path, "w")
@@ -154,10 +106,7 @@ class AppData:
         parser = ConfigParser()
         parser.add_section('cnapy-config')
         parser.set('cnapy-config', 'version', self.version)
-        parser.set('cnapy-config', 'matlab_path', self.matlab_path)
-        parser.set('cnapy-config', 'OCTAVE_EXECUTABLE', self.octave_executable)
         parser.set('cnapy-config', 'work_directory', self.work_directory)
-        parser.set('cnapy-config', 'cna_path', self.cna_path)
         parser.set('cnapy-config', 'scen_color', str(self.scen_color.rgb()))
         parser.set('cnapy-config', 'comp_color', str(self.comp_color.rgb()))
         parser.set('cnapy-config', 'spec1_color', str(self.special_color_1.rgb()))
@@ -168,7 +117,6 @@ class AppData:
         parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))
         parser.set('cnapy-config', 'use_results_cache', str(self.use_results_cache))
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
-        parser.set('cnapy-config', 'selected_engine', str(self.selected_engine))
         parser.write(fp)
         fp.close()
 

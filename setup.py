@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 PSB & ST
+# Copyright 2022 CNApy organization
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='1.0.6',
+    version='1.0.7',
     url='https://github.com/cnapy-org/CNApy/',
     license='GPLv3+',
     description='An integrated environment for metabolic network analysis.',

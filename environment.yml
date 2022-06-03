@@ -3,22 +3,25 @@ channels:
   - cnapy
   - conda-forge
   - defaults
+  - Gurobi
+  - IBMDecisionOptimization
 dependencies:
-  - pytest
-  - pylint
-  - autopep8
-  - openjdk=8
-  - matplotlib-base
-  - pip
-  - python>=3.7
+  - pytest=7.1
+  - pylint=2.13
+  - autopep8=1.6
+  - pydantic=1.9
+  - matplotlib-base=3.5
+  - pip=22
+  - python=3.8
   - qtpy=1.9
-  - pyside2
-  - appdirs
-  - cobra
+  - pyside2=5.13
+  - appdirs=1.4
+  - cobra=0.25
   - qtconsole=5.0
-  - requests
-  - psutil
+  - requests=2.27
+  - psutil=5.9
   - efmtool_link=0.0.4
   - optlang_enumerator=0.0.7
-  - straindesign
-prefix: /home/user/miniconda3/envs/cnapy
+  - straindesign=1.2
+  - gurobi
+  - cplex
