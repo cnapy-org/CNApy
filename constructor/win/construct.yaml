@@ -13,7 +13,7 @@ specs:
   # - cnapy=1.0.7
   - mamba
   - pip
-  - python>=3.8
+  - python=3.8
   - menuinst                             [win]
 
 license_file: LICENSE
