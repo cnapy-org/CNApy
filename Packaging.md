@@ -22,6 +22,10 @@ conda install constructor
 # Windows and a win64 package for Windows. Otherwise, without
 # a specific win64 package, the Windows .exe installer will not
 # work.
+conda config --add channels IBMDecisionOptimization
+conda config --add channels Gurobi
+conda config --add channels conda-forge
+
 cd recipes/noarch
 conda-build . -c conda-forge -c cnapy
 anaconda login

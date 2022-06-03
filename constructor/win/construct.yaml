@@ -1,5 +1,5 @@
 name: CNApy
-version: 1.0.6
+version: 1.0.7
 
 ignore_duplicate_files: True
 
@@ -10,10 +10,10 @@ channels:
 
 specs:
   - conda
-  # - cnapy=1.0.6
+  # - cnapy=1.0.7
   - mamba
   - pip
-  - python>=3.7
+  - python>=3.8
   - menuinst                             [win]
 
 license_file: LICENSE

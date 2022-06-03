@@ -16,9 +16,9 @@ from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot, Signal, QThread
 from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
-                            QLabel, QLineEdit, QMessageBox, QPushButton,
+                            QLabel, QLineEdit, QMessageBox, QPushButton, QApplication,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
-                            QWidget, QFileDialog, QTextEdit, QLayout)
+                            QWidget, QFileDialog, QTextEdit, QLayout, QScrollArea)
 from cnapy.appdata import AppData
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
 import logging
@@ -55,6 +55,9 @@ class SDDialog(QDialog):
         self.out = io.StringIO()
         self.err = io.StringIO()
         self.setMinimumWidth(620)
+        screen_geometry = QApplication.desktop().screen().geometry()
+        # self.setMaximumWidth(screen_geometry.width()-10)
+        # self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
 
@@ -96,6 +99,7 @@ class SDDialog(QDialog):
         ## Upper box of the dialog (for defining modules)
         self.modules = []
         self.current_module = 0
+        self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
         # self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
