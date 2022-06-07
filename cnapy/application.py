@@ -41,6 +41,12 @@ def excepthook(cls, exception, tb):
     traceback.print_exception(cls, exception, tb, file=output)
     traceback.print_tb(tb, file=output)
     exstr = ''.join(traceback.format_exception(None, exception, exception.__traceback__))
+
+    # If the exception has a user-readable text message, let's add it in bold
+    # at the top of the error message.
+    if hasattr(exception, "message"):
+        exstr = f"<p><b>{exception.message}</b></p>" + exstr
+
     utils.show_unknown_error_box(exstr)
     excepthook2(cls, exception, tb)
 
