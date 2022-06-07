@@ -7,6 +7,7 @@ from typing import Tuple
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
+from cnapy.core import model_optimization_with_exceptions
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
@@ -94,6 +95,10 @@ class MainWindow(QMainWindow):
         export_sbml_action = QAction("Export SBML...", self)
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
+
+        download_examples = QAction("Download CNApy example projects...", self)
+        self.file_menu.addAction(download_examples)
+        download_examples.triggered.connect(self.download_examples)
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
@@ -563,10 +568,6 @@ class MainWindow(QMainWindow):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
-    def show_download_dialog(self):
-        dialog = DownloadDialog(self.appdata)
-        dialog.exec_()
-
     @Slot()
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
@@ -603,6 +604,11 @@ class MainWindow(QMainWindow):
             utils.show_unknown_error_box(exstr)
 
         self.setCursor(Qt.ArrowCursor)
+
+    @Slot()
+    def download_examples(self):
+        dialog = DownloadDialog(self.appdata)
+        dialog.exec_()
 
     @Slot()
     def load_box_positions(self):
@@ -1277,7 +1283,7 @@ class MainWindow(QMainWindow):
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            self.appdata.project.solution = model.optimize()
+            self.appdata.project.solution = model_optimization_with_exceptions(model)
         self.process_fba_solution()
 
     def process_fba_solution(self, update=True):
@@ -1321,7 +1327,7 @@ class MainWindow(QMainWindow):
                         r.objective_coefficient = 1
                 else:
                     r.objective_coefficient = 0
-            self.appdata.project.solution = model.optimize()
+            self.appdata.project.solution = model_optimization_with_exceptions(model)
         self.process_fba_solution()
 
     def pfba(self):
@@ -1376,7 +1382,7 @@ class MainWindow(QMainWindow):
     def net_conversion(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            solution = model.optimize()
+            solution = model_optimization_with_exceptions(model)
             if solution.status == 'optimal':
                 errors = False
                 imports = []

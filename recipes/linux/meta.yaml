@@ -1,4 +1,4 @@
-{% set version = '1.0.7' %}
+{% set version = '1.0.8' %}
 
 package:
   name: cnapy
@@ -18,7 +18,7 @@ requirements:
   build:
     - setuptools
     - pip
-    - python>=3.8
+    - python=3.8
   run:
     - pytest=7.1
     - pylint=2.13

@@ -378,7 +378,7 @@ class SDDialog(QDialog):
         solver_and_solution_layout.addItem(solver_buttons_layout)
         # check best available solver
         if avail_solvers:
-            solver = select_solver(None,self.appdata.project.cobra_py_model)
+            solver = select_solver(GLPK,self.appdata.project.cobra_py_model)
             self.solver_buttons[solver].setChecked(True)
 
         solution_buttons_layout = QVBoxLayout()

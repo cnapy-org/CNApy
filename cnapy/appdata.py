@@ -1,25 +1,25 @@
 """The application data"""
 import os
+import gurobipy
 from configparser import ConfigParser
 import pathlib
 from tempfile import TemporaryDirectory
 from typing import List, Dict, Tuple
 from ast import literal_eval as make_tuple
-import hashlib
-import pickle
 import appdirs
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QMessageBox
 
 
 class AppData:
     ''' The application data '''
 
     def __init__(self):
-        self.version = "cnapy-1.0.7"
+        self.version = "cnapy-1.0.8"
         self.format_version = 1
         self.unsaved = False
         self.project = ProjectData()
@@ -125,7 +125,19 @@ class ProjectData:
 
     def __init__(self):
         self.name = "Unnamed project"
-        self.cobra_py_model = CNApyModel()
+        try:
+            self.cobra_py_model = CNApyModel()
+        except gurobipy.GurobiError as error:
+            msgBox = QMessageBox()
+            msgBox.setWindowTitle("Gurobi Error!")
+            msgBox.setText("Calculation failed due to the following Gurobi solver error " +\
+                        "(if this error cannot be resolved,\ntry using a different solver by changing " +\
+                        "it under 'Config->Configure cobrapy'):\n"+error.message+\
+                        "\nNOTE: Another error message will follow, you can safely ignore it.")
+            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.exec()
+            return
+
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
         self.scen_values: Dict[str, Tuple[float, float]] = {}

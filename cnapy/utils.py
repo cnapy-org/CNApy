@@ -28,8 +28,11 @@ def show_unknown_error_box(exstr):
     msgBox.setWindowTitle("Unknown Error!")
     msgBox.setTextFormat(Qt.RichText)
 
-    msgBox.setText("<p>"+exstr+"</p><p><b> Please report the problem to:</b></p>\
-    <p><a href='https://github.com/cnapy-org/CNApy/issues'>https://github.com/cnapy-org/CNApy/issues</a></p>")
+    msgBox.setText(
+        f"<p>{exstr}</p><p><b> Please report the problem to:</b></p>"+\
+        "<p><a href='https://github.com/cnapy-org/CNApy/issues'>"+\
+        "https://github.com/cnapy-org/CNApy/issues</a></p>"
+    )
     msgBox.setIcon(QMessageBox.Warning)
     msgBox.exec()
 

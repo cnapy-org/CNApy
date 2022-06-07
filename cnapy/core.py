@@ -1,11 +1,12 @@
 """UI independent computations"""
 
 from typing import Dict, Tuple
-
+import gurobipy
 import numpy
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
 from optlang.symbolics import Zero
+from qtpy.QtWidgets import QMessageBox
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
@@ -119,6 +120,19 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
             else:
                 reaction.lower_bound = scen_val[0]
                 reaction.upper_bound = scen_val[1]
-        solution = model.optimize()
+        solution = model_optimization_with_exceptions(model)
 
         return solution, reactions_in_objective
+
+def model_optimization_with_exceptions(model: cobra.Model):
+    try:
+        return model.optimize()
+    except gurobipy.GurobiError as error:
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("Gurobi Error!")
+        msgBox.setText("Calculation failed due to the following Gurobi solver error " +\
+                       "(if this error cannot be resolved,\ntry using a different solver by changing " +\
+                       "it under 'Config->Configure cobrapy'):\n"+error.message+\
+                       "\nNOTE: Another error message will follow, you can safely ignore it.")
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.exec()
