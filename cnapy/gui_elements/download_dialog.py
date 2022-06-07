@@ -22,16 +22,16 @@ class DownloadDialog(QDialog):
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "CNApy could not find a projects directory.")
-        label_line.addWidget(label)
-        label = QLabel(
-            "Should CNApy create a projects directory and download example projects?")
+            "Should CNApy download the CNApy example projects to your configured CNApy projects directory?\n"
+            "If you didn't set a working directory yet, you can do it unter 'Config->Configure CNApy'.\n"
+            "Note: You can always change the projects directory in CNApy's configuration."
+        )
         label_line.addWidget(label)
         self.layout.addItem(label_line)
 
         button_line = QHBoxLayout()
-        self.download_btn = QPushButton("Yes, create directory")
-        self.close = QPushButton("No, skip")
+        self.download_btn = QPushButton("Yes, download examples")
+        self.close = QPushButton("No, close")
         button_line.addWidget(self.download_btn)
         button_line.addWidget(self.close)
         self.layout.addItem(button_line)
@@ -43,8 +43,9 @@ class DownloadDialog(QDialog):
 
     def download(self):
         work_directory = self.appdata.work_directory
-        print("Create work directory:", work_directory)
-        os.mkdir(work_directory)
+        if not os.path.exists(work_directory):
+            print("Create uncreated work directory:", work_directory)
+            os.mkdir(work_directory)
 
         targets = ["all_cnapy_projects.zip"]
         for t in targets:

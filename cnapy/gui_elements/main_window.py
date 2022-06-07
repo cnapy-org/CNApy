@@ -96,6 +96,10 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(export_sbml_action)
         export_sbml_action.triggered.connect(self.export_sbml)
 
+        download_examples = QAction("Download CNApy example projects...", self)
+        self.file_menu.addAction(download_examples)
+        download_examples.triggered.connect(self.download_examples)
+
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
         self.file_menu.addAction(exit_action)
@@ -564,10 +568,6 @@ class MainWindow(QMainWindow):
         dialog = ConfigDialog(self.appdata)
         dialog.exec_()
 
-    def show_download_dialog(self):
-        dialog = DownloadDialog(self.appdata)
-        dialog.exec_()
-
     @Slot()
     def show_config_cobrapy_dialog(self):
         dialog = ConfigCobrapyDialog(self.appdata)
@@ -604,6 +604,11 @@ class MainWindow(QMainWindow):
             utils.show_unknown_error_box(exstr)
 
         self.setCursor(Qt.ArrowCursor)
+
+    @Slot()
+    def download_examples(self):
+        dialog = DownloadDialog(self.appdata)
+        dialog.exec_()
 
     @Slot()
     def load_box_positions(self):
