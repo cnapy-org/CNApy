@@ -7,6 +7,7 @@ from typing import Tuple
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
+from cnapy.core import model_optimization_with_exceptions
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
@@ -524,7 +525,7 @@ class MainWindow(QMainWindow):
         # self.sd_viewer.exec()
         self.sd_viewer.show()
         self.sd_computation.start()
-        
+
     @Slot(bytes)
     def show_strain_designs(self,solutions):
         self.sd_sols = SDViewer(self.appdata, solutions)
@@ -1271,7 +1272,7 @@ class MainWindow(QMainWindow):
     def fba(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            self.appdata.project.solution = model.optimize()
+            self.appdata.project.solution = model_optimization_with_exceptions(model)
         self.process_fba_solution()
 
     def process_fba_solution(self, update=True):
@@ -1315,7 +1316,7 @@ class MainWindow(QMainWindow):
                         r.objective_coefficient = 1
                 else:
                     r.objective_coefficient = 0
-            self.appdata.project.solution = model.optimize()
+            self.appdata.project.solution = model_optimization_with_exceptions(model)
         self.process_fba_solution()
 
     def pfba(self):
@@ -1370,7 +1371,7 @@ class MainWindow(QMainWindow):
     def net_conversion(self):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            solution = model.optimize()
+            solution = model_optimization_with_exceptions(model)
             if solution.status == 'optimal':
                 errors = False
                 imports = []
