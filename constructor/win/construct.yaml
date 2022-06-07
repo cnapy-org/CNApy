@@ -1,5 +1,5 @@
 name: CNApy
-version: 1.0.7
+version: 1.0.8
 
 ignore_duplicate_files: True
 
@@ -10,7 +10,7 @@ channels:
 
 specs:
   - conda
-  # - cnapy=1.0.7
+  # - cnapy=1.0.8
   - mamba
   - pip
   - python=3.8
