@@ -22,6 +22,6 @@ dependencies:
   - psutil=5.9
   - efmtool_link=0.0.4
   - optlang_enumerator=0.0.7
-  - straindesign=1.3
+  - straindesign=1.4
   - gurobi
   - cplex
