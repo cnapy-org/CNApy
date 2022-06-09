@@ -729,8 +729,10 @@ class ReactionMask(QWidget):
                 gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
                 annotation != self.reaction.annotation:
                 self.reactionChanged.emit(self.reaction)
-                self.parent.update_item(self.parent.reaction_list.currentItem())
-                self.parent.central_widget.update()
+                current_item = self.parent.reaction_list.currentItem()
+                if current_item is not None:
+                    self.parent.update_item()
+                    self.parent.central_widget.update()
 
     def auto_fba(self):
         if self.fba_relevant_change and self.parent.appdata.auto_fba:
