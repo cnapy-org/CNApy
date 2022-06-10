@@ -35,7 +35,7 @@ requirements:
     - psutil=5.9
     - efmtool_link=0.0.4
     - optlang_enumerator=0.0.7
-    - straindesign=1.2
+    - straindesign=1.5
     - gurobi
     - cplex
 
