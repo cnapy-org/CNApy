@@ -285,7 +285,7 @@ class MainWindow(QMainWindow):
         self.efm_menu.addAction(load_modes_action)
         load_modes_action.triggered.connect(self.load_modes)
 
-        self.sd_menu = self.analysis_menu.addMenu("Strain Design")
+        self.sd_menu = self.analysis_menu.addMenu("Computational Strain Design")
         self.sd_action = QAction("Compute Minimal Cut Sets ...", self)
         self.sd_action.triggered.connect(self.mcs)
         self.sd_menu.addAction(self.sd_action)
