@@ -29,6 +29,7 @@ class CentralWidget(QWidget):
         self.map_counter = 0
         self.searchbar = QLineEdit()
         self.searchbar.setPlaceholderText("Enter search term")
+        self.searchbar.setClearButtonEnabled(True)
 
         self.throttler = SignalThrottler(300)
         self.searchbar.textChanged.connect(self.throttler.throttle)
