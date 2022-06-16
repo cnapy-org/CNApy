@@ -14,6 +14,7 @@ from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
+import matplotlib.pyplot as plt
 
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -1715,8 +1716,7 @@ class MainWindow(QMainWindow):
         return (low, high)
 
     def in_out_fluxes(self, metabolite_id, soldict):
-        import matplotlib.pyplot as plt
-
+        self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
         with self.appdata.project.cobra_py_model as model:
             met = model.metabolites.get_by_id(metabolite_id)
             fig, ax = plt.subplots()
@@ -1744,6 +1744,7 @@ class MainWindow(QMainWindow):
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
             plt.show()
+        self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
     def show_console(self):
         print("show model view")

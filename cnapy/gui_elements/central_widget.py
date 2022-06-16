@@ -63,13 +63,13 @@ class CentralWidget(QWidget):
         self.kernel_client.start_channels()
 
         # Check if client is working
-        self.kernel_client.execute('import matplotlib.pyplot as plt')
+        self.kernel_client.execute('import matplotlib.pyplot as plt', store_history=False)
         # Maybe add selection for inline or separate Qt window plotting in configure menu:
         # "Show plots in separate window" - Checkbox
         # self.kernel_client.execute('%matplotlib inline')
-        self.kernel_client.execute('%matplotlib qt')
+        self.kernel_client.execute('%matplotlib qt', store_history=False)
         self.kernel_client.execute(
-            "%config InlineBackend.figure_format = 'svg'")
+            "%config InlineBackend.figure_format = 'svg'", store_history=False)
         self.console = RichJupyterWidget()
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
