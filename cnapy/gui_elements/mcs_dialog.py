@@ -108,7 +108,6 @@ class MCSDialog(QDialog):
         s3 = QHBoxLayout()
 
         sgx = QVBoxLayout()
-        self.gen_kos = QCheckBox("Gene KOs")
         self.exclude_boundary = QCheckBox(
             "Exclude boundary\nreactions as cuts")
         sg1 = QHBoxLayout()
@@ -134,21 +133,17 @@ class MCSDialog(QDialog):
         s32.addWidget(self.time_limit)
 
         sg1.addItem(s32)
-        sgx.addWidget(self.gen_kos)
         sgx.addWidget(self.exclude_boundary)
         sgx.addItem(sg1)
         s3.addItem(sgx)
 
-        g3 = QGroupBox("Solver")
+        g3 = QGroupBox("Current solver")
         s33 = QVBoxLayout()
-        self.bg1 = QButtonGroup()
-        self.solver_optlang = QRadioButton()
+        self.solver_optlang = QLabel()
         self.set_optlang_solver_text()
         self.solver_optlang.setToolTip(
             "Change solver in COBRApy configuration.")
         s33.addWidget(self.solver_optlang)
-        self.bg1.addButton(self.solver_optlang)
-        self.bg1.buttonClicked.connect(self.configure_solver_options)
         g3.setLayout(s33)
         s3.addWidget(g3)
 
@@ -178,19 +173,12 @@ class MCSDialog(QDialog):
         s3.addWidget(g4)
         self.layout.addItem(s3)
 
-        # Disable incompatible combinations
-        self.solver_optlang.setChecked(True)
-
         self.configure_solver_options()
 
         s4 = QVBoxLayout()
         self.consider_scenario = QCheckBox(
             "Consider constraint given by scenario")
         s4.addWidget(self.consider_scenario)
-        self.advanced = QCheckBox(
-            "Advanced: Define knockout/addition costs for genes/reactions")
-        self.advanced.setEnabled(False)
-        s4.addWidget(self.advanced)
         self.layout.addItem(s4)
 
         buttons = QHBoxLayout()
@@ -229,27 +217,16 @@ class MCSDialog(QDialog):
 
     @Slot()
     def configure_solver_options(self):  # called when switching solver
-        if self.solver_optlang.isChecked():
-            self.gen_kos.setChecked(False)
-            self.gen_kos.setEnabled(False)
-            self.exclude_boundary.setEnabled(True)
-            if self.optlang_solver_name != 'cplex' and self.optlang_solver_name != 'gurobi':
-                if self.mcs_by_cardinality.isChecked() or self.mcs_continuous_search.isChecked():
-                    self.any_mcs.setChecked(True)
-                self.mcs_by_cardinality.setEnabled(False)
-                self.mcs_continuous_search.setEnabled(False)
-            else:
-                self.mcs_by_cardinality.setEnabled(True)
-                self.mcs_continuous_search.setEnabled(True)
-        else:
-            self.gen_kos.setEnabled(True)
-            self.exclude_boundary.setChecked(False)
+        self.exclude_boundary.setEnabled(True)
+        if self.optlang_solver_name != 'cplex' and self.optlang_solver_name != 'gurobi':
+            if self.mcs_by_cardinality.isChecked() or self.mcs_continuous_search.isChecked():
+                self.any_mcs.setChecked(True)
             self.mcs_by_cardinality.setEnabled(False)
-            if self.mcs_by_cardinality.isChecked():
-                self.any_mcs.setChecked(True)
             self.mcs_continuous_search.setEnabled(False)
-            if self.mcs_continuous_search.isChecked():
-                self.any_mcs.setChecked(True)
+        else:
+            self.mcs_by_cardinality.setEnabled(True)
+            self.mcs_continuous_search.setEnabled(True)
+
 
     def add_target_region(self):
         i = self.target_list.rowCount()
