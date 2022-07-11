@@ -731,7 +731,7 @@ class ReactionMask(QWidget):
                 self.reactionChanged.emit(self.reaction)
                 current_item = self.parent.reaction_list.currentItem()
                 if current_item is not None:
-                    self.parent.update_item()
+                    self.parent.update_item(current_item)
                     self.parent.central_widget.update()
 
     def auto_fba(self):

@@ -42,12 +42,12 @@ class FluxFeasibilityDialog(QDialog):
         self.default_weight = QLineEdit()
         self.default_weight.setText("1.0")
         h1.addWidget(self.default_weight)
-        h1.addWidget(QLabel(" Reciprocal of this is used where a value\n from the annotation is unavailable"))
+        h1.addWidget(QLabel(" Reciprocal of this is used where a value\n from the annotation is unavailable."))
         s2.addLayout(h1)
         g2.setLayout(s2)
         self.layout.addWidget(g2)
 
-        self.layout.addWidget(QLabel("Reactions that are set to 0 in the scenario are considered to be switched off"))
+        self.layout.addWidget(QLabel("Reactions that are set to 0 in the scenario are considered to be switched off."))
 
         l3 = QHBoxLayout()
         self.button = QPushButton("Compute")

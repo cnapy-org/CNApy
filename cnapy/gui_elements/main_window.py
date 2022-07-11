@@ -14,6 +14,7 @@ from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
+import matplotlib.pyplot as plt
 
 from qtpy.QtCore import QFileInfo, Qt, Slot
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -647,33 +648,45 @@ class MainWindow(QMainWindow):
     def load_scenario(self, merge=False):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.last_scen_directory, filter="*.scen")[0]
+            directory=self.appdata.last_scen_directory, filter="*.scen *.val")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
         with open(filename, 'r') as fp:
-            values = json.load(fp)
-            if not merge:
-                self.appdata.project.scen_values.clear()
-            self.appdata.scenario_past.clear()
-            self.appdata.scenario_future.clear()
-            missing_reactions = []
-            reactions = []
-            scen_values = []
-            for i in values:
-                if i in self.appdata.project.cobra_py_model.reactions:
-                    reactions.append(i)
-                    scen_values.append(values[i])
-                else:
-                    missing_reactions.append(i)
+            if filename.endswith('scen'):
+                values = json.load(fp)
+            elif filename.endswith('val'):
+                values = dict()
+                for line in fp:
+                    line = line.strip()
+                    if len(line) > 0 and not line.startswith("##"):
+                        try:
+                            reac_id, val = line.split()
+                            val = float(val)
+                            values[reac_id] = (val, val)
+                        except:
+                            print("Could not parse line ", line)
+        if not merge:
+            self.appdata.project.scen_values.clear()
+        self.appdata.scenario_past.clear()
+        self.appdata.scenario_future.clear()
+        missing_reactions = []
+        reactions = []
+        scen_values = []
+        for i in values:
+            if i in self.appdata.project.cobra_py_model.reactions:
+                reactions.append(i)
+                scen_values.append(values[i])
+            else:
+                missing_reactions.append(i)
 
-            if len(missing_reactions) > 0 :
-                QMessageBox.warning(
-                            self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
+        if len(missing_reactions) > 0 :
+            QMessageBox.warning(
+                        self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
 
-            self.appdata.scen_values_set_multiple(reactions, scen_values)
-            self.appdata.project.comp_values.clear()
-            self.appdata.project.fva_values.clear()
+        self.appdata.scen_values_set_multiple(reactions, scen_values)
+        self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
         if self.appdata.auto_fba:
             self.fba()
         else:
@@ -1311,10 +1324,22 @@ class MainWindow(QMainWindow):
         if make_scenario_feasible_dialog.exec_() == QDialog.Accepted:
             self.appdata.project.solution = make_scenario_feasible_dialog.solution
             self.process_fba_solution(update=False)
-            if self.appdata.project.solution.status == 'optimal' and len(make_scenario_feasible_dialog.reactions_in_objective) > 0:
-                self.appdata.scen_values_set_multiple(make_scenario_feasible_dialog.reactions_in_objective,
-                            [self.appdata.project.comp_values[r] for r in make_scenario_feasible_dialog.reactions_in_objective])
-            self.centralWidget().update()
+            if len(make_scenario_feasible_dialog.reactions_in_objective) > 0:
+                if self.appdata.project.solution.status == 'optimal':
+                    self.centralWidget().console._append_plain_text(
+                        "\nThe fluxes of the following reactions were changed to make the scenario feasible:\n", before_prompt=True)
+                    for r in make_scenario_feasible_dialog.reactions_in_objective:
+                        given_value = self.appdata.project.scen_values[r][0]
+                        computed_value = self.appdata.project.comp_values[r][0]
+                        if abs(given_value - computed_value) > self.appdata.project.cobra_py_model.tolerance:
+                            self.centralWidget().console._append_plain_text(r+": "+self.appdata.format_flux_value(given_value)
+                                +" --> "+self.appdata.format_flux_value(computed_value)+"\n", before_prompt=True)
+                    self.appdata.scen_values_set_multiple(make_scenario_feasible_dialog.reactions_in_objective,
+                                [self.appdata.project.comp_values[r] for r in make_scenario_feasible_dialog.reactions_in_objective])
+                    self.centralWidget().update()
+                else:
+                    QMessageBox.critical(self, "Solver could not find an optimal solution",
+                                 "No optimal solution was found, solver returned status '"+self.appdata.project.solution.status+"'.")
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:
@@ -1691,8 +1716,7 @@ class MainWindow(QMainWindow):
         return (low, high)
 
     def in_out_fluxes(self, metabolite_id, soldict):
-        import matplotlib.pyplot as plt
-
+        self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
         with self.appdata.project.cobra_py_model as model:
             met = model.metabolites.get_by_id(metabolite_id)
             fig, ax = plt.subplots()
@@ -1720,6 +1744,7 @@ class MainWindow(QMainWindow):
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
             plt.show()
+        self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
     def show_console(self):
         print("show model view")
