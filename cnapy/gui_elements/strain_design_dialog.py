@@ -10,7 +10,7 @@ import traceback
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
                                     linexpr2dict, select_solver
 from straindesign.names import *
-from straindesign.strainDesignSolution import SDSolution
+from straindesign.strainDesignSolutions import SDSolutions
 from random import randint
 from importlib import find_loader as module_exists
 from qtpy.QtCore import Qt, Slot, Signal, QThread
@@ -1060,6 +1060,7 @@ class SDDialog(QDialog):
     def gen_ko_checked(self):
         if self.gen_kos.isChecked():
             self.gene_itv_list_widget.setHidden(False)
+            self.set_none_r_koable()
             self.set_all_g_koable()
         else:
             self.gene_itv_list_widget.setHidden(True)
@@ -1481,7 +1482,7 @@ class SDComputationThread(QThread):
         except Exception as e:
             tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
             self.write(tb_str)
-            sd_solutions = SDSolution(self.model,[],ERROR,self.sd_setup)
+            sd_solutions = SDSolutions(self.model,[],ERROR,self.sd_setup)
             self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
 
     def write(self, input):
