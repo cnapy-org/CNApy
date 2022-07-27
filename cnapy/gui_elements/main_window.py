@@ -23,7 +23,7 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
 
 from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
-from cnapy.gui_elements.central_widget import CentralWidget
+from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
 
         self.scenario_menu = self.menu.addMenu("Scenario")
 
-        load_default_scenario_action = QAction("Apply default scenario", self)
+        load_default_scenario_action = QAction("Apply default scenario flux values", self)
         self.scenario_menu.addAction(load_default_scenario_action)
         load_default_scenario_action.setIcon(QIcon(":/icons/d-font.png"))
         load_default_scenario_action.triggered.connect(
@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(load_scenario_action)
         load_scenario_action.triggered.connect(self.load_scenario)
 
-        merge_scenario_action = QAction("Merge scenario ...", self)
+        merge_scenario_action = QAction("Merge flux values from scenario ...", self)
         self.scenario_menu.addAction(merge_scenario_action)
         merge_scenario_action.triggered.connect(self.merge_scenario)
 
@@ -135,18 +135,18 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(clear_all_action)
         clear_all_action.triggered.connect(self.clear_all)
 
-        undo_scenario_action = QAction("Undo scenario edit", self)
+        undo_scenario_action = QAction("Undo scenario flux values edit", self)
         undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
         self.scenario_menu.addAction(undo_scenario_action)
         undo_scenario_action.triggered.connect(self.undo_scenario_edit)
 
-        redo_scenario_action = QAction("Redo scenario edit", self)
+        redo_scenario_action = QAction("Redo scenario flux values edit", self)
         redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
         self.scenario_menu.addAction(redo_scenario_action)
         redo_scenario_action.triggered.connect(self.redo_scenario_edit)
 
         add_values_to_scenario_action = QAction(
-            "Add all values to scenario", self)
+            "Add all flux values to scenario", self)
         self.scenario_menu.addAction(add_values_to_scenario_action)
         add_values_to_scenario_action.triggered.connect(
             self.add_values_to_scenario)
@@ -156,13 +156,19 @@ class MainWindow(QMainWindow):
         show_model_bounds_action.triggered.connect(self.show_model_bounds)
 
         set_model_bounds_to_scenario_action = QAction(
-            "Use scenario values as model bounds", self)
+            "Use scenario flux values as model bounds", self)
         self.scenario_menu.addAction(set_model_bounds_to_scenario_action)
         set_model_bounds_to_scenario_action.triggered.connect(
             self.set_model_bounds_to_scenario)
 
+        pin_scenario_reactions_action = QAction(
+            "Pin all scenario reactions to top of reaction list", self)
+        self.scenario_menu.addAction(pin_scenario_reactions_action)
+        pin_scenario_reactions_action.triggered.connect(
+            self.pin_scenario_reactions)
+
         set_scenario_to_default_scenario_action = QAction(
-            "Set current scenario as default scenario", self)
+            "Set current scenario fluxes as default scenario fluxes", self)
         self.scenario_menu.addAction(set_scenario_to_default_scenario_action)
         set_scenario_to_default_scenario_action.triggered.connect(
             self.set_scenario_to_default_scenario)
@@ -337,12 +343,6 @@ class MainWindow(QMainWindow):
             "Compute in/out fluxes at metabolite ...", self)
         in_out_flux_action.triggered.connect(self.in_out_flux)
         self.analysis_menu.addAction(in_out_flux_action)
-
-        show_objective_function_action = QAction(
-            "Show objective function", self)
-        self.analysis_menu.addAction(show_objective_function_action)
-        show_objective_function_action.triggered.connect(
-            self.show_objective_function)
 
         self.config_menu = self.menu.addMenu("Config")
 
@@ -652,39 +652,17 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
 
-        with open(filename, 'r') as fp:
-            if filename.endswith('scen'):
-                values = json.load(fp)
-            elif filename.endswith('val'):
-                values = dict()
-                for line in fp:
-                    line = line.strip()
-                    if len(line) > 0 and not line.startswith("##"):
-                        try:
-                            reac_id, val = line.split()
-                            val = float(val)
-                            values[reac_id] = (val, val)
-                        except:
-                            print("Could not parse line ", line)
-        if not merge:
-            self.appdata.project.scen_values.clear()
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
-        missing_reactions = []
-        reactions = []
-        scen_values = []
-        for i in values:
-            if i in self.appdata.project.cobra_py_model.reactions:
-                reactions.append(i)
-                scen_values.append(values[i])
-            else:
-                missing_reactions.append(i)
+
+        missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+
+        self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.pinned_reactions)
 
         if len(missing_reactions) > 0 :
-            QMessageBox.warning(
-                        self, 'Unknown reactions in scenario','The scenario defined bounds for the following reactions which are not in the current model.\n'+ str(missing_reactions))
+            QMessageBox.warning(self, 'Unknown reactions in scenario',
+            'The scenario references reactions which are not in the current model and will be ignored:\n'+' '.join(missing_reactions))
 
-        self.appdata.scen_values_set_multiple(reactions, scen_values)
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         if self.appdata.auto_fba:
@@ -915,8 +893,9 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0:
             return
 
-        with open(filename, 'w') as fp:
-            json.dump(self.appdata.project.scen_values, fp)
+        # with open(filename, 'w') as fp:
+        #     json.dump(self.appdata.project.scen_values, fp)
+        self.appdata.project.scen_values.save(filename)
 
         self.appdata.last_scen_directory = os.path.dirname(filename)
 
@@ -1264,6 +1243,8 @@ class MainWindow(QMainWindow):
         self.appdata.scen_values_set_multiple(list(self.appdata.project.comp_values.keys()),
                                               list(self.appdata.project.comp_values.values()))
         self.appdata.project.comp_values.clear()
+        if self.appdata.auto_fba:
+            self.fba()
         self.centralWidget().update()
 
     def set_model_bounds_to_scenario(self):
@@ -1273,6 +1254,10 @@ class MainWindow(QMainWindow):
                 reaction.lower_bound = vl
                 reaction.upper_bound = vu
         self.centralWidget().update()
+
+    @Slot()
+    def pin_scenario_reactions(self):
+        self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.keys())
 
     def set_scenario_to_default_scenario(self):
         ''' write current scenario into sbml annotation '''
@@ -1459,30 +1444,6 @@ class MainWindow(QMainWindow):
             else:
                 print('No solution!', solution.status)
 
-    def show_objective_function(self):
-        self.centralWidget().kernel_client.execute("cna.objective_function()")
-        self.centralWidget().show_bottom_of_console()
-
-    def objective_function(self):
-        print('\x1b[1;04;30m'+"Objective function:\x1b[0m\n")
-        first = True
-        res = ""
-        model = self.appdata.project.cobra_py_model
-        for r in model.reactions:
-            if r.objective_coefficient != 0:
-                if first:
-                    res += str(r.objective_coefficient) + " " + str(r.id)
-                    first = False
-                else:
-                    if r.objective_coefficient > 0:
-                        res += " +" + \
-                            str(r.objective_coefficient) + " " + str(r.id)
-                    else:
-                        res += " "+str(r.objective_coefficient) + \
-                            " " + str(r.id)
-
-        print(model.objective.direction+"imize:", res)
-
     def print_model_stats(self):
         m = cobra.util.array.create_stoichiometric_matrix(
             self.appdata.project.cobra_py_model, array_type='DataFrame')
@@ -1598,7 +1559,7 @@ class MainWindow(QMainWindow):
 
     def set_onoff(self):
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0 and self.appdata.project.comp_values_type == 0:
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
             # do coloring of LB/UB columns in this case?
             view = self.centralWidget().reaction_list
             view.reaction_list.blockSignals(True) # block itemChanged while recoloring
@@ -1646,7 +1607,7 @@ class MainWindow(QMainWindow):
     def set_heaton(self):
         (low, high) = self.high_and_low()
         idx = self.centralWidget().tabs.currentIndex()
-        if idx == 0 and self.appdata.project.comp_values_type == 0:
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
             # TODO: coloring of LB/UB columns
             view = self.centralWidget().reaction_list
             view.reaction_list.blockSignals(True) # block itemChanged while recoloring
