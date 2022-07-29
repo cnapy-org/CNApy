@@ -1452,13 +1452,10 @@ class SDComputationViewer(QDialog):
 class SDComputationThread(QThread):
     def __init__(self, appdata, sd_setup):
         super().__init__()
-        self.model = appdata.project.cobra_py_model
+        self.appdata = appdata
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
         self.curr_threadID = self.currentThread()
-        if self.sd_setup.pop('use_scenario'):
-            for r in appdata.project.scen_values.keys():
-                self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
         self.sd_setup.pop(MODEL_ID)
         adv = self.sd_setup.pop('advanced')
         self.gkos = self.sd_setup.pop('gene_kos')
@@ -1469,21 +1466,24 @@ class SDComputationThread(QThread):
         #     json.dump(self.sd_setup,fp)
 
     def run(self):
-        try:
-            with redirect_stdout(self), redirect_stderr(self):
-                self.curr_threadID = self.currentThread()
-                logger = logging.getLogger()
-                handler = logging.StreamHandler(stream=self)
-                handler.setFormatter(logging.Formatter('%(message)s'))
-                logger.addHandler(handler)
-                logger.setLevel('INFO')
-                sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
-                self.finished_computation.emit(pickle.dumps(sd_solutions))
-        except Exception as e:
-            tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
-            self.write(tb_str)
-            sd_solutions = SDSolutions(self.model,[],ERROR,self.sd_setup)
-            self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
+        with self.appdata.project.cobra_py_model as model:
+            try:
+                with redirect_stdout(self), redirect_stderr(self):
+                    self.curr_threadID = self.currentThread()
+                    logger = logging.getLogger()
+                    handler = logging.StreamHandler(stream=self)
+                    handler.setFormatter(logging.Formatter('%(message)s'))
+                    logger.addHandler(handler)
+                    logger.setLevel('INFO')
+                    if self.sd_setup.pop('use_scenario'):
+                        self.appdata.project.load_scenario_into_model(model)
+                    sd_solutions = compute_strain_designs(model, **self.sd_setup)
+                    self.finished_computation.emit(pickle.dumps(sd_solutions))
+            except Exception as e:
+                tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
+                self.write(tb_str)
+                sd_solutions = SDSolutions(model,[],ERROR,self.sd_setup)
+                self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
 
     def write(self, input):
         # avoid that other threads use this as an output
