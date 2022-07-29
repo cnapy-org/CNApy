@@ -1226,11 +1226,9 @@ class MainWindow(QMainWindow):
 
     def copy_to_clipboard(self):
         self.appdata.clipboard_comp_values = self.appdata.project.comp_values.copy()
-        self.appdata.clipboard_scen_values = self.appdata.project.scen_values.copy()
 
     def paste_clipboard(self):
         self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
-        self.appdata.project.scen_values = self.appdata.clipboard_scen_values.copy()
         self.centralWidget().update()
 
     @Slot()
