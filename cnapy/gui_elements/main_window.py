@@ -73,12 +73,12 @@ class MainWindow(QMainWindow):
         new_project_action.triggered.connect(self.new_project)
 
         new_project_from_sbml_action = QAction(
-            "New project from SBML ...", self)
+            "New project from SBML...", self)
         self.file_menu.addAction(new_project_from_sbml_action)
         new_project_from_sbml_action.triggered.connect(
             self.new_project_from_sbml)
 
-        open_project_action = QAction("&Open project ...", self)
+        open_project_action = QAction("&Open project...", self)
         open_project_action.setShortcut("Ctrl+O")
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project)
@@ -114,26 +114,20 @@ class MainWindow(QMainWindow):
         load_default_scenario_action.triggered.connect(
             self.load_default_scenario)
 
-        load_scenario_action = QAction("Load scenario ...", self)
+
+        set_scenario_to_default_scenario_action = QAction(
+            "Set current scenario fluxes as default scenario fluxes", self)
+        self.scenario_menu.addAction(set_scenario_to_default_scenario_action)
+        set_scenario_to_default_scenario_action.triggered.connect(
+            self.set_scenario_to_default_scenario)
+
+        load_scenario_action = QAction("Load scenario...", self)
         self.scenario_menu.addAction(load_scenario_action)
         load_scenario_action.triggered.connect(self.load_scenario)
-
-        merge_scenario_action = QAction("Merge flux values from scenario ...", self)
-        self.scenario_menu.addAction(merge_scenario_action)
-        merge_scenario_action.triggered.connect(self.merge_scenario)
 
         save_scenario_action = QAction("Save scenario...", self)
         self.scenario_menu.addAction(save_scenario_action)
         save_scenario_action.triggered.connect(self.save_scenario)
-
-        clear_scenario_action = QAction("Clear scenario", self)
-        self.scenario_menu.addAction(clear_scenario_action)
-        clear_scenario_action.triggered.connect(self.clear_scenario)
-
-        clear_all_action = QAction("Clear all", self)
-        clear_all_action.setIcon(QIcon(":/icons/clear.png"))
-        self.scenario_menu.addAction(clear_all_action)
-        clear_all_action.triggered.connect(self.clear_all)
 
         undo_scenario_action = QAction("Undo scenario flux values edit", self)
         undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
@@ -145,15 +139,24 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(redo_scenario_action)
         redo_scenario_action.triggered.connect(self.redo_scenario_edit)
 
+        clear_scenario_action = QAction("Clear scenario", self)
+        self.scenario_menu.addAction(clear_scenario_action)
+        clear_scenario_action.triggered.connect(self.clear_scenario)
+
+        clear_all_action = QAction("Clear all reaction box entries", self)
+        clear_all_action.setIcon(QIcon(":/icons/clear.png"))
+        self.scenario_menu.addAction(clear_all_action)
+        clear_all_action.triggered.connect(self.clear_all)
+
         add_values_to_scenario_action = QAction(
             "Add all flux values to scenario", self)
         self.scenario_menu.addAction(add_values_to_scenario_action)
         add_values_to_scenario_action.triggered.connect(
             self.add_values_to_scenario)
 
-        show_model_bounds_action = QAction("Show model bounds", self)
-        self.scenario_menu.addAction(show_model_bounds_action)
-        show_model_bounds_action.triggered.connect(self.show_model_bounds)
+        merge_scenario_action = QAction("Merge flux values from scenario...", self)
+        self.scenario_menu.addAction(merge_scenario_action)
+        merge_scenario_action.triggered.connect(self.merge_scenario)
 
         set_model_bounds_to_scenario_action = QAction(
             "Use scenario flux values as model bounds", self)
@@ -166,12 +169,6 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(pin_scenario_reactions_action)
         pin_scenario_reactions_action.triggered.connect(
             self.pin_scenario_reactions)
-
-        set_scenario_to_default_scenario_action = QAction(
-            "Set current scenario fluxes as default scenario fluxes", self)
-        self.scenario_menu.addAction(set_scenario_to_default_scenario_action)
-        set_scenario_to_default_scenario_action.triggered.connect(
-            self.set_scenario_to_default_scenario)
 
         self.scenario_menu.addSeparator()
 
@@ -194,7 +191,7 @@ class MainWindow(QMainWindow):
         paste_clipboard_action.triggered.connect(self.paste_clipboard)
 
         clipboard_arithmetics_action = QAction(
-            "Clipboard arithmetics ...", self)
+            "Clipboard arithmetics...", self)
         self.clipboard_menu.addAction(clipboard_arithmetics_action)
         clipboard_arithmetics_action.triggered.connect(
             self.clipboard_arithmetics)
@@ -275,7 +272,7 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
-        make_scenario_feasible_action = QAction("Make scenario feasible ...", self)
+        make_scenario_feasible_action = QAction("Make scenario feasible...", self)
         make_scenario_feasible_action.triggered.connect(self.make_scenario_feasible)
         self.analysis_menu.addAction(make_scenario_feasible_action)
 
@@ -284,7 +281,7 @@ class MainWindow(QMainWindow):
         self.efm_menu = self.analysis_menu.addMenu("Elementary Flux Modes")
 
         self.efmtool_action = QAction(
-            "Compute Elementary Flux Modes via EFMtool ...", self)
+            "Compute Elementary Flux Modes via EFMtool...", self)
         self.efmtool_action.triggered.connect(self.efmtool)
         self.efm_menu.addAction(self.efmtool_action)
 
@@ -293,36 +290,36 @@ class MainWindow(QMainWindow):
         load_modes_action.triggered.connect(self.load_modes)
 
         self.sd_menu = self.analysis_menu.addMenu("Computational Strain Design")
-        self.sd_action = QAction("Compute Minimal Cut Sets ...", self)
+        self.sd_action = QAction("Compute Minimal Cut Sets...", self)
         self.sd_action.triggered.connect(self.mcs)
         self.sd_menu.addAction(self.sd_action)
         self.mcs_dialog = None
 
-        load_mcs_action = QAction("Load Minimal Cut Sets ...", self)
+        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
         self.sd_menu.addAction(load_mcs_action)
         load_mcs_action.triggered.connect(self.load_mcs)
 
-        self.sd_action = QAction("Compute Strain Designs ...", self)
+        self.sd_action = QAction("Compute Strain Designs...", self)
         self.sd_action.triggered.connect(self.strain_design)
         self.sd_menu.addAction(self.sd_action)
         self.sd_dialog = None
         self.sd_sols = None
 
-        load_sd_action = QAction("Load Strain Designs ...", self)
+        load_sd_action = QAction("Load Strain Designs...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
 
         self.flux_optimization_action = QAction(
-            "Flux optimization ...", self)
+            "Flux optimization...", self)
         self.flux_optimization_action.triggered.connect(self.optimize_flux)
         self.analysis_menu.addAction(self.flux_optimization_action)
 
         self.yield_optimization_action = QAction(
-            "Yield optimization ...", self)
+            "Yield optimization...", self)
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
-        plot_space_action = QAction("Plot flux space ...", self)
+        plot_space_action = QAction("Plot flux space...", self)
         plot_space_action.triggered.connect(self.plot_space)
         self.analysis_menu.addAction(plot_space_action)
 
@@ -333,6 +330,10 @@ class MainWindow(QMainWindow):
         show_model_stats_action.triggered.connect(
             self.execute_print_model_stats)
 
+        show_model_bounds_action = QAction("Show flux bounds in reaction boxes", self)
+        self.analysis_menu.addAction(show_model_bounds_action)
+        show_model_bounds_action.triggered.connect(self.show_model_bounds)
+
         net_conversion_action = QAction(
             "Net conversion of external metabolites", self)
         self.analysis_menu.addAction(net_conversion_action)
@@ -340,17 +341,17 @@ class MainWindow(QMainWindow):
             self.show_net_conversion)
 
         in_out_flux_action = QAction(
-            "Compute in/out fluxes at metabolite ...", self)
+            "Compute in/out fluxes at metabolite...", self)
         in_out_flux_action.triggered.connect(self.in_out_flux)
         self.analysis_menu.addAction(in_out_flux_action)
 
         self.config_menu = self.menu.addMenu("Config")
 
-        config_action = QAction("Configure CNApy ...", self)
+        config_action = QAction("Configure CNApy...", self)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
-        config_action = QAction("Configure COBRApy ...", self)
+        config_action = QAction("Configure COBRApy...", self)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
