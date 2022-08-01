@@ -167,6 +167,12 @@ class MainWindow(QMainWindow):
         pin_scenario_reactions_action.triggered.connect(
             self.pin_scenario_reactions)
 
+        unpin_all_reactions_action = QAction(
+            "Unpin all reactions in reaction list", self)
+        self.scenario_menu.addAction(unpin_all_reactions_action)
+        unpin_all_reactions_action.triggered.connect(
+            self.centralWidget().reaction_list.unpin_all)
+
         set_scenario_to_default_scenario_action = QAction(
             "Set current scenario fluxes as default scenario fluxes", self)
         self.scenario_menu.addAction(set_scenario_to_default_scenario_action)

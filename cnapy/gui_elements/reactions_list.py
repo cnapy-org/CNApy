@@ -472,6 +472,16 @@ class ReactionList(QWidget):
         self.appdata.project.scen_values.pinned_reactions.update(reac_ids)
 
     @Slot()
+    def unpin_all(self):
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item: ReactionListItem = root.child(i)
+            if item.reaction.id in self.appdata.project.scen_values.pinned_reactions:
+                item.pin_at_top = False
+        self.appdata.project.scen_values.pinned_reactions = set()
+
+    @Slot()
     def maximize_reaction(self):
         self.central_widget.maximize_reaction(self.reaction_list.currentItem().reaction.id)
 
