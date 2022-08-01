@@ -105,7 +105,7 @@ class SDDialog(QDialog):
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
-                
+
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
         self.module_list = QTableWidget(0, 2)
@@ -129,7 +129,7 @@ class SDDialog(QDialog):
         # combo.insertItems(0,MODULE_TYPES)
         # combo.currentTextChanged.connect(self.sel_module_type)
         # self.module_list.setCellWidget(0, 0, combo)
-        # module_edit_button = QPushButton("Edit ...")
+        # module_edit_button = QPushButton("Edit...")
         # module_edit_button.clicked.connect(self.edit_module)
         # module_edit_button.setMaximumWidth(60)
         # self.module_list.setCellWidget(0, 1, module_edit_button)
@@ -259,7 +259,7 @@ class SDDialog(QDialog):
         splitter = QSplitter()
         splitter.addWidget(self.modules_box)
         self.layout.addWidget(splitter)
-        self.global_objective = QLabel("Please add strain design module(s) ...")
+        self.global_objective = QLabel("Please add strain design module(s)...")
         self.global_objective.setProperty("prefix", "Current global objective: ")
         self.global_objective.setWordWrap(True)
         self.global_objective.setMaximumHeight(40)
@@ -690,7 +690,7 @@ class SDDialog(QDialog):
         combo.insertItems(0,MODULE_TYPES)
         combo.currentTextChanged.connect(self.sel_module_type)
         self.module_list.setCellWidget(i, 0, combo)
-        module_edit_button = QPushButton("Edit ...")
+        module_edit_button = QPushButton("Edit...")
         module_edit_button.clicked.connect(self.edit_module)
         module_edit_button.setMaximumWidth(60)
         self.module_list.setCellWidget(i, 1, module_edit_button)
@@ -989,7 +989,7 @@ class SDDialog(QDialog):
             modules.append(self.module_list.cellWidget(i,0).currentText())
         if not modules:
             self.global_objective.setStyleSheet(FONT_COLOR('#000000'))
-            self.global_objective.setText("Please add strain design module(s) ...")
+            self.global_objective.setText("Please add strain design module(s)...")
         elif all([m in [PROTECT_STR, SUPPRESS_STR] for m in modules]):
             self.global_objective.setStyleSheet(FONT_COLOR('#59a861'))
             self.global_objective.setText(self.global_objective.property('prefix')+\
@@ -1076,7 +1076,7 @@ class SDDialog(QDialog):
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
-    
+
     def ko_ki_filter_text_changed(self):
         self.setCursor(Qt.BusyCursor)
         txt = self.ko_ki_filter.text().lower().strip()
@@ -1492,7 +1492,7 @@ class SDComputationThread(QThread):
                 self.output_connector.emit(input)
             else:
                 self.output_connector.emit(str(input))
-            
+
     def flush(self):
         pass
 
