@@ -26,6 +26,10 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication
 
+# Necessary on some systems so that, e.g., the in/put metabolite flux visualization in the ipython console can run
+import nest_asyncio
+nest_asyncio.apply()
+
 # ensuring compatibility with high resolution displays
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
