@@ -572,8 +572,8 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
-    def show_config_dialog(self):
-        dialog = ConfigDialog(self.appdata)
+    def show_config_dialog(self, first_start=False):
+        dialog = ConfigDialog(self.appdata, first_start)
         dialog.exec_()
 
     @Slot()

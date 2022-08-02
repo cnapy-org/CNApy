@@ -4,7 +4,8 @@ import urllib.request
 from zipfile import ZipFile
 
 from qtpy.QtWidgets import (
-    QLabel, QDialog, QHBoxLayout, QPushButton,  QVBoxLayout
+    QLabel, QDialog, QHBoxLayout, QPushButton,
+    QVBoxLayout, QMessageBox,
 )
 
 from cnapy.appdata import AppData
@@ -22,16 +23,15 @@ class DownloadDialog(QDialog):
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "Should CNApy download the CNApy example projects to your configured CNApy projects directory?\n"
-            "If you didn't set a working directory yet, you can do it unter 'Config->Configure CNApy'.\n"
-            "Note: You can always change the projects directory in CNApy's configuration."
+            "Should CNApy download the CNApy metabolic network example projects to your CNApy projects directory?\n"
+            "If a working directory error occurs, you can solve by setting a working directory under 'Config->Configure CNApy'."
         )
         label_line.addWidget(label)
         self.layout.addItem(label_line)
 
         button_line = QHBoxLayout()
         self.download_btn = QPushButton("Yes, download examples")
-        self.close = QPushButton("No, close")
+        self.close = QPushButton("No, do not download")
         button_line.addWidget(self.download_btn)
         button_line.addWidget(self.close)
         self.layout.addItem(button_line)
@@ -64,3 +64,12 @@ class DownloadDialog(QDialog):
                 os.remove(zip_path)
 
         self.accept()
+
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("Project download complete")
+        msgBox.setText(
+            "It looks like you started CNApy for the first time.\n"
+            "In the next pop-upp window, you will be asked to download "
+        )
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.exec()
