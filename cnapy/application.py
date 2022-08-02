@@ -91,18 +91,16 @@ class Application:
 
     def first_start_up_message(self):
         msgBox = QMessageBox()
-        msgBox.setWindowTitle("Welcome to CNApy")
+        msgBox.setWindowTitle("First start")
         msgBox.setText(
-            "It looks like you started CNApy for the first time.\n"
-            "In the next pop-upp window, you will be asked to configure CNApy's main settings.\n"
-            "Afterwards, you can choose to download CNApy's metabolic network example projects.\n"
-            "You can always change the settings and download the example projects later by using the respective "
-            "menu entries."
+            "Welcome to CNApy! In the next step, you can choose to download CNApy's "
+            "metabolic network example projects.\n"
+            "You can also do this later under 'Project->Download CNApy example projects...'."
         )
         msgBox.setIcon(QMessageBox.Information)
         msgBox.exec()
 
-        self.window.show_config_dialog(first_start=True)
+        # self.window.show_config_dialog(first_start=True)
         self.window.download_examples()
 
     def model(self):

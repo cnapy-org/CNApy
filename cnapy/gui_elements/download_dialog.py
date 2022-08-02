@@ -23,7 +23,8 @@ class DownloadDialog(QDialog):
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "Should CNApy download the CNApy metabolic network example projects to your CNApy projects directory?\n"
+            "Should CNApy download the CNApy metabolic network example projects to your CNApy working directory?\n"
+            "This requires an active internet connection.\n"
             "If a working directory error occurs, you can solve by setting a working directory under 'Config->Configure CNApy'."
         )
         label_line.addWidget(label)
