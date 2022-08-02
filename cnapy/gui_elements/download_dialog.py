@@ -67,10 +67,9 @@ class DownloadDialog(QDialog):
         self.accept()
 
         msgBox = QMessageBox()
-        msgBox.setWindowTitle("Project download complete")
+        msgBox.setWindowTitle("Projects download complete")
         msgBox.setText(
-            "It looks like you started CNApy for the first time.\n"
-            "In the next pop-upp window, you will be asked to download "
+            "Example projects were downloaded successfully in the working directory."
         )
         msgBox.setIcon(QMessageBox.Information)
         msgBox.exec()

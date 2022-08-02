@@ -574,7 +574,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_config_dialog(self, first_start=False):
         dialog = ConfigDialog(self.appdata, first_start)
-        dialog.exec_()
+        if not first_start:
+            dialog.exec_()
 
     @Slot()
     def show_config_cobrapy_dialog(self):

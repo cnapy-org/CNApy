@@ -100,7 +100,7 @@ class Application:
         msgBox.setIcon(QMessageBox.Information)
         msgBox.exec()
 
-        # self.window.show_config_dialog(first_start=True)
+        self.window.show_config_dialog(first_start=True)
         self.window.download_examples()
 
     def model(self):
