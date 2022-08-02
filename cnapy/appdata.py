@@ -231,7 +231,6 @@ class ProjectData:
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
         self.scen_values: Scenario = Scenario()
-        # self.scen_values: Dict[str, Tuple[float, float]] = {}
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.solution: cobra.Solution = None
         self.comp_values: Dict[str, Tuple[float, float]] = {}
