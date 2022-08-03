@@ -12,7 +12,7 @@ from cnapy.appdata import AppData
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
-    def __init__(self, appdata: AppData):
+    def __init__(self, appdata: AppData, first_start: bool):
         QDialog.__init__(self)
         self.setWindowTitle("Configure CNApy")
         self.appdata = appdata
@@ -131,9 +131,12 @@ class ConfigDialog(QDialog):
 
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
-        self.close = QPushButton("Close")
         l2.addWidget(self.button)
+
+        self.close = QPushButton("Close")
         l2.addWidget(self.close)
+        self.close.clicked.connect(self.accept)
+
         self.layout.addItem(l2)
         self.setLayout(self.layout)
 
@@ -145,8 +148,11 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn.clicked.connect(self.choose_spec2_color)
         self.default_color_btn.clicked.connect(self.choose_default_color)
         self.results_cache_directory.clicked.connect(self.choose_results_cache_directory)
-        self.close.clicked.connect(self.accept)
         self.button.clicked.connect(self.apply)
+
+        if first_start:
+            self.apply()
+            self.accept()
 
     def choose_work_directory(self):
         dialog = QFileDialog(self, directory=self.work_directory.text())

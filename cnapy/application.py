@@ -25,6 +25,11 @@ import cobra
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QMessageBox
+
+# Necessary on some systems so that, e.g., the in/put metabolite flux visualization in the ipython console can run
+import nest_asyncio
+nest_asyncio.apply()
 
 # ensuring compatibility with high resolution displays
 if hasattr(Qt, 'AA_EnableHighDpiScaling'):
@@ -70,16 +75,33 @@ class Application:
         self.window.show()
 
         config_file_version = self.read_config()
+        # First start-up behaviour (it can also happen whenever the cnapy-config.txt is deleted)
+        if config_file_version == "unknown":
+            self.first_start_up_message()
+
         if sys.platform == "win32":  # CNApy running on Windows
             # on Windows disable multiprocessing in COBRApy because of performance issues
             cobra.Configuration().processes = 1
         self.read_cobrapy_config()
 
         # Execute application
-
         self.qapp.aboutToQuit.connect(
             self.window.centralWidget().shutdown_kernel)
         sys.exit(self.qapp.exec_())
+
+    def first_start_up_message(self):
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("First start")
+        msgBox.setText(
+            "Welcome to CNApy! In the next step, you can choose to download CNApy's "
+            "metabolic network example projects.\n"
+            "You can also do this later under 'Project->Download CNApy example projects...'."
+        )
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.exec()
+
+        self.window.show_config_dialog(first_start=True)
+        self.window.download_examples()
 
     def model(self):
         return self.appdata.project.cobra_py_model

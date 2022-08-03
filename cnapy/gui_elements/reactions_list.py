@@ -457,6 +457,29 @@ class ReactionList(QWidget):
         self.reaction_list.currentItem().pin_at_top = checked
         if checked:
             self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.header().sortIndicatorOrder())
+            self.appdata.project.scen_values.pinned_reactions.add(self.reaction_list.currentItem().reaction.id)
+        else:
+            self.appdata.project.scen_values.pinned_reactions.discard(self.reaction_list.currentItem().reaction.id)
+
+    def pin_multiple(self, reac_ids):
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item: ReactionListItem = root.child(i)
+            if item.reaction.id in reac_ids:
+                item.pin_at_top = True
+        self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.header().sortIndicatorOrder())
+        self.appdata.project.scen_values.pinned_reactions.update(reac_ids)
+
+    @Slot()
+    def unpin_all(self):
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item: ReactionListItem = root.child(i)
+            if item.reaction.id in self.appdata.project.scen_values.pinned_reactions:
+                item.pin_at_top = False
+        self.appdata.project.scen_values.pinned_reactions = set()
 
     @Slot()
     def maximize_reaction(self):
@@ -585,10 +608,8 @@ class ReactionMask(QWidget):
         self.lower_bound = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.lower_bound)
-        layout.addItem(l)
 
-        l = QHBoxLayout()
-        label = QLabel("Rate max:")
+        label = QLabel(" Rate max:")
         self.upper_bound = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.upper_bound)

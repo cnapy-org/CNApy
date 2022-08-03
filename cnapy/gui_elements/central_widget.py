@@ -1,6 +1,7 @@
 """The central widget"""
 
 import numpy
+from enum import IntEnum
 import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
@@ -15,9 +16,16 @@ from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
+from cnapy.gui_elements.objective_tab import ObjectiveTab
 from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
 from cnapy.utils import SignalThrottler
 
+class ModelTabIndex(IntEnum):
+    Reactions = 0
+    Metabolites = 1
+    Genes = 2
+    Objective = 3
+    Model = 4
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
@@ -38,11 +46,13 @@ class CentralWidget(QWidget):
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self)
         self.metabolite_list = MetaboliteList(self.appdata)
+        self.objective_tab = ObjectiveTab(self.appdata)
         self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
         self.tabs.addTab(self.gene_list, "Genes")
+        self.tabs.addTab(self.objective_tab, "Objective")
         self.tabs.addTab(self.model_info, "Model")
 
         self.map_tabs = QTabWidget()
@@ -115,8 +125,8 @@ class CentralWidget(QWidget):
         self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
         self.gene_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
-        self.model_info.optimizationDirectionChanged.connect(
-            self.handle_changed_optimization_direction)
+        self.objective_tab.globalObjectiveChanged.connect(self.handle_changed_global_objective)
+        self.objective_tab.objectiveSetupChanged.connect(self.handle_changed_objective_setup)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
@@ -149,13 +159,17 @@ class CentralWidget(QWidget):
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
+        self.appdata.project.scen_values.pop(reaction.id, None)
+        self.appdata.project.scen_values.objective_coefficients.pop(reaction.id, None)
 
         self.parent.unsaved_changes()
         for mmap in self.appdata.project.maps:
             if reaction.id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"].pop(reaction.id)
-
         self.delete_reaction_on_maps(reaction.id)
+
+        if self.appdata.auto_fba:
+            self.parent.fba()
 
     @Slot(cobra.Metabolite, object)
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
@@ -168,8 +182,16 @@ class CentralWidget(QWidget):
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
 
-    def handle_changed_optimization_direction(self, direction: str):
+    @Slot()
+    def handle_changed_global_objective(self):
         self.parent.unsaved_changes()
+        if self.appdata.auto_fba and not self.appdata.project.scen_values.use_scenario_objective:
+            self.parent.fba()
+
+    @Slot()
+    def handle_changed_objective_setup(self):
+        if self.appdata.auto_fba:
+            self.parent.fba()
 
     def shutdown_kernel(self):
         self.console.kernel_client.stop_channels()
@@ -177,7 +199,7 @@ class CentralWidget(QWidget):
 
     def switch_to_reaction(self, reaction: str):
         self.tabs.setCurrentIndex(0)
-        if self.tabs.width() == 0:
+        if self.tabs.width() == ModelTabIndex.Reactions:
             (left, _) = self.splitter.sizes()
             self.splitter.setSizes([left, 1])
         self.reaction_list.set_current_item(reaction)
@@ -209,13 +231,15 @@ class CentralWidget(QWidget):
         self.parent.unsaved_changes()
 
     def tabs_changed(self, idx):
-        if idx == 0:
+        if idx == ModelTabIndex.Reactions:
             self.reaction_list.update()
-        elif idx == 1:
+        elif idx == ModelTabIndex.Metabolites:
             self.metabolite_list.update()
-        elif idx == 2:
+        elif idx == ModelTabIndex.Genes:
             self.gene_list.update()
-        elif idx == 3:
+        elif idx == ModelTabIndex.Objective:
+            self.objective_tab.update()
+        elif idx == ModelTabIndex.Model:
             self.model_info.update()
 
     @Slot()
@@ -255,11 +279,11 @@ class CentralWidget(QWidget):
     def update_selected(self):
         x = self.searchbar.text()
         idx = self.tabs.currentIndex()
-        if idx == 0:
+        if idx == ModelTabIndex.Reactions:
             self.reaction_list.update_selected(x)
-        if idx == 1:
+        if idx == ModelTabIndex.Metabolites:
             self.metabolite_list.update_selected(x)
-        if idx == 2:
+        if idx == ModelTabIndex.Genes:
             self.gene_list.update_selected(x)
 
         idx = self.map_tabs.currentIndex()
@@ -310,7 +334,7 @@ class CentralWidget(QWidget):
                 self.update()
                 self.appdata.modes_coloring = False
                 idx = self.appdata.window.centralWidget().tabs.currentIndex()
-                if idx == 0 and self.appdata.project.comp_values_type == 0:
+                if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
                     view = self.appdata.window.centralWidget().reaction_list
                     view.reaction_list.blockSignals(True) # block itemChanged while recoloring
                     root = view.reaction_list.invisibleRootItem()
@@ -367,7 +391,9 @@ class CentralWidget(QWidget):
         self.parent.clear_status_bar()
         if self.appdata.window.centralWidget().mode_navigator.mode_type <=1:
             relative_participation = numpy.sum(self.appdata.project.modes.fv_mat[self.mode_navigator.selection, :] != 0, axis=0)/self.mode_navigator.num_selected
-            self.appdata.project.comp_values = {r: (relative_participation[0,i], relative_participation[0,i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
+            if isinstance(relative_participation, numpy.matrix): # numpy.sum returns a matrix with one row when fv_mat is scipy.sparse
+                relative_participation = relative_participation.A1 # flatten into 1D array
+            self.appdata.project.comp_values = {r: (relative_participation[i], relative_participation[i]) for i,r in enumerate(self.appdata.project.modes.reac_id)}
         elif self.appdata.window.centralWidget().mode_navigator.mode_type == 2:
             reacs = self.appdata.project.cobra_py_model.reactions.list_attr('id')
             abund = [0 for _ in reacs]
@@ -394,13 +420,15 @@ class CentralWidget(QWidget):
             self.mode_navigator.update()
 
         idx = self.tabs.currentIndex()
-        if idx == 0 or rebuild:
+        if idx == ModelTabIndex.Reactions or rebuild:
             self.reaction_list.update(rebuild=rebuild)
-        elif idx == 1 or rebuild:
+        elif idx == ModelTabIndex.Metabolites or rebuild:
             self.metabolite_list.update()
-        elif idx == 2 or rebuild:
+        elif idx == ModelTabIndex.Genes or rebuild:
             self.gene_list.update()
-        elif idx == 3 or rebuild:
+        elif idx == ModelTabIndex.Objective or rebuild:
+            self.objective_tab.update()
+        elif idx == ModelTabIndex.Model or rebuild:
             self.model_info.update()
 
         idx = self.map_tabs.currentIndex()

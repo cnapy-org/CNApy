@@ -1,15 +1,18 @@
 """The application data"""
 import os
+import json
 import gurobipy
 from configparser import ConfigParser
 import pathlib
+import pkg_resources
 from tempfile import TemporaryDirectory
-from typing import List, Dict, Tuple
+from typing import List, Set, Dict, Tuple
 from ast import literal_eval as make_tuple
 import appdirs
+
 import cobra
+from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
-import pkg_resources
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QMessageBox
@@ -55,9 +58,10 @@ class AppData:
         self.auto_fba = False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
-        self.project.scen_values[reaction] = values
-        self.scenario_past.append(("set", reaction, values))
-        self.scenario_future.clear()
+        if self.project.scen_values.get(reaction, None) != values: # record only real changes
+            self.project.scen_values[reaction] = values
+            self.scenario_past.append(("set", reaction, values))
+            self.scenario_future.clear()
 
     def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
         for r, v in zip(reactions, values):
@@ -81,7 +85,7 @@ class AppData:
             self.scen_values_set(reaction, val)
 
     def recreate_scenario_from_history(self):
-        self.project.scen_values = {}
+        self.project.scen_values = Scenario()
         for (tag, reaction, values) in self.scenario_past:
             if tag == "set":
                 if isinstance(reaction, list):
@@ -120,6 +124,92 @@ class AppData:
         parser.write(fp)
         fp.close()
 
+class Scenario(Dict[str, Tuple[float, float]]):
+    def __init__(self):
+        super().__init__() # this dictionary contains the flux values
+        self.objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
+        self.objective_direction: str = "max"
+        self.use_scenario_objective: bool = False
+        self.pinned_reactions: Set[str] = set()
+        self.description: str = ""
+        self.version: int = 1
+
+    def save(self, filename: str):
+        json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
+                    'objective_direction': self.objective_direction, 'objective_coefficients': self.objective_coefficients,
+                    'use_scenario_objective': self.use_scenario_objective, 'version': self.version}
+        with open(filename, 'w') as fp:
+            json.dump(json_dict, fp)
+
+    def load(self, filename: str, appdata: AppData, merge=False) -> List[str]:
+        unknown_ids: List(str)= []
+        if not merge:
+            self.clear()
+        with open(filename, 'r') as fp:
+            if filename.endswith('scen'): # CNApy scenario
+                json_dict = json.load(fp)
+                if json_dict.keys() == {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
+                                        'objective_coefficients', 'use_scenario_objective', 'version'}:
+                    flux_values = json_dict['fluxes']
+                    for reac_id in json_dict['pinned_reactions']:
+                        if reac_id in appdata.project.cobra_py_model.reactions:
+                            self.pinned_reactions.add(reac_id)
+                        else:
+                            unknown_ids.append(reac_id)
+                    if not merge:
+                        self.pinned_reactions = set(json_dict['pinned_reactions'])
+                        self.description = json_dict['description']
+                        self.objective_direction = json_dict['objective_direction']
+                        for reac_id, val in json_dict['objective_coefficients'].items():
+                            if reac_id in appdata.project.cobra_py_model.reactions:
+                                    self.objective_coefficients[reac_id] = val
+                            else:
+                                unknown_ids.append(reac_id)
+                        self.use_scenario_objective = json_dict['use_scenario_objective']
+                        self.version = json_dict['version']
+                else:
+                    flux_values = json_dict
+                    self.version = 1
+            elif filename.endswith('val'): # CellNetAnalyzer scenario
+                flux_values = dict()
+                self.version = 1
+                for line in fp:
+                    line = line.strip()
+                    if len(line) > 0 and not line.startswith("##"):
+                        try:
+                            reac_id, val = line.split()
+                            val = float(val)
+                            flux_values[reac_id] = (val, val)
+                        except:
+                            print("Could not parse line ", line)
+
+        reactions = []
+        scen_values = []
+        for reac_id, val in flux_values.items():
+            if reac_id in appdata.project.cobra_py_model.reactions:
+                found_reac_id = True
+            elif reac_id.startswith("R_"):
+                reac_id = reac_id[2:]
+                if reac_id in appdata.project.cobra_py_model.reactions:
+                    found_reac_id = True
+                else:
+                    found_reac_id = False
+            if found_reac_id:
+                reactions.append(reac_id)
+                scen_values.append(val)
+            else:
+                unknown_ids.append(reac_id)
+        appdata.scen_values_set_multiple(reactions, scen_values)
+
+        return unknown_ids
+
+    def clear(self):
+        super().clear()
+        self.objective_coefficients = {}
+        self.objective_direction = "max"
+        self.pinned_reactions = set()
+        self.description = ""
+
 class ProjectData:
     ''' The cnapy project data '''
 
@@ -140,7 +230,7 @@ class ProjectData:
 
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
-        self.scen_values: Dict[str, Tuple[float, float]] = {}
+        self.scen_values: Scenario = Scenario()
         self.clipboard: Dict[str, Tuple[float, float]] = {}
         self.solution: cobra.Solution = None
         self.comp_values: Dict[str, Tuple[float, float]] = {}
@@ -158,6 +248,18 @@ class ProjectData:
             else:
                 y.bounds = self.scen_values[x]
                 y.set_hash_value()
+
+        if self.scen_values.use_scenario_objective:
+            self.cobra_py_model.objective = self.cobra_py_model.problem.Objective(
+                Zero, direction=self.scen_values.objective_direction)
+            for reac_id, coeff in self.scen_values.objective_coefficients.items():
+                try:
+                    reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
+                except KeyError:
+                    print('reaction', reac_id, 'not found!')
+                else:
+                    self.cobra_py_model.objective.set_linear_coefficients(
+                        {reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []

@@ -77,22 +77,16 @@ class ClipboardCalculator(QDialog):
 
     def compute(self):
         l_comp = {}
-        l_scen = {}
         r_comp = {}
-        r_scen = {}
         if self.l1.isChecked():
             l_comp = self.appdata.project.comp_values
-            l_scen = self.appdata.project.scen_values
         elif self.l2.isChecked():
             l_comp = self.appdata.clipboard_comp_values
-            l_scen = self.appdata.clipboard_scen_values
 
         if self.r1.isChecked():
             r_comp = self.appdata.project.comp_values
-            r_scen = self.appdata.project.scen_values
         elif self.r2.isChecked():
             r_comp = self.appdata.clipboard_comp_values
-            r_scen = self.appdata.clipboard_scen_values
 
         for key in self.appdata.project.comp_values:
             if self.l3.isChecked():
@@ -109,20 +103,6 @@ class ClipboardCalculator(QDialog):
             res = self.combine(lv_comp, rv_comp)
             self.appdata.project.comp_values[key] = res
 
-        for key in self.appdata.project.scen_values:
-            if self.l3.isChecked():
-                lv_scen = (float(self.left_value.text()),
-                           float(self.left_value.text()))
-            else:
-                lv_scen = l_scen[key]
-            if self.r3.isChecked():
-                rv_scen = (float(self.right_value.text()),
-                           float(self.right_value.text()))
-            else:
-                rv_scen = r_scen[key]
-
-            res = self.combine(lv_scen, rv_scen)
-            self.appdata.project.scen_values[key] = res
         self.appdata.project.comp_values_type = 0
         self.appdata.window.centralWidget().update()
 

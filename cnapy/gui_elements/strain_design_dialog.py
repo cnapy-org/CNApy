@@ -105,7 +105,7 @@ class SDDialog(QDialog):
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
-                
+
         # layout for modules list and buttons
         modules_layout = QHBoxLayout()
         self.module_list = QTableWidget(0, 2)
@@ -129,7 +129,7 @@ class SDDialog(QDialog):
         # combo.insertItems(0,MODULE_TYPES)
         # combo.currentTextChanged.connect(self.sel_module_type)
         # self.module_list.setCellWidget(0, 0, combo)
-        # module_edit_button = QPushButton("Edit ...")
+        # module_edit_button = QPushButton("Edit...")
         # module_edit_button.clicked.connect(self.edit_module)
         # module_edit_button.setMaximumWidth(60)
         # self.module_list.setCellWidget(0, 1, module_edit_button)
@@ -259,7 +259,7 @@ class SDDialog(QDialog):
         splitter = QSplitter()
         splitter.addWidget(self.modules_box)
         self.layout.addWidget(splitter)
-        self.global_objective = QLabel("Please add strain design module(s) ...")
+        self.global_objective = QLabel("Please add strain design module(s)...")
         self.global_objective.setProperty("prefix", "Current global objective: ")
         self.global_objective.setWordWrap(True)
         self.global_objective.setMaximumHeight(40)
@@ -690,7 +690,7 @@ class SDDialog(QDialog):
         combo.insertItems(0,MODULE_TYPES)
         combo.currentTextChanged.connect(self.sel_module_type)
         self.module_list.setCellWidget(i, 0, combo)
-        module_edit_button = QPushButton("Edit ...")
+        module_edit_button = QPushButton("Edit...")
         module_edit_button.clicked.connect(self.edit_module)
         module_edit_button.setMaximumWidth(60)
         self.module_list.setCellWidget(i, 1, module_edit_button)
@@ -989,7 +989,7 @@ class SDDialog(QDialog):
             modules.append(self.module_list.cellWidget(i,0).currentText())
         if not modules:
             self.global_objective.setStyleSheet(FONT_COLOR('#000000'))
-            self.global_objective.setText("Please add strain design module(s) ...")
+            self.global_objective.setText("Please add strain design module(s)...")
         elif all([m in [PROTECT_STR, SUPPRESS_STR] for m in modules]):
             self.global_objective.setStyleSheet(FONT_COLOR('#59a861'))
             self.global_objective.setText(self.global_objective.property('prefix')+\
@@ -1076,7 +1076,7 @@ class SDDialog(QDialog):
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.adjustSize()
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
-    
+
     def ko_ki_filter_text_changed(self):
         self.setCursor(Qt.BusyCursor)
         txt = self.ko_ki_filter.text().lower().strip()
@@ -1452,13 +1452,10 @@ class SDComputationViewer(QDialog):
 class SDComputationThread(QThread):
     def __init__(self, appdata, sd_setup):
         super().__init__()
-        self.model = appdata.project.cobra_py_model
+        self.appdata = appdata
         self.abort = False
         self.sd_setup = json.loads(sd_setup)
         self.curr_threadID = self.currentThread()
-        if self.sd_setup.pop('use_scenario'):
-            for r in appdata.project.scen_values.keys():
-                self.model.reactions.get_by_id(r).bounds = appdata.project.scen_values[r]
         self.sd_setup.pop(MODEL_ID)
         adv = self.sd_setup.pop('advanced')
         self.gkos = self.sd_setup.pop('gene_kos')
@@ -1469,21 +1466,24 @@ class SDComputationThread(QThread):
         #     json.dump(self.sd_setup,fp)
 
     def run(self):
-        try:
-            with redirect_stdout(self), redirect_stderr(self):
-                self.curr_threadID = self.currentThread()
-                logger = logging.getLogger()
-                handler = logging.StreamHandler(stream=self)
-                handler.setFormatter(logging.Formatter('%(message)s'))
-                logger.addHandler(handler)
-                logger.setLevel('INFO')
-                sd_solutions = compute_strain_designs(self.model, **self.sd_setup)
-                self.finished_computation.emit(pickle.dumps(sd_solutions))
-        except Exception as e:
-            tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
-            self.write(tb_str)
-            sd_solutions = SDSolutions(self.model,[],ERROR,self.sd_setup)
-            self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
+        with self.appdata.project.cobra_py_model as model:
+            try:
+                with redirect_stdout(self), redirect_stderr(self):
+                    self.curr_threadID = self.currentThread()
+                    logger = logging.getLogger()
+                    handler = logging.StreamHandler(stream=self)
+                    handler.setFormatter(logging.Formatter('%(message)s'))
+                    logger.addHandler(handler)
+                    logger.setLevel('INFO')
+                    if self.sd_setup.pop('use_scenario'):
+                        self.appdata.project.load_scenario_into_model(model)
+                    sd_solutions = compute_strain_designs(model, **self.sd_setup)
+                    self.finished_computation.emit(pickle.dumps(sd_solutions))
+            except Exception as e:
+                tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
+                self.write(tb_str)
+                sd_solutions = SDSolutions(model,[],ERROR,self.sd_setup)
+                self.finished_computation.emit(pickle.dumps(([],[],ERROR)))
 
     def write(self, input):
         # avoid that other threads use this as an output
@@ -1492,7 +1492,7 @@ class SDComputationThread(QThread):
                 self.output_connector.emit(input)
             else:
                 self.output_connector.emit(str(input))
-            
+
     def flush(self):
         pass
 
