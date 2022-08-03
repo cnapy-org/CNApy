@@ -25,6 +25,7 @@ requirements:
     - autopep8=1.6
     - pydantic=1.9
     - matplotlib-base=3.5
+    - pip=22
     - python=3.8
     - qtpy=1.9
     - pyside2=5.13
@@ -35,7 +36,8 @@ requirements:
     - psutil=5.9
     - efmtool_link=0.0.4
     - optlang_enumerator=0.0.7
-    - straindesign=1.5
+    - straindesign=1.6
+    - nest-asyncio
     - gurobi
     - cplex
 
