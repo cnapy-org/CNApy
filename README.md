@@ -49,13 +49,13 @@ We use conda as package manager to install CNApy. You can use [miniconda](https:
 3. Create a conda environment with all dependencies
 
     ```sh
-    conda create -n cnapy-1.0.9 -c conda-forge -c cnapy cnapy=1.0.9
+    conda create -n cnapy-1.1.0 -c conda-forge -c cnapy cnapy=1.1.0
     ```
 
 4. Activate the cnapy conda environment
 
     ```sh
-    conda activate cnapy-1.0.9
+    conda activate cnapy-1.1.0
     ```
 
 5. Run CNApy
