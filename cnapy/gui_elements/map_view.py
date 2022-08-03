@@ -221,7 +221,6 @@ class MapView(QGraphicsView):
     def zoom_in_reaction(self):
 
         bg_size = self.appdata.project.maps[self.name]["bg-size"]
-        print("zoom:", self._zoom, "bg-size:", bg_size)
         x = (INCREASE_FACTOR ** self._zoom)/bg_size
         while x < 1:
             x = (INCREASE_FACTOR ** self._zoom)/bg_size
