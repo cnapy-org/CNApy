@@ -608,10 +608,8 @@ class ReactionMask(QWidget):
         self.lower_bound = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.lower_bound)
-        layout.addItem(l)
 
-        l = QHBoxLayout()
-        label = QLabel("Rate max:")
+        label = QLabel(" Rate max:")
         self.upper_bound = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.upper_bound)
