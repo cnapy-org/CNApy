@@ -1564,6 +1564,10 @@ class MainWindow(QMainWindow):
         self.mcs_dialog.show()
 
     def set_onoff(self):
+        self.__set_onoff_reaction_list()
+        self.set_onoff_map()
+
+    def __set_onoff_reaction_list(self):
         idx = self.centralWidget().tabs.currentIndex()
         if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
             # do coloring of LB/UB columns in this case?
@@ -1584,6 +1588,7 @@ class MainWindow(QMainWindow):
                     item.setBackground(ReactionListColumn.Flux, color)
             view.reaction_list.blockSignals(False)
 
+    def set_onoff_map(self):
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
             return
@@ -1612,6 +1617,10 @@ class MainWindow(QMainWindow):
 
     def set_heaton(self):
         (low, high) = self.high_and_low()
+        self.__set_heaton_reaction_list(low,high)
+        self.__set_heaton_map(low,high)
+
+    def __set_heaton_reaction_list(self, low, high):
         idx = self.centralWidget().tabs.currentIndex()
         if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
             # TODO: coloring of LB/UB columns
@@ -1632,6 +1641,11 @@ class MainWindow(QMainWindow):
                     item.setBackground(ReactionListColumn.Flux, color)
             view.reaction_list.blockSignals(False)
 
+    def set_heaton_map(self):
+        (low, high) = self.high_and_low()
+        self.__set_heaton_map(low,high)
+
+    def __set_heaton_map(self, low, high):
         idx = self.centralWidget().map_tabs.currentIndex()
         if idx < 0:
             return
