@@ -436,10 +436,7 @@ class CentralWidget(QWidget):
             m = self.map_tabs.widget(idx)
             m.update()
 
-        if self.parent.heaton_action.isChecked():
-            self.parent.heaton_action.activate(QAction.Trigger)
-        elif self.parent.onoff_action.isChecked():
-            self.parent.onoff_action.activate(QAction.Trigger)
+        self.__recolor()
 
     def update_map(self, idx):
         m = self.map_tabs.widget(idx)
@@ -470,8 +467,16 @@ class CentralWidget(QWidget):
 
                 m.update()
                 m.focus_reaction(reaction)
+                self.__recolor()
                 m.highlight_reaction(reaction)
                 break
+
+    def __recolor(self):
+        ''' recolor the map based on the activated coloring mode '''
+        if self.parent.heaton_action.isChecked():
+            self.parent.set_heaton()
+        elif self.parent.onoff_action.isChecked():
+            self.parent.set_onoff()
 
     def jump_to_metabolite(self, metabolite: str):
         self.tabs.setCurrentIndex(1)
