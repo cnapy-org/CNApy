@@ -442,6 +442,7 @@ class CentralWidget(QWidget):
         m = self.map_tabs.widget(idx)
         if m is not None:
             m.update()
+        self.__recolor_map()
 
     def update_reaction_on_maps(self, old_reaction_id: str, new_reaction_id: str):
         for idx in range(0, self.map_tabs.count()):
@@ -457,6 +458,7 @@ class CentralWidget(QWidget):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
             m.update()
+        self.__recolor_map()
 
     def jump_to_map(self, identifier: str, reaction: str):
         for idx in range(0, self.map_tabs.count()):
