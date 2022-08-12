@@ -471,12 +471,101 @@ class CentralWidget(QWidget):
                 m.highlight_reaction(reaction)
                 break
 
+    def set_onoff(self):
+        idx = self.tabs.currentIndex()
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
+            self.__set_onoff_reaction_list()
+        self.__set_onoff_map()
+
+    def __set_onoff_reaction_list(self):
+        # do coloring of LB/UB columns in this case?
+        view = self.reaction_list
+        # block itemChanged while recoloring
+        view.reaction_list.blockSignals(True)
+        root = view.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            key = item.text(0)
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.appdata.compute_color_onoff(value)
+                item.setBackground(ReactionListColumn.Flux, color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.appdata.compute_color_onoff(value)
+                item.setBackground(ReactionListColumn.Flux, color)
+        view.reaction_list.blockSignals(False)
+
+    def __set_onoff_map(self):
+        idx = self.map_tabs.currentIndex()
+        if idx < 0:
+            return
+        name = self.map_tabs.tabText(idx)
+        map_view = self.map_tabs.widget(idx)
+        for key in self.appdata.project.maps[name]["boxes"]:
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.appdata.compute_color_onoff(value)
+                map_view.reaction_boxes[key].set_color(color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.appdata.compute_color_onoff(value)
+                map_view.reaction_boxes[key].set_color(color)
+
+    def set_heaton(self):
+        (low, high) = self.appdata.low_and_high()
+        idx = self.tabs.currentIndex()
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
+            self.__set_heaton_reaction_list(low,high)
+        self.__set_heaton_map(low,high)
+
+    def __set_heaton_reaction_list(self, low, high):
+        # TODO: coloring of LB/UB columns
+        view = self.reaction_list
+        # block itemChanged while recoloring
+        view.reaction_list.blockSignals(True)
+        root = view.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            key = item.text(0)
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.appdata.compute_color_heat(value, low, high)
+                item.setBackground(ReactionListColumn.Flux, color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.appdata.compute_color_heat(value, low, high)
+                item.setBackground(ReactionListColumn.Flux, color)
+        view.reaction_list.blockSignals(False)
+
+    def set_heaton_map(self):
+        (low, high) = self.appdata.low_and_high()
+        self.__set_heaton_map(low, high)
+
+    def __set_heaton_map(self, low, high):
+        idx = self.map_tabs.currentIndex()
+        if idx < 0:
+            return
+        name = self.map_tabs.tabText(idx)
+        map_view = self.map_tabs.widget(idx)
+        for key in self.appdata.project.maps[name]["boxes"]:
+            if key in self.appdata.project.scen_values:
+                value = self.appdata.project.scen_values[key]
+                color = self.appdata.compute_color_heat(value, low, high)
+                map_view.reaction_boxes[key].set_color(color)
+            elif key in self.appdata.project.comp_values:
+                value = self.appdata.project.comp_values[key]
+                color = self.appdata.compute_color_heat(value, low, high)
+                map_view.reaction_boxes[key].set_color(color)
+
     def __recolor_map(self):
         ''' recolor the map based on the activated coloring mode '''
         if self.parent.heaton_action.isChecked():
-            self.parent.set_heaton_map()
+            self.set_heaton_map()
         elif self.parent.onoff_action.isChecked():
-            self.parent.set_onoff_map()
+            self.__set_onoff_map()
 
     def jump_to_metabolite(self, metabolite: str):
         self.tabs.setCurrentIndex(1)

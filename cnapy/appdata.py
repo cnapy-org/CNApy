@@ -124,6 +124,52 @@ class AppData:
         parser.write(fp)
         fp.close()
 
+    def compute_color_onoff(self, value: Tuple[float, float]):
+        (vl, vh) = value
+        vl = round(vl, self.rounding)
+        vh = round(vh, self.rounding)
+        if vl < 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        elif vh > 0.0:
+            return QColor.fromRgb(0, 255, 0)
+        else:
+            return QColor.fromRgb(255, 0, 0)
+
+    def compute_color_heat(self, value: Tuple[float, float], low, high):
+        (vl, vh) = value
+        vl = round(vl, self.rounding)
+        vh = round(vh, self.rounding)
+        mean = my_mean((vl, vh))
+        if mean > 0.0:
+            if high == 0.0:
+                h = 255
+            else:
+                h = mean * 255 / high
+            return QColor.fromRgb(255-h, 255, 255 - h)
+        else:
+            if low == 0.0:
+                h = 255
+            else:
+                h = mean * 255 / low
+            return QColor.fromRgb(255, 255 - h, 255 - h)
+
+    def low_and_high(self) -> Tuple[int, int]:
+        low = 0
+        high = 0
+        for value in self.project.scen_values.values():
+            mean = my_mean(value)
+            if mean < low:
+                low = mean
+            if mean > high:
+                high = mean
+        for value in self.project.comp_values.values():
+            mean = my_mean(value)
+            if mean < low:
+                low = mean
+            if mean > high:
+                high = mean
+        return (low, high)
+
 class Scenario(Dict[str, Tuple[float, float]]):
     def __init__(self):
         super().__init__() # this dictionary contains the flux values
@@ -293,3 +339,10 @@ def parse_scenario(text: str) -> Tuple[float, float]:
         return (x, x)
     except ValueError:
         return(make_tuple(text))
+
+def my_mean(value):
+    if isinstance(value, float):
+        return value
+    else:
+        (vl, vh) = value
+        return (vl+vh)/2
