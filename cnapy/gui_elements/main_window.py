@@ -60,7 +60,6 @@ class MainWindow(QMainWindow):
         self.onoff_action = QAction("On/Off coloring", self)
         self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         self.onoff_action.triggered.connect(self.set_onoff)
-
         central_widget = CentralWidget(self)
         self.setCentralWidget(central_widget)
 
@@ -1564,123 +1563,10 @@ class MainWindow(QMainWindow):
         self.mcs_dialog.show()
 
     def set_onoff(self):
-        idx = self.centralWidget().tabs.currentIndex()
-        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
-            # do coloring of LB/UB columns in this case?
-            view = self.centralWidget().reaction_list
-            view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-            root = view.reaction_list.invisibleRootItem()
-            child_count = root.childCount()
-            for i in range(child_count):
-                item = root.child(i)
-                key = item.text(0)
-                if key in self.appdata.project.scen_values:
-                    value = self.appdata.project.scen_values[key]
-                    color = self.compute_color_onoff(value)
-                    item.setBackground(ReactionListColumn.Flux, color)
-                elif key in self.appdata.project.comp_values:
-                    value = self.appdata.project.comp_values[key]
-                    color = self.compute_color_onoff(value)
-                    item.setBackground(ReactionListColumn.Flux, color)
-            view.reaction_list.blockSignals(False)
-
-        idx = self.centralWidget().map_tabs.currentIndex()
-        if idx < 0:
-            return
-        name = self.centralWidget().map_tabs.tabText(idx)
-        view = self.centralWidget().map_tabs.widget(idx)
-        for key in self.appdata.project.maps[name]["boxes"]:
-            if key in self.appdata.project.scen_values:
-                value = self.appdata.project.scen_values[key]
-                color = self.compute_color_onoff(value)
-                view.reaction_boxes[key].set_color(color)
-            elif key in self.appdata.project.comp_values:
-                value = self.appdata.project.comp_values[key]
-                color = self.compute_color_onoff(value)
-                view.reaction_boxes[key].set_color(color)
-
-    def compute_color_onoff(self, value: Tuple[float, float]):
-        (vl, vh) = value
-        vl = round(vl, self.appdata.rounding)
-        vh = round(vh, self.appdata.rounding)
-        if vl < 0.0:
-            return QColor.fromRgb(0, 255, 0)
-        elif vh > 0.0:
-            return QColor.fromRgb(0, 255, 0)
-        else:
-            return QColor.fromRgb(255, 0, 0)
+        self.centralWidget().set_onoff()
 
     def set_heaton(self):
-        (low, high) = self.high_and_low()
-        idx = self.centralWidget().tabs.currentIndex()
-        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
-            # TODO: coloring of LB/UB columns
-            view = self.centralWidget().reaction_list
-            view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-            root = view.reaction_list.invisibleRootItem()
-            child_count = root.childCount()
-            for i in range(child_count):
-                item = root.child(i)
-                key = item.text(0)
-                if key in self.appdata.project.scen_values:
-                    value = self.appdata.project.scen_values[key]
-                    color = self.compute_color_heat(value, low, high)
-                    item.setBackground(ReactionListColumn.Flux, color)
-                elif key in self.appdata.project.comp_values:
-                    value = self.appdata.project.comp_values[key]
-                    color = self.compute_color_heat(value, low, high)
-                    item.setBackground(ReactionListColumn.Flux, color)
-            view.reaction_list.blockSignals(False)
-
-        idx = self.centralWidget().map_tabs.currentIndex()
-        if idx < 0:
-            return
-        name = self.centralWidget().map_tabs.tabText(idx)
-        view = self.centralWidget().map_tabs.widget(idx)
-        for key in self.appdata.project.maps[name]["boxes"]:
-            if key in self.appdata.project.scen_values:
-                value = self.appdata.project.scen_values[key]
-                color = self.compute_color_heat(value, low, high)
-                view.reaction_boxes[key].set_color(color)
-            elif key in self.appdata.project.comp_values:
-                value = self.appdata.project.comp_values[key]
-                color = self.compute_color_heat(value, low, high)
-                view.reaction_boxes[key].set_color(color)
-
-    def compute_color_heat(self, value: Tuple[float, float], low, high):
-        (vl, vh) = value
-        vl = round(vl, self.appdata.rounding)
-        vh = round(vh, self.appdata.rounding)
-        mean = my_mean((vl, vh))
-        if mean > 0.0:
-            if high == 0.0:
-                h = 255
-            else:
-                h = mean * 255 / high
-            return QColor.fromRgb(255-h, 255, 255 - h)
-        else:
-            if low == 0.0:
-                h = 255
-            else:
-                h = mean * 255 / low
-            return QColor.fromRgb(255, 255 - h, 255 - h)
-
-    def high_and_low(self):
-        low = 0
-        high = 0
-        for key in self.appdata.project.scen_values.keys():
-            mean = my_mean(self.appdata.project.scen_values[key])
-            if mean < low:
-                low = mean
-            if mean > high:
-                high = mean
-        for key in self.appdata.project.comp_values.keys():
-            mean = my_mean(self.appdata.project.comp_values[key])
-            if mean < low:
-                low = mean
-            if mean > high:
-                high = mean
-        return (low, high)
+        self.centralWidget().set_heaton()
 
     def in_out_fluxes(self, metabolite_id, soldict):
         self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
@@ -1743,10 +1629,3 @@ class MainWindow(QMainWindow):
     def set_status_unknown(self):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
-
-def my_mean(value):
-    if isinstance(value, float):
-        return value
-    else:
-        (vl, vh) = value
-        return (vl+vh)/2
