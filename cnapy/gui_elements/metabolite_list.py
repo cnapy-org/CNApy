@@ -3,10 +3,10 @@
 import cobra
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QColor, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel, QPlainTextEdit,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
-                            QSplitter, QTableWidget, QTableWidgetItem,
-                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                            QSplitter, QTableWidget, QTableWidgetItem, QAbstractItemView,
+                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QApplication)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
@@ -268,9 +268,11 @@ class MetabolitesMask(QWidget):
         label = QLabel("Reactions using this metabolite:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.reactions = QTreeWidget()
-        self.reactions.setHeaderLabels(["Id", "Reaction"])
-        self.reactions.setSortingEnabled(True)
+        self.reactions = QTableWidget()
+        self.reactions.setColumnCount(2)
+        self.reactions.setHorizontalHeaderLabels(["Id", "Reaction"])
+        self.reactions.horizontalHeader().setStretchLastSection(True)
+        self.reactions.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         l2.addWidget(self.reactions)
         l.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
@@ -492,38 +494,43 @@ class MetabolitesMask(QWidget):
             self.update_state()
 
     def update_state(self):
-        self.reactions.clear()
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents() # to put the change above into effect
+        self.reactions.clearContents()
+        self.reactions.setRowCount(0) # also resets manually changed row heights
         if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
             metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
                 self.id.text())
-            for r in metabolite.reactions:
-                item = QTreeWidgetItem(self.reactions)
-                item.setText(0, r.id)
-                item.setData(2, 0, r)
-                text = "Name: " + r.name
-                item.setToolTip(0, text)
-                item.setToolTip(1, text)
-                reaction_string_widget = ReactionString(
-                    r, self.metabolite_list)
-                self.reactions.setItemWidget(item, 1, reaction_string_widget)
+            self.reactions.setSortingEnabled(False)
+            self.reactions.setRowCount(len(metabolite.reactions))
+            for i, reaction in enumerate(metabolite.reactions):
+                item = QTableWidgetItem(reaction.id)
+                self.reactions.setItem(i, 0, item)
+                reaction_string_widget = ReactionString(reaction, self.metabolite_list)
+                self.reactions.setCellWidget(i, 1, reaction_string_widget)
+            self.reactions.setSortingEnabled(True)
+        QApplication.restoreOverrideCursor()
 
-    def emit_jump_to_reaction(self, reaction):
-        self.jumpToReaction.emit(reaction.data(2, 0).id)
+    @Slot(QTableWidgetItem)
+    def emit_jump_to_reaction(self, item: QTableWidgetItem):
+        self.jumpToReaction.emit(item.text())
 
     jumpToReaction = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite, object)
     metaboliteDeleted = Signal(cobra.Metabolite, object)
 
 
-class ReactionString(QLineEdit):
+class ReactionString(QPlainTextEdit):
     def __init__(self, reaction, metabolite_list):
-        super().__init__(reaction.build_reaction_string())
+        super().__init__()
+        self.setPlainText(reaction.build_reaction_string())
+        self.setReadOnly(True)
         self.model = reaction.model
         self.metabolite_list = metabolite_list
-        self.setCursorPosition(0)  # to get proper left justification
         self.selectionChanged.connect(self.switch_metabolite)
 
     @Slot()
     def switch_metabolite(self):
-        if self.model.metabolites.has_id(self.selectedText()):
-            self.metabolite_list.set_current_item(self.selectedText())
+        selected_text = self.textCursor().selectedText()
+        if self.model.metabolites.has_id(selected_text):
+            self.metabolite_list.set_current_item(selected_text)
