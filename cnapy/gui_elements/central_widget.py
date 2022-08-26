@@ -216,6 +216,7 @@ class CentralWidget(QWidget):
         self.update()
 
     def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
+        print("update_reaction_value", reaction, value)
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
@@ -253,6 +254,10 @@ class CentralWidget(QWidget):
         mmap.mapChanged.connect(self.handle_mapChanged)
 
     @Slot()
+    def connect_escher_map_view_signals(self, mmap: EscherMapView):
+        mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value)
+
+    @Slot()
     def add_map(self, base_name="Map", escher=False):
         print(base_name, escher)
         if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
@@ -266,13 +271,17 @@ class CentralWidget(QWidget):
         m = CnaMap(name)
         self.appdata.project.maps[name] = m
         if escher:
-            mmap = EscherMapView(self.appdata, name)
+            mmap: EscherMapView = EscherMapView(self, name)
             self.appdata.project.maps[name]['view'] = 'escher'
+            # mmap.loadFinished.connect(self.finish_add_escher_map)
+            # mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value) # connection is not made?!
+            # self.appdata.qapp.processEvents() # does not help
+            idx = self.map_tabs.addTab(mmap, m["name"])
         else:
             mmap = MapView(self.appdata, self, name)
             self.connect_map_view_signals(mmap)
-        idx = self.map_tabs.addTab(mmap, m["name"])
-        self.update_maps()
+            idx = self.map_tabs.addTab(mmap, m["name"])
+            self.update_maps() # only update mmap?
         self.map_tabs.setCurrentIndex(idx)
         self.parent.unsaved_changes()
 

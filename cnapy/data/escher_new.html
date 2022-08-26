@@ -1,13 +1,136 @@
 <!DOCTYPE html>
 <html>
   <script src="escher.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script type="text/javascript">
+    var cnapy_bridge = null;
+    // var x = 5;
+    var scen_values_txt = {}; // dictionary of strings with formatted flux values/pairs
+    window.onload = function()
+    {
+        new QWebChannel(qt.webChannelTransport, function(channel) {
+            cnapy_bridge = channel.objects.cnapy_bridge;
+            // cannot register appdata.project.scen_values because it is not a QObject 
+/*             cnapy_bridge.getRef(x, function(pyval) {
+                cnapy_bridge.printRef(pyval);
+            });
+ */        });
+    }
+
+    const preact = escher.libs.preact;
+    const h = preact.createElement;
+
+    var tooltipStyle = {
+      'min-width': '40px',
+      'min-height': '10px',
+      'border-radius': '2px',
+      'border': '1px solid #b58787',
+      'padding': '7px',
+      'background-color': '#fff',
+      'text-align': 'left',
+      'font-size': '16px',
+      'font-family': 'sans-serif',
+      'color': '#111',
+      'box-shadow': '4px 6px 20px 0px rgba(0, 0, 0, 0.4)'
+    };
+
+    class CnapyTooltip extends preact.Component {
+      constructor() {
+        super()
+        // this.reacId = ""
+        console.warn("CnapyTooltip") // only called when first tooltip is shown
+        // var reactionInModel
+        // cnapy_bridge.is_reaction_in_model(this.props.biggId, async function(result) { reactionInModel = result })
+        // this.reactionInModel = reactionInModel
+      }
+
+      componentShouldUpdate() {
+        // important according to Escher documentation
+        console.warn("componentShouldUpdate")
+        return false;
+      }
+
+      handleKeyUp(reacId, event) {
+        // props not available here
+        scen_values_txt[reacId] = event.target.value // or set this from the Python side after parsing?
+        console.warn(JSON.stringify(scen_values_txt))
+      // call cnapy_bridge here
+        console.warn(reacId, event.target.value)
+        cnapy_bridge.value_changed(reacId, event.target.value)
+      // console.warn(parseFloat(event.target.value))
+      }
+/*       handleKeyUp(event) {
+        // props not available here
+      // call cnapy_bridge here
+      console.warn(event.target.value)
+      console.warn(this.reacId) undefined?!?
+      // console.warn(parseFloat(event.target.value))
+      }
+ */
+      checkReactionInModel() {
+        const result = new Promise((resolve, reject) => {
+          cnapy_bridge.is_reaction_in_model(this.props.biggId, function(result) { resolve(result) })
+        })
+        return result
+        // var isReactionInModel
+        // cnapy_bridge.is_reaction_in_model(this.props.biggId, function(result) { isReactionInModel = result })
+        // await isReactionInModel
+        // return isReactionInModel
+      }
+
+      componentWillUnmount() {
+        // is not called, perhaps needs a more recent Preact version
+        console.warn("componentWillUnmount")
+      }
+
+      render () {
+        console.warn(JSON.stringify(window.scen_values))
+        // let result = this.checkReactionInModel()
+        // console.warn(result)
+        // result.then(value => { console.warn(value) })
+        // alert(this.reactionInModel)
+        // console.warn(this.props)
+        // this.reacId = this.props.biggId
+        // console.warn(this.reacId)
+        // const biggButtonText = `Open ${decomp} in BiGG Models.`
+        var tip = h('div', {className: 'cnapy-tooltip', style: tooltipStyle},
+          h('div', {className: 'id'}, this.props.biggId),
+          h('div', {className: 'name'}, this.props.name))
+        // var isReactionInModel
+        // cnapy_bridge.is_reaction_in_model(this.props.biggId, async function(result) { isReactionInModel = await result })
+        // alert(cnapy_bridge.reaction_in_model)
+        // result.then(value => {
+        // var value = scen_values_txt[this.props.biggId]
+        // if (value == undefined) {
+        //   value = ""
+        //   console.warn("undefined")
+        // }
+        // else
+        //   console.warn(value)
+
+        if (this.props.type === 'reaction') {
+          tip.children.push(h('input', {type: 'text',
+          // value: scen_values_txt[this.props.biggId],
+          value: scen_values_txt[this.props.biggId],
+            onFocus: (event) => event.target.select(),
+            onKeyUp: (event) => this.handleKeyUp(this.props.biggId, event)}))
+            // onKeyUp: this.handleKeyUp}))
+        }
+        // else {
+        //   alert(isReactionInModel)
+        // }
+        return tip
+      }
+    }
+  </script>
 
   <meta charset="utf-8"/>
   <body>
     <div id="map_container"></div>
 
-    <script>
-     var builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'), { menu: 'all', fill_screen: true })
+    <script type="text/javascript">
+      builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'),
+        {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, enable_keys: false})
     </script>
   </body>
 </html>

@@ -768,9 +768,8 @@ class MainWindow(QMainWindow):
     #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
 
     @Slot()
-    def add_escher_map(self):
-        # map gets a default name because an Escher SVG file does not contain the map name
-        has_unsaved_changes = self.appdata.unsaved
+    def add_escher_map(self, annotation_key_for_id="bigg.reaction", strip_compartment=False):
+        # maps gets a default name because an Escher SVG file does not contain the map name
         map_name, map_idx = self.centralWidget().add_map()
         file_name = self.change_background(caption="Select an Escher SVG file")
         if file_name is None:
@@ -781,9 +780,15 @@ class MainWindow(QMainWindow):
 
         reaction_bigg_ids = dict()
         for r in self.appdata.project.cobra_py_model.reactions:
-            bigg_id = r.annotation.get("bigg.reaction", None)
-            if bigg_id is None: # if there is no BiGG ID in the annotation...
+            bigg_id = r.annotation.get(annotation_key_for_id, None)
+            if not isinstance(bigg_id, str): # if there is no (unique) BiGG ID in the annotation...
                 bigg_id = r.id # ... use the reaction ID as proxy
+            if strip_compartment:
+                for c_id in self.appdata.project.cobra_py_model.compartments.keys():
+                    if bigg_id.endswith(c_id):
+                        bigg_id = bigg_id[:-(len(c_id)+1)] # +1 for the _
+                        break
+                # print(bigg_id, r.id)
             reaction_bigg_ids[bigg_id] = r.id
 
         def get_translate_coordinates(translate: str):
@@ -1202,7 +1207,7 @@ class MainWindow(QMainWindow):
                 mmap.show()
                 self.centralWidget().connect_map_view_signals(mmap)
             elif mmap["view"] == "escher":
-                mmap = EscherMapView(self.appdata, name)
+                mmap = EscherMapView(self.centralWidget(), name)
             else:
                 raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
