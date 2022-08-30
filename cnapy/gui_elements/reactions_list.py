@@ -270,7 +270,7 @@ class ReactionList(QWidget):
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
         self.reaction_selected(item)
-        self.appdata.window.unsaved_changes()
+        self.parent.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
         self.reaction_mask.annotation.itemChanged.disconnect(
@@ -888,6 +888,7 @@ class ReactionMask(QWidget):
 
         self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
         self.gene_reaction_rule.setText(self.reaction.gene_reaction_rule)
+        self.parent.appdata.window.unsaved_changes()
 
     def validate_id(self):
         if self.reaction.id != self.id.text():
