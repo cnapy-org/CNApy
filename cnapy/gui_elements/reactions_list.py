@@ -860,7 +860,7 @@ class ReactionMask(QWidget):
         model_gene_ids = [x.id for x in self.parent.appdata.project.cobra_py_model.genes]
         genes_to_add = []
         for gene in genes:
-            if gene not in model_gene_ids:
+            if (gene not in model_gene_ids) and (gene != ""):
                 genes_to_add.append(gene)
 
         old_gene_reaction_rule = copy.deepcopy(self.reaction.gene_reaction_rule)
