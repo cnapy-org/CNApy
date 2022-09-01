@@ -248,15 +248,14 @@ class GenesMask(QWidget):
         self.appdata.window.setFocus()
 
     def validate_name(self):
-        with self.appdata.project.cobra_py_model as model:
-            try:
-                cobra.Gene(id="test_id", name=self.name.text())
-            except ValueError:
-                turn_red(self.name)
-                return False
-            else:
-                turn_white(self.name)
-                return True
+        try:
+            cobra.Gene(id="test_id", name=self.name.text())
+        except ValueError:
+            turn_red(self.name)
+            return False
+        else:
+            turn_white(self.name)
+            return True
 
     def validate_mask(self):
         valid_name = self.validate_name()

@@ -700,12 +700,7 @@ class ReactionMask(QWidget):
 
         self.grp_test_model = cobra.Model(id_or_model="GPR test")
         reaction = cobra.Reaction('GPR_TEST')
-        metabolite = cobra.Metabolite(
-            'ACP_c',
-            formula='C11H21N2O7PRS',
-            name='acyl-carrier-protein',
-            compartment='c'
-        )
+        metabolite = cobra.Metabolite('X')
         reaction.add_metabolites({metabolite: -1})
         self.grp_test_model.add_reaction(reaction)
 
