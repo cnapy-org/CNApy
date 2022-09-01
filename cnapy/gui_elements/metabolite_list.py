@@ -189,7 +189,13 @@ class MetabolitesMask(QWidget):
         self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
+
         l = QHBoxLayout()
+        label = QLabel("Id:")
+        self.id = QLineEdit()
+        l.addWidget(label)
+        l.addWidget(self.id)
+
         self.delete_button = QPushButton("Delete metabolite")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
         self.delete_button.setToolTip(
@@ -198,13 +204,6 @@ class MetabolitesMask(QWidget):
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
-        layout.addItem(l)
-
-        l = QHBoxLayout()
-        label = QLabel("Id:")
-        self.id = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.id)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -222,17 +221,15 @@ class MetabolitesMask(QWidget):
         layout.addItem(l)
 
         l = QHBoxLayout()
-        label = QLabel("Charge:")
-        self.charge = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.charge)
-        layout.addItem(l)
-
-        l = QHBoxLayout()
         label = QLabel("Compartment:")
         self.compartment = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.compartment)
+
+        label = QLabel(" Charge:")
+        self.charge = QLineEdit()
+        l.addWidget(label)
+        l.addWidget(self.charge)
         layout.addItem(l)
 
         l = QVBoxLayout()
