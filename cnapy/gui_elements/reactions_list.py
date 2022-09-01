@@ -3,6 +3,7 @@ from math import isclose
 from enum import IntEnum
 
 import cobra
+import copy
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint
 from qtpy.QtGui import QColor, QDrag, QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
@@ -269,7 +270,7 @@ class ReactionList(QWidget):
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
         self.reaction_selected(item)
-        self.appdata.window.unsaved_changes()
+        self.parent.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
         self.reaction_mask.annotation.itemChanged.disconnect(
@@ -694,8 +695,14 @@ class ReactionMask(QWidget):
         self.coefficent.textEdited.connect(self.throttler.throttle)
         self.coefficent.editingFinished.connect(self.throttler.finish)
         self.coefficent.editingFinished.connect(self.auto_fba)
-        self.gene_reaction_rule.textEdited.connect(self.throttler.throttle)
+        self.gene_reaction_rule.editingFinished.connect(self.throttler.throttle)
         self.annotation.itemChanged.connect(self.throttler.throttle)
+
+        self.grp_test_model = cobra.Model(id_or_model="GPR test")
+        reaction = cobra.Reaction('GPR_TEST')
+        metabolite = cobra.Metabolite('X')
+        reaction.add_metabolites({metabolite: -1})
+        self.grp_test_model.add_reaction(reaction)
 
 
     def add_anno_row(self):
@@ -723,8 +730,8 @@ class ReactionMask(QWidget):
                 self.equation.setModified(False)
             objective_coefficient = self.reaction.objective_coefficient
             self.reaction.objective_coefficient = float(self.coefficent.text())
-            self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
-            gene_reaction_rule = self.reaction.gene_reaction_rule
+            if self.gene_reaction_rule.isModified():
+                self.handle_changed_gpr()
             self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
             annotation = self.reaction.annotation
             self.reaction.annotation = {}
@@ -747,7 +754,7 @@ class ReactionMask(QWidget):
                 self.reaction.set_hash_value()
                 self.parent.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
             if self.fba_relevant_change or name != self.reaction.name or \
-                gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
+                self.reaction.gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
                 annotation != self.reaction.annotation:
                 self.reactionChanged.emit(self.reaction)
                 current_item = self.parent.reaction_list.currentItem()
@@ -813,6 +820,70 @@ class ReactionMask(QWidget):
     def delete_reaction(self):
         self.hide()
         self.reactionDeleted.emit(self.reaction)
+
+    def handle_changed_gpr(self):
+        # "Except" cobra.core.gene:Malformed gene_reaction_rule
+        # which results in an emptied GPR rule string.
+        self.grp_test_model.reactions.get_by_id("GPR_TEST").gene_reaction_rule = self.gene_reaction_rule.text()
+        if self.grp_test_model.reactions.get_by_id("GPR_TEST").gene_reaction_rule == "":
+            self.gene_reaction_rule.blockSignals(True)
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setWindowTitle("Malformed GPR rule")
+            msg_box.setText("It appears that your changed GPR rule is not valid. Do you want to edit or revert your changes?")
+            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.RejectRole)
+            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ResetRole)
+            msg_box.setDefaultButton(revert_but)
+            msg_box.exec_()
+            self.gene_reaction_rule.blockSignals(False)
+
+            if msg_box.clickedButton() == edit_but:
+                self.gene_reaction_rule.setFocus()
+                return
+            elif msg_box.clickedButton() == revert_but:
+                self.gene_reaction_rule.setText(self.reaction.gene_reaction_rule)
+                self.gene_reaction_rule.setModified(False)
+                return
+
+        genes = copy.deepcopy(self.gene_reaction_rule.text())\
+            .replace("AND", "").replace("and", "")\
+            .replace("OR", "").replace("or", "")\
+            .replace("(", "").replace(")", "")\
+            .replace("  ", " ").replace("\t", " ")\
+            .split(" ")
+
+        model_gene_ids = [x.id for x in self.parent.appdata.project.cobra_py_model.genes]
+        genes_to_add = []
+        for gene in genes:
+            if (gene not in model_gene_ids) and (gene != ""):
+                genes_to_add.append(gene)
+
+        old_gene_reaction_rule = copy.deepcopy(self.reaction.gene_reaction_rule)
+
+        if len(genes_to_add) > 0:
+            self.gene_reaction_rule.blockSignals(True)
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setWindowTitle("Create new genes?")
+            msg_box.setText("The following genes do not exist and will be added to the model:\n" +
+                            ', '.join(genes_to_add))
+            msg_box.setDefaultButton(msg_box.addButton(QMessageBox.Ok))
+            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.RejectRole)
+            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ResetRole)
+            msg_box.exec_()
+            self.gene_reaction_rule.blockSignals(False)
+            if msg_box.clickedButton() == edit_but:
+                self.gene_reaction_rule.setFocus()
+                return
+            elif msg_box.clickedButton() == revert_but:
+                self.gene_reaction_rule.setText(self.reaction.gene_reaction_rule)
+                self.reaction.gene_reaction_rule = old_gene_reaction_rule
+                self.gene_reaction_rule.setModified(False)
+                return
+
+        self.reaction.gene_reaction_rule = self.gene_reaction_rule.text()
+        self.gene_reaction_rule.setText(self.reaction.gene_reaction_rule)
+        self.parent.appdata.window.unsaved_changes()
 
     def validate_id(self):
         if self.reaction.id != self.id.text():
@@ -921,16 +992,6 @@ class ReactionMask(QWidget):
             return False
         else:
             turn_white(self.coefficent)
-            return True
-
-    def validate_gene_reaction_rule(self):
-        try:
-            _x = float(self.gene_reaction_rule.text())
-        except ValueError:
-            turn_red(self.gene_reaction_rule)
-            return False
-        else:
-            turn_white(self.gene_reaction_rule)
             return True
 
     def validate_mask(self):
