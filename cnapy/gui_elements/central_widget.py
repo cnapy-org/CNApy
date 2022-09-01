@@ -198,7 +198,7 @@ class CentralWidget(QWidget):
         self.console.kernel_manager.shutdown_kernel()
 
     def switch_to_reaction(self, reaction: str):
-        self.tabs.setCurrentIndex(0)
+        self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
         if self.tabs.width() == ModelTabIndex.Reactions:
             (left, _) = self.splitter.sizes()
             self.splitter.setSizes([left, 1])
@@ -570,13 +570,13 @@ class CentralWidget(QWidget):
             self.__set_onoff_map()
 
     def jump_to_metabolite(self, metabolite: str):
-        self.tabs.setCurrentIndex(1)
-        m = self.tabs.widget(1)
+        self.tabs.setCurrentIndex(ModelTabIndex.Metabolites)
+        m = self.tabs.widget(ModelTabIndex.Metabolites)
         m.set_current_item(metabolite)
 
     def jump_to_reaction(self, reaction: str):
-        self.tabs.setCurrentIndex(0)
-        m = self.tabs.widget(0)
+        self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
+        m = self.tabs.widget(ModelTabIndex.Reactions)
         m.set_current_item(reaction)
 
     def in_out_fluxes(self, metabolite):
