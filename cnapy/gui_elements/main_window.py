@@ -770,6 +770,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def add_escher_map(self, annotation_key_for_id="bigg.reaction", strip_compartment=False):
         # maps gets a default name because an Escher SVG file does not contain the map name
+        has_unsaved_changes = self.appdata.unsaved
         map_name, map_idx = self.centralWidget().add_map()
         file_name = self.change_background(caption="Select an Escher SVG file")
         if file_name is None:
