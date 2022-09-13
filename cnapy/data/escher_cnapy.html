@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <script src="escher.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script type="text/javascript">
+    var cnapy_bridge = null;
+    window.onload = function()
+    {
+        new QWebChannel(qt.webChannelTransport, function(channel) {
+            cnapy_bridge = channel.objects.cnapy_bridge;
+            cnapy_bridge.handle_onload_event()
+        });
+    }
+
+    const preact = escher.libs.preact;
+    const h = preact.createElement;
+
+    var tooltipStyle = {
+      'min-width': '40px',
+      'min-height': '10px',
+      'border-radius': '2px',
+      'border': '1px solid #b58787',
+      'padding': '7px',
+      'background-color': '#fff',
+      'text-align': 'left',
+      'font-size': '16px',
+      'font-family': 'sans-serif',
+      'color': '#111',
+      'box-shadow': '4px 6px 20px 0px rgba(0, 0, 0, 0.4)'
+    };
+
+    class CnapyTooltip extends preact.Component {
+      constructor() {
+        super()
+      }
+
+      componentShouldUpdate() {
+        // important according to Escher documentation
+        return false;
+      }
+
+      handleKeyUp(event) {
+        cnapy_bridge.value_changed(this.props.biggId, event.target.value, event.keyCode === 13)
+      }
+
+      handleOnFocusOut(event) {
+        cnapy_bridge.value_changed(this.props.biggId, event.target.value, true)
+      }
+
+      handleClickOnID(event) {
+        cnapy_bridge.clicked_on_id(this.props.type, this.props.biggId)
+      }
+      
+      render () {
+        var tip = h('div', {className: 'cnapy-tooltip', style: tooltipStyle},
+          h('div', {className: 'id', onClick: (event) => this.handleClickOnID(event), style: "font-weight: bold;"}, this.props.biggId),
+          h('div', {className: 'name'}, this.props.name))
+
+        if (this.props.type === 'reaction') {
+          tip.children.push(h('input', {type: 'text',
+            id: 'reaction-box-input',
+            style: 'color: black',
+            onFocus: (event) => event.target.select(),
+            onKeyUp: (event) => this.handleKeyUp(event),
+            onFocusOut: (event) => this.handleOnFocusOut(event)
+          }))
+          if (cnapy_bridge) // to keep page operational outside CNApy
+            cnapy_bridge.set_reaction_box_scenario_value(this.props.biggId)
+        }
+        
+        return tip
+      }
+    }
+  </script>
+
+  <meta charset="utf-8"/>
+  <body>
+    <div id="map_container"></div>
+
+    <script type="text/javascript">
+      builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'),
+        {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, scroll_behavior: 'zoom'})
+
+      function reactionOnMap(reacId) {
+        var records = builder.map.search_index.find(reacId);
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId)
+            return true;
+        }
+        return false;
+      }
+
+      function highlightAndFocusReaction(reacId) {
+        var records = builder.map.search_index.find(reacId);
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId) {
+            builder.map.highlight_reaction(record.reaction_id);
+            builder.map.zoom_to_reaction(record.reaction_id);
+            return
+          }
+        }
+      }
+
+    </script>
+  </body>
+</html>

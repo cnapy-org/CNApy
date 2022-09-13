@@ -5,7 +5,7 @@ from enum import IntEnum
 import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
@@ -199,8 +199,9 @@ class CentralWidget(QWidget):
         self.console.kernel_manager.shutdown_kernel()
 
     def switch_to_reaction(self, reaction: str):
-        self.tabs.setCurrentIndex(0)
-        if self.tabs.width() == ModelTabIndex.Reactions:
+        with QSignalBlocker(self.tabs): # set_current_item will update
+            self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
+        if self.tabs.width() == 0:
             (left, _) = self.splitter.sizes()
             self.splitter.setSizes([left, 1])
         self.reaction_list.set_current_item(reaction)
@@ -216,7 +217,6 @@ class CentralWidget(QWidget):
         self.update()
 
     def update_reaction_value(self, reaction: str, value: str, update_reaction_list=True):
-        print("update_reaction_value", reaction, value)
         if value == "":
             self.appdata.scen_values_pop(reaction)
             self.appdata.project.comp_values.pop(reaction, None)
@@ -253,9 +253,10 @@ class CentralWidget(QWidget):
         mmap.reactionAdded.connect(self.update_reaction_maps)
         mmap.mapChanged.connect(self.handle_mapChanged)
 
-    @Slot()
     def connect_escher_map_view_signals(self, mmap: EscherMapView):
         mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value)
+        mmap.cnapy_bridge.switchToReactionMask.connect(self.switch_to_reaction)
+        mmap.cnapy_bridge.jumpToMetabolite.connect(self.jump_to_metabolite)
 
     @Slot()
     def add_map(self, base_name="Map", escher=False):
@@ -272,7 +273,11 @@ class CentralWidget(QWidget):
         self.appdata.project.maps[name] = m
         if escher:
             mmap: EscherMapView = EscherMapView(self, name)
+            self.connect_escher_map_view_signals(mmap)
+            self.appdata.project.maps[name][EscherMapView] = mmap
             self.appdata.project.maps[name]['view'] = 'escher'
+            self.appdata.project.maps[name]['pos'] = '{x:0,y:0}'
+            self.appdata.project.maps[name]['zoom'] = '1'
             # mmap.loadFinished.connect(self.finish_add_escher_map)
             # mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value) # connection is not made?!
             # self.appdata.qapp.processEvents() # does not help
@@ -586,13 +591,13 @@ class CentralWidget(QWidget):
             self.__set_onoff_map()
 
     def jump_to_metabolite(self, metabolite: str):
-        self.tabs.setCurrentIndex(1)
-        m = self.tabs.widget(1)
+        self.tabs.setCurrentIndex(ModelTabIndex.Metabolites)
+        m = self.tabs.widget(ModelTabIndex.Metabolites)
         m.set_current_item(metabolite)
 
     def jump_to_reaction(self, reaction: str):
-        self.tabs.setCurrentIndex(0)
-        m = self.tabs.widget(0)
+        self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
+        m = self.tabs.widget(ModelTabIndex.Reactions)
         m.set_current_item(reaction)
 
     def in_out_fluxes(self, metabolite):
