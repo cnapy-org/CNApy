@@ -1,9 +1,10 @@
 """The gene list"""
 
 import cobra
+import cobra.manipulation
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
-                            QLineEdit, QMenu, QMessageBox, QSplitter,
+                            QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
@@ -177,6 +178,16 @@ class GenesMask(QWidget):
         l.addWidget(self.id)
         layout.addItem(l)
 
+        self.delete_button = QPushButton("Delete gene")
+        self.delete_button.setToolTip(
+            "Delete this gene and remove it from associated reactions."
+        )
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        self.delete_button.setSizePolicy(policy)
+        l.addWidget(self.delete_button)
+        layout.addItem(l)
+
         l = QHBoxLayout()
         label = QLabel("Name:")
         self.name = QLineEdit()
@@ -201,6 +212,7 @@ class GenesMask(QWidget):
         self.throttler = SignalThrottler(500)
         self.throttler.triggered.connect(self.genes_data_changed)
 
+        self.delete_button.clicked.connect(self.delete_gene)
         self.name.textEdited.connect(self.throttler.throttle)
         self.validate_mask()
 
@@ -220,16 +232,30 @@ class GenesMask(QWidget):
                 self, 'Invalid name', 'Could not apply name ' +
                 self.name.text()+'.')
 
+    def delete_gene(self):
+        cobra.manipulation.remove_genes(
+            model=self.appdata.project.cobra_py_model,
+            gene_list=[self.gene],
+            remove_reactions=False,
+        )
+        self.appdata.window.unsaved_changes()
+        self.hide()
+        current_row_index = self.gene_list.gene_list.currentIndex().row()
+        self.gene_list.gene_list.setCurrentItem(None)
+        self.gene_list.last_selected = None
+        self.gene_list.gene_list.takeTopLevelItem(
+            current_row_index)
+        self.appdata.window.setFocus()
+
     def validate_name(self):
-        with self.appdata.project.cobra_py_model as model:
-            try:
-                cobra.Gene(id="test_id", name=self.name.text())
-            except ValueError:
-                turn_red(self.name)
-                return False
-            else:
-                turn_white(self.name)
-                return True
+        try:
+            cobra.Gene(id="test_id", name=self.name.text())
+        except ValueError:
+            turn_red(self.name)
+            return False
+        else:
+            turn_white(self.name)
+            return True
 
     def validate_mask(self):
         valid_name = self.validate_name()
