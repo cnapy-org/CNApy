@@ -863,7 +863,6 @@ class ReactionMask(QWidget):
 
             if ok:
                 new_metabolites = {m.id for m in test_reaction.metabolites} - existing_metabolites
-                print("new_metabolites", new_metabolites)
                 if len(new_metabolites) > 0:
                     self.equation.blockSignals(True)
                     msg_box = QMessageBox(self)

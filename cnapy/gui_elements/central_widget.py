@@ -260,7 +260,6 @@ class CentralWidget(QWidget):
 
     @Slot()
     def add_map(self, base_name="Map", escher=False):
-        print(base_name, escher)
         if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
             while True:
                 name = base_name + " " + str(self.map_counter)
@@ -473,7 +472,9 @@ class CentralWidget(QWidget):
     def delete_reaction_on_maps(self, reation_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            m.delete_box(reation_id)
+            if isinstance(m, MapView):
+                m.delete_box(reation_id)
+            #TODO: find out if a reaction can be programatically removed from Escher
 
     def update_maps(self):
         for idx in range(0, self.map_tabs.count()):
