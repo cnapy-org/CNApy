@@ -221,19 +221,6 @@ class MainWindow(QMainWindow):
 
         self.map_menu.addSeparator()
 
-        load_maps_action = QAction("Load reaction box positions...", self)
-        self.map_menu.addAction(load_maps_action)
-        load_maps_action.triggered.connect(self.load_box_positions)
-        self.cnapy_map_actions.append(load_maps_action)
-
-        self.save_box_positions_action = QAction(
-            "Save reaction box positions...", self)
-        self.map_menu.addAction(self.save_box_positions_action)
-        self.save_box_positions_action.triggered.connect(
-            self.save_box_positions)
-        self.save_box_positions_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.save_box_positions_action)
-
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
         self.change_map_name_action.triggered.connect(self.change_map_name)
@@ -244,20 +231,6 @@ class MainWindow(QMainWindow):
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
         self.cnapy_map_actions.append(self.change_background_action)
-
-        self.inc_box_size_action = QAction("Increase box size", self)
-        self.inc_box_size_action.setShortcut("Ctrl++")
-        self.map_menu.addAction(self.inc_box_size_action)
-        self.inc_box_size_action.triggered.connect(self.inc_box_size)
-        self.inc_box_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.inc_box_size_action)
-
-        self.dec_box_size_action = QAction("Decrease box size", self)
-        self.dec_box_size_action.setShortcut("Ctrl+-")
-        self.map_menu.addAction(self.dec_box_size_action)
-        self.dec_box_size_action.triggered.connect(self.dec_box_size)
-        self.dec_box_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.dec_box_size_action)
 
         self.inc_bg_size_action = QAction("Increase background size", self)
         self.inc_bg_size_action.setShortcut("Ctrl+Shift++")
@@ -273,21 +246,32 @@ class MainWindow(QMainWindow):
         self.dec_bg_size_action.setEnabled(False)
         self.cnapy_map_actions.append(self.dec_bg_size_action)
 
-        escher_zoom_canvas_action = QAction("Zoom to canvas")
-        escher_zoom_canvas_action.triggered.connect(
-            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
-        self.escher_map_actions.append(escher_zoom_canvas_action)
+        load_maps_action = QAction("Load reaction box positions...", self)
+        self.map_menu.addAction(load_maps_action)
+        load_maps_action.triggered.connect(self.load_box_positions)
+        self.cnapy_map_actions.append(load_maps_action)
 
-        escher_settings_action = QAction("Escher settings...")
-        escher_settings_action.triggered.connect(
-            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript(r"builder.passPropsSettingsMenu({display: true})"))
-        self.escher_map_actions.append(escher_settings_action)
+        self.save_box_positions_action = QAction(
+            "Save reaction box positions...", self)
+        self.map_menu.addAction(self.save_box_positions_action)
+        self.save_box_positions_action.triggered.connect(
+            self.save_box_positions)
+        self.save_box_positions_action.setEnabled(False)
+        self.cnapy_map_actions.append(self.save_box_positions_action)
 
-        # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
-        # escher_save_map_action = QAction("Save map JSON...")
-        # escher_save_map_action.triggered.connect(
-        #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
-        # self.escher_map_actions.append(escher_save_map_action)
+        self.inc_box_size_action = QAction("Increase box size", self)
+        self.inc_box_size_action.setShortcut("Ctrl++")
+        self.map_menu.addAction(self.inc_box_size_action)
+        self.inc_box_size_action.triggered.connect(self.inc_box_size)
+        self.inc_box_size_action.setEnabled(False)
+        self.cnapy_map_actions.append(self.inc_box_size_action)
+
+        self.dec_box_size_action = QAction("Decrease box size", self)
+        self.dec_box_size_action.setShortcut("Ctrl+-")
+        self.map_menu.addAction(self.dec_box_size_action)
+        self.dec_box_size_action.triggered.connect(self.dec_box_size)
+        self.dec_box_size_action.setEnabled(False)
+        self.cnapy_map_actions.append(self.dec_box_size_action)
 
         escher_export_svg_action = QAction("Export as SVG...")
         escher_export_svg_action.triggered.connect(
@@ -298,6 +282,22 @@ class MainWindow(QMainWindow):
         escher_export_png_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_png()"))
         self.escher_map_actions.append(escher_export_png_action)
+
+        escher_zoom_canvas_action = QAction("Zoom to canvas")
+        escher_zoom_canvas_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
+        self.escher_map_actions.append(escher_zoom_canvas_action)
+
+        # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
+        # escher_save_map_action = QAction("Save map JSON...")
+        # escher_save_map_action.triggered.connect(
+        #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
+        # self.escher_map_actions.append(escher_save_map_action)
+
+        escher_settings_action = QAction("Escher settings...")
+        escher_settings_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript(r"builder.passPropsSettingsMenu({display: true})"))
+        self.escher_map_actions.append(escher_settings_action)
 
         escher_edit_mode_action = QAction("Edit mode")
         escher_edit_mode_action.triggered.connect(self.set_escher_edit_mode)
