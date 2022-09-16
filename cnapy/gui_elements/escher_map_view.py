@@ -1,6 +1,6 @@
 from pkg_resources import resource_filename
 import os
-from qtpy.QtCore import Signal, Slot, QUrl, QObject, QTimer
+from qtpy.QtCore import Signal, Slot, QUrl, QObject
 from qtpy.QtWidgets import QFileDialog
 from qtpy.QtWebEngineWidgets import QWebEngineView
 from qtpy.QtWebChannel import QWebChannel
@@ -183,8 +183,8 @@ class CnapyBridge(QObject):
             self.jumpToMetabolite.emit(identifier)
 
     @Slot()
-    def handle_onload_event(self):
-        QTimer.singleShot(1000, self.escher_map.initial_setup)
+    def begin_setup(self):
+        self.escher_map.initial_setup()
 
     @Slot(str)
     def set_reaction_box_scenario_value(self, reac_id: str):

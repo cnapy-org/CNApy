@@ -8,7 +8,20 @@
     {
         new QWebChannel(qt.webChannelTransport, function(channel) {
             cnapy_bridge = channel.objects.cnapy_bridge;
-            cnapy_bridge.handle_onload_event()
+            var wait_count = 0;
+            function wait_for_map() {
+              if (builder.map != null) // take this as proxy that Escher is now operational
+                cnapy_bridge.begin_setup()
+              else
+                if (wait_count < 50) {
+                  wait_count += 1
+                  console.warn(wait_count)
+                  setTimeout(wait_for_map, 100)
+                }
+                else
+                  alert("Escher appears inoperational, cannot display map.") 
+            }
+            setTimeout(wait_for_map, 100)
         });
     }
 
