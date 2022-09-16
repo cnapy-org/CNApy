@@ -1,5 +1,6 @@
 from pkg_resources import resource_filename
 import os
+from math import isclose
 from qtpy.QtCore import Signal, Slot, QUrl, QObject
 from qtpy.QtWidgets import QFileDialog
 from qtpy.QtWebEngineWidgets import QWebEngineView
@@ -51,15 +52,20 @@ class EscherMapView(QWebEngineView):
     def set_cobra_model(self):
         self.page().runJavaScript("builder.load_model("+cobra.io.to_json(self.appdata.project.cobra_py_model)+")")
 
-    def visualize_fluxes(self):
+    def visualize_comp_values(self):
         if len(self.appdata.project.comp_values) == 0:
             reaction_data = "null"
         else:
-            reaction_data = "["+str({reac_id: flux_val[0] for reac_id, flux_val in self.appdata.project.comp_values.items()})+"]"
+            if self.appdata.project.comp_values_type == 0:
+                reaction_data = "["+str({reac_id: val[0] 
+                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"
+            else: # FVA result
+                reaction_data = "["+str({reac_id: self.appdata.format_flux_value(val[0])+
+                                        ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
+                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"
         self.page().runJavaScript("builder.set_reaction_data("+reaction_data+")")
 
     def enable_editing(self, enable: bool):
-        # TODO: check if it is necessary to sync checkbox in the menu
         enable_str = str(enable).lower()
         not_enable_str = str(not enable).lower()
         if enable:
@@ -75,13 +81,13 @@ class EscherMapView(QWebEngineView):
             ");document.getElementsByClassName('button-panel')[0].hidden="+not_enable_str+
             ";document.getElementsByClassName('menu-bar')[0].style['display']='"+menu+"'")
         self.editing_enabled = enable
+        self.central_widget.parent.escher_edit_mode_action.setChecked(enable) # in case this was not called from the menu
 
     def update(self):
         if self.initialized:
             if self.editing_enabled:
                 self.set_cobra_model()
-            if self.appdata.project.comp_values_type == 0:
-                self.visualize_fluxes()
+            self.visualize_comp_values()
 
     # currently unused
     # def eventFilter(self, obj: QObject, event: QEvent) -> bool:
@@ -145,6 +151,9 @@ class EscherMapView(QWebEngineView):
             self.page().runJavaScript("search_container.style.display='';search_field.value='"+find+
                                       "';search_field.dispatchEvent(new Event('input'))")
     
+    def dragEnterEvent(self, event):
+        event.ignore()
+
     def closeEvent(self, event):
         self.channel.deregisterObject(self.cnapy_bridge)
         super().closeEvent(event)

@@ -203,9 +203,15 @@ class MainWindow(QMainWindow):
         clipboard_arithmetics_action.triggered.connect(
             self.clipboard_arithmetics)
 
-        self.cnapy_map_actions = [] # actions only available to CNApy maps
-        self.escher_map_actions = [] # actions only available to Escher maps
         self.map_menu = self.menu.addMenu("Map")
+        self.cnapy_map_actions = QActionGroup(self)
+        separator = QAction(" CNApy map", self)
+        separator.setSeparator(True)
+        self.cnapy_map_actions.addAction(separator)
+        self.escher_map_actions = QActionGroup(self)
+        separator = QAction(" Escher map", self)
+        separator.setSeparator(True)
+        self.escher_map_actions.addAction(separator)
 
         add_map_action = QAction("Add new map", self)
         self.map_menu.addAction(add_map_action)
@@ -219,94 +225,85 @@ class MainWindow(QMainWindow):
         self.map_menu.addAction(open_escher)
         open_escher.triggered.connect(lambda: central_widget.add_map(escher=True))
 
-        self.map_menu.addSeparator()
-
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
         self.change_map_name_action.triggered.connect(self.change_map_name)
         self.change_map_name_action.setEnabled(False)
 
         self.change_background_action = QAction("Change map background", self)
-        self.map_menu.addAction(self.change_background_action)
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.change_background_action)
+        self.cnapy_map_actions.addAction(self.change_background_action)
 
         self.inc_bg_size_action = QAction("Increase background size", self)
         self.inc_bg_size_action.setShortcut("Ctrl+Shift++")
-        self.map_menu.addAction(self.inc_bg_size_action)
         self.inc_bg_size_action.triggered.connect(self.inc_bg_size)
         self.inc_bg_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.inc_bg_size_action)
+        self.cnapy_map_actions.addAction(self.inc_bg_size_action)
 
         self.dec_bg_size_action = QAction("Decrease background size", self)
         self.dec_bg_size_action.setShortcut("Ctrl+Shift+-")
-        self.map_menu.addAction(self.dec_bg_size_action)
         self.dec_bg_size_action.triggered.connect(self.dec_bg_size)
         self.dec_bg_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.dec_bg_size_action)
+        self.cnapy_map_actions.addAction(self.dec_bg_size_action)
 
         load_maps_action = QAction("Load reaction box positions...", self)
-        self.map_menu.addAction(load_maps_action)
         load_maps_action.triggered.connect(self.load_box_positions)
-        self.cnapy_map_actions.append(load_maps_action)
+        self.cnapy_map_actions.addAction(load_maps_action)
 
         self.save_box_positions_action = QAction(
             "Save reaction box positions...", self)
-        self.map_menu.addAction(self.save_box_positions_action)
         self.save_box_positions_action.triggered.connect(
             self.save_box_positions)
         self.save_box_positions_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.save_box_positions_action)
+        self.cnapy_map_actions.addAction(self.save_box_positions_action)
 
         self.inc_box_size_action = QAction("Increase box size", self)
         self.inc_box_size_action.setShortcut("Ctrl++")
-        self.map_menu.addAction(self.inc_box_size_action)
         self.inc_box_size_action.triggered.connect(self.inc_box_size)
         self.inc_box_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.inc_box_size_action)
+        self.cnapy_map_actions.addAction(self.inc_box_size_action)
 
         self.dec_box_size_action = QAction("Decrease box size", self)
         self.dec_box_size_action.setShortcut("Ctrl+-")
-        self.map_menu.addAction(self.dec_box_size_action)
         self.dec_box_size_action.triggered.connect(self.dec_box_size)
         self.dec_box_size_action.setEnabled(False)
-        self.cnapy_map_actions.append(self.dec_box_size_action)
+        self.cnapy_map_actions.addAction(self.dec_box_size_action)
 
         escher_export_svg_action = QAction("Export as SVG...")
         escher_export_svg_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_svg()"))
-        self.escher_map_actions.append(escher_export_svg_action)
+        self.escher_map_actions.addAction(escher_export_svg_action)
 
         escher_export_png_action = QAction("Export as PNG...")
         escher_export_png_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_png()"))
-        self.escher_map_actions.append(escher_export_png_action)
+        self.escher_map_actions.addAction(escher_export_png_action)
 
         escher_zoom_canvas_action = QAction("Zoom to canvas")
         escher_zoom_canvas_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
-        self.escher_map_actions.append(escher_zoom_canvas_action)
+        self.escher_map_actions.addAction(escher_zoom_canvas_action)
 
         # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
         # escher_save_map_action = QAction("Save map JSON...")
         # escher_save_map_action.triggered.connect(
         #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
-        # self.escher_map_actions.append(escher_save_map_action)
+        # self.escher_map_actions.addAction(escher_save_map_action)
 
         escher_settings_action = QAction("Escher settings...")
         escher_settings_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript(r"builder.passPropsSettingsMenu({display: true})"))
-        self.escher_map_actions.append(escher_settings_action)
+        self.escher_map_actions.addAction(escher_settings_action)
 
-        escher_edit_mode_action = QAction("Edit mode")
-        escher_edit_mode_action.triggered.connect(self.set_escher_edit_mode)
-        escher_edit_mode_action.setCheckable(True)
-        self.escher_map_actions.append(escher_edit_mode_action)
+        self.escher_edit_mode_action = QAction("Edit mode")
+        self.escher_edit_mode_action.triggered.connect(self.set_escher_edit_mode)
+        self.escher_edit_mode_action.setCheckable(True)
+        self.escher_map_actions.addAction(self.escher_edit_mode_action)
 
-        for act in self.escher_map_actions:
-            act.setVisible(False)
-        self.map_menu.addActions(self.escher_map_actions)
+        self.map_menu.addActions(self.cnapy_map_actions.actions())
+        self.escher_map_actions.setVisible(False)
+        self.map_menu.addActions(self.escher_map_actions.actions())
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -1311,15 +1308,11 @@ class MainWindow(QMainWindow):
             self.save_box_positions_action.setEnabled(True)
             self.centralWidget().update_map(idx)
             if isinstance(self.centralWidget().map_tabs.widget(idx), MapView):
-                for act in self.cnapy_map_actions:
-                    act.setVisible(True)
-                for act in self.escher_map_actions:
-                    act.setVisible(False)
+                self.escher_map_actions.setVisible(False)
+                self.cnapy_map_actions.setVisible(True)
             else: # EscherMapView
-                for act in self.cnapy_map_actions:
-                    act.setVisible(False)
-                for act in self.escher_map_actions:
-                    act.setVisible(True)
+                self.cnapy_map_actions.setVisible(False)
+                self.escher_map_actions.setVisible(True)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
