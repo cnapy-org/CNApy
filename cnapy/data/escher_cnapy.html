@@ -10,8 +10,22 @@
             cnapy_bridge = channel.objects.cnapy_bridge;
             var wait_count = 0;
             function wait_for_map() {
-              if (builder.map != null) // take this as proxy that Escher is now operational
-                cnapy_bridge.begin_setup()
+              if (builder.map != null) { // take this as proxy that Escher is now operational
+                try {
+                  cnapy_bridge.get_map_and_geometry(map_and_geometry => {
+                    if (map_and_geometry[0].length > 0) {
+                      console.warn("Loading map");
+                      builder.load_map(JSON.parse(map_and_geometry[0]));
+                      builder.map.zoomContainer.goTo(JSON.parse(map_and_geometry[1]), JSON.parse(map_and_geometry[2]));
+                    }
+                    builder.passPropsSearchBar({display:true});
+                    setTimeout(() => {cnapy_bridge.finish_setup();}, 50)
+                  })
+                }
+                catch (error) {
+                  alert(error);
+                }
+              }
               else
                 if (wait_count < 50) {
                   wait_count += 1

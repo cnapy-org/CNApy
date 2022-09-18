@@ -275,7 +275,7 @@ class CentralWidget(QWidget):
             self.connect_escher_map_view_signals(mmap)
             self.appdata.project.maps[name][EscherMapView] = mmap
             self.appdata.project.maps[name]['view'] = 'escher'
-            self.appdata.project.maps[name]['pos'] = '{x:0,y:0}'
+            self.appdata.project.maps[name]['pos'] = '{"x":0,"y":0}'
             self.appdata.project.maps[name]['zoom'] = '1'
             # mmap.loadFinished.connect(self.finish_add_escher_map)
             # mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value) # connection is not made?!

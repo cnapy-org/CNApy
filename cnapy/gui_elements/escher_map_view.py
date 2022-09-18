@@ -37,6 +37,16 @@ class EscherMapView(QWebEngineView):
         self.set_file_selector_download()
         # self.focusProxy().installEventFilter(self) # can be used for event tracking
 
+    def finish_setup(self):
+        print("finish_setup")
+        self.page().runJavaScript(
+                r"var search_container=document.getElementsByClassName('search-container')[0];var search_field=document.getElementsByClassName('search-field')[0];search_container.style.display='none';document.getElementsByClassName('search-bar-button')[2].hidden=true")
+        self.show()
+        self.initialized = True
+        self.enable_editing(len(self.appdata.project.maps[self.name].get('escher_map_data', "")) == 0)
+        self.update()
+        self.set_file_selector_download()
+
     def set_map_data(self) -> bool:
         map_data = self.appdata.project.maps[self.name].get('escher_map_data', "")
         if len(map_data) > 0:
@@ -195,6 +205,10 @@ class CnapyBridge(QObject):
     def begin_setup(self):
         self.escher_map.initial_setup()
 
+    @Slot()
+    def finish_setup(self):
+        self.escher_map.finish_setup()
+
     @Slot(str)
     def set_reaction_box_scenario_value(self, reac_id: str):
         if reac_id in self.appdata.project.scen_values:
@@ -211,3 +225,8 @@ class CnapyBridge(QObject):
             else:
                 attr_val = "remove()" # hidden=true or remove()?
         self.escher_map.page().runJavaScript("document.getElementById('reaction-box-input')."+attr_val)
+
+    @Slot(result=list)
+    def get_map_and_geometry(self) -> list: # list of strings
+        return [self.appdata.project.maps[self.escher_map.name].get('escher_map_data', ""),
+                self.appdata.project.maps[self.escher_map.name]["zoom"], self.appdata.project.maps[self.escher_map.name]["pos"]]
