@@ -63,17 +63,23 @@ class EscherMapView(QWebEngineView):
         self.page().runJavaScript("builder.load_model("+cobra.io.to_json(self.appdata.project.cobra_py_model)+")")
 
     def visualize_comp_values(self):
+        js_stack = []
+        def set_reaction_data_string(reaction_data):
+            return "builder.set_reaction_data("+reaction_data+")"
         if len(self.appdata.project.comp_values) == 0:
-            reaction_data = "null"
+            js_stack.append(set_reaction_data_string("null"))
         else:
             if self.appdata.project.comp_values_type == 0:
-                reaction_data = "["+str({reac_id: val[0] 
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"
-            else: # FVA result
-                reaction_data = "["+str({reac_id: self.appdata.format_flux_value(val[0])+
+                 js_stack.append(set_reaction_data_string("["+str({reac_id: val[0]
+                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
+            else: # FVA result, display flux range as text only
+                js_stack.append("let style=builder.map.settings.get('reaction_styles')")
+                js_stack.append("builder.map.settings.set('reaction_styles','text')")
+                js_stack.append(set_reaction_data_string("["+str({reac_id: self.appdata.format_flux_value(val[0])+
                                         ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"
-        self.page().runJavaScript("builder.set_reaction_data("+reaction_data+")")
+                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
+                js_stack.append("builder.settings._options.reaction_styles=style")
+        self.page().runJavaScript("{"+";".join(js_stack)+"}")
 
     def enable_editing(self, enable: bool):
         enable_str = str(enable).lower()
