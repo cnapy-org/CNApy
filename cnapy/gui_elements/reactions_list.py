@@ -271,7 +271,7 @@ class ReactionList(QWidget):
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
         self.reaction_selected(item)
-        self.parent.appdata.window.unsaved_changes()
+        self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
         self.reaction_mask.annotation.itemChanged.disconnect(

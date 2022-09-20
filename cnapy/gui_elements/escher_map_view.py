@@ -98,12 +98,13 @@ class EscherMapView(QWebEngineView):
             ");document.getElementsByClassName('button-panel')[0].hidden="+not_enable_str+
             ";document.getElementsByClassName('menu-bar')[0].style['display']='"+menu+"'")
         self.editing_enabled = enable
-        self.central_widget.parent.escher_edit_mode_action.setChecked(enable) # in case this was not called from the menu
 
     def update(self):
         if self.initialized:
             if self.editing_enabled:
                 self.set_cobra_model()
+            # currently need to handle the checkbox myself
+            self.central_widget.parent.escher_edit_mode_action.setChecked(self.editing_enabled)
             self.visualize_comp_values()
 
     # currently unused

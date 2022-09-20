@@ -16,7 +16,7 @@ import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QUrl, QTimer
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
@@ -448,11 +448,11 @@ class MainWindow(QMainWindow):
         self.onoff_action.setCheckable(True)
         update_action.setCheckable(True)
         update_action.setChecked(True)
-        colorings = QActionGroup(self)
-        colorings.addAction(self.heaton_action)
-        colorings.addAction(self.onoff_action)
-        colorings.addAction(update_action)
-        colorings.setExclusive(True)
+        self.colorings = QActionGroup(self)
+        self.colorings.addAction(self.heaton_action)
+        self.colorings.addAction(self.onoff_action)
+        self.colorings.addAction(update_action)
+        self.colorings.setExclusive(True)
 
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_all_action)
@@ -1312,9 +1312,11 @@ class MainWindow(QMainWindow):
             if isinstance(self.centralWidget().map_tabs.widget(idx), MapView):
                 self.escher_map_actions.setVisible(False)
                 self.cnapy_map_actions.setVisible(True)
+                self.colorings.setEnabled(True)
             else: # EscherMapView
                 self.cnapy_map_actions.setVisible(False)
                 self.escher_map_actions.setVisible(True)
+                self.colorings.setEnabled(False)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
