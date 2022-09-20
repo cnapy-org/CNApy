@@ -1,7 +1,7 @@
 from pkg_resources import resource_filename
 import os
 from math import isclose
-from qtpy.QtCore import Signal, Slot, QUrl, QObject
+from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
 from qtpy.QtWidgets import QFileDialog
 from qtpy.QtWebEngineWidgets import QWebEngineView
 from qtpy.QtWebChannel import QWebChannel
@@ -12,6 +12,7 @@ from cnapy.gui_elements.map_view import validate_value
 class EscherMapView(QWebEngineView):
     def __init__(self, central_widget, name: str):
         QWebEngineView.__init__(self)
+        self.setContextMenuPolicy(Qt.NoContextMenu)
         self.initialized = False
         self.appdata: AppData = central_widget.appdata
         self.central_widget = central_widget
