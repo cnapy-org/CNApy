@@ -23,7 +23,7 @@ class AppData:
 
     def __init__(self, qapp):
         self.qapp = qapp
-        self.version = "cnapy-1.1.1"
+        self.version = "cnapy-1.1.2"
         self.format_version = 2
         self.unsaved = False
         self.project = ProjectData()
