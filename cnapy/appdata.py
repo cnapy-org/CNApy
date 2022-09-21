@@ -21,9 +21,10 @@ from qtpy.QtWidgets import QMessageBox
 class AppData:
     ''' The application data '''
 
-    def __init__(self):
+    def __init__(self, qapp):
+        self.qapp = qapp
         self.version = "cnapy-1.1.1"
-        self.format_version = 1
+        self.format_version = 2
         self.unsaved = False
         self.project = ProjectData()
         self.modes_coloring = False
@@ -329,7 +330,9 @@ def CnaMap(name):
             "box-size": 1,
             "zoom": 0,
             "pos": (0, 0),
-            "boxes": {}
+            "boxes": {},
+            "view": "cnapy", # either "cnapy" or "escher"
+            "escher_map_data": "" # JSON string
             }
 
 def parse_scenario(text: str) -> Tuple[float, float]:

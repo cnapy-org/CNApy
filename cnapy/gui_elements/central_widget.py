@@ -5,13 +5,14 @@ from enum import IntEnum
 import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
@@ -198,8 +199,9 @@ class CentralWidget(QWidget):
         self.console.kernel_manager.shutdown_kernel()
 
     def switch_to_reaction(self, reaction: str):
-        self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
-        if self.tabs.width() == ModelTabIndex.Reactions:
+        with QSignalBlocker(self.tabs): # set_current_item will update
+            self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
+        if self.tabs.width() == 0:
             (left, _) = self.splitter.sizes()
             self.splitter.setSizes([left, 1])
         self.reaction_list.set_current_item(reaction)
@@ -242,8 +244,22 @@ class CentralWidget(QWidget):
         elif idx == ModelTabIndex.Model:
             self.model_info.update()
 
+    def connect_map_view_signals(self, mmap: MapView):
+        mmap.switchToReactionMask.connect(self.switch_to_reaction)
+        mmap.minimizeReaction.connect(self.minimize_reaction)
+        mmap.maximizeReaction.connect(self.maximize_reaction)
+        mmap.reactionValueChanged.connect(self.update_reaction_value)
+        mmap.reactionRemoved.connect(self.update_reaction_maps)
+        mmap.reactionAdded.connect(self.update_reaction_maps)
+        mmap.mapChanged.connect(self.handle_mapChanged)
+
+    def connect_escher_map_view_signals(self, mmap: EscherMapView):
+        mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value)
+        mmap.cnapy_bridge.switchToReactionMask.connect(self.switch_to_reaction)
+        mmap.cnapy_bridge.jumpToMetabolite.connect(self.jump_to_metabolite)
+
     @Slot()
-    def add_map(self, base_name="Map"):
+    def add_map(self, base_name="Map", escher=False):
         if base_name == "Map" or (base_name in self.appdata.project.maps.keys()):
             while True:
                 name = base_name + " " + str(self.map_counter)
@@ -253,19 +269,23 @@ class CentralWidget(QWidget):
         else:
             name = base_name
         m = CnaMap(name)
-
         self.appdata.project.maps[name] = m
-        mmap = MapView(self.appdata, self, name)
-        mmap.switchToReactionMask.connect(self.switch_to_reaction)
-        mmap.minimizeReaction.connect(self.minimize_reaction)
-        mmap.maximizeReaction.connect(self.maximize_reaction)
-
-        mmap.reactionValueChanged.connect(self.update_reaction_value)
-        mmap.reactionRemoved.connect(self.update_reaction_maps)
-        mmap.reactionAdded.connect(self.update_reaction_maps)
-        mmap.mapChanged.connect(self.handle_mapChanged)
-        idx = self.map_tabs.addTab(mmap, m["name"])
-        self.update_maps()
+        if escher:
+            mmap: EscherMapView = EscherMapView(self, name)
+            self.connect_escher_map_view_signals(mmap)
+            self.appdata.project.maps[name][EscherMapView] = mmap
+            self.appdata.project.maps[name]['view'] = 'escher'
+            self.appdata.project.maps[name]['pos'] = '{"x":0,"y":0}'
+            self.appdata.project.maps[name]['zoom'] = '1'
+            # mmap.loadFinished.connect(self.finish_add_escher_map)
+            # mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value) # connection is not made?!
+            # self.appdata.qapp.processEvents() # does not help
+            idx = self.map_tabs.addTab(mmap, m["name"])
+        else:
+            mmap = MapView(self.appdata, self, name)
+            self.connect_map_view_signals(mmap)
+            idx = self.map_tabs.addTab(mmap, m["name"])
+            self.update_maps() # only update mmap?
         self.map_tabs.setCurrentIndex(idx)
         self.parent.unsaved_changes()
 
@@ -452,7 +472,9 @@ class CentralWidget(QWidget):
     def delete_reaction_on_maps(self, reation_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            m.delete_box(reation_id)
+            if isinstance(m, MapView):
+                m.delete_box(reation_id)
+            #TODO: find out if a reaction can be programatically removed from Escher
 
     def update_maps(self):
         for idx in range(0, self.map_tabs.count()):

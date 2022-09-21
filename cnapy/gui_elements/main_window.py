@@ -16,10 +16,11 @@ import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
 
-from qtpy.QtCore import QFileInfo, Qt, Slot
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
+from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, ProjectData
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -31,6 +32,7 @@ from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
 from cnapy.gui_elements.map_view import MapView
+from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
@@ -82,7 +84,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project)
 
-        self.save_project_action = QAction("&Save project...", self)
+        self.save_project_action = QAction("&Save project", self)
         self.save_project_action.setShortcut("Ctrl+S")
         self.file_menu.addAction(self.save_project_action)
         self.save_project_action.triggered.connect(self.save_project)
@@ -202,26 +204,26 @@ class MainWindow(QMainWindow):
             self.clipboard_arithmetics)
 
         self.map_menu = self.menu.addMenu("Map")
+        self.cnapy_map_actions = QActionGroup(self)
+        separator = QAction(" CNApy map", self)
+        separator.setSeparator(True)
+        self.cnapy_map_actions.addAction(separator)
+        self.escher_map_actions = QActionGroup(self)
+        separator = QAction(" Escher map", self)
+        separator.setSeparator(True)
+        self.escher_map_actions.addAction(separator)
 
         add_map_action = QAction("Add new map", self)
         self.map_menu.addAction(add_map_action)
         add_map_action.triggered.connect(central_widget.add_map)
 
-        # add_escher_map_action = QAction("Add new map from Escher JSON and SVG...", self)
         add_escher_map_action = QAction("Add new map from Escher SVG...", self)
         self.map_menu.addAction(add_escher_map_action)
         add_escher_map_action.triggered.connect(self.add_escher_map)
 
-        load_maps_action = QAction("Load reaction box positions...", self)
-        self.map_menu.addAction(load_maps_action)
-        load_maps_action.triggered.connect(self.load_box_positions)
-
-        self.save_box_positions_action = QAction(
-            "Save reaction box positions...", self)
-        self.map_menu.addAction(self.save_box_positions_action)
-        self.save_box_positions_action.triggered.connect(
-            self.save_box_positions)
-        self.save_box_positions_action.setEnabled(False)
+        open_escher = QAction("Add interactive Escher map", self)
+        self.map_menu.addAction(open_escher)
+        open_escher.triggered.connect(lambda: central_widget.add_map(escher=True))
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -229,33 +231,79 @@ class MainWindow(QMainWindow):
         self.change_map_name_action.setEnabled(False)
 
         self.change_background_action = QAction("Change map background", self)
-        self.map_menu.addAction(self.change_background_action)
         self.change_background_action.triggered.connect(self.change_background)
         self.change_background_action.setEnabled(False)
-
-        self.inc_box_size_action = QAction("Increase box size", self)
-        self.inc_box_size_action.setShortcut("Ctrl++")
-        self.map_menu.addAction(self.inc_box_size_action)
-        self.inc_box_size_action.triggered.connect(self.inc_box_size)
-        self.inc_box_size_action.setEnabled(False)
-
-        self.dec_box_size_action = QAction("Decrease box size", self)
-        self.dec_box_size_action.setShortcut("Ctrl+-")
-        self.map_menu.addAction(self.dec_box_size_action)
-        self.dec_box_size_action.triggered.connect(self.dec_box_size)
-        self.dec_box_size_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.change_background_action)
 
         self.inc_bg_size_action = QAction("Increase background size", self)
         self.inc_bg_size_action.setShortcut("Ctrl+Shift++")
-        self.map_menu.addAction(self.inc_bg_size_action)
         self.inc_bg_size_action.triggered.connect(self.inc_bg_size)
         self.inc_bg_size_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.inc_bg_size_action)
 
         self.dec_bg_size_action = QAction("Decrease background size", self)
         self.dec_bg_size_action.setShortcut("Ctrl+Shift+-")
-        self.map_menu.addAction(self.dec_bg_size_action)
         self.dec_bg_size_action.triggered.connect(self.dec_bg_size)
         self.dec_bg_size_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.dec_bg_size_action)
+
+        load_maps_action = QAction("Load reaction box positions...", self)
+        load_maps_action.triggered.connect(self.load_box_positions)
+        self.cnapy_map_actions.addAction(load_maps_action)
+
+        self.save_box_positions_action = QAction(
+            "Save reaction box positions...", self)
+        self.save_box_positions_action.triggered.connect(
+            self.save_box_positions)
+        self.save_box_positions_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.save_box_positions_action)
+
+        self.inc_box_size_action = QAction("Increase box size", self)
+        self.inc_box_size_action.setShortcut("Ctrl++")
+        self.inc_box_size_action.triggered.connect(self.inc_box_size)
+        self.inc_box_size_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.inc_box_size_action)
+
+        self.dec_box_size_action = QAction("Decrease box size", self)
+        self.dec_box_size_action.setShortcut("Ctrl+-")
+        self.dec_box_size_action.triggered.connect(self.dec_box_size)
+        self.dec_box_size_action.setEnabled(False)
+        self.cnapy_map_actions.addAction(self.dec_box_size_action)
+
+        escher_export_svg_action = QAction("Export as SVG...")
+        escher_export_svg_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_svg()"))
+        self.escher_map_actions.addAction(escher_export_svg_action)
+
+        escher_export_png_action = QAction("Export as PNG...")
+        escher_export_png_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_png()"))
+        self.escher_map_actions.addAction(escher_export_png_action)
+
+        escher_zoom_canvas_action = QAction("Zoom to canvas")
+        escher_zoom_canvas_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
+        self.escher_map_actions.addAction(escher_zoom_canvas_action)
+
+        # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
+        # escher_save_map_action = QAction("Save map JSON...")
+        # escher_save_map_action.triggered.connect(
+        #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
+        # self.escher_map_actions.addAction(escher_save_map_action)
+
+        escher_settings_action = QAction("Escher settings...")
+        escher_settings_action.triggered.connect(
+            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript(r"builder.passPropsSettingsMenu({display: true})"))
+        self.escher_map_actions.addAction(escher_settings_action)
+
+        self.escher_edit_mode_action = QAction("Edit mode")
+        self.escher_edit_mode_action.triggered.connect(self.set_escher_edit_mode)
+        self.escher_edit_mode_action.setCheckable(True)
+        self.escher_map_actions.addAction(self.escher_edit_mode_action)
+
+        self.map_menu.addActions(self.cnapy_map_actions.actions())
+        self.escher_map_actions.setVisible(False)
+        self.map_menu.addActions(self.escher_map_actions.actions())
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -400,11 +448,11 @@ class MainWindow(QMainWindow):
         self.onoff_action.setCheckable(True)
         update_action.setCheckable(True)
         update_action.setChecked(True)
-        colorings = QActionGroup(self)
-        colorings.addAction(self.heaton_action)
-        colorings.addAction(self.onoff_action)
-        colorings.addAction(update_action)
-        colorings.setExclusive(True)
+        self.colorings = QActionGroup(self)
+        self.colorings.addAction(self.heaton_action)
+        self.colorings.addAction(self.onoff_action)
+        self.colorings.addAction(update_action)
+        self.colorings.setExclusive(True)
 
         self.tool_bar = QToolBar()
         self.tool_bar.addAction(clear_all_action)
@@ -441,6 +489,8 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def checked_unsaved(self) -> bool:
+        # TODO: check for changes in Escher maps instead of just setting unsaved changes
+        # when acticvating the edit mode on an Escher map
         if self.appdata.unsaved:
             msgBox = QMessageBox()
             msgBox.setText("The project has been modified.")
@@ -762,8 +812,8 @@ class MainWindow(QMainWindow):
     #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
 
     @Slot()
-    def add_escher_map(self):
-        # map gets a default name because an Escher SVG file does not contain the map name
+    def add_escher_map(self, annotation_key_for_id="bigg.reaction", strip_compartment=False):
+        # maps gets a default name because an Escher SVG file does not contain the map name
         has_unsaved_changes = self.appdata.unsaved
         map_name, map_idx = self.centralWidget().add_map()
         file_name = self.change_background(caption="Select an Escher SVG file")
@@ -775,9 +825,15 @@ class MainWindow(QMainWindow):
 
         reaction_bigg_ids = dict()
         for r in self.appdata.project.cobra_py_model.reactions:
-            bigg_id = r.annotation.get("bigg.reaction", None)
-            if bigg_id is None: # if there is no BiGG ID in the annotation...
+            bigg_id = r.annotation.get(annotation_key_for_id, None)
+            if not isinstance(bigg_id, str): # if there is no (unique) BiGG ID in the annotation...
                 bigg_id = r.id # ... use the reaction ID as proxy
+            if strip_compartment:
+                for c_id in self.appdata.project.cobra_py_model.compartments.keys():
+                    if bigg_id.endswith(c_id):
+                        bigg_id = bigg_id[:-(len(c_id)+1)] # +1 for the _
+                        break
+                # print(bigg_id, r.id)
             reaction_bigg_ids[bigg_id] = r.id
 
         def get_translate_coordinates(translate: str):
@@ -864,15 +920,22 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def zoom_in(self):
-        mv: MapView = self.centralWidget().map_tabs.currentWidget()
+        mv = self.centralWidget().map_tabs.currentWidget()
         if mv is not None:
             mv.zoom_in()
 
     @Slot()
     def zoom_out(self):
-        mv: MapView = self.centralWidget().map_tabs.currentWidget()
+        mv = self.centralWidget().map_tabs.currentWidget()
         if mv is not None:
             mv.zoom_out()
+
+    @Slot(bool)
+    def set_escher_edit_mode(self, checked: bool):
+        # cannot use the parameter checked because in ActionGroup the entries are mutually exclusive
+        # and the policy cannot be changed in Python (why?)
+        self.centralWidget().map_tabs.currentWidget().enable_editing(not self.centralWidget().map_tabs.currentWidget().editing_enabled)
+        self.unsaved_changes() # preliminary solution until checking for changes in Escher maps is implemented
 
     @Slot()
     def focus_search_box(self):
@@ -933,6 +996,7 @@ class MainWindow(QMainWindow):
     def clear_all(self):
         self.appdata.scen_values_clear()
         self.appdata.project.comp_values.clear()
+        self.appdata.project.comp_values_type = 0
         self.appdata.project.fva_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
@@ -1120,6 +1184,34 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_project(self):
+        escher_map_count: int = 0
+        semaphore = [0] # list with one integer to emulate pass by reference
+        for i in range(len(self.centralWidget().map_tabs)):
+            if isinstance(self.centralWidget().map_tabs.widget(i), EscherMapView):
+                self.centralWidget().map_tabs.widget(i).retrieve_map_data(semaphore=semaphore)
+                self.centralWidget().map_tabs.widget(i).retrieve_pos_and_zoom(semaphore=semaphore)
+                escher_map_count += 1
+        if escher_map_count > 0: # give some time for retrieve_map_data to finish
+            escher_map_count *= 2
+            timer = QTimer()
+            wait_count = 0
+            timer.setInterval(escher_map_count*10)
+            def wait_for_retrieval():
+                nonlocal wait_count
+                if semaphore[0] == escher_map_count:
+                    timer.stop()
+                    self.continue_save_project()
+                if wait_count >= 20:
+                    timer.stop()
+                    raise ValueError("Failed to retrieve Escher data, cannot save project.")
+                wait_count += 1
+            timer.timeout.connect(wait_for_retrieval)
+            timer.start()
+        else:
+            self.continue_save_project
+
+    @Slot()
+    def continue_save_project(self):
         ''' Save the project '''
         tmp_dir = TemporaryDirectory().name
         filename: str = self.appdata.project.name
@@ -1144,8 +1236,9 @@ class MainWindow(QMainWindow):
             count += 1
 
         # Save maps information
+        # also contains the Escher map JSONs
         with open(tmp_dir + "box_positions.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp)
+            json.dump(self.appdata.project.maps, fp, skipkeys=True)
 
         # Save meta data
         self.appdata.project.meta_data["format version"] = self.appdata.format_version
@@ -1162,6 +1255,7 @@ class MainWindow(QMainWindow):
 
         # put svgs into temporary directory and update references
         with ZipFile(filename, 'r') as zip_ref:
+            # TODO: currently saves default background for Escher maps, this is not needed
             zip_ref.extractall(self.appdata.temp_dir.name)
             count = 1
             for name, m in self.appdata.project.maps.items():
@@ -1185,30 +1279,23 @@ class MainWindow(QMainWindow):
         else:
             return
 
+    # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         for name, mmap in self.appdata.project.maps.items():
-            mmap = MapView(self.appdata, self.centralWidget(), name)
-            mmap.show()
-            mmap.switchToReactionMask.connect(
-                self.centralWidget().switch_to_reaction)
-            mmap.minimizeReaction.connect(
-                self.centralWidget().minimize_reaction)
-            mmap.maximizeReaction.connect(
-                self.centralWidget().maximize_reaction)
-            mmap.setScenValue.connect(
-                self.centralWidget().set_scen_value)
-            mmap.reactionValueChanged.connect(
-                self.centralWidget().update_reaction_value)
-            mmap.reactionRemoved.connect(
-                self.centralWidget().update_reaction_maps)
-            mmap.reactionAdded.connect(
-                self.centralWidget().update_reaction_maps)
-            mmap.mapChanged.connect(
-                self.centralWidget().handle_mapChanged)
+            if mmap.get("view", "cnapy") == "cnapy":
+                mmap = MapView(self.appdata, self.centralWidget(), name)
+                mmap.show()
+                self.centralWidget().connect_map_view_signals(mmap)
+            elif mmap["view"] == "escher":
+                mmap = EscherMapView(self.centralWidget(), name)
+                self.centralWidget().connect_escher_map_view_signals(mmap)
+                self.appdata.project.maps[name][EscherMapView] = mmap
+            else:
+                raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
             mmap.update()
 
@@ -1222,6 +1309,14 @@ class MainWindow(QMainWindow):
             self.dec_bg_size_action.setEnabled(True)
             self.save_box_positions_action.setEnabled(True)
             self.centralWidget().update_map(idx)
+            if isinstance(self.centralWidget().map_tabs.widget(idx), MapView):
+                self.escher_map_actions.setVisible(False)
+                self.cnapy_map_actions.setVisible(True)
+                self.colorings.setEnabled(True)
+            else: # EscherMapView
+                self.cnapy_map_actions.setVisible(False)
+                self.escher_map_actions.setVisible(True)
+                self.colorings.setEnabled(False)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)

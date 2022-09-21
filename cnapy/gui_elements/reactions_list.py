@@ -16,6 +16,7 @@ from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 from cnapy.gui_elements.map_view import validate_value
+from cnapy.gui_elements.escher_map_view import EscherMapView
 
 class ReactionListColumn(IntEnum):
     Id = 0
@@ -270,7 +271,7 @@ class ReactionList(QWidget):
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
         self.reaction_selected(item)
-        self.parent.appdata.window.unsaved_changes()
+        self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
         self.reaction_mask.annotation.itemChanged.disconnect(
@@ -409,6 +410,7 @@ class ReactionList(QWidget):
             items = self.reaction_list.findItems(
                 self.last_selected, Qt.MatchExactly)
             for i in items:
+                # triggers self.reaction_selected which also does a self.reaction_mask.update_state()
                 self.reaction_list.setCurrentItem(i)
                 break
 
@@ -417,12 +419,10 @@ class ReactionList(QWidget):
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
-        self.reaction_mask.update_state()
 
-    def set_current_item(self, key):
+    def set_current_item(self, key: str):
         self.last_selected = key
         self.update()
-        self.reaction_selected(self.reaction_list.currentItem())
 
     def emit_jump_to_map(self, idx: str, reaction: str):
         self.jumpToMap.emit(idx, reaction)
@@ -934,7 +934,6 @@ class ReactionMask(QWidget):
 
             if ok:
                 new_metabolites = {m.id for m in test_reaction.metabolites} - existing_metabolites
-                print("new_metabolites", new_metabolites)
                 if len(new_metabolites) > 0:
                     self.equation.blockSignals(True)
                     msg_box = QMessageBox(self)
@@ -1014,9 +1013,13 @@ class ReactionMask(QWidget):
 
     def update_state(self):
         self.jump_list.clear()
-        for name, m in self.parent.appdata.project.maps.items():
-            if self.id.text() in m["boxes"]:
-                self.jump_list.add(name)
+        for name, mmap in self.parent.appdata.project.maps.items():
+            if EscherMapView in mmap:
+                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
+                    lambda on_map: self.jump_list.add(name) if on_map else None)
+            else: # CNApy map
+                if self.id.text() in mmap["boxes"]:
+                    self.jump_list.add(name)
 
         self.metabolites.clear()
         if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
