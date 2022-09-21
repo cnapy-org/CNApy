@@ -574,20 +574,19 @@ class ReactionMask(QWidget):
         self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
-        l = QHBoxLayout()
-        self.delete_button = QPushButton("Delete reaction")
-        self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
-        policy = QSizePolicy()
-        policy.ShrinkFlag = True
-        self.delete_button.setSizePolicy(policy)
-        l.addWidget(self.delete_button)
-        layout.addItem(l)
 
         l = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.id)
+
+        self.delete_button = QPushButton("Delete reaction")
+        self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
+        policy = QSizePolicy()
+        policy.ShrinkFlag = True
+        self.delete_button.setSizePolicy(policy)
+        l.addWidget(self.delete_button)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -614,10 +613,8 @@ class ReactionMask(QWidget):
         self.upper_bound = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.upper_bound)
-        layout.addItem(l)
 
-        l = QHBoxLayout()
-        label = QLabel("Coefficient in obj. function:")
+        label = QLabel(" Objective coefficient:")
         self.coefficent = QLineEdit()
         l.addWidget(label)
         l.addWidget(self.coefficent)
@@ -633,7 +630,7 @@ class ReactionMask(QWidget):
         l = QVBoxLayout()
 
         l3 = QHBoxLayout()
-        label = QLabel("Annotations:")
+        label = QLabel("Reaction annotations:")
         l3.addWidget(label)
 
         check_button = QPushButton("identifiers.org check")
