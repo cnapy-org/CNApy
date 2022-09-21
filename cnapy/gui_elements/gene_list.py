@@ -186,7 +186,6 @@ class GenesMask(QWidget):
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
-        layout.addItem(l)
 
         l = QHBoxLayout()
         label = QLabel("Name:")
