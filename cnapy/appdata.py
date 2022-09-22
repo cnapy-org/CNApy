@@ -76,7 +76,7 @@ class AppData:
         self.scenario_future.clear()
 
     def scen_values_clear(self):
-        self.project.scen_values.clear()
+        self.project.scen_values.clear_flux_values()
         self.scenario_past.append(("clear", "all", 0))
         self.scenario_future.clear()
 
@@ -86,7 +86,7 @@ class AppData:
             self.scen_values_set(reaction, val)
 
     def recreate_scenario_from_history(self):
-        self.project.scen_values = Scenario()
+        self.project.scen_values.clear_flux_values()
         for (tag, reaction, values) in self.scenario_past:
             if tag == "set":
                 if isinstance(reaction, list):
@@ -97,7 +97,7 @@ class AppData:
             elif tag == "pop":
                 self.project.scen_values.pop(reaction, None)
             elif tag == "clear":
-                self.project.scen_values.clear()
+                self.project.scen_values.clear_flux_values()
 
     def format_flux_value(self, flux_value):
         return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
@@ -249,6 +249,9 @@ class Scenario(Dict[str, Tuple[float, float]]):
         appdata.scen_values_set_multiple(reactions, scen_values)
 
         return unknown_ids
+
+    def clear_flux_values(self):
+        super().clear()
 
     def clear(self):
         super().clear()
