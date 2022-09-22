@@ -29,7 +29,7 @@ setup(
     packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': [
-        'data/*.svg', 'data/Ecoli-glucose-standard.scen', 'data/Ecoli-flux-analysis.scen']},
+        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']},
     entry_points={'console_scripts': [
         'cnapy = cnapy.__main__:main_cnapy']},
 )
