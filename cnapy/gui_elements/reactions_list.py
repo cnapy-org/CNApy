@@ -720,10 +720,10 @@ class ReactionMask(QWidget):
         self.hide()
         self.reactionDeleted.emit(self.reaction)
 
-    def emit_delete_annotation(self, row):
+    def emit_delete_annotation(self, identifier_key):
         keys = list(self.reaction.annotation)
         try:
-            del(self.reaction.annotation[keys[row]])
+            del(self.reaction.annotation[identifier_key])
         except IndexError:
             pass
 

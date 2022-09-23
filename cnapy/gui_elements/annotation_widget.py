@@ -67,11 +67,15 @@ class AnnotationWidget(QVBoxLayout):
     def check_in_identifiers_org(self):
         check_in_identifiers_org(self.parent)
 
-    deleteAnnotation = Signal(int)
+    deleteAnnotation = Signal(str)
     def delete_anno_row(self):
         row_to_delete = self.annotation.currentRow()
         self.annotation.removeRow(row_to_delete)
-        self.deleteAnnotation.emit(row_to_delete)
+        try:
+            identifier_type = self.annotation.item(row_to_delete, 0).text()
+            self.deleteAnnotation.emit(identifier_type)
+        except AttributeError:
+            pass
 
     def open_in_browser(self):
         current_row = self.annotation.currentRow()

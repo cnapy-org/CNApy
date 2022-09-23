@@ -266,10 +266,10 @@ class MetabolitesMask(QWidget):
         self.appdata.window.setFocus()
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
 
-    def emit_delete_annotation(self, row):
+    def emit_delete_annotation(self, identifier_key):
         keys = list(self.metabolite.annotation)
         try:
-            del(self.metabolite.annotation[keys[row]])
+            del(self.metabolite.annotation[identifier_key])
         except IndexError:
             pass
 

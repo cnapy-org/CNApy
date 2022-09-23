@@ -258,10 +258,10 @@ class GenesMask(QWidget):
             current_row_index)
         self.appdata.window.setFocus()
 
-    def emit_delete_annotation(self, row):
+    def emit_delete_annotation(self, identifier_key):
         keys = list(self.gene.annotation)
         try:
-            del(self.gene.annotation[keys[row]])
+            del(self.gene.annotation[identifier_key])
         except IndexError:
             pass
 
