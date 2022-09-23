@@ -1,6 +1,7 @@
 """The reactions list"""
 from math import isclose
 from enum import IntEnum
+from typing_extensions import Annotated
 
 import cobra
 import copy
@@ -13,6 +14,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QAbstractItemView)
 
 from cnapy.appdata import AppData
+from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_identifiers_org
 from cnapy.gui_elements.map_view import validate_value
@@ -274,22 +276,7 @@ class ReactionList(QWidget):
         self.appdata.window.unsaved_changes()
 
     def update_annotations(self, annotation):
-        self.reaction_mask.annotation.itemChanged.disconnect(
-            self.reaction_mask.throttler.throttle)
-        c = self.reaction_mask.annotation.rowCount()
-        for i in range(0, c):
-            self.reaction_mask.annotation.removeRow(0)
-        i = 0
-        for key in annotation:
-            self.reaction_mask.annotation.insertRow(i)
-            keyl = QTableWidgetItem(key)
-            iteml = QTableWidgetItem(str(annotation[key]))
-            self.reaction_mask.annotation.setItem(i, 0, keyl)
-            self.reaction_mask.annotation.setItem(i, 1, iteml)
-            i += 1
-
-        self.reaction_mask.annotation.itemChanged.connect(
-            self.reaction_mask.throttler.throttle)
+        self.reaction_mask.annotation_widget.update_annotations(annotation)
 
     def reaction_selected(self, item: ReactionListItem):
         if item is None:
@@ -627,34 +614,11 @@ class ReactionMask(QWidget):
         l.addWidget(self.gene_reaction_rule)
         layout.addItem(l)
 
-        l = QVBoxLayout()
+        self.throttler = SignalThrottler(500)
+        self.throttler.triggered.connect(self.reaction_data_changed)
 
-        l3 = QHBoxLayout()
-        label = QLabel("Reaction annotations:")
-        l3.addWidget(label)
-
-        check_button = QPushButton("identifiers.org check")
-        check_button.setIcon(QIcon.fromTheme("list-add"))
-        policy = QSizePolicy()
-        policy.ShrinkFlag = True
-        check_button.setSizePolicy(policy)
-        check_button.clicked.connect(self.check_in_identifiers_org)
-        l3.addWidget(check_button)
-
-        l.addItem(l3)
-
-        l2 = QHBoxLayout()
-        self.annotation = QTableWidget(0, 2)
-        self.annotation.setHorizontalHeaderLabels(
-            ["key", "value"])
-        self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        l2.addWidget(self.annotation)
-
-        self.add_anno = QPushButton("+")
-        self.add_anno.clicked.connect(self.add_anno_row)
-        l2.addWidget(self.add_anno)
-        l.addItem(l2)
-        layout.addItem(l)
+        self.annotation_widget = AnnotationWidget(self)
+        layout.addItem(self.annotation_widget)
 
         l = QVBoxLayout()
         label = QLabel("Metabolites involved in this reaction:")
@@ -676,8 +640,6 @@ class ReactionMask(QWidget):
 
         self.delete_button.clicked.connect(self.delete_reaction)
 
-        self.throttler = SignalThrottler(500)
-        self.throttler.triggered.connect(self.reaction_data_changed)
 
         self.id.textEdited.connect(self.throttler.throttle)
         self.name.textEdited.connect(self.throttler.throttle)
@@ -693,7 +655,6 @@ class ReactionMask(QWidget):
         self.coefficent.editingFinished.connect(self.throttler.finish)
         self.coefficent.editingFinished.connect(self.auto_fba)
         self.gene_reaction_rule.editingFinished.connect(self.throttler.throttle)
-        self.annotation.itemChanged.connect(self.throttler.throttle)
 
         self.grp_test_model = cobra.Model(id_or_model="GPR test")
         reaction = cobra.Reaction('GPR_TEST')
@@ -701,10 +662,6 @@ class ReactionMask(QWidget):
         reaction.add_metabolites({metabolite: -1})
         self.grp_test_model.add_reaction(reaction)
 
-
-    def add_anno_row(self):
-        i = self.annotation.rowCount()
-        self.annotation.insertRow(i)
 
     def apply(self):
         bounds = self.reaction.bounds
@@ -731,19 +688,7 @@ class ReactionMask(QWidget):
                 self.handle_changed_gpr()
             self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
             annotation = self.reaction.annotation
-            self.reaction.annotation = {}
-            rows = self.annotation.rowCount()
-            for i in range(0, rows):
-                if self.annotation.item(i, 0) is not None:
-                    key = self.annotation.item(i, 0).text()
-                else:
-                    key = ""
-                if self.annotation.item(i, 1) is not None:
-                    value = self.annotation.item(i, 1).text()
-                else:
-                    value = ""
-
-                self.reaction.annotation[key] = value
+            self.annotation_widget.apply_annotation(self.reaction)
 
             if bounds != self.reaction.bounds or metabolites != self.reaction.metabolites or \
                 objective_coefficient != self.reaction.objective_coefficient:
