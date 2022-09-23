@@ -34,9 +34,9 @@ class AnnotationWidget(QVBoxLayout):
         self.add_anno = QPushButton("+")
         self.add_anno.clicked.connect(self.add_anno_row)
         lh3.addWidget(self.add_anno)
-        self.add_anno = QPushButton("-")
-        self.add_anno.clicked.connect(self.delete_anno_row)
-        lh3.addWidget(self.add_anno)
+        self.delete_anno = QPushButton("-")
+        self.delete_anno.clicked.connect(self.delete_anno_row)
+        lh3.addWidget(self.delete_anno)
         lh2.addItem(lh3)
         self.addItem(lh2)
 
