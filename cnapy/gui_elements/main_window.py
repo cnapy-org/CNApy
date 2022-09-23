@@ -430,7 +430,7 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(show_model_view_action)
         show_model_view_action.triggered.connect(self.show_model_view)
 
-        about_action = QAction("About CNApy (with citation information)...", self)
+        about_action = QAction("About CNApy...", self)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
