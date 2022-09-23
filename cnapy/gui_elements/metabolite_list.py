@@ -247,6 +247,9 @@ class MetabolitesMask(QWidget):
         self.formula.textEdited.connect(self.throttler.throttle)
         self.charge.textEdited.connect(self.throttler.throttle)
         self.compartment.editingFinished.connect(self.metabolites_data_changed)
+        self.annotation_widget.deleteAnnotation.connect(
+            self.emit_delete_annotation
+        )
         self.validate_mask()
 
     def delete_metabolite(self):
@@ -262,6 +265,10 @@ class MetabolitesMask(QWidget):
         self.appdata.window.unsaved_changes()
         self.appdata.window.setFocus()
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
+
+    def emit_delete_annotation(self, row):
+        keys = list(self.metabolite.annotation)
+        del(self.metabolite.annotation[keys[row]])
 
     def apply(self):
         try:
