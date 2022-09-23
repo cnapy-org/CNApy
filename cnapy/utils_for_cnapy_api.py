@@ -15,15 +15,15 @@ class IdentifiersOrgResult:
 
 def check_in_identifiers_org(widget: QTreeWidgetItem):
         widget.setCursor(Qt.BusyCursor)
-        rows = widget.annotation.rowCount()
+        rows = widget.annotation_widget.annotation.rowCount()
         invalid_red = QColor(255, 0, 0)
         for i in range(0, rows):
-            if widget.annotation.item(i, 0) is not None:
-                key = widget.annotation.item(i, 0).text()
+            if widget.annotation_widget.annotation.item(i, 0) is not None:
+                key = widget.annotation_widget.annotation.item(i, 0).text()
             else:
                 key = ""
-            if widget.annotation.item(i, 1) is not None:
-                values = widget.annotation.item(i, 1).text()
+            if widget.annotation_widget.annotation.item(i, 1) is not None:
+                values = widget.annotation_widget.annotation.item(i, 1).text()
             else:
                 values = ""
             if (key == "") or (values == ""):
@@ -54,10 +54,10 @@ def check_in_identifiers_org(widget: QTreeWidgetItem):
 
 
                 if not identifiers_org_result.is_key_valid:
-                    widget.annotation.item(i, 0).setBackground(invalid_red)
+                    widget.annotation_widget.annotation.item(i, 0).setBackground(invalid_red)
 
                 if not identifiers_org_result.is_key_value_pair_valid:
-                    widget.annotation.item(i, 1).setBackground(invalid_red)
+                    widget.annotation_widget.annotation.item(i, 1).setBackground(invalid_red)
 
                 if not identifiers_org_result.is_key_value_pair_valid:
                     break
