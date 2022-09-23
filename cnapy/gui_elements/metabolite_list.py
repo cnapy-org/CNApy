@@ -3,10 +3,10 @@
 import cobra
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QColor, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel, QPlainTextEdit,
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
-                            QSplitter, QTableWidget, QTableWidgetItem, QAbstractItemView,
-                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QApplication)
+                            QSplitter, QTableWidget, QTableWidgetItem,
+                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
