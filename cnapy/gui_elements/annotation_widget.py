@@ -1,3 +1,4 @@
+from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout
 
@@ -28,16 +29,22 @@ class AnnotationWidget(QVBoxLayout):
             ["key", "value"])
         self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         lh2.addWidget(self.annotation)
+
+        lh3 = QVBoxLayout()
         self.add_anno = QPushButton("+")
         self.add_anno.clicked.connect(self.add_anno_row)
-        lh2.addWidget(self.add_anno)
-        self.annotation.itemChanged.connect(parent.throttler.throttle)
+        lh3.addWidget(self.add_anno)
+        self.add_anno = QPushButton("-")
+        self.add_anno.clicked.connect(self.delete_anno_row)
+        lh3.addWidget(self.add_anno)
+        lh2.addItem(lh3)
         self.addItem(lh2)
+
+        self.annotation.itemChanged.connect(parent.throttler.throttle)
 
     def add_anno_row(self):
         i = self.annotation.rowCount()
         self.annotation.insertRow(i)
-        self.changed = True
 
     def apply_annotation(self, model_element):
         model_element.annotation = {}
@@ -53,6 +60,12 @@ class AnnotationWidget(QVBoxLayout):
 
     def check_in_identifiers_org(self):
         check_in_identifiers_org(self.parent)
+
+    deleteAnnotation = Signal(int)
+    def delete_anno_row(self):
+        row_to_delete = self.annotation.currentRow()
+        self.annotation.removeRow(row_to_delete)
+        self.deleteAnnotation.emit(row_to_delete)
 
     def update_annotations(self, annotation):
         self.annotation.itemChanged.disconnect(

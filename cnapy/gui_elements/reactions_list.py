@@ -662,6 +662,10 @@ class ReactionMask(QWidget):
         reaction.add_metabolites({metabolite: -1})
         self.grp_test_model.add_reaction(reaction)
 
+        self.annotation_widget.deleteAnnotation.connect(
+            self.emit_delete_annotation
+        )
+
 
     def apply(self):
         bounds = self.reaction.bounds
@@ -715,6 +719,10 @@ class ReactionMask(QWidget):
     def delete_reaction(self):
         self.hide()
         self.reactionDeleted.emit(self.reaction)
+
+    def emit_delete_annotation(self, row):
+        keys = list(self.reaction.annotation)
+        del(self.reaction.annotation[keys[row]])
 
     def handle_changed_gpr(self):
         # "Except" cobra.core.gene:Malformed gene_reaction_rule
