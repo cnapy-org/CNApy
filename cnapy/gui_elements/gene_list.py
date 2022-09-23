@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.gui_elements.annotation_widget import AnnotationWidget
 
 
 class GeneList(QWidget):
@@ -118,6 +119,7 @@ class GeneList(QWidget):
             self.gene_mask.id.setText(gene.id)
             self.gene_mask.name.setText(gene.name)
             self.gene_mask.changed = False
+            self.gene_mask.annotation_widget.update_annotations(gene.annotation)
 
             turn_white(self.gene_mask.name)
             self.gene_mask.is_valid = True
@@ -194,6 +196,12 @@ class GenesMask(QWidget):
         l.addWidget(self.name)
         layout.addItem(l)
 
+        self.throttler = SignalThrottler(500)
+        self.throttler.triggered.connect(self.genes_data_changed)
+
+        self.annotation_widget = AnnotationWidget(self)
+        layout.addItem(self.annotation_widget)
+
         l = QVBoxLayout()
         label = QLabel("Reactions using this gene:")
         l.addWidget(label)
@@ -208,11 +216,14 @@ class GenesMask(QWidget):
 
         self.setLayout(layout)
 
-        self.throttler = SignalThrottler(500)
-        self.throttler.triggered.connect(self.genes_data_changed)
 
         self.delete_button.clicked.connect(self.delete_gene)
         self.name.textEdited.connect(self.throttler.throttle)
+
+        self.annotation_widget.deleteAnnotation.connect(
+            self.emit_delete_annotation
+        )
+
         self.validate_mask()
 
     def add_anno_row(self):
@@ -223,6 +234,7 @@ class GenesMask(QWidget):
     def apply(self):
         try:
             self.gene.name = self.name.text()
+            self.annotation_widget.apply_annotation(self.gene)
             self.changed = False
             self.geneChanged.emit(self.gene)
         except ValueError:
@@ -245,6 +257,13 @@ class GenesMask(QWidget):
         self.gene_list.gene_list.takeTopLevelItem(
             current_row_index)
         self.appdata.window.setFocus()
+
+    def emit_delete_annotation(self, row):
+        keys = list(self.gene.annotation)
+        try:
+            del(self.gene.annotation[keys[row]])
+        except IndexError:
+            pass
 
     def validate_name(self):
         try:

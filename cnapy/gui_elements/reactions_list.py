@@ -722,7 +722,10 @@ class ReactionMask(QWidget):
 
     def emit_delete_annotation(self, row):
         keys = list(self.reaction.annotation)
-        del(self.reaction.annotation[keys[row]])
+        try:
+            del(self.reaction.annotation[keys[row]])
+        except IndexError:
+            pass
 
     def handle_changed_gpr(self):
         # "Except" cobra.core.gene:Malformed gene_reaction_rule

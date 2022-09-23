@@ -268,7 +268,10 @@ class MetabolitesMask(QWidget):
 
     def emit_delete_annotation(self, row):
         keys = list(self.metabolite.annotation)
-        del(self.metabolite.annotation[keys[row]])
+        try:
+            del(self.metabolite.annotation[keys[row]])
+        except IndexError:
+            pass
 
     def apply(self):
         try:
