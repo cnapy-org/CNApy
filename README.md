@@ -25,6 +25,8 @@ Aside of performing calculations on metabolic models, CNApy can also be used to 
 
 **For information about how to contribute to CNApy as a developer, see section [Contribute to the CNApy development](#contribute-to-the-cnapy-development).**
 
+**If you want to cite CNApy, see section [How to cite CNApy](#how-to-cite-cnapy).**
+
 *Associated project note*: If you want to use the well-known MATLAB-based *CellNetAnalyzer* (CNA), *which is not compatible with CNApy*, you can download it from [CNA's website](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html).
 
 ## Documentation and Tutorials
@@ -125,3 +127,10 @@ If you have conda installed you can:
     ```
 
 Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.
+
+## How to cite CNApy
+
+If you use CNApy in your scientific work, please consider to cite CNApy's publication:
+
+Thiele et al. (2022). CNApy: a CellNetAnalyzer GUI in Python for analyzing and designing metabolic networks.
+*Bioinformatics* 38, 1467-1469, [doi.org/10.1093/bioinformatics/btab828](https://doi.org/10.1093/bioinformatics/btab828).
