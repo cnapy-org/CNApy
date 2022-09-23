@@ -1,3 +1,6 @@
+import ast
+import webbrowser
+
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout
@@ -37,6 +40,9 @@ class AnnotationWidget(QVBoxLayout):
         self.delete_anno = QPushButton("-")
         self.delete_anno.clicked.connect(self.delete_anno_row)
         lh3.addWidget(self.delete_anno)
+        self.open_annotation = QPushButton("Open (first)\nin browser")
+        self.open_annotation.clicked.connect(self.open_in_browser)
+        lh3.addWidget(self.open_annotation)
         lh2.addItem(lh3)
         self.addItem(lh2)
 
@@ -66,6 +72,16 @@ class AnnotationWidget(QVBoxLayout):
         row_to_delete = self.annotation.currentRow()
         self.annotation.removeRow(row_to_delete)
         self.deleteAnnotation.emit(row_to_delete)
+
+    def open_in_browser(self):
+        current_row = self.annotation.currentRow()
+        identifier_type = self.annotation.item(current_row, 0).text()
+        identifier_value = self.annotation.item(current_row, 1).text()
+        if identifier_value.startswith("["):
+            identifier_value = ast.literal_eval(identifier_value)[0]
+        url = f"https://identifiers.org/{identifier_type}:{identifier_value}"
+        webbrowser.open_new_tab(url)
+
 
     def update_annotations(self, annotation):
         self.annotation.itemChanged.disconnect(
