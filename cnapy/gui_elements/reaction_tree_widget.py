@@ -9,19 +9,23 @@ class ModelElementType(Enum):
 
 
 class ReactionString(QPlainTextEdit):
-    def __init__(self, reaction, metabolite_or_gene_list):
+    def __init__(self, reaction, metabolite_list):
         super().__init__()
         self.setPlainText(reaction.build_reaction_string())
         self.setReadOnly(True)
         self.model = reaction.model
-        self.metabolite_or_gene_list = metabolite_or_gene_list
+        self.metabolite_list = metabolite_list
         self.selectionChanged.connect(self.switch_metabolite)
+
+    jumpToMetabolite = Signal(str)
 
     @Slot()
     def switch_metabolite(self):
         selected_text = self.textCursor().selectedText()
         if self.model.metabolites.has_id(selected_text):
-            self.metabolite_or_gene_list.set_current_item(selected_text)
+            print("L", selected_text)
+            self.jumpToMetabolite.emit(selected_text)
+            self.metabolite_list.set_current_item(selected_text)
 
 
 class ReactionTreeWidget(QTableWidget):
@@ -35,7 +39,7 @@ class ReactionTreeWidget(QTableWidget):
         self.horizontalHeader().setStretchLastSection(True)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-    def update_state(self, id_text, metabolite_or_gene_list):
+    def update_state(self, id_text, metabolite_list):
         QApplication.setOverrideCursor(Qt.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
         self.clearContents()
@@ -55,7 +59,7 @@ class ReactionTreeWidget(QTableWidget):
             for i, reaction in enumerate(metabolite_or_gene.reactions):
                 item = QTableWidgetItem(reaction.id)
                 self.setItem(i, 0, item)
-                reaction_string_widget = ReactionString(reaction, metabolite_or_gene_list)
+                reaction_string_widget = ReactionString(reaction, metabolite_list)
                 self.setCellWidget(i, 1, reaction_string_widget)
             self.setSortingEnabled(True)
         QApplication.restoreOverrideCursor()

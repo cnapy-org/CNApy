@@ -5,10 +5,11 @@ import cobra.manipulation
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
-                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.gui_elements.reaction_tree_widget import ModelElementType, ReactionTreeWidget
 
 
 class GeneList(QWidget):
@@ -121,7 +122,7 @@ class GeneList(QWidget):
 
             turn_white(self.gene_mask.name)
             self.gene_mask.is_valid = True
-            self.gene_mask.update_state()
+            self.gene_mask.reactions.update_state(self.gene_mask.id.text(), self.gene_mask.gene_list)
 
     def update(self):
         self.gene_list.clear()
@@ -142,8 +143,8 @@ class GeneList(QWidget):
         self.last_selected = key
         self.update()
 
-    def emit_jump_to_reaction(self, reaction):
-        self.jumpToReaction.emit(reaction)
+    def emit_jump_to_reaction(self, item: QTableWidgetItem):
+        self.jumpToReaction.emit(item)
 
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(metabolite)
@@ -198,9 +199,7 @@ class GenesMask(QWidget):
         label = QLabel("Reactions using this gene:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.reactions = QTreeWidget()
-        self.reactions.setHeaderLabels(["Id", "Reaction"])
-        self.reactions.setSortingEnabled(True)
+        self.reactions = ReactionTreeWidget(self.appdata, ModelElementType.GENE)
         l2.addWidget(self.reactions)
         l.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
@@ -268,26 +267,11 @@ class GenesMask(QWidget):
         self.validate_mask()
         if self.is_valid:
             self.apply()
-            self.update_state()
+            self.reactions.update_state(self.id.text(), self.gene_list)
 
-    def update_state(self):
-        self.reactions.clear()
-        if self.appdata.project.cobra_py_model.genes.has_id(self.id.text()):
-            gene = self.appdata.project.cobra_py_model.genes.get_by_id(
-                self.id.text())
-            for r in gene.reactions:
-                item = QTreeWidgetItem(self.reactions)
-                item.setText(0, r.id)
-                item.setData(2, 0, r)
-                text = "Name: " + r.name
-                item.setToolTip(0, text)
-                item.setToolTip(1, text)
-                reaction_string_widget = ReactionString(r, self.gene_list)
-                reaction_string_widget.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
-                self.reactions.setItemWidget(item, 1, reaction_string_widget)
-
-    def emit_jump_to_reaction(self, reaction):
-        self.jumpToReaction.emit(reaction.data(2, 0).id)
+    @Slot(QTableWidgetItem)
+    def emit_jump_to_reaction(self, item: QTableWidgetItem):
+        self.jumpToReaction.emit(item.text())
 
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(metabolite)
@@ -295,19 +279,3 @@ class GenesMask(QWidget):
     jumpToReaction = Signal(str)
     jumpToMetabolite = Signal(str)
     geneChanged = Signal(cobra.Gene)
-
-class ReactionString(QLineEdit):
-    def __init__(self, reaction, gene_list):
-        super().__init__(reaction.build_reaction_string())
-        self.model = reaction.model
-        self.gene_list = gene_list
-        self.setCursorPosition(0) # to get proper left justification
-        self.selectionChanged.connect(self.switch_metabolite)#
-
-    jumpToMetabolite = Signal(str)
-
-    @Slot()
-    def switch_metabolite(self):
-        metabolite_id = self.selectedText()
-        if self.model.metabolites.has_id(metabolite_id):
-            self.jumpToMetabolite.emit(metabolite_id)

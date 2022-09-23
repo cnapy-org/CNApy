@@ -487,26 +487,6 @@ class MetabolitesMask(QWidget):
             self.apply()
             self.reactions.update_state(self.id.text(), self.metabolite_list)
 
-    """
-    def update_state(self):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
-        QApplication.processEvents() # to put the change above into effect
-        self.reactions.clearContents()
-        self.reactions.setRowCount(0) # also resets manually changed row heights
-        if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
-            metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
-                self.id.text())
-            self.reactions.setSortingEnabled(False)
-            self.reactions.setRowCount(len(metabolite.reactions))
-            for i, reaction in enumerate(metabolite.reactions):
-                item = QTableWidgetItem(reaction.id)
-                self.reactions.setItem(i, 0, item)
-                reaction_string_widget = ReactionString(reaction, self.metabolite_list)
-                self.reactions.setCellWidget(i, 1, reaction_string_widget)
-            self.reactions.setSortingEnabled(True)
-        QApplication.restoreOverrideCursor()
-    """
-
     @Slot(QTableWidgetItem)
     def emit_jump_to_reaction(self, item: QTableWidgetItem):
         self.jumpToReaction.emit(item.text())
