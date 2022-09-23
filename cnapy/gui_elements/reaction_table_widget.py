@@ -23,12 +23,11 @@ class ReactionString(QPlainTextEdit):
     def switch_metabolite(self):
         selected_text = self.textCursor().selectedText()
         if self.model.metabolites.has_id(selected_text):
-            print("L", selected_text)
             self.jumpToMetabolite.emit(selected_text)
             self.metabolite_list.set_current_item(selected_text)
 
 
-class ReactionTreeWidget(QTableWidget):
+class ReactionTableWidget(QTableWidget):
     def __init__(self, appdata, element_type: ModelElementType) -> None:
         super().__init__()
 
@@ -60,6 +59,11 @@ class ReactionTreeWidget(QTableWidget):
                 item = QTableWidgetItem(reaction.id)
                 self.setItem(i, 0, item)
                 reaction_string_widget = ReactionString(reaction, metabolite_list)
+                reaction_string_widget.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
                 self.setCellWidget(i, 1, reaction_string_widget)
             self.setSortingEnabled(True)
         QApplication.restoreOverrideCursor()
+
+    jumpToMetabolite = Signal(str)
+    def emit_jump_to_metabolite(self, metabolite):
+        self.jumpToMetabolite.emit(metabolite)

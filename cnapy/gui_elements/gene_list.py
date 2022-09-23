@@ -9,7 +9,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
 
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
-from cnapy.gui_elements.reaction_tree_widget import ModelElementType, ReactionTreeWidget
+from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
 
 class GeneList(QWidget):
@@ -199,10 +199,11 @@ class GenesMask(QWidget):
         label = QLabel("Reactions using this gene:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.reactions = ReactionTreeWidget(self.appdata, ModelElementType.GENE)
+        self.reactions = ReactionTableWidget (self.appdata, ModelElementType.GENE)
         l2.addWidget(self.reactions)
         l.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
+        self.reactions.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
         layout.addItem(l)
 
         self.setLayout(layout)

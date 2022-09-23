@@ -11,7 +11,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel, QPlainTex
 from cnapy.appdata import AppData
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
-from cnapy.gui_elements.reaction_tree_widget import ModelElementType, ReactionTreeWidget
+from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
 
 class MetaboliteList(QWidget):
@@ -266,7 +266,7 @@ class MetabolitesMask(QWidget):
         label = QLabel("Reactions using this metabolite:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.reactions = ReactionTreeWidget(self.appdata, ModelElementType.METABOLITE)
+        self.reactions = ReactionTableWidget (self.appdata, ModelElementType.METABOLITE)
         l2.addWidget(self.reactions)
         l.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
