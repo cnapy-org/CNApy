@@ -3,14 +3,16 @@
 import cobra
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QColor, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel, QPlainTextEdit,
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
-                            QSplitter, QTableWidget, QTableWidgetItem, QAbstractItemView,
-                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QApplication)
+                            QSplitter, QTableWidget, QTableWidgetItem,
+                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
+from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
 
 class MetaboliteList(QWidget):
@@ -127,7 +129,7 @@ class MetaboliteList(QWidget):
             turn_white(self.metabolite_mask.charge)
             turn_white(self.metabolite_mask.compartment)
             self.metabolite_mask.is_valid = True
-            self.metabolite_mask.update_state()
+            self.metabolite_mask.reactions.update_state(self.metabolite_mask.id.text(), self.metabolite_mask.metabolite_list)
 
     def update(self):
         self.metabolite_list.clear()
@@ -227,11 +229,7 @@ class MetabolitesMask(QWidget):
         label = QLabel("Reactions using this metabolite:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.reactions = QTableWidget()
-        self.reactions.setColumnCount(2)
-        self.reactions.setHorizontalHeaderLabels(["Id", "Reaction"])
-        self.reactions.horizontalHeader().setStretchLastSection(True)
-        self.reactions.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.reactions = ReactionTableWidget (self.appdata, ModelElementType.METABOLITE)
         l2.addWidget(self.reactions)
         l.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
@@ -391,25 +389,7 @@ class MetabolitesMask(QWidget):
         self.validate_mask()
         if self.is_valid:
             self.apply()
-            self.update_state()
-
-    def update_state(self):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
-        QApplication.processEvents() # to put the change above into effect
-        self.reactions.clearContents()
-        self.reactions.setRowCount(0) # also resets manually changed row heights
-        if self.appdata.project.cobra_py_model.metabolites.has_id(self.id.text()):
-            metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
-                self.id.text())
-            self.reactions.setSortingEnabled(False)
-            self.reactions.setRowCount(len(metabolite.reactions))
-            for i, reaction in enumerate(metabolite.reactions):
-                item = QTableWidgetItem(reaction.id)
-                self.reactions.setItem(i, 0, item)
-                reaction_string_widget = ReactionString(reaction, self.metabolite_list)
-                self.reactions.setCellWidget(i, 1, reaction_string_widget)
-            self.reactions.setSortingEnabled(True)
-        QApplication.restoreOverrideCursor()
+            self.reactions.update_state(self.id.text(), self.metabolite_list)
 
     @Slot(QTableWidgetItem)
     def emit_jump_to_reaction(self, item: QTableWidgetItem):
@@ -418,19 +398,3 @@ class MetabolitesMask(QWidget):
     jumpToReaction = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite, object)
     metaboliteDeleted = Signal(cobra.Metabolite, object)
-
-
-class ReactionString(QPlainTextEdit):
-    def __init__(self, reaction, metabolite_list):
-        super().__init__()
-        self.setPlainText(reaction.build_reaction_string())
-        self.setReadOnly(True)
-        self.model = reaction.model
-        self.metabolite_list = metabolite_list
-        self.selectionChanged.connect(self.switch_metabolite)
-
-    @Slot()
-    def switch_metabolite(self):
-        selected_text = self.textCursor().selectedText()
-        if self.model.metabolites.has_id(selected_text):
-            self.metabolite_list.set_current_item(selected_text)
