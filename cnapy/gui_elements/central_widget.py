@@ -310,7 +310,7 @@ class CentralWidget(QWidget):
             return
 
         idx = self.tabs.currentIndex()
-        with_annotations = self.search_annotations.isChecked()
+        with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
         if idx == ModelTabIndex.Metabolites:
