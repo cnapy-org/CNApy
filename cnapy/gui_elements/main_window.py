@@ -711,8 +711,16 @@ class MainWindow(QMainWindow):
 
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
-
-        missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+        try:
+            missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+        except json.decoder.JSONDecodeError:
+            QMessageBox.warning(
+                self,
+                'Could not open file',
+                "File could not be opened as it does not seem to be a valid scenario file,. "
+                "Maybe the file got the .scen ending for other reasons than being a scenario file or the file is corrupted."
+            )
+            return
 
         self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.pinned_reactions)
 
