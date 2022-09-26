@@ -270,6 +270,7 @@ class MetabolitesMask(QWidget):
         keys = list(self.metabolite.annotation)
         try:
             del(self.metabolite.annotation[identifier_key])
+            self.appdata.window.unsaved_changes()
         except IndexError:
             pass
 

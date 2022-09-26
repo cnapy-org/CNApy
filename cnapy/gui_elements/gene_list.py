@@ -262,6 +262,7 @@ class GenesMask(QWidget):
         keys = list(self.gene.annotation)
         try:
             del(self.gene.annotation[identifier_key])
+            self.appdata.window.unsaved_changes()
         except IndexError:
             pass
 

@@ -724,6 +724,7 @@ class ReactionMask(QWidget):
         keys = list(self.reaction.annotation)
         try:
             del(self.reaction.annotation[identifier_key])
+            self.parent.appdata.window.unsaved_changes()
         except IndexError:
             pass
 
