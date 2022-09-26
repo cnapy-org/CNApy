@@ -93,7 +93,7 @@ class EscherMapView(QWebEngineView):
             tooltip = "['object','label']"
             menu = "none"
         self.page().runJavaScript("builder.settings.set('enable_editing',"+enable_str+
-            ");builder.settings.set('enable_keys',"+enable_str+ 
+            ");builder.settings.set('enable_keys',"+enable_str+
             ");builder.settings.set('enable_tooltips',"+tooltip+
             ");document.getElementsByClassName('button-panel')[0].hidden="+not_enable_str+
             ";document.getElementsByClassName('menu-bar')[0].style['display']='"+menu+"'")
@@ -162,13 +162,14 @@ class EscherMapView(QWebEngineView):
         # highlights and focuses on the first reatcion with reac_id
         self.page().runJavaScript("highlightAndFocusReaction('"+reac_id+"')")
 
-    def update_selected(self, find: str):
+    def update_selected(self, found_ids):
+        find = found_ids[0]  # Only search for the search string as Escher does not seem to be to search multiple different IDs
         if len(find) == 0:
             self.page().runJavaScript("search_container.style.display='none'")
         else:
             self.page().runJavaScript("search_container.style.display='';search_field.value='"+find+
                                       "';search_field.dispatchEvent(new Event('input'))")
-    
+
     def dragEnterEvent(self, event):
         event.ignore()
 

@@ -10,7 +10,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
-from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
@@ -91,17 +91,13 @@ class MetaboliteList(QWidget):
         self.last_selected = self.metabolite_mask.id.text()
         self.metaboliteChanged.emit(metabolite, affected_reactions)
 
-    def update_selected(self, string):
-        root = self.metabolite_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            item.setHidden(True)
-
-        for item in self.metabolite_list.findItems(string, Qt.MatchContains, 0):
-            item.setHidden(False)
-        for item in self.metabolite_list.findItems(string, Qt.MatchContains, 1):
-            item.setHidden(False)
+    def update_selected(self, string, with_annotations=True):
+        return update_selected(
+            string=string,
+            with_annotations=with_annotations,
+            model_elements=self.appdata.project.cobra_py_model.metabolites,
+            element_list=self.metabolite_list,
+        )
 
     def metabolite_selected(self, item, _column):
         if item is None:

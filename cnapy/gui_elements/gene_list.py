@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
                             QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
-from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
@@ -96,17 +96,13 @@ class GeneList(QWidget):
         self.last_selected = self.gene_mask.id.text()
         self.geneChanged.emit(old_id, gene)
 
-    def update_selected(self, string):
-        root = self.gene_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            item.setHidden(True)
-
-        for item in self.gene_list.findItems(string, Qt.MatchContains, 0):
-            item.setHidden(False)
-        for item in self.gene_list.findItems(string, Qt.MatchContains, 1):
-            item.setHidden(False)
+    def update_selected(self, string, with_annotations):
+        return update_selected(
+            string=string,
+            with_annotations=with_annotations,
+            model_elements=self.appdata.project.cobra_py_model.genes,
+            element_list=self.gene_list,
+        )
 
     def gene_selected(self, item, _column):
         if item is None:
