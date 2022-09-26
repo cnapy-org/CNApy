@@ -1358,7 +1358,15 @@ class MainWindow(QMainWindow):
         self.appdata.clipboard_comp_values = self.appdata.project.comp_values.copy()
 
     def paste_clipboard(self):
-        self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+        try:
+            self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+        except AttributeError:
+            QMessageBox.warning(
+                self,
+                "No clipboard created yet",
+                "Paste clipboard does not work as no clipboard was created yet. Store values to a clipboard first to solve this problem."
+            )
+            return
         self.centralWidget().update()
 
     @Slot()
