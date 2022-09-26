@@ -24,7 +24,7 @@ class AppData:
     def __init__(self, qapp):
         self.qapp = qapp
         self.version = "cnapy-1.1.3"
-        self.format_version = 2
+        self.format_version = 3
         self.unsaved = False
         self.project = ProjectData()
         self.modes_coloring = False
@@ -56,6 +56,7 @@ class AppData:
             "cnapy", roaming=True, appauthor=False), "cobrapy-config.txt")
         self.scenario_past = []
         self.scenario_future = []
+        self.recent_cna_files = []
         self.auto_fba = False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
@@ -122,6 +123,7 @@ class AppData:
         parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))
         parser.set('cnapy-config', 'use_results_cache', str(self.use_results_cache))
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
+        parser.set('cnapy-config', 'recent_cna_files', str(self.recent_cna_files))
         parser.write(fp)
         fp.close()
 
