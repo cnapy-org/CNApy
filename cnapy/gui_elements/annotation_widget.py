@@ -3,7 +3,8 @@ import webbrowser
 
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout
+from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableWidget,
+                            QTableWidgetItem, QVBoxLayout, QMessageBox)
 
 from cnapy.utils_for_cnapy_api import check_in_identifiers_org
 
@@ -79,13 +80,16 @@ class AnnotationWidget(QVBoxLayout):
 
     def open_in_browser(self):
         current_row = self.annotation.currentRow()
-        identifier_type = self.annotation.item(current_row, 0).text()
-        identifier_value = self.annotation.item(current_row, 1).text()
-        if identifier_value.startswith("["):
-            identifier_value = ast.literal_eval(identifier_value)[0]
-        url = f"https://identifiers.org/{identifier_type}:{identifier_value}"
-        webbrowser.open_new_tab(url)
-
+        if current_row >= 0:
+            identifier_type = self.annotation.item(current_row, 0).text()
+            identifier_value = self.annotation.item(current_row, 1).text()
+            if identifier_value.startswith("["):
+                identifier_value = ast.literal_eval(identifier_value)[0]
+            url = f"https://identifiers.org/{identifier_type}:{identifier_value}"
+            webbrowser.open_new_tab(url)
+        else:
+            QMessageBox.information(self.parent, 'Select annotation',
+                'Select one of the annotations from the list by clicking on a row.')
 
     def update_annotations(self, annotation):
         self.annotation.itemChanged.disconnect(
