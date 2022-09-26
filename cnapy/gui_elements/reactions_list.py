@@ -721,7 +721,6 @@ class ReactionMask(QWidget):
         self.reactionDeleted.emit(self.reaction)
 
     def delete_selected_annotation(self, identifier_key):
-        keys = list(self.reaction.annotation)
         try:
             del(self.reaction.annotation[identifier_key])
             self.parent.appdata.window.unsaved_changes()

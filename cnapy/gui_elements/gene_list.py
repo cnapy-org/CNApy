@@ -259,7 +259,6 @@ class GenesMask(QWidget):
         self.appdata.window.setFocus()
 
     def delete_selected_annotation(self, identifier_key):
-        keys = list(self.gene.annotation)
         try:
             del(self.gene.annotation[identifier_key])
             self.appdata.window.unsaved_changes()

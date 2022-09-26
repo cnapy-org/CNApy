@@ -267,7 +267,6 @@ class MetabolitesMask(QWidget):
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
 
     def delete_selected_annotation(self, identifier_key):
-        keys = list(self.metabolite.annotation)
         try:
             del(self.metabolite.annotation[identifier_key])
             self.appdata.window.unsaved_changes()
