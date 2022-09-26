@@ -143,7 +143,8 @@ class CentralWidget(QWidget):
         self.update()
 
     def fit_mapview(self):
-        self.map_tabs.currentWidget().fit()
+        if isinstance(self.map_tabs.currentWidget(), MapView):
+            self.map_tabs.currentWidget().fit()
 
     def show_bottom_of_console(self):
         (_, r) = self.splitter2.getRange(1)
@@ -479,7 +480,8 @@ class CentralWidget(QWidget):
     def update_reaction_on_maps(self, old_reaction_id: str, new_reaction_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            m.update_reaction(old_reaction_id, new_reaction_id)
+            if isinstance(m, MapView): # TODO: what should be done on Escher maps?
+                m.update_reaction(old_reaction_id, new_reaction_id)
 
     def delete_reaction_on_maps(self, reation_id: str):
         for idx in range(0, self.map_tabs.count()):
