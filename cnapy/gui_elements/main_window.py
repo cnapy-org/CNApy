@@ -714,10 +714,10 @@ class MainWindow(QMainWindow):
         try:
             missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
         except json.decoder.JSONDecodeError:
-            QMessageBox.warning(
+            QMessageBox.critical(
                 self,
                 'Could not open file',
-                "File could not be opened as it does not seem to be a valid scenario file,. "
+                "File could not be opened as it does not seem to be a valid scenario file. "
                 "Maybe the file got the .scen ending for other reasons than being a scenario file or the file is corrupted."
             )
             return
@@ -1095,7 +1095,7 @@ class MainWindow(QMainWindow):
 
                     box_positions_path = temp_dir.name+"/box_positions.json"
                     if not os.path.exists(box_positions_path):
-                        QMessageBox.warning(
+                        QMessageBox.critical(
                             self,
                             'Could not open file',
                             "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
@@ -1157,7 +1157,7 @@ class MainWindow(QMainWindow):
                 exstr = output.getvalue()
                 QMessageBox.warning(self, 'Could not open project.', exstr)
             except BadZipFile:
-                QMessageBox.warning(
+                QMessageBox.critical(
                     self,
                     'Could not open file',
                     "File could not be opened as it does not seem to be a valid CNApy project. "

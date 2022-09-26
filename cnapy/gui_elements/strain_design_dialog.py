@@ -1252,7 +1252,7 @@ class SDDialog(QDialog):
                 try:
                     sd_setup = json.load(fp)
                 except json.decoder.JSONDecodeError:
-                    QMessageBox.warning(
+                    QMessageBox.critical(
                         self,
                         'Could not open file',
                         "File could not be opened as it does not seem to be a valid StrainDesign setup. "
@@ -1518,10 +1518,10 @@ class SDViewer(QDialog):
         try:
             (self.solutions,self.sd_setup) = pickle.loads(solutions)
         except pickle.UnpicklingError:
-            QMessageBox.warning(
+            QMessageBox.critical(
                 self,
                 'Could not open file',
-                "File could not be opened as it does not seem to be a valid strain design results file,. "
+                "File could not be opened as it does not seem to be a valid strain design results file. "
                 "Maybe the file got the .sds ending for other reasons than being a strain design results file or the file is corrupted."
             )
             self.close()

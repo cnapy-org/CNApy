@@ -10,10 +10,10 @@ class FluxVectorContainer:
                 l = numpy.load(matORfname, allow_pickle=True)  # allow_pickle to read back sparse matrices saved as fv_mat
                 self.fv_mat = l['fv_mat']
             except Exception:
-                QMessageBox.warning(
+                QMessageBox.critical(
                     None,
                     'Could not open file',
-                    "File could not be opened as it does not seem to be a valid EFM file,. "
+                    "File could not be opened as it does not seem to be a valid EFM file. "
                     "Maybe the file got the .npz ending for other reasons than being a scenario file or the file is corrupted."
                 )
                 return
