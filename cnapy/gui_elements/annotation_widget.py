@@ -71,10 +71,10 @@ class AnnotationWidget(QVBoxLayout):
     deleteAnnotation = Signal(str)
     def delete_anno_row(self):
         row_to_delete = self.annotation.currentRow()
-        self.annotation.removeRow(row_to_delete)
         try:
             identifier_type = self.annotation.item(row_to_delete, 0).text()
             self.deleteAnnotation.emit(identifier_type)
+            self.annotation.removeRow(row_to_delete)
         except AttributeError:
             pass
 
