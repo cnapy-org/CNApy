@@ -318,7 +318,6 @@ class CentralWidget(QWidget):
         if idx == ModelTabIndex.Genes:
             found_ids =self.gene_list.update_selected(string, with_annotations)
 
-        print(found_ids)
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
             m = self.map_tabs.widget(idx)
