@@ -663,7 +663,7 @@ class ReactionMask(QWidget):
         self.grp_test_model.add_reaction(reaction)
 
         self.annotation_widget.deleteAnnotation.connect(
-            self.emit_delete_annotation
+            self.delete_selected_annotation
         )
 
 
@@ -720,7 +720,7 @@ class ReactionMask(QWidget):
         self.hide()
         self.reactionDeleted.emit(self.reaction)
 
-    def emit_delete_annotation(self, identifier_key):
+    def delete_selected_annotation(self, identifier_key):
         keys = list(self.reaction.annotation)
         try:
             del(self.reaction.annotation[identifier_key])

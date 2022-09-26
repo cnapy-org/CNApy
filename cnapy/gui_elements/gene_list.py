@@ -221,7 +221,7 @@ class GenesMask(QWidget):
         self.name.textEdited.connect(self.throttler.throttle)
 
         self.annotation_widget.deleteAnnotation.connect(
-            self.emit_delete_annotation
+            self.delete_selected_annotation
         )
 
         self.validate_mask()
@@ -258,7 +258,7 @@ class GenesMask(QWidget):
             current_row_index)
         self.appdata.window.setFocus()
 
-    def emit_delete_annotation(self, identifier_key):
+    def delete_selected_annotation(self, identifier_key):
         keys = list(self.gene.annotation)
         try:
             del(self.gene.annotation[identifier_key])
