@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData
+from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
@@ -74,23 +75,7 @@ class MetaboliteList(QWidget):
             self.pop_menu.exec_(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
-
-        self.metabolite_mask.annotation.itemChanged.disconnect(
-            self.metabolite_mask.throttler.throttle)
-        c = self.metabolite_mask.annotation.rowCount()
-        for i in range(0, c):
-            self.metabolite_mask.annotation.removeRow(0)
-        i = 0
-        for key in annotation:
-            self.metabolite_mask.annotation.insertRow(i)
-            keyl = QTableWidgetItem(key)
-            iteml = QTableWidgetItem(str(annotation[key]))
-            self.metabolite_mask.annotation.setItem(i, 0, keyl)
-            self.metabolite_mask.annotation.setItem(i, 1, iteml)
-            i += 1
-
-        self.metabolite_mask.annotation.itemChanged.connect(
-            self.metabolite_mask.throttler.throttle)
+        self.metabolite_mask.annotation_widget.update_annotations(annotation)
 
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
         # Update metabolite item in list
@@ -233,34 +218,12 @@ class MetabolitesMask(QWidget):
         l.addWidget(self.charge)
         layout.addItem(l)
 
-        l = QVBoxLayout()
+        self.throttler = SignalThrottler(500)
+        self.throttler.triggered.connect(self.metabolites_data_changed)
 
-        l3 = QHBoxLayout()
-        label = QLabel("Annotations:")
-        l3.addWidget(label)
+        self.annotation_widget = AnnotationWidget(self)
 
-        check_button = QPushButton("identifiers.org check")
-        check_button.setIcon(QIcon.fromTheme("list-add"))
-        policy = QSizePolicy()
-        policy.ShrinkFlag = True
-        check_button.setSizePolicy(policy)
-        check_button.clicked.connect(self.check_in_identifiers_org)
-        l3.addWidget(check_button)
-
-        l.addItem(l3)
-
-        l2 = QHBoxLayout()
-        self.annotation = QTableWidget(0, 2)
-        self.annotation.setHorizontalHeaderLabels(
-            ["key", "value"])
-        self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        l2.addWidget(self.annotation)
-
-        self.add_anno = QPushButton("+")
-        self.add_anno.clicked.connect(self.add_anno_row)
-        l2.addWidget(self.add_anno)
-        l.addItem(l2)
-        layout.addItem(l)
+        layout.addItem(self.annotation_widget)
 
         l = QVBoxLayout()
         label = QLabel("Reactions using this metabolite:")
@@ -276,15 +239,15 @@ class MetabolitesMask(QWidget):
 
         self.delete_button.clicked.connect(self.delete_metabolite)
 
-        self.throttler = SignalThrottler(500)
-        self.throttler.triggered.connect(self.metabolites_data_changed)
 
         self.id.textEdited.connect(self.throttler.throttle)
         self.name.textEdited.connect(self.throttler.throttle)
         self.formula.textEdited.connect(self.throttler.throttle)
         self.charge.textEdited.connect(self.throttler.throttle)
         self.compartment.editingFinished.connect(self.metabolites_data_changed)
-        self.annotation.itemChanged.connect(self.throttler.throttle)
+        self.annotation_widget.deleteAnnotation.connect(
+            self.delete_selected_annotation
+        )
         self.validate_mask()
 
     def delete_metabolite(self):
@@ -301,10 +264,12 @@ class MetabolitesMask(QWidget):
         self.appdata.window.setFocus()
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
 
-    def add_anno_row(self):
-        i = self.annotation.rowCount()
-        self.annotation.insertRow(i)
-        self.changed = True
+    def delete_selected_annotation(self, identifier_key):
+        try:
+            del(self.metabolite.annotation[identifier_key])
+            self.appdata.window.unsaved_changes()
+        except IndexError:
+            pass
 
     def apply(self):
         try:
@@ -322,16 +287,7 @@ class MetabolitesMask(QWidget):
             else:
                 self.metabolite.charge = int(self.charge.text())
             self.metabolite.compartment = self.compartment.text()
-            self.metabolite.annotation = {}
-            rows = self.annotation.rowCount()
-            for i in range(0, rows):
-                key = self.annotation.item(i, 0).text()
-                if self.annotation.item(i, 1) is None:
-                    value = ""
-                else:
-                    value = self.annotation.item(i, 1).text()
-
-                self.metabolite.annotation[key] = value
+            self.annotation_widget.apply_annotation(self.metabolite)
 
             self.changed = False
             self.metaboliteChanged.emit(
@@ -355,58 +311,6 @@ class MetabolitesMask(QWidget):
             else:
                 turn_white(self.id)
                 return True
-
-    def check_in_identifiers_org(self):
-        self.setCursor(Qt.BusyCursor)
-        rows = self.annotation.rowCount()
-        invalid_red = QColor(255, 0, 0)
-        for i in range(0, rows):
-            if self.annotation.item(i, 0) is not None:
-                key = self.annotation.item(i, 0).text()
-            else:
-                key = ""
-            if self.annotation.item(i, 1) is not None:
-                values = self.annotation.item(i, 1).text()
-            else:
-                values = ""
-            if (key == "") or (values == ""):
-                continue
-
-            if values.startswith("["):
-                values = values.replace("', ", "'\b,").replace('", ', '"\b,').replace("[", "")\
-                               .replace("]", "").replace("'", "").replace('"', "")
-                values = values.split("\b,")
-            else:
-                values = [values]
-
-            for value in values:
-                identifiers_org_result = check_identifiers_org_entry(
-                    key, value)
-
-                if identifiers_org_result.connection_error:
-                    msgBox = QMessageBox()
-                    msgBox.setWindowTitle("Connection error!")
-                    msgBox.setTextFormat(Qt.RichText)
-                    msgBox.setText(
-                        "<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
-                    msgBox.setIcon(QMessageBox.Warning)
-                    msgBox.exec()
-                    break
-
-                if (not identifiers_org_result.is_key_value_pair_valid) and (":" in value):
-                    split_value = value.split(":")
-                    identifiers_org_result = check_identifiers_org_entry(
-                        split_value[0], split_value[1])
-
-                if not identifiers_org_result.is_key_valid:
-                    self.annotation.item(i, 0).setBackground(invalid_red)
-
-                if not identifiers_org_result.is_key_value_pair_valid:
-                    self.annotation.item(i, 1).setBackground(invalid_red)
-
-                if not identifiers_org_result.is_key_value_pair_valid:
-                    break
-            self.setCursor(Qt.ArrowCursor)
 
     def validate_name(self):
         with self.appdata.project.cobra_py_model as model:
