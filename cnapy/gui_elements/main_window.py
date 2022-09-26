@@ -4,7 +4,7 @@ import os
 import traceback
 from tempfile import TemporaryDirectory
 from typing import Tuple
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.core import model_optimization_with_exceptions
@@ -1085,7 +1085,18 @@ class MainWindow(QMainWindow):
                 with ZipFile(filename, 'r') as zip_ref:
                     zip_ref.extractall(temp_dir.name)
 
-                    with open(temp_dir.name+"/box_positions.json", 'r') as fp:
+                    box_positions_path = temp_dir.name+"/box_positions.json"
+                    if not os.path.exists(box_positions_path):
+                        QMessageBox.warning(
+                            self,
+                            'Could not open file',
+                            "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
+                            "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
+                        )
+                        self.setCursor(Qt.ArrowCursor)
+                        return
+
+                    with open(box_positions_path, 'r') as fp:
                         maps = json.load(fp)
 
                         count = 1
@@ -1137,6 +1148,13 @@ class MainWindow(QMainWindow):
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
                 QMessageBox.warning(self, 'Could not open project.', exstr)
+            except BadZipFile:
+                QMessageBox.warning(
+                    self,
+                    'Could not open file',
+                    "File could not be opened as it does not seem to be a valid CNApy project. "
+                    "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
+                )
 
             self.setCursor(Qt.ArrowCursor)
 
