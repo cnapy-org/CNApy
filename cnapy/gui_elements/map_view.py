@@ -202,15 +202,16 @@ class MapView(QGraphicsView):
         super().leaveEvent(event)
         self.clearFocus() # finishes editing of potentially active ReactionBox
 
-    def update_selected(self, string):
+    def update_selected(self, found_ids):
 
         for r_id, box in self.reaction_boxes.items():
-            if string.lower() in r_id.lower():
-                box.item.setHidden(False)
-            elif string.lower() in box.name.lower():
-                box.item.setHidden(False)
-            else:
-                box.item.setHidden(True)
+            box.item.setHidden(True)
+            for found_id in found_ids:
+                if found_id.lower() in r_id.lower():
+                    box.item.setHidden(False)
+                elif found_id.lower() in box.name.lower():
+                    box.item.setHidden(False)
+
 
     def focus_reaction(self, reaction: str):
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]

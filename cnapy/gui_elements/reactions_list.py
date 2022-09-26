@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
-from cnapy.utils import SignalThrottler, turn_red, turn_white
+from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_identifiers_org
 from cnapy.gui_elements.map_view import validate_value
 from cnapy.gui_elements.escher_map_view import EscherMapView
@@ -367,17 +367,13 @@ class ReactionList(QWidget):
             else:
                 item.setBackground(column, Qt.red)
 
-    def update_selected(self, string):
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            item.setHidden(True)
-
-        for item in self.reaction_list.findItems(string, Qt.MatchContains, 0):
-            item.setHidden(False)
-        for item in self.reaction_list.findItems(string, Qt.MatchContains, 1):
-            item.setHidden(False)
+    def update_selected(self, string, with_annotations):
+        return update_selected(
+            string=string,
+            with_annotations=with_annotations,
+            model_elements=self.appdata.project.cobra_py_model.reactions,
+            element_list=self.reaction_list,
+        )
 
     def update(self, rebuild=False):
         # should only need to rebuild the whole list if the model changes

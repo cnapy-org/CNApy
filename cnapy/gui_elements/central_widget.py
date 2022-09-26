@@ -7,7 +7,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
-from qtpy.QtWidgets import (QDialog, QLabel, QLineEdit, QPushButton, QSplitter,
+from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction)
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
@@ -36,13 +36,20 @@ class CentralWidget(QWidget):
         self.parent = parent
         self.appdata: AppData = parent.appdata
         self.map_counter = 0
+
+        searchbar_layout = QHBoxLayout()
         self.searchbar = QLineEdit()
         self.searchbar.setPlaceholderText("Enter search term")
         self.searchbar.setClearButtonEnabled(True)
+        searchbar_layout.addWidget(self.searchbar)
+        self.search_annotations = QCheckBox("+Annotations")
+        self.search_annotations.setChecked(False)
+        searchbar_layout.addWidget(self.search_annotations)
 
         self.throttler = SignalThrottler(300)
         self.searchbar.textChanged.connect(self.throttler.throttle)
         self.throttler.triggered.connect(self.update_selected)
+        self.search_annotations.clicked.connect(self.update_selected)
 
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self)
@@ -97,7 +104,7 @@ class CentralWidget(QWidget):
         self.console.show()
 
         layout = QVBoxLayout()
-        layout.addWidget(self.searchbar)
+        layout.addItem(searchbar_layout)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
         margins = self.layout().contentsMargins()
@@ -297,19 +304,24 @@ class CentralWidget(QWidget):
         diag.exec()
 
     def update_selected(self):
-        x = self.searchbar.text()
+        string = self.searchbar.text()
+
+        if len(string) == 0:
+            return
+
         idx = self.tabs.currentIndex()
+        with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         if idx == ModelTabIndex.Reactions:
-            self.reaction_list.update_selected(x)
+            found_ids = self.reaction_list.update_selected(string, with_annotations)
         if idx == ModelTabIndex.Metabolites:
-            self.metabolite_list.update_selected(x)
+            found_ids =self.metabolite_list.update_selected(string, with_annotations)
         if idx == ModelTabIndex.Genes:
-            self.gene_list.update_selected(x)
+            found_ids =self.gene_list.update_selected(string, with_annotations)
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
             m = self.map_tabs.widget(idx)
-            m.update_selected(x)
+            m.update_selected(found_ids)
 
     def update_mode(self):
         if self.mode_navigator.mode_type <= 1:

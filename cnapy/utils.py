@@ -6,6 +6,33 @@ from straindesign import lineq2list, linexpr2dict
 import re
 
 
+def update_selected(string: str, with_annotations: bool, model_elements, element_list):
+    found_ids = [string]
+    if with_annotations:
+        for model_element in model_elements:
+            for key in model_element.annotation.keys():
+                annotations = model_element.annotation[key]
+                if type(annotations) is str:
+                    annotations = [annotations]
+                for annotation in annotations:
+                    if string.lower() in annotation.lower():
+                        found_ids.append(model_element.id)
+
+    root = element_list.invisibleRootItem()
+    child_count = root.childCount()
+    for i in range(child_count):
+        item = root.child(i)
+        item.setHidden(True)
+
+    for found_id in found_ids:
+        for item in element_list.findItems(found_id, Qt.MatchContains, 0):
+            item.setHidden(False)
+        for item in element_list.findItems(found_id, Qt.MatchContains, 1):
+            item.setHidden(False)
+
+    return found_ids
+
+
 def BORDER_COLOR(HEX):  # string that defines style sheet for changing the color of the module-box
     return "QGroupBox#EditModule " +\
         "{ border: 1px solid "+HEX+";" +\
