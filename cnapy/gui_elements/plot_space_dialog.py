@@ -2,7 +2,7 @@
 
 from random import randint
 from qtpy.QtCore import Qt, Signal, Slot, QTimer
-from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QGroupBox, QComboBox, QLayout,
+from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QMessageBox, QGroupBox, QComboBox, QLayout,
                             QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit, QSizePolicy)
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
 from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers, plot_flux_space
@@ -159,8 +159,15 @@ class PlotSpaceDialog(QDialog):
                     axes[2] = (self.z_numerator.text(),self.z_denominator.text())
                 else:
                     axes[2] = (self.z_numerator.text())
-            plot_flux_space(model,axes,points=int(self.numpoints.text()))
-
+            try:
+                plot_flux_space(model,axes,points=int(self.numpoints.text()))
+            except Exception as e:
+                QMessageBox.warning(
+                    self,
+                    "Error in plot calculation",
+                    "Plot space could not be calculated due to the following error:\n"
+                    f"{e}"
+                )
         self.appdata.window.centralWidget().show_bottom_of_console()
         self.setCursor(Qt.ArrowCursor)
 

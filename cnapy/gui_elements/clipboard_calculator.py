@@ -1,6 +1,6 @@
 """The cnapy clipboard calculator dialog"""
 from qtpy.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout,
-                            QLineEdit, QPushButton, QRadioButton,
+                            QLineEdit, QMessageBox, QPushButton, QRadioButton,
                             QVBoxLayout)
 
 from cnapy.appdata import AppData
@@ -81,7 +81,15 @@ class ClipboardCalculator(QDialog):
         if self.l1.isChecked():
             l_comp = self.appdata.project.comp_values
         elif self.l2.isChecked():
-            l_comp = self.appdata.clipboard_comp_values
+            try:
+                l_comp = self.appdata.clipboard_comp_values
+            except AttributeError:
+                QMessageBox.warning(
+                    None,
+                    "No clipboard created yet",
+                    "Clipboard arithmetics do not work as no clipboard was created yet. Store values to a clipboard first to solve this problem."
+                )
+                return
 
         if self.r1.isChecked():
             r_comp = self.appdata.project.comp_values
