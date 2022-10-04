@@ -63,8 +63,8 @@ class MainWindow(QMainWindow):
         self.onoff_action = QAction("On/Off coloring", self)
         self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         self.onoff_action.triggered.connect(self.set_onoff)
-        central_widget = CentralWidget(self)
-        self.setCentralWidget(central_widget)
+        self.central_widget = CentralWidget(self)
+        self.setCentralWidget(self.central_widget)
 
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("&Project")
@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
 
         update_action = QAction("Default Coloring", self)
         update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(central_widget.update)
+        update_action.triggered.connect(self.central_widget.update)
 
         self.scenario_menu.addAction(self.heaton_action)
         self.scenario_menu.addAction(self.onoff_action)
@@ -219,7 +219,7 @@ class MainWindow(QMainWindow):
 
         add_map_action = QAction("Add new map", self)
         self.map_menu.addAction(add_map_action)
-        add_map_action.triggered.connect(central_widget.add_map)
+        add_map_action.triggered.connect(self.central_widget.add_map)
 
         add_escher_map_action = QAction("Add new map from Escher SVG...", self)
         self.map_menu.addAction(add_escher_map_action)
@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
 
         open_escher = QAction("Add interactive Escher map", self)
         self.map_menu.addAction(open_escher)
-        open_escher.triggered.connect(lambda: central_widget.add_map(escher=True))
+        open_escher.triggered.connect(lambda: self.central_widget.add_map(escher=True))
 
         self.change_map_name_action = QAction("Change map name", self)
         self.map_menu.addAction(self.change_map_name_action)
@@ -737,8 +737,16 @@ class MainWindow(QMainWindow):
 
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
-
-        missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+        try:
+            missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+        except json.decoder.JSONDecodeError:
+            QMessageBox.critical(
+                self,
+                'Could not open file',
+                "File could not be opened as it does not seem to be a valid scenario file. "
+                "Maybe the file got the .scen ending for other reasons than being a scenario file or the file is corrupted."
+            )
+            return
 
         self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.pinned_reactions)
 
@@ -1359,10 +1367,12 @@ class MainWindow(QMainWindow):
                 self.escher_map_actions.setVisible(False)
                 self.cnapy_map_actions.setVisible(True)
                 self.colorings.setEnabled(True)
+                self.central_widget.search_annotations.setEnabled(True)
             else: # EscherMapView
                 self.cnapy_map_actions.setVisible(False)
                 self.escher_map_actions.setVisible(True)
                 self.colorings.setEnabled(False)
+                self.central_widget.search_annotations.setEnabled(False)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
@@ -1376,7 +1386,15 @@ class MainWindow(QMainWindow):
         self.appdata.clipboard_comp_values = self.appdata.project.comp_values.copy()
 
     def paste_clipboard(self):
-        self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+        try:
+            self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+        except AttributeError:
+            QMessageBox.warning(
+                self,
+                "No clipboard created yet",
+                "Paste clipboard does not work as no clipboard was created yet. Store values to a clipboard first to solve this problem."
+            )
+            return
         self.centralWidget().update()
 
     @Slot()

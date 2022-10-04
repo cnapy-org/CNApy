@@ -81,8 +81,11 @@ class AnnotationWidget(QVBoxLayout):
     def open_in_browser(self):
         current_row = self.annotation.currentRow()
         if current_row >= 0:
-            identifier_type = self.annotation.item(current_row, 0).text()
-            identifier_value = self.annotation.item(current_row, 1).text()
+            try:
+                identifier_type = self.annotation.item(current_row, 0).text()
+                identifier_value = self.annotation.item(current_row, 1).text()
+            except AttributeError:
+                pass
             if identifier_value.startswith("["):
                 identifier_value = ast.literal_eval(identifier_value)[0]
             url = f"https://identifiers.org/{identifier_type}:{identifier_value}"

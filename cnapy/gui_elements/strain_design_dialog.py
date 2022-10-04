@@ -1249,7 +1249,16 @@ class SDDialog(QDialog):
                 return
             # dump dictionary into json-file
             with open(filename, 'r') as fp:
-                sd_setup = json.load(fp)
+                try:
+                    sd_setup = json.load(fp)
+                except json.decoder.JSONDecodeError:
+                    QMessageBox.critical(
+                        self,
+                        'Could not open file',
+                        "File could not be opened as it does not seem to be a valid StrainDesign setup. "
+                        "Maybe the file got the .sdc ending for other reasons than being a StrainDesign setup or the file is corrupted."
+                    )
+                    return
         elif type(sd_setup) == str:
             sd_setup = json.loads(sd_setup)
         # warn if strain design setup was constructed for another model
@@ -1506,7 +1515,17 @@ class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
     def __init__(self, appdata: AppData, solutions):
         super().__init__()
-        (self.solutions,self.sd_setup) = pickle.loads(solutions)
+        try:
+            (self.solutions,self.sd_setup) = pickle.loads(solutions)
+        except pickle.UnpicklingError:
+            QMessageBox.critical(
+                self,
+                'Could not open file',
+                "File could not be opened as it does not seem to be a valid strain design results file. "
+                "Maybe the file got the .sds ending for other reasons than being a strain design results file or the file is corrupted."
+            )
+            self.close()
+            return
         self.setWindowTitle("Strain Design Solutions")
         self.setMinimumWidth(620)
         self.appdata = appdata
