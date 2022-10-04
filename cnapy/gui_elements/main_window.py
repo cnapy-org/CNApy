@@ -15,6 +15,7 @@ from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
+from typing import Dict
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -82,7 +83,10 @@ class MainWindow(QMainWindow):
         open_project_action = QAction("&Open project...", self)
         open_project_action.setShortcut("Ctrl+O")
         self.file_menu.addAction(open_project_action)
-        open_project_action.triggered.connect(self.open_project)
+        open_project_action.triggered.connect(self.open_project_dialog)
+
+        self.recent_cna_menu = self.file_menu.addMenu("Open recent project")
+        self.recent_cna_actions: Dict[str, QAction] = {}
 
         self.save_project_action = QAction("&Save project", self)
         self.save_project_action.setShortcut("Ctrl+S")
@@ -587,6 +591,28 @@ class MainWindow(QMainWindow):
         self.sd_viewer.show()
         self.sd_computation.start()
 
+    def open_selected_recent_project(self):
+        selected_last_project = self.sender().text()
+        if not os.path.exists(selected_last_project):
+            QMessageBox.critical(
+                self,
+                "File not found",
+                "The selected recently opened .cna file could not be found. Possible reasons: The file was deleted, moved or renamed."
+            )
+            return
+        self.open_project(filename=selected_last_project)
+
+    def build_recent_cna_menu(self):
+        recent_cnas = list(self.recent_cna_actions.keys())
+        for recent_cna in recent_cnas:
+            self.recent_cna_menu.removeAction(self.recent_cna_actions[recent_cna])
+            del(self.recent_cna_actions[recent_cna])
+
+        for recent_cna in self.appdata.recent_cna_files:
+            self.recent_cna_actions[recent_cna] = QAction(recent_cna, self)
+            self.recent_cna_actions[recent_cna].triggered.connect(self.open_selected_recent_project)
+            self.recent_cna_menu.addAction(self.recent_cna_actions[recent_cna])
+
     @Slot()
     def terminate_strain_design_computation(self):
         self.sd_computation.output_connector.disconnect()
@@ -1076,95 +1102,97 @@ class MainWindow(QMainWindow):
 
             self.setCursor(Qt.ArrowCursor)
 
+    def open_project(self, filename):
+        self.close_project_dialogs()
+        temp_dir = TemporaryDirectory()
+
+        self.setCursor(Qt.BusyCursor)
+        try:
+            with ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir.name)
+
+                box_positions_path = temp_dir.name+"/box_positions.json"
+                if not os.path.exists(box_positions_path):
+                    QMessageBox.critical(
+                        self,
+                        'Could not open file',
+                        "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
+                        "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
+                    )
+                    self.setCursor(Qt.ArrowCursor)
+                    return
+
+                with open(box_positions_path, 'r') as fp:
+                    maps = json.load(fp)
+
+                    count = 1
+                    for _name, m in maps.items():
+                        m["background"] = temp_dir.name + \
+                            "/map" + str(count) + ".svg"
+                        count += 1
+                # load meta_data
+                with open(temp_dir.name+"/meta.json", 'r') as fp:
+                    meta_data = json.load(fp)
+
+                try:
+                    cobra_py_model = CNApyModel.read_sbml_model(
+                        temp_dir.name + "/model.sbml")
+                except cobra.io.sbml.CobraSBMLError:
+                    output = io.StringIO()
+                    traceback.print_exc(file=output)
+                    exstr = output.getvalue()
+                    QMessageBox.warning(
+                        self, 'Could not open project.', exstr)
+                    return
+                self.appdata.temp_dir = temp_dir
+                self.appdata.project.maps = maps
+                self.appdata.project.meta_data = meta_data
+                self.appdata.project.cobra_py_model = cobra_py_model
+                self.set_current_filename(filename)
+                self.recreate_maps()
+                self.centralWidget().mode_navigator.clear()
+                self.appdata.project.scen_values.clear()
+                self.appdata.project.comp_values.clear()
+                self.appdata.project.fva_values.clear()
+                self.appdata.scenario_past.clear()
+                self.appdata.scenario_future.clear()
+                self.clear_status_bar()
+                (reactions, values) = self.appdata.project.collect_default_scenario_values()
+                if len(reactions) > 0:
+                    self.appdata.scen_values_set_multiple(reactions, values)
+                self.nounsaved_changes()
+
+                # if project contains maps move splitter and fit mapview
+                if len(self.appdata.project.maps) > 0:
+                    (_, r) = self.centralWidget().splitter2.getRange(1)
+                    self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
+                    self.centralWidget().fit_mapview()
+
+                self.centralWidget().update(rebuild=True)
+        except FileNotFoundError:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            exstr = output.getvalue()
+            QMessageBox.warning(self, 'Could not open project.', exstr)
+        except BadZipFile:
+            QMessageBox.critical(
+                self,
+                'Could not open file',
+                "File could not be opened as it does not seem to be a valid CNApy project. "
+                "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
+            )
+
+        self.setCursor(Qt.ArrowCursor)
+
     @Slot()
-    def open_project(self):
+    def open_project_dialog(self):
         if self.checked_unsaved():
             dialog = QFileDialog(self)
             filename: str = dialog.getOpenFileName(
                 directory=self.appdata.work_directory, filter="*.cna")[0]
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
-
-            self.close_project_dialogs()
-            temp_dir = TemporaryDirectory()
-
-            self.setCursor(Qt.BusyCursor)
-            try:
-                with ZipFile(filename, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir.name)
-
-                    box_positions_path = temp_dir.name+"/box_positions.json"
-                    if not os.path.exists(box_positions_path):
-                        QMessageBox.critical(
-                            self,
-                            'Could not open file',
-                            "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
-                            "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
-                        )
-                        self.setCursor(Qt.ArrowCursor)
-                        return
-
-                    with open(box_positions_path, 'r') as fp:
-                        maps = json.load(fp)
-
-                        count = 1
-                        for _name, m in maps.items():
-                            m["background"] = temp_dir.name + \
-                                "/map" + str(count) + ".svg"
-                            count += 1
-                    # load meta_data
-                    with open(temp_dir.name+"/meta.json", 'r') as fp:
-                        meta_data = json.load(fp)
-
-                    try:
-                        cobra_py_model = CNApyModel.read_sbml_model(
-                            temp_dir.name + "/model.sbml")
-                    except cobra.io.sbml.CobraSBMLError:
-                        output = io.StringIO()
-                        traceback.print_exc(file=output)
-                        exstr = output.getvalue()
-                        QMessageBox.warning(
-                            self, 'Could not open project.', exstr)
-                        return
-                    self.appdata.temp_dir = temp_dir
-                    self.appdata.project.maps = maps
-                    self.appdata.project.meta_data = meta_data
-                    self.appdata.project.cobra_py_model = cobra_py_model
-                    self.set_current_filename(filename)
-                    self.recreate_maps()
-                    self.centralWidget().mode_navigator.clear()
-                    self.appdata.project.scen_values.clear()
-                    self.appdata.project.comp_values.clear()
-                    self.appdata.project.fva_values.clear()
-                    self.appdata.scenario_past.clear()
-                    self.appdata.scenario_future.clear()
-                    self.clear_status_bar()
-                    (reactions, values) = self.appdata.project.collect_default_scenario_values()
-                    if len(reactions) > 0:
-                        self.appdata.scen_values_set_multiple(reactions, values)
-                    self.nounsaved_changes()
-
-                    # if project contains maps move splitter and fit mapview
-                    if len(self.appdata.project.maps) > 0:
-                        (_, r) = self.centralWidget().splitter2.getRange(1)
-                        self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
-                        self.centralWidget().fit_mapview()
-
-                    self.centralWidget().update(rebuild=True)
-            except FileNotFoundError:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                QMessageBox.warning(self, 'Could not open project.', exstr)
-            except BadZipFile:
-                QMessageBox.critical(
-                    self,
-                    'Could not open file',
-                    "File could not be opened as it does not seem to be a valid CNApy project. "
-                    "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
-                )
-
-            self.setCursor(Qt.ArrowCursor)
+            self.open_project(filename)
 
     def close_project_dialogs(self):
         '''closes modeless dialogs'''

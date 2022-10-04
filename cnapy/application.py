@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """The Application class"""
+import ast
 import configparser
 import io
 import sys
@@ -78,6 +79,8 @@ class Application:
         # First start-up behaviour (it can also happen whenever the cnapy-config.txt is deleted)
         if config_file_version == "unknown":
             self.first_start_up_message()
+        else:
+            self.window.build_recent_cna_menu()
 
         if sys.platform == "win32":  # CNApy running on Windows
             # on Windows disable multiprocessing in COBRApy because of performance issues
@@ -177,6 +180,14 @@ class Application:
                 self.appdata.abs_tol = float(abs_tol)
             except (KeyError, NoOptionError):
                 print("Could not find abs_tol in cnapy-config.txt")
+
+            try:
+                recent_cna_files = config_parser.get(
+                    'cnapy-config', 'recent_cna_files')
+                self.appdata.recent_cna_files = ast.literal_eval(recent_cna_files)
+            except (KeyError, NoOptionError):
+                print("Could not find recent_cna_files in cnapy-config.txt")
+                self.appdata.recent_cna_files = []
 
             self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
                     'use_results_cache', fallback=self.appdata.use_results_cache)
