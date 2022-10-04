@@ -125,6 +125,7 @@ class ReactionList(QWidget):
             self.add_reaction(r)
 
         self.reaction_mask = ReactionMask(self)
+        self.appdata.selected_reaction_id = ""
         self.reaction_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -156,6 +157,7 @@ class ReactionList(QWidget):
         self.add_button.clicked.connect(self.add_new_reaction)
 
     def clear(self):
+        self.appdata.selected_reaction_id = ""
         self.reaction_list.clear()
         self.reaction_mask.hide()
 
@@ -280,14 +282,21 @@ class ReactionList(QWidget):
 
     def reaction_selected(self, item: ReactionListItem):
         if item is None:
+            self.appdata.selected_reaction_id = ""
             self.reaction_mask.hide()
         elif self.reaction_list.currentColumn() != ReactionListColumn.Scenario or self.splitter.sizes()[1] > 0:
             item.setSelected(True)
             self.reaction_mask.show()
+
+
             reaction: cobra.Reaction = item.reaction
 
             self.last_selected = reaction.id
             self.reaction_mask.reaction = reaction
+
+            # Draw border on selected item
+            self.appdata.selected_reaction_id = reaction.id
+            self.central_widget.update_maps()
 
             self.reaction_mask.id.setText(reaction.id)
             self.reaction_mask.name.setText(reaction.name)

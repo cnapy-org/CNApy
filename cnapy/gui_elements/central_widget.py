@@ -241,9 +241,16 @@ class CentralWidget(QWidget):
         self.parent.unsaved_changes()
 
     def tabs_changed(self, idx):
+
         if idx == ModelTabIndex.Reactions:
+            self.appdata.selected_reaction_id = self.appdata.old_selected_reaction_id
+            self.update_maps()
             self.reaction_list.update()
-        elif idx == ModelTabIndex.Metabolites:
+        else:
+            self.appdata.old_selected_reaction_id = self.appdata.selected_reaction_id
+            self.appdata.selected_reaction_id = ""
+            self.update_maps()
+        if idx == ModelTabIndex.Metabolites:
             self.metabolite_list.update()
         elif idx == ModelTabIndex.Genes:
             self.gene_list.update()

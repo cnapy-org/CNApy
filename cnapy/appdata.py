@@ -58,6 +58,8 @@ class AppData:
         self.scenario_future = []
         self.recent_cna_files = []
         self.auto_fba = False
+        self.selected_reaction_id = ""  # Current selection on the reactions list
+        self.old_selected_reaction_id = ""
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes

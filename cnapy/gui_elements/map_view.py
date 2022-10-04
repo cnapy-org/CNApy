@@ -314,6 +314,10 @@ class MapView(QGraphicsView):
         self.set_values()
         self.recolor_all()
 
+        selected_id = self.appdata.selected_reaction_id
+        if selected_id in self.reaction_boxes.keys():
+            self.reaction_boxes[selected_id].set_color(Qt.magenta)
+
         # set scrollbars
         self.horizontalScrollBar().setValue(
             self.appdata.project.maps[self.name]["pos"][0])
