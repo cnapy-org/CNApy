@@ -1155,6 +1155,8 @@ class MainWindow(QMainWindow):
                     filename_index = self.appdata.recent_cna_files.index(filename)
                     del(self.appdata.recent_cna_files[filename_index])
                 self.appdata.recent_cna_files.insert(0, filename)
+                if len(self.appdata.recent_cna_files) > 10:
+                    del(self.appdata.recent_cna_files[-1])
                 self.appdata.save_cnapy_config()
                 self.build_recent_cna_menu()
         except FileNotFoundError:
