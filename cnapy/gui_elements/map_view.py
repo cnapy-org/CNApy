@@ -234,7 +234,6 @@ class MapView(QGraphicsView):
     def highlight_reaction(self, string):
         treffer = self.reaction_boxes[string]
         treffer.item.setHidden(False)
-        treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
 
     def select_single_reaction(self, reac_id: str):
