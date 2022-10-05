@@ -196,11 +196,14 @@ class MapView(QGraphicsView):
         if not isinstance(QApplication.focusWidget(), QLineEdit):
             # only take focus if no QlineEdit is active to prevent
             # editingFinished signals there
-            self.setFocus() # to capture Shift/Ctrl keys
+            if len(self.scene.selectedItems()) == 1:
+                self.scene.selectedItems()[0].item.setFocus()
+            else:
+                self.scene.setFocus() # to capture Shift/Ctrl keys
 
     def leaveEvent(self, event) -> None:
         super().leaveEvent(event)
-        self.clearFocus() # finishes editing of potentially active ReactionBox
+        self.scene.clearFocus() # finishes editing of potentially active ReactionBox
 
     def update_selected(self, found_ids):
 
@@ -220,7 +223,6 @@ class MapView(QGraphicsView):
         self.zoom_in_reaction()
 
     def zoom_in_reaction(self):
-
         bg_size = self.appdata.project.maps[self.name]["bg-size"]
         x = (INCREASE_FACTOR ** self._zoom)/bg_size
         while x < 1:
@@ -234,6 +236,13 @@ class MapView(QGraphicsView):
         treffer.item.setHidden(False)
         treffer.set_color(Qt.magenta)
         treffer.item.setFocus()
+
+    def select_single_reaction(self, reac_id: str):
+        box: ReactionBox = self.reaction_boxes.get(reac_id, None)
+        if box is not None:
+            self.scene.clearSelection()
+            self.scene.clearFocus()
+            box.setSelected(True)
 
     def set_background(self):
         if self.background is not None:

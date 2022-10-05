@@ -162,6 +162,9 @@ class EscherMapView(QWebEngineView):
         # highlights and focuses on the first reatcion with reac_id
         self.page().runJavaScript("highlightAndFocusReaction('"+reac_id+"')")
 
+    def select_single_reaction(self, reac_id: str):
+        pass
+
     def update_selected(self, found_ids):
         find = found_ids[0]  # Only search for the search string as Escher does not seem to be to search multiple different IDs
         if len(find) == 0:

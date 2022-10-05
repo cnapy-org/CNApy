@@ -509,6 +509,10 @@ class CentralWidget(QWidget):
                 m.highlight_reaction(reaction)
                 break
 
+    def reaction_selected(self, reac_id: str):
+        for idx in range(0, self.map_tabs.count()):
+            self.map_tabs.widget(idx).select_single_reaction(reac_id)
+
     def set_onoff(self):
         idx = self.tabs.currentIndex()
         if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
