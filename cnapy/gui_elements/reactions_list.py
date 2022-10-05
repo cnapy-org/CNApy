@@ -316,6 +316,8 @@ class ReactionList(QWidget):
             self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
+            self.central_widget.reaction_selected(reaction.id)
+
     def handle_changed_reaction(self, reaction: cobra.Reaction):
         # Update reaction item in list
         root = self.reaction_list.invisibleRootItem()

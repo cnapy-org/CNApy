@@ -307,9 +307,6 @@ class CentralWidget(QWidget):
     def update_selected(self):
         string = self.searchbar.text()
 
-        if len(string) == 0:
-            return
-
         idx = self.tabs.currentIndex()
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         if idx == ModelTabIndex.Reactions:
@@ -508,6 +505,10 @@ class CentralWidget(QWidget):
                 self.__recolor_map()
                 m.highlight_reaction(reaction)
                 break
+
+    def reaction_selected(self, reac_id: str):
+        for idx in range(0, self.map_tabs.count()):
+            self.map_tabs.widget(idx).select_single_reaction(reac_id)
 
     def set_onoff(self):
         idx = self.tabs.currentIndex()

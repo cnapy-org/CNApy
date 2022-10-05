@@ -130,6 +130,16 @@
         }
       }
 
+      function highlightReaction(reacId) {
+        var records = builder.map.search_index.find(reacId);
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId) {
+            builder.map.highlight_reaction(record.reaction_id);
+          }
+        }
+      }
+
     </script>
   </body>
 </html>
