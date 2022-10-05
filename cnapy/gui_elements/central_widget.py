@@ -307,9 +307,6 @@ class CentralWidget(QWidget):
     def update_selected(self):
         string = self.searchbar.text()
 
-        if len(string) == 0:
-            return
-
         idx = self.tabs.currentIndex()
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         if idx == ModelTabIndex.Reactions:
