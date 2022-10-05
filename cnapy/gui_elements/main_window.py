@@ -600,7 +600,8 @@ class MainWindow(QMainWindow):
                 "The selected recently opened .cna file could not be found. Possible reasons: The file was deleted, moved or renamed."
             )
             return
-        self.open_project(filename=selected_last_project)
+        if self.checked_unsaved():
+            self.open_project(filename=selected_last_project)
 
     def build_recent_cna_menu(self):
         recent_cnas = list(self.recent_cna_actions.keys())
