@@ -519,13 +519,15 @@ class ReactionBox(QGraphicsItem):
         test = self.item.text().replace(" ", "")
         if test == "":
             if not self.item.accept_next_change_into_history:
-                self.map.appdata.scenario_past.pop() # replace previous change
+                if len(self.map.appdata.scenario_past) > 0:
+                    self.map.appdata.scenario_past.pop() # replace previous change
             self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, test)
             self.set_default_style()
         elif validate_value(self.item.text()):
             if not self.item.accept_next_change_into_history:
-                self.map.appdata.scenario_past.pop() # replace previous change
+                if len(self.map.appdata.scenario_past) > 0:
+                    self.map.appdata.scenario_past.pop() # replace previous change
             self.item.accept_next_change_into_history = False
             self.map.value_changed(self.id, self.item.text())
             if self.id in self.map.appdata.project.scen_values.keys():
