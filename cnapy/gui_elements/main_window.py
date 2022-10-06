@@ -1174,6 +1174,8 @@ class MainWindow(QMainWindow):
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)
                     del(self.appdata.recent_cna_files[filename_index])
+                if len(self.appdata.recent_cna_files) > 9:  # Actually allows 10 shown recent .cna files
+                    del(self.appdata.recent_cna_files[-1])
                 self.appdata.recent_cna_files.insert(0, filename)
                 self.appdata.save_cnapy_config()
                 self.build_recent_cna_menu()
