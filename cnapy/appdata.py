@@ -242,8 +242,6 @@ class Scenario(Dict[str, Tuple[float, float]]):
                 reac_id = reac_id[2:]
                 if reac_id in appdata.project.cobra_py_model.reactions:
                     found_reac_id = True
-                else:
-                    found_reac_id = False
             if found_reac_id:
                 reactions.append(reac_id)
                 scen_values.append(val)
