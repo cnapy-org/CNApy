@@ -1170,6 +1170,13 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild=True)
+
+                if filename in self.appdata.recent_cna_files:
+                    filename_index = self.appdata.recent_cna_files.index(filename)
+                    del(self.appdata.recent_cna_files[filename_index])
+                self.appdata.recent_cna_files.insert(0, filename)
+                self.appdata.save_cnapy_config()
+                self.build_recent_cna_menu()
         except FileNotFoundError:
             output = io.StringIO()
             traceback.print_exc(file=output)
