@@ -753,7 +753,7 @@ class MainWindow(QMainWindow):
 
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
-            'The scenario references reactions which are not in the current model and will be ignored:\n'+' '.join(missing_reactions))
+            'The following reaction IDs of the scenario do not exist in the current model and will be ignored:\n'+' '.join(missing_reactions))
 
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
