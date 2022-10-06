@@ -235,6 +235,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
         reactions = []
         scen_values = []
         for reac_id, val in flux_values.items():
+            found_reac_id = False
             if reac_id in appdata.project.cobra_py_model.reactions:
                 found_reac_id = True
             elif reac_id.startswith("R_"):
