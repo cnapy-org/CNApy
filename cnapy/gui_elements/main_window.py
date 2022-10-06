@@ -753,7 +753,7 @@ class MainWindow(QMainWindow):
 
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
-            'The scenario references reactions which are not in the current model and will be ignored:\n'+' '.join(missing_reactions))
+            'The following reaction IDs of the scenario do not exist in the current model and will be ignored:\n'+' '.join(missing_reactions))
 
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
@@ -1170,6 +1170,15 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild=True)
+
+                if filename in self.appdata.recent_cna_files:
+                    filename_index = self.appdata.recent_cna_files.index(filename)
+                    del(self.appdata.recent_cna_files[filename_index])
+                if len(self.appdata.recent_cna_files) > 9:  # Actually allows 10 shown recent .cna files
+                    del(self.appdata.recent_cna_files[-1])
+                self.appdata.recent_cna_files.insert(0, filename)
+                self.appdata.save_cnapy_config()
+                self.build_recent_cna_menu()
         except FileNotFoundError:
             output = io.StringIO()
             traceback.print_exc(file=output)
