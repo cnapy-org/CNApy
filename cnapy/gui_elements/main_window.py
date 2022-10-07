@@ -1272,7 +1272,7 @@ class MainWindow(QMainWindow):
             timer.timeout.connect(wait_for_retrieval)
             timer.start()
         else:
-            self.continue_save_project
+            self.continue_save_project()
 
     @Slot()
     def continue_save_project(self):
