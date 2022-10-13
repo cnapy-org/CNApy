@@ -805,7 +805,8 @@ class MainWindow(QMainWindow):
         name = self.centralWidget().map_tabs.tabText(idx)
 
         self.appdata.project.maps[name]["background"] = filename
-        self.centralWidget().map_tabs.widget(idx).set_background()
+        # rebuild everything to make sure that background is displayed behind the boxes
+        self.centralWidget().map_tabs.widget(idx).rebuild_scene()
         self.centralWidget().update()
         self.centralWidget().map_tabs.setCurrentIndex(idx)
         self.centralWidget().map_tabs.widget(idx).fit()

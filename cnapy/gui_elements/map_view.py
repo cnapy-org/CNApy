@@ -101,6 +101,7 @@ class MapView(QGraphicsView):
         self.drag_map = False
         identifier = event.mimeData().text()
         self.mapChanged.emit(identifier)
+        self.scene.setSceneRect(self.scene.itemsBoundingRect())
         self.viewport().setCursor(Qt.OpenHandCursor)
         self.update()
 
