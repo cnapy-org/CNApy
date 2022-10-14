@@ -23,7 +23,7 @@ class DownloadDialog(QDialog):
 
         label_line = QVBoxLayout()
         label = QLabel(
-            "Should CNApy download the CNApy metabolic network example projects to your CNApy working directory?\n"
+            "Should CNApy download metabolic network example projects to your CNApy working directory?\n"
             "This requires an active internet connection.\n"
             "If a working directory error occurs, you can solve by setting a working directory under 'Config->Configure CNApy'."
         )
@@ -31,9 +31,11 @@ class DownloadDialog(QDialog):
         self.layout.addItem(label_line)
 
         button_line = QHBoxLayout()
-        self.download_btn = QPushButton("Yes, download examples")
+        self.download_btn = QPushButton("Yes, download main example projects")
+        self.download_all_btn = QPushButton("Yes, download all available projects")
         self.close = QPushButton("No, do not download")
         button_line.addWidget(self.download_btn)
+        button_line.addWidget(self.download_all_btn)
         button_line.addWidget(self.close)
         self.layout.addItem(button_line)
         self.setLayout(self.layout)
@@ -41,14 +43,18 @@ class DownloadDialog(QDialog):
         # Connecting the signal
         self.close.clicked.connect(self.accept)
         self.download_btn.clicked.connect(self.download)
+        self.download_all_btn.clicked.connect(lambda: self.download(download_all=True))
 
-    def download(self):
+    def download(self, download_all=False):
         work_directory = self.appdata.work_directory
         if not os.path.exists(work_directory):
             print("Create uncreated work directory:", work_directory)
             os.mkdir(work_directory)
 
-        targets = ["all_cnapy_projects.zip"]
+        if download_all:
+            targets = ["all_cnapy_projects.zip"]
+        else:
+            targets = ["main_cnapy_projects.zip"]
         for t in targets:
             target = os.path.join(work_directory, t)
             if not os.path.exists(target):
@@ -69,7 +75,7 @@ class DownloadDialog(QDialog):
         msgBox = QMessageBox()
         msgBox.setWindowTitle("Projects download complete")
         msgBox.setText(
-            "Example projects were downloaded successfully in the working directory."
+            "Projects were downloaded successfully in the working directory."
         )
         msgBox.setIcon(QMessageBox.Information)
         msgBox.exec()
