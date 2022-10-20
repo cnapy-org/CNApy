@@ -27,8 +27,9 @@ requirements:
     - matplotlib-base=3.5
     - pip=22
     - python=3.8
-    - qtpy=1.9
-    - pyside2=5.13
+    - qtpy=2.1
+    - pyqt=5.15.7
+    - pyqtwebengine=5.15.7 
     - appdirs=1.4
     - cobra=0.25
     - qtconsole=5.0
