@@ -463,7 +463,7 @@ class ReactionBox(QGraphicsItem):
         switch_action = QAction('switch to reaction mask', parent)
         self.pop_menu.addAction(switch_action)
         switch_action.triggered.connect(self.switch_to_reaction_mask)
-        position_action = QAction('set exact box position...', parent)
+        position_action = QAction('set box position...', parent)
         self.pop_menu.addAction(position_action)
         position_action.triggered.connect(self.position)
         remove_action = QAction('remove from map', parent)
