@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene
                             QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
 from cnapy.appdata import AppData
+from cnapy.gui_elements.box_position_dialog import BoxPositionDialog
 
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1/INCREASE_FACTOR
@@ -462,6 +463,9 @@ class ReactionBox(QGraphicsItem):
         switch_action = QAction('switch to reaction mask', parent)
         self.pop_menu.addAction(switch_action)
         switch_action.triggered.connect(self.switch_to_reaction_mask)
+        position_action = QAction('set box position...', parent)
+        self.pop_menu.addAction(position_action)
+        position_action.triggered.connect(self.position)
         remove_action = QAction('remove from map', parent)
         self.pop_menu.addAction(remove_action)
         remove_action.triggered.connect(self.remove)
@@ -681,6 +685,10 @@ class ReactionBox(QGraphicsItem):
     def on_context_menu(self, point):
         # show context menu
         self.pop_menu.exec_(self.item.mapToGlobal(point))
+
+    def position(self):
+        position_dialog = BoxPositionDialog(self, self.map)
+        position_dialog.exec()
 
     def remove(self):
         self.map.remove_box(self.id)
