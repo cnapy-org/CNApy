@@ -22,14 +22,14 @@ class BoxPositionDialog(QDialog):
         x_label = QLabel("X coordinate (horizontal):")
         hor_x = QHBoxLayout()
         self.x_pos = QLineEdit()
-        self.x_pos.setText(str(self.reaction_box.x()))
+        self.x_pos.setText(str(round(self.reaction_box.x())))
         hor_x.addWidget(x_label)
         hor_x.addWidget(self.x_pos)
 
         hor_y = QHBoxLayout()
         y_label = QLabel("Y coordinate (vertical):")
         self.y_pos = QLineEdit()
-        self.y_pos.setText(str(self.reaction_box.y()))
+        self.y_pos.setText(str(round(self.reaction_box.y())))
         hor_y.addWidget(y_label)
         hor_y.addWidget(self.y_pos)
 
