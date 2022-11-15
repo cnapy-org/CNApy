@@ -21,8 +21,7 @@ from qtpy.QtWidgets import QMessageBox
 class AppData:
     ''' The application data '''
 
-    def __init__(self, qapp):
-        self.qapp = qapp
+    def __init__(self):
         self.version = "cnapy-1.1.4"
         self.format_version = 2
         self.unsaved = False
