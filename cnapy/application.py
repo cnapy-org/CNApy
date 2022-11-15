@@ -66,7 +66,7 @@ class Application:
 
     def __init__(self):
         self.qapp = QApplication(sys.argv)
-        self.appdata = AppData(self.qapp)
+        self.appdata = AppData()
         self.qapp.setStyle("fusion")
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
