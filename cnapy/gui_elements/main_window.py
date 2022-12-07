@@ -15,7 +15,8 @@ from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
-from typing import Dict
+from typing import Dict, List
+import pandas
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -206,6 +207,14 @@ class MainWindow(QMainWindow):
         self.clipboard_menu.addAction(clipboard_arithmetics_action)
         clipboard_arithmetics_action.triggered.connect(
             self.clipboard_arithmetics)
+
+        save_fluxes_as_csv_action = QAction("Save flux solution as comma-separated .csv...", self)
+        self.clipboard_menu.addAction(save_fluxes_as_csv_action)
+        save_fluxes_as_csv_action.triggered.connect(self.save_fluxes_as_csv)
+
+        save_fluxes_as_xlsx_action = QAction("Save flux solution as Excel .xlsx...", self)
+        self.clipboard_menu.addAction(save_fluxes_as_xlsx_action)
+        save_fluxes_as_xlsx_action.triggered.connect(self.save_fluxes_as_xlsx)
 
         self.map_menu = self.menu.addMenu("Map")
         self.cnapy_map_actions = QActionGroup(self)
@@ -1799,3 +1808,32 @@ class MainWindow(QMainWindow):
     def set_status_unknown(self):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
+
+    def _save_fluxes(self, filetype: str):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter=f"*.{filetype}")[0]
+        if not filename or len(filename) == 0:
+            return
+        if not (filename.endswith(f".{filetype}")):
+            filename += f".{filetype}"
+
+        reaction_ids: List[str] = []
+        fluxes_dict: Dict[str, List[float]] = {
+        }
+        for reaction_id in self.appdata.project.comp_values.keys():
+            fluxes = self.appdata.project.comp_values[reaction_id]
+            fluxes_dict[reaction_id] = [fluxes[0], fluxes[1]]
+        fluxes_dataframe = pandas.DataFrame.from_dict(fluxes_dict, orient="index", columns=["Lower flux", "Upper flux"])
+        if filetype == "csv":
+            fluxes_dataframe.to_csv(filename)
+        elif filetype == "xlsx":
+            fluxes_dataframe.to_excel(filename)
+
+    @Slot()
+    def save_fluxes_as_csv(self):
+        self._save_fluxes(filetype="csv")
+
+    @Slot()
+    def save_fluxes_as_xlsx(self):
+        self._save_fluxes(filetype="xlsx")

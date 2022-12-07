@@ -20,6 +20,7 @@ dependencies:
   - qtconsole=5.4
   - requests=2.28
   - psutil=5.9
+  - openpyxl
   - efmtool_link=0.0.4
   - optlang_enumerator=0.0.7
   - straindesign>=1.9
