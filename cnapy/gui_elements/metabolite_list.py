@@ -13,6 +13,12 @@ from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
+from enum import IntEnum
+
+class MetaboliteListColumn(IntEnum):
+    Id = 0
+    Name = 1
+    Concentration = 2
 
 
 class MetaboliteList(QWidget):
@@ -24,7 +30,7 @@ class MetaboliteList(QWidget):
         self.last_selected = None
 
         self.metabolite_list = QTreeWidget()
-        self.metabolite_list.setHeaderLabels(["Id", "Name"])
+        self.metabolite_list.setHeaderLabels(["Id", "Name", "Concentration"])
         self.metabolite_list.setSortingEnabled(True)
 
         for m in self.appdata.project.cobra_py_model.metabolites:
@@ -66,9 +72,11 @@ class MetaboliteList(QWidget):
 
     def add_metabolite(self, metabolite):
         item = QTreeWidgetItem(self.metabolite_list)
-        item.setText(0, metabolite.id)
-        item.setText(1, metabolite.name)
-        item.setData(2, 0, metabolite)
+        item.setText(MetaboliteListColumn.Id, metabolite.id)
+        item.setText(MetaboliteListColumn.Name, metabolite.name)
+        if metabolite.id in self.appdata.project.conc_values.keys():
+            item.setText(MetaboliteListColumn.Concentration, str(self.appdata.project.conc_values[metabolite.id]))
+        item.setData(3, 0, metabolite)
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.metabolites) > 0:
@@ -83,13 +91,18 @@ class MetaboliteList(QWidget):
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
-            if item.data(2, 0) == metabolite:
-                item.setText(0, metabolite.id)
-                item.setText(1, metabolite.name)
+            if item.data(3, 0) == metabolite:
+                item.setText(MetaboliteListColumn.Id, metabolite.id)
+                item.setText(MetaboliteListColumn.Name, metabolite.name)
+                if metabolite.id in self.appdata.project.conc_values.keys():
+                    item.setText(MetaboliteListColumn.Concentration, str(self.appdata.project.conc_values[metabolite.id]))
                 break
 
         self.last_selected = self.metabolite_mask.id.text()
         self.metaboliteChanged.emit(metabolite, affected_reactions)
+        self.resizeColumnToContents(MetaboliteListColumn.Id)
+        self.resizeColumnToContents(MetaboliteListColumn.Name)
+        self.resizeColumnToContents(MetaboliteListColumn.Concentration)
 
     def update_selected(self, string, with_annotations=True):
         return update_selected(
@@ -104,7 +117,7 @@ class MetaboliteList(QWidget):
             self.metabolite_mask.hide()
         else:
             self.metabolite_mask.show()
-            metabolite: cobra.Metabolite = item.data(2, 0)
+            metabolite: cobra.Metabolite = item.data(3, 0)
 
             self.metabolite_mask.metabolite = metabolite
 

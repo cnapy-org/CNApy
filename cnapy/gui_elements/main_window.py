@@ -15,7 +15,7 @@ from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
-from typing import Dict
+from typing import Any, Dict
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -44,6 +44,7 @@ from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
+from cnapy.gui_elements.optmdfpathway_dialog import OptmdfpathwayDialog
 import cnapy.utils as utils
 
 
@@ -379,6 +380,21 @@ class MainWindow(QMainWindow):
         plot_space_action = QAction("Plot flux space...", self)
         plot_space_action.triggered.connect(self.plot_space)
         self.analysis_menu.addAction(plot_space_action)
+
+        self.analysis_menu.addSeparator()
+
+
+        optmdf_action = QAction("Perform OptMDFpathway...", self)
+        optmdf_action.triggered.connect(self.perform_optmdfpathway)
+        self.analysis_menu.addAction(optmdf_action)
+
+        dG0_action = QAction("Load dG'° JSON...", self)
+        dG0_action.triggered.connect(self.load_dG0_json)
+        self.analysis_menu.addAction(dG0_action)
+
+        concentrations_action = QAction("Load metabolite concentrations JSON...", self)
+        concentrations_action.triggered.connect(self.load_concentrations_json)
+        self.analysis_menu.addAction(concentrations_action)
 
         self.analysis_menu.addSeparator()
 
@@ -1799,3 +1815,58 @@ class MainWindow(QMainWindow):
     def set_status_unknown(self):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
+
+    def perform_optmdfpathway(self):
+        self.optmdfpathway_dialog = OptmdfpathwayDialog(
+            self.appdata, self.centralWidget())
+        self.optmdfpathway_dialog.show()
+
+    def _load_json(self) -> Dict[Any, Any]:
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.last_scen_directory, filter="*.json")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return {}
+
+        try:
+            with open(filename) as f:
+                json_data = json.load(f)
+        except json.decoder.JSONDecodeError:
+            QMessageBox.critical(
+                self,
+                "Could not open file",
+                "File could not be opened as it does not seem to be a valid JSON file."
+            )
+            return {}
+
+        return json_data
+
+    def load_concentrations_json(self):
+        concentrations = self._load_json()
+        for metabolite in self.appdata.project.cobra_py_model.metabolites:
+            if metabolite.id not in concentrations.keys():
+                if "DEFAULT" in concentrations.keys():
+                    lb = concentrations["DEFAULT"]["min"]
+                    ub = concentrations["DEFAULT"]["max"]
+                else:
+                    continue
+            else:
+                lb = concentrations[metabolite.id]["min"]
+                ub = concentrations[metabolite.id]["max"]
+            metabolite.annotation["Cmin"] = lb
+            metabolite.annotation["Cmax"] = ub
+        self.centralWidget().update()
+        self.unsaved_changes()
+
+    def load_dG0_json(self):
+        dG0s = self._load_json()
+        reaction_ids = [x.id for x in self.appdata.project.cobra_py_model.reactions]
+        for reaction_id in dG0s.keys():
+            if reaction_id not in reaction_ids:
+                continue
+            reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(reaction_id)
+            reaction.annotation["dG0"] = dG0s[reaction_id]["dG0"]
+            if "uncertainty" in dG0s[reaction_id].keys():
+                reaction.annotation["dG0_uncertainty"] = dG0s[reaction_id]["uncertainty"]
+        self.centralWidget().update()
+        self.unsaved_changes()
