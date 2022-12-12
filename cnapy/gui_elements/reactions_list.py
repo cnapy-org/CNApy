@@ -101,7 +101,7 @@ class ReactionList(QWidget):
         policy.ShrinkFlag = True
         self.add_button.setSizePolicy(policy)
 
-        self.reaction_list = DragableTreeWidget()
+        self.reaction_list: DragableTreeWidget = DragableTreeWidget()
         self.reaction_list.setDragEnabled(True)
         self.reaction_list.setColumnCount(len(ReactionListColumn))
         self.reaction_list.setRootIsDecorated(False)
@@ -496,14 +496,14 @@ class ReactionList(QWidget):
     @Slot()
     def copy_to_clipboard(self):
         clipboard = QGuiApplication.clipboard()
-        table = ["\t".join([ReactionListColumn(j).name for j in ReactionListColumn])]
+        visible_columns = [j.value for j in ReactionListColumn if not self.reaction_list.isColumnHidden(j)]
+        table = ["\t".join([ReactionListColumn(j).name for j in visible_columns])]
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
             line = []
-            for j in ReactionListColumn:
-                # skip hidden columns?
+            for j in visible_columns:
                 line.append(item.text(j))
             table.append("\t".join(line))
         clipboard.setText("\r".join(table))
