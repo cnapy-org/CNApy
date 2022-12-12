@@ -1,5 +1,5 @@
 ''' CNApy utilities '''
-from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer
+from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer, QStringListModel
 from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, \
     QCompleter, QApplication, QFrame, QSizePolicy
 from straindesign import lineq2list, linexpr2dict
@@ -122,9 +122,9 @@ class QComplReceivLineEdit(QLineEdit):
     def __init__(self, sd_dialog, wordlist, check=True, is_constr=False):
         super().__init__("")
         self.sd_dialog = sd_dialog
-        self.wordlist = wordlist
-        self.completer = QCompleter(wordlist)
+        self.completer: QCompleter = QCompleter()
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.set_wordlist(wordlist)
         self.completer.setWidget(self)
         self.textChanged.connect(self.text_changed)
         self.completer.activated.connect(self.complete_text)
@@ -132,6 +132,10 @@ class QComplReceivLineEdit(QLineEdit):
         self.check = check
         self.is_constr = is_constr
         self.is_valid = None
+
+    def set_wordlist(self, wordlist):
+        self.wordlist = wordlist
+        self.completer.setModel(QStringListModel(self.wordlist))
 
     def text_changed(self, text):
         all_text = text
