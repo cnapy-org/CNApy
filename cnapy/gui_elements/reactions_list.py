@@ -489,7 +489,7 @@ class ReactionList(QWidget):
             action.setData(col_idx)
             action.triggered.connect(self.set_column_visibility_action)
         menu.addSeparator()
-        action = menu.addAction("Copy table to clipboard")
+        action = menu.addAction("Copy table to system clipboard")
         action.triggered.connect(self.copy_to_clipboard)
         menu.exec_(self.reaction_list.header().mapToGlobal(position))
 
