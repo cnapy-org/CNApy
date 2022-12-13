@@ -2,7 +2,7 @@ from math import copysign
 from qtpy.QtCore import Qt, Slot, QSignalBlocker
 from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox,
                             QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView,
-                            QRadioButton, QVBoxLayout, QTableWidgetItem)
+                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup)
 
 from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException
@@ -78,15 +78,23 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_constituents.resizeColumnsToContents()
         vbox_bm_coeff.addWidget(self.bm_constituents)
         hbox = QHBoxLayout()
-        hbox.addWidget(QLabel("Maximal relative coefficient change [%]: "))
+        hbox.addWidget(QLabel("Maximal relative coefficient change [%]:"))
         self.max_coeff_change = QLineEdit("30")
         hbox.addWidget(self.max_coeff_change)
-        hbox.addStretch()
+        hbox.addWidget(QLabel("Minimize changes in:"))
+        bg = QButtonGroup()
+        self.bm_mmol = QRadioButton("mmol")
+        self.bm_mmol.setChecked(True)
+        bg.addButton(self.bm_mmol)
+        hbox.addWidget(self.bm_mmol)
+        self.bm_gram = QRadioButton("gram")
+        bg.addButton(self.bm_gram)
+        hbox.addWidget(self.bm_gram)
         vbox_bm_coeff.addLayout(hbox)
         self.adjust_bm_coeff.setLayout(vbox_bm_coeff)
         vbox.addWidget(self.adjust_bm_coeff)
 
-        self.adjust_gam = QGroupBox("Make growth-associated ATP maintenance (GAM) adjustable:")
+        self.adjust_gam = QGroupBox("Allow adjustment of growth-associated ATP maintenance (GAM):")
         self.adjust_gam.setCheckable(True)
         vbox_gam = QVBoxLayout()
         vbox_gam.addWidget(QLabel("Metabolites in ATP hydrolysis (ATP + H2O -> ADP + Pi + H):"))
@@ -139,6 +147,7 @@ class FluxFeasibilityDialog(QDialog):
 
         self.bm_reac_id = ""
         self.bm_reac: cobra.Reaction = None
+        self.modified_scenario = None
 
         self.cancel.clicked.connect(self.reject)
         self.button.clicked.connect(self.compute)
@@ -196,7 +205,7 @@ class FluxFeasibilityDialog(QDialog):
                     gam_mets = self.appdata.project.cobra_py_model.metabolites.get_by_any(gam_mets)
                 except:
                     QMessageBox.critical(self, "Invalid metabolites for ATP hydrolysis",
-                            "Check that the metabolites listed for ATP hydrolysis are correct.")
+                            "Check that the metabolites listed for ATP hydrolysis are correct or deactivate GAM adjustment.")
                     return
 
                 if self.remove_gam_from_bm.isChecked():
@@ -231,15 +240,24 @@ class FluxFeasibilityDialog(QDialog):
                     return
 
                 gam_mets_param = (gam_mets, gam_max_change, gam_weight, gam_base)
+            else:
+                gam_mets = []
+                gam_mets_param = (gam_mets, 0.0, 0.0, 0.0)
         else:
             bm_reac_id = ""
         
+        # if the last scenario change comes from the previous computation undo it
+        if self.modified_scenario is self.appdata.scenario_past[-1]:
+            self.main_window.undo_scenario_edit()
+            self.modified_scenario = None
+
         self.main_window.setCursor(Qt.BusyCursor)
         try:
             self.appdata.project.solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust = make_scenario_feasible(
                 self.appdata.project.cobra_py_model, self.appdata.project.scen_values, use_QP=self.method_qp.isChecked(),
-                flux_weight_scale=flux_weight_scale, abs_flux_weights=abs_flux_weights, weights_key=weights_key, bm_reac_id=bm_reac_id,
-                variable_constituents=variable_constituents, max_coeff_change=max_coeff_change/100, gam_mets_param=gam_mets_param)
+                flux_weight_scale=flux_weight_scale, abs_flux_weights=abs_flux_weights, weights_key=weights_key,
+                bm_reac_id=bm_reac_id, variable_constituents=variable_constituents, max_coeff_change=max_coeff_change/100,
+                bm_change_in_gram=self.bm_gram.isChecked(), gam_mets_param=gam_mets_param)
             self.main_window.process_fba_solution(update=False)
             if self.appdata.project.solution.status == 'optimal':
                 if len(reactions_in_objective) > 0:
@@ -253,6 +271,7 @@ class FluxFeasibilityDialog(QDialog):
                                 +" --> "+self.appdata.format_flux_value(computed_value)+"\n", before_prompt=True)
                     self.appdata.scen_values_set_multiple(reactions_in_objective,
                                 [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+                    self.modified_scenario = self.appdata.scenario_past[-1]
                     self.main_window.centralWidget().update()
                 if len(bm_mod) > 0:
                     self.bm_constituents.setSortingEnabled(False)
@@ -262,14 +281,14 @@ class FluxFeasibilityDialog(QDialog):
                             mod = bm_mod[met]
                             self.bm_constituents.setItem(i, 4, QTableWidgetItem(coefficient_format.format(mod)))
                             ref = self.bm_reac.metabolites[met]
-                            if self.remove_gam_from_bm.isChecked() and met in gam_mets:
+                            if met in gam_mets:
                                 ref -= copysign(gam_base, ref)
                             self.bm_constituents.setItem(i, 5, QTableWidgetItem(coefficient_format.format(100 * mod/ref)))
                     self.bm_constituents.setSortingEnabled(True)
                     bm_reac_mod = self.bm_reac.copy()
                     bm_reac_mod.add_metabolites(bm_mod)
                     bm_reac_mod.add_metabolites({met: sign*gam_adjust for met, sign in zip(gam_mets, gam_mets_sign)})
-                    self.main_window.centralWidget().console._append_plain_text("Modified biomass reaction:\n"
+                    self.main_window.centralWidget().console._append_plain_text("\nModified biomass reaction:\n"
                             +bm_reac_mod.build_reaction_string(), before_prompt=True)
                 if self.adjust_gam.isChecked():
                     self.gam_adjustment.setText("Calculated GAM adjustment: "+coefficient_format.format(gam_adjust))
