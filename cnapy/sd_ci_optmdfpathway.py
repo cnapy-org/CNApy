@@ -47,6 +47,8 @@ def get_steady_state_lp_from_cobra_model(
     extra_constraint_counter = 0
     for extra_constraint in extra_constraints:
         extra_constraint_lhs: Dict[str, float] = {}
+        has_lb = False
+        has_ub = False
         for key in extra_constraint.keys():
             if key == "lb":
                 has_lb = True

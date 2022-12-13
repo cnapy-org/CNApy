@@ -1816,10 +1816,11 @@ class MainWindow(QMainWindow):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
 
+    @Slot()
     def perform_optmdfpathway(self):
         self.optmdfpathway_dialog = OptmdfpathwayDialog(
             self.appdata, self.centralWidget())
-        self.optmdfpathway_dialog.show()
+        self.optmdfpathway_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)

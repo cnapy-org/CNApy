@@ -1,20 +1,21 @@
 """The CNApy OptMDFpathway dialog"""
 import cobra
+import cobra.util.solver
 import copy
 from numpy import exp
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
+from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QComboBox,
                             QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
-from cnapy.utils import QComplReceivLineEdit
 from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
 from straindesign.names import *
 from cnapy.sd_class_interface import LinearProgram, Solver, Status
 from cnapy.sd_ci_optmdfpathway import create_optmdfpathway_milp, STANDARD_R, STANDARD_T
 from typing import Dict
 from cobra.util.solver import interface_to_str
+from cnapy.core import model_optimization_with_exceptions
 import re
 
 
@@ -104,19 +105,23 @@ class OptmdfpathwayDialog(QDialog):
         editor_layout.addWidget(self.show_combo)
         self.layout.addItem(editor_layout)
 
+        self.at_objective = QCheckBox("Calculate OptMDF at optimized value of current objective")
+        self.at_objective.setChecked(True)
+        self.layout.addWidget(self.at_objective)
+
         l3 = QHBoxLayout()
-        self.button = QPushButton("Compute")
+        self.button_optmdf = QPushButton("Compute")
         self.cancel = QPushButton("Close")
-        l3.addWidget(self.button)
+        l3.addWidget(self.button_optmdf)
         l3.addWidget(self.cancel)
         self.layout.addItem(l3)
         self.setLayout(self.layout)
 
         # Connecting the signal
         self.cancel.clicked.connect(self.reject)
-        self.button.clicked.connect(self.compute)
+        self.button_optmdf.clicked.connect(self.compute_optmdf)
 
-    def compute(self) -> None:
+    def compute_optmdf(self):
         self.setCursor(Qt.BusyCursor)
 
         dG0_values: Dict[str, Dict[str, float]] = {}
@@ -144,11 +149,29 @@ class OptmdfpathwayDialog(QDialog):
                 concentration_values[metabolite.id]["min"] = float(metabolite.annotation["Cmin"])
                 concentration_values[metabolite.id]["max"] = float(metabolite.annotation["Cmax"])
 
-        # optlang_solver_name = interface_to_str(self.appdata.project.cobra_py_model.problem)
-
         with self.appdata.project.cobra_py_model as model:
+            reaction_ids = [x.id for x in model.reactions]
             self.appdata.project.load_scenario_into_model(model)
             solvers = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
+
+            if self.at_objective.isChecked():
+                solution = model_optimization_with_exceptions(model)
+                if solution.status == 'optimal':
+                    extra_constraint = {}
+                    for reaction, coefficient in cobra.util.solver.linear_reaction_coefficients(model).items():
+                        reaction.reversibility
+                        print(reaction.reversibility)
+                        pass
+                    extra_constraint["lb"] = solution.objective_value
+                else:
+                    QMessageBox.warning(self, solution.status,
+                                        f"No objective solution exists, the problem status is."
+                                        "Try the objective optimization with FBA alone for finding the problem, "
+                                        "or try a different objective.")
+                    return
+            else:
+                extra_constraint = {}
+
             if solvers is not None:
                 solver_str = solvers[0]
             if solver_str == "cplex":
@@ -164,7 +187,7 @@ class OptmdfpathwayDialog(QDialog):
                 cobra_model=make_model_irreversible(cobra_model=model, forward_id=self.FWDID, reverse_id=self.REVID),
                 dG0_values=dG0_values,
                 concentration_values=concentration_values,
-                extra_constraints=[],
+                extra_constraints=[extra_constraint],
                 ratio_constraints=[],
                 R=R,
                 T=T,
@@ -220,7 +243,6 @@ class OptmdfpathwayDialog(QDialog):
         for metabolite_id in self.metabolite_ids:
             var_id = f"x_{metabolite_id}"
             if var_id in solution.keys():
-                print(var_id, solution[var_id])
                 self.appdata.project.conc_values[var_id[2:]] = exp(solution[var_id])
 
         # Show selected reaction-dependent values
