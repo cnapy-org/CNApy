@@ -62,6 +62,11 @@ class AnnotationWidget(QVBoxLayout):
                 value = ""
             else:
                 value = self.annotation.item(i, 1).text()
+                if value.startswith("["):
+                    try:
+                        value = ast.literal_eval(value)
+                    except: # if parsing as list does not work keep the raw text
+                        pass
 
             model_element.annotation[key] = value
 
@@ -98,14 +103,12 @@ class AnnotationWidget(QVBoxLayout):
         self.annotation.itemChanged.disconnect(
             self.parent.throttler.throttle
         )
-        c = self.annotation.rowCount()
-        for i in range(0, c):
-            self.annotation.removeRow(0)
+        self.annotation.setRowCount(len(annotation))
+        self.annotation.clearContents()
         i = 0
-        for key in annotation:
-            self.annotation.insertRow(i)
+        for key, anno in annotation.items():
             keyl = QTableWidgetItem(key)
-            iteml = QTableWidgetItem(str(annotation[key]))
+            iteml = QTableWidgetItem(str(anno))
             self.annotation.setItem(i, 0, keyl)
             self.annotation.setItem(i, 1, iteml)
             i += 1
