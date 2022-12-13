@@ -27,6 +27,7 @@ class ReactionListColumn(IntEnum):
     Flux = 3
     LB = 4
     UB = 5
+    DF = 6
 
 class DragableTreeWidget(QTreeWidget):
     '''A list of dragable reaction items'''
@@ -154,6 +155,8 @@ class ReactionList(QWidget):
             self.emit_jump_to_metabolite)
 
         self.add_button.clicked.connect(self.add_new_reaction)
+        self.reaction_list.setColumnHidden(ReactionListColumn.DF, True)
+        self.visible_column[ReactionListColumn.DF] = False
 
     def clear(self):
         self.reaction_list.clear()
@@ -192,6 +195,8 @@ class ReactionList(QWidget):
             scen_text = ""
         item.setBackground(ReactionListColumn.Scenario, scen_background_color)
         item.setText(ReactionListColumn.Scenario, scen_text)
+        if item.reaction.id in self.appdata.project.df_values.keys():
+            item.setText(ReactionListColumn.DF, str(self.appdata.project.df_values[item.reaction.id]))
 
     def set_flux_value(self, item: ReactionListItem):
         key = item.reaction.id
@@ -378,6 +383,10 @@ class ReactionList(QWidget):
         )
 
     def update(self, rebuild=False):
+        if len(self.appdata.project.df_values.keys()) > 0:
+            self.reaction_list.setColumnHidden(ReactionListColumn.DF, False)
+            self.visible_column[ReactionListColumn.DF] = True
+
         # should only need to rebuild the whole list if the model changes
         self.reaction_list.itemChanged.disconnect(self.handle_item_changed)
         self.reaction_list.setSortingEnabled(False) # keep row order stable so that each item is updated

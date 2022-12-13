@@ -1050,6 +1050,8 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         self.appdata.project.comp_values_type = 0
         self.appdata.project.fva_values.clear()
+        self.appdata.project.conc_values.clear()
+        self.appdata.project.df_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()

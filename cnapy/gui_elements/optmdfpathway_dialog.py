@@ -4,7 +4,7 @@ import cobra.util.solver
 import copy
 from numpy import exp
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QComboBox,
+from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel,
                             QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.appdata import AppData
@@ -95,15 +95,12 @@ class OptmdfpathwayDialog(QDialog):
         self.layout = QVBoxLayout()
         l = QLabel(
             "Perform OptMDFpathway. dG'° values and metabolite concentration "
-            "ranges have to be given in relevant annotations.\nWhat shall be shown afterwards?"
+            "ranges have to be given in relevant annotations."
         )
         self.layout.addWidget(l)
-        editor_layout = QHBoxLayout()
-        self.show_combo = QComboBox()
-        self.show_combo.insertItems(0, ['fluxes', 'driving forces'])
-        self.show_combo.setMinimumWidth(120)
-        editor_layout.addWidget(self.show_combo)
-        self.layout.addItem(editor_layout)
+
+        # editor_layout = QHBoxLayout()
+        # self.layout.addItem(editor_layout)
 
         self.at_objective = QCheckBox("Calculate OptMDF at optimized value of current objective")
         self.at_objective.setChecked(True)
@@ -159,9 +156,11 @@ class OptmdfpathwayDialog(QDialog):
                 if solution.status == 'optimal':
                     extra_constraint = {}
                     for reaction, coefficient in cobra.util.solver.linear_reaction_coefficients(model).items():
-                        reaction.reversibility
-                        print(reaction.reversibility)
-                        pass
+                        if reaction.reversibility:
+                            extra_constraint[reaction.id+self.FWDID] = coefficient
+                            extra_constraint[reaction.id+self.REVID] = -coefficient
+                        else:
+                            extra_constraint[reaction.id] = coefficient
                     extra_constraint["lb"] = solution.objective_value
                 else:
                     QMessageBox.warning(self, solution.status,
@@ -230,14 +229,12 @@ class OptmdfpathwayDialog(QDialog):
             combined_solution[key] += multiplier * solution[var_id]
 
         # write results into comp_values
-        for r in self.reac_ids:
-            if self.show_combo.currentText() == "fluxes":
-                search_key = r
-            elif self.show_combo.currentText() == "driving forces":
-                search_key = "f_var_"+r
-            if r in combined_solution.keys():
-                self.appdata.project.comp_values[r] = (
-                    float(combined_solution[r]), float(combined_solution[r]))
+        for search_key in self.reac_ids:
+            if search_key in combined_solution.keys():
+                self.appdata.project.comp_values[search_key] = (
+                    float(combined_solution[search_key]), float(combined_solution[search_key]))
+            if "f_var_"+search_key in combined_solution.keys():
+                self.appdata.project.df_values[search_key] = combined_solution["f_var_"+search_key]
 
         # Write metabolite concentrations
         for metabolite_id in self.metabolite_ids:
