@@ -6,7 +6,7 @@ from typing_extensions import Annotated
 import cobra
 import copy
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint
-from qtpy.QtGui import QColor, QDrag, QIcon
+from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidget, QTableWidgetItem, QTreeWidget,
@@ -101,7 +101,7 @@ class ReactionList(QWidget):
         policy.ShrinkFlag = True
         self.add_button.setSizePolicy(policy)
 
-        self.reaction_list = DragableTreeWidget()
+        self.reaction_list: DragableTreeWidget = DragableTreeWidget()
         self.reaction_list.setDragEnabled(True)
         self.reaction_list.setColumnCount(len(ReactionListColumn))
         self.reaction_list.setRootIsDecorated(False)
@@ -488,7 +488,25 @@ class ReactionList(QWidget):
             action.setChecked(self.visible_column[col_idx])
             action.setData(col_idx)
             action.triggered.connect(self.set_column_visibility_action)
+        menu.addSeparator()
+        action = menu.addAction("Copy table to system clipboard")
+        action.triggered.connect(self.copy_to_clipboard)
         menu.exec_(self.reaction_list.header().mapToGlobal(position))
+
+    @Slot()
+    def copy_to_clipboard(self):
+        clipboard = QGuiApplication.clipboard()
+        visible_columns = [j.value for j in ReactionListColumn if not self.reaction_list.isColumnHidden(j)]
+        table = ["\t".join([ReactionListColumn(j).name for j in visible_columns])]
+        root = self.reaction_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            line = []
+            for j in visible_columns:
+                line.append(item.text(j))
+            table.append("\t".join(line))
+        clipboard.setText("\r".join(table))
 
     itemActivated = Signal(str)
     reactionChanged = Signal(str, cobra.Reaction)
