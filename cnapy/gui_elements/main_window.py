@@ -1256,6 +1256,7 @@ class MainWindow(QMainWindow):
             self.sd_dialog = None
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
+            self.make_scenario_feasible_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -1522,7 +1523,11 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def make_scenario_feasible(self):
-        self.make_scenario_feasible_dialog = FluxFeasibilityDialog(self)
+        if self.make_scenario_feasible_dialog is None:
+            self.make_scenario_feasible_dialog = FluxFeasibilityDialog(self)
+        else:
+            self.make_scenario_feasible_dialog.modified_scenario = None
+            self.make_scenario_feasible_dialog.bm_reac_id_select.set_wordlist(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
         self.make_scenario_feasible_dialog.show()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar

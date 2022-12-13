@@ -1,12 +1,12 @@
 """UI independent computations"""
 
 import itertools
+from collections import defaultdict
 from typing import Dict, Tuple, List
 import gurobipy
 import numpy
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
-from cobra.core.formula import Formula
 from optlang.symbolics import Zero, Add
 from qtpy.QtWidgets import QMessageBox
 
@@ -70,7 +70,7 @@ class QPnotSupportedException(Exception):
 def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], use_QP: bool = False,
                               flux_weight_scale: float = 1.0, abs_flux_weights: bool = False, weights_key: str = None,
                               bm_reac_id: str = "", variable_constituents: List[cobra.Metabolite] = None,
-                              max_coeff_change: float = 0.9, min_rel_changes: bool = True,
+                              max_coeff_change: float = 0.9, min_rel_changes: bool = True, bm_change_in_gram: bool = False,
                               gam_mets_param: Tuple[List[cobra.Metabolite], float, float, float] = ([], 0.0, 0.0, 0.0)):
     # if flux_weight_scale == 0 only biomass equation is adjusted
     # if bm_reac_id == "" only fluxes will be adjusted
@@ -99,8 +99,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     else:
                         if isinstance(weights_key, str):
                             try:
-                                weight = float(reaction.annotation.get(
-                                    weights_key, flux_weight_scale))
+                                weight = float(reaction.annotation.get(weights_key, flux_weight_scale))
                             except ValueError:
                                 weight = 0
                             if weight <= 0:
@@ -113,12 +112,9 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     if use_QP:
                         qp_terms.append(((reaction.flux_expression - scen_val[0])**2)/weight)
                     else:
-                        pos_slack = model.problem.Variable(
-                            reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
-                        neg_slack = model.problem.Variable(
-                            reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
-                        elastic_constr = model.problem.Constraint(
-                            Zero, lb=scen_val[0], ub=scen_val[0])
+                        pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
+                        neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
+                        elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
                         model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
                         elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
                                                                 pos_slack: 1.0, neg_slack: -1.0})
@@ -133,10 +129,10 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
             bm_reaction: cobra.Reaction = cobra_model.reactions.get_by_id(bm_reac_id)
             gam_mets, gam_max_change, gam_weight, gam_base = gam_mets_param
             if variable_constituents is None:
-                bm_coeff_var = [(met, Formula(met.formula), coeff) for met,coeff in bm_reaction.metabolites.items()]
-                bm_coeff_var = [[m,f.weight,c,None] for m,f,c in bm_coeff_var if c < 0 and f.weight > 0 and f.elements.get('C', 0) > 0 and f.elements.get('P', 0) == 0]
+                bm_coeff_var = [(met, met.elements, coeff) for met,coeff in bm_reaction.metabolites.items()]
+                bm_coeff_var = [[m, m.formula_weight, c,None] for m,f,c in bm_coeff_var if c < 0 and m.formula_weight > 0 and f.get('C', 0) > 0 and f.get('P', 0) == 0]
             else:
-                bm_coeff_var = [[met, Formula(met.formula).weight, bm_reaction.metabolites[met], None] for met in variable_constituents]
+                bm_coeff_var = [[met, met.formula_weight, bm_reaction.metabolites[met], None] for met in variable_constituents]
             if flux_weight_scale == 0: # otherwise they have already been integrated above
                 for reac_id in scen_values:
                     try:
@@ -150,12 +146,15 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
             mass_const = model.problem.Constraint(0, lb=0, ub=0)
             model.add_cons_vars([mass_const])
 
-            for i in range(len(bm_coeff_var)):
+            i = 0
+            while i < len(bm_coeff_var):
                 met, mol_weigt, coeff, _ = bm_coeff_var[i]
                 if met in gam_mets and gam_base > 0:
                     coeff = coeff - numpy.sign(coeff)*gam_base
+                    if coeff == 0: # can e.g. occur when ATP is only used for GAM
+                        del bm_coeff_var[i]
+                        continue
                     bm_coeff_var[i][2] = coeff
-                    print(bm_coeff_var[i])
                 if use_QP:
                     slack = model.problem.Variable(met.id+"_slack", lb=-abs(coeff)*max_coeff_change, ub=abs(coeff)*max_coeff_change)
                     bm_coeff_var[i][3] = slack
@@ -170,6 +169,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     model.add_cons_vars(slacks)
                     met.constraint.set_linear_coefficients({pos_slack: mue_fixed, neg_slack: -mue_fixed})
                     mass_const.set_linear_coefficients({pos_slack: mol_weigt, neg_slack: -mol_weigt})
+                i += 1
 
             if len(gam_mets) > 0:
                 gam_mets_sign = [0] * len(gam_mets)
@@ -196,14 +196,22 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
 
             if use_QP:
                 if min_rel_changes:
-                    qp_terms += [(s/abs(c))**2 for _,_,c,s in bm_coeff_var]
+                    qp_terms += [(s/abs(c)*(w if bm_change_in_gram else 1))**2 for _,w,c,s in bm_coeff_var]
                 else:
-                    qp_terms += [s**2 for _,_,_,s in bm_coeff_var]
+                    qp_terms += [(s*(w if bm_change_in_gram else 1))**2 for _,w,_,s in bm_coeff_var]
             else:
                 if min_rel_changes:
-                    model.objective.set_linear_coefficients({s: abs(1/c) for (s,c) in itertools.chain(*(((s_p,c),(s_n,c)) for _,_,c,(s_p,s_n) in bm_coeff_var))})
+                    if bm_change_in_gram: # change in [g] relative
+                        model.objective.set_linear_coefficients({s: abs(1/c)*w for (s,c,w) in
+                            itertools.chain(*(((s_p,c,w),(s_n,c,w)) for _,w,c,(s_p,s_n) in bm_coeff_var))})
+                    else: # change in [mmol] relative
+                        model.objective.set_linear_coefficients({s: abs(1/c) for (s,c) in itertools.chain(*(((s_p,c),(s_n,c)) for _,_,c,(s_p,s_n) in bm_coeff_var))})
                 else:
-                    model.objective.set_linear_coefficients({s: 1 for s in itertools.chain(*((s_p,s_n) for _,_,_,(s_p,s_n) in bm_coeff_var))})
+                    if bm_change_in_gram: # change in [gram] absolute
+                        model.objective.set_linear_coefficients({s: c*w for (s,c,w) in
+                            itertools.chain(*(((s_p,c,w),(s_n,c,w)) for _,w,c,(s_p,s_n) in bm_coeff_var))})
+                    else: # change in [mmol] absolute
+                        model.objective.set_linear_coefficients({s: 1 for s in itertools.chain(*((s_p,s_n) for _,_,_,(s_p,s_n) in bm_coeff_var))})
 
         if use_QP:
             try:
@@ -238,7 +246,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     for met, sign in zip(gam_mets, gam_mets_sign):
                         gam_adjust = gam_max_change * \
                             (model.solver.variables["gam_slack_pos"].primal - model.solver.variables["gam_slack_neg"].primal)
-            if gam_mets_param is not None:
+            if len(gam_mets) > 0:
                 if use_QP:
                     print("gam_slack", model.solver.variables["gam_slack"].primal)
                 else:
@@ -262,8 +270,8 @@ def element_exchange_balance(model: cobra.Model, scen_values: Dict[str, Tuple[fl
         if rxn.boundary:
             reaction_fluxes.append((rxn, flux))
 
-    influx = dict()
-    efflux = dict()
+    influx = defaultdict(int)
+    efflux = defaultdict(int)
     organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
     for rxn, flux in reaction_fluxes:
         for met, coeff in rxn.metabolites.items():
@@ -276,7 +284,7 @@ def element_exchange_balance(model: cobra.Model, scen_values: Dict[str, Tuple[fl
                 continue
             for el, count in met.elements.items():
                 if not organic_elements_only or el in organic_elements:
-                    flux_dict[el] = flux_dict.get(el, 0) + count * val
+                    flux_dict[el] += count * val
 
     elements = set(influx.keys()).union(efflux.keys())
     def print_in_out_balance():
@@ -289,6 +297,7 @@ def element_exchange_balance(model: cobra.Model, scen_values: Dict[str, Tuple[fl
             elements.remove(el)
     for el in elements:
         print_in_out_balance()
+    return influx, efflux
 
 # TODO: should not be in the core module
 def model_optimization_with_exceptions(model: cobra.Model):
