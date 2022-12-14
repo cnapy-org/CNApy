@@ -53,6 +53,7 @@ class ReactionListItem(QTreeWidgetItem):
         self.flux_sort_val = -float('inf')
         self.lb_val = -float('inf')
         self.ub_val = float('inf')
+        self.df_val = -float("inf")
         self.pin_at_top = False
 
     def set_flux_data(self, text, value):
@@ -413,6 +414,7 @@ class ReactionList(QWidget):
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
+        self.reaction_list.resizeColumnToContents(ReactionListColumn.DF)
 
     def set_current_item(self, key: str):
         self.last_selected = key
