@@ -384,7 +384,7 @@ class MainWindow(QMainWindow):
         self.analysis_menu.addSeparator()
 
 
-        optmdf_action = QAction("Perform OptMDFpathway...", self)
+        optmdf_action = QAction("OptMDFpathway...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.analysis_menu.addAction(optmdf_action)
 
