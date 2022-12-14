@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QRadioButton, QTableWidget, QVBoxLayout, QSplitter,
                             QWidget, QFileDialog, QTextEdit, QLayout, QScrollArea)
 from cnapy.appdata import AppData
+from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from cnapy.utils import QTableCopyable, QComplReceivLineEdit, QTableItem
 import logging
 
@@ -316,70 +317,12 @@ class SDDialog(QDialog):
         params_layout.addWidget(checkboxes)
 
         ## Solver and solving options
-        # find available solvers
-        avail_solvers = []
-        if module_exists('cplex'):
-            avail_solvers += [CPLEX]
-        if module_exists('gurobipy'):
-            avail_solvers += [GUROBI]
-        if module_exists('swiglpk'):
-            avail_solvers += [GLPK]
-        if module_exists('pyscipopt'):
-            avail_solvers += [SCIP]
-
         solver_and_solution_group = QGroupBox("Solver and solution approach")
         solver_and_solution_group.setObjectName("Solver_and_solution")
         solver_and_solution_layout = QHBoxLayout()
 
-        solver_buttons_layout = QVBoxLayout()
-        self.solver_buttons = {}
-        self.solver_buttons["group"] = QButtonGroup()
-        # CPLEX
-        self.solver_buttons[CPLEX] = QRadioButton("IBM CPLEX")
-        self.solver_buttons[CPLEX].setProperty('name',CPLEX)
-        if CPLEX not in avail_solvers:
-            self.solver_buttons[CPLEX].setEnabled(False)
-            self.solver_buttons[CPLEX].setToolTip('CPLEX is not set up with your python environment. '+\
-                'Install CPLEX and follow the steps of the python setup \n'+\
-                r'(https://www.ibm.com/docs/en/icos/22.1.0?topic=cplex-setting-up-python-api)')
-        solver_buttons_layout.addWidget(self.solver_buttons[CPLEX])
-        self.solver_buttons["group"].addButton(self.solver_buttons[CPLEX])
-        # Gurobi
-        self.solver_buttons[GUROBI] = QRadioButton("Gurobi")
-        self.solver_buttons[GUROBI].setProperty('name',GUROBI)
-        if GUROBI not in avail_solvers:
-            self.solver_buttons[GUROBI].setEnabled(False)
-            self.solver_buttons[GUROBI].setToolTip('Gurobi is not set up with your python environment. '+\
-            'Install Gurobi and follow the steps of the python setup (preferably option 3) \n'+\
-            r'(https://support.gurobi.com/hc/en-us/articles/360044290292-How-do-I-install-Gurobi-for-Python-)')
-        solver_buttons_layout.addWidget(self.solver_buttons[GUROBI])
-        self.solver_buttons["group"].addButton(self.solver_buttons[GUROBI])
-        # GLPK
-        self.solver_buttons[GLPK] = QRadioButton("GLPK")
-        self.solver_buttons[GLPK].setProperty('name',GLPK)
-        if GLPK not in avail_solvers:
-            self.solver_buttons[GLPK].setEnabled(False)
-            self.solver_buttons[GLPK].setToolTip('GLPK is not set up with your python environment. '+\
-            'GLPK should have been installed together with the COBRA toolbox. \n'\
-            'Reinstall the COBRA toolbox for your Python environment.')
-        solver_buttons_layout.addWidget(self.solver_buttons[GLPK])
-        self.solver_buttons["group"].addButton(self.solver_buttons[GLPK])
-        # SCIP
-        self.solver_buttons[SCIP] = QRadioButton("SCIP")
-        self.solver_buttons[SCIP].setProperty('name',SCIP)
-        if SCIP not in avail_solvers:
-            self.solver_buttons[SCIP].setEnabled(False)
-            self.solver_buttons[SCIP].setToolTip('SCIP is not set up with your python environment. '+\
-            'Install SCIP following the steps of the PySCIPOpt manual \n'+\
-            r'(https://github.com/scipopt/PySCIPOpt')
-        solver_buttons_layout.addWidget(self.solver_buttons[SCIP])
-        self.solver_buttons["group"].addButton(self.solver_buttons[SCIP])
-        self.solver_buttons["group"].buttonClicked.connect(self.configure_solver_options)
+        solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
         solver_and_solution_layout.addItem(solver_buttons_layout)
-        # check best available solver
-        if avail_solvers:
-            solver = select_solver(GLPK,self.appdata.project.cobra_py_model)
-            self.solver_buttons[solver].setChecked(True)
 
         solution_buttons_layout = QVBoxLayout()
         self.solution_buttons = {}
