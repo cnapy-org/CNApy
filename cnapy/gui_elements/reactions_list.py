@@ -83,6 +83,8 @@ class ReactionListItem(QTreeWidgetItem):
             return self.lb_val < other.lb_val
         elif column == ReactionListColumn.UB:
             return self.ub_val < other.ub_val
+        elif column == ReactionListColumn.DF:
+            return self.df_val < other.df_val
         else:  # use Qt default comparison for the other columns
 #            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
             return self.text(column) < other.text(column)
@@ -198,6 +200,7 @@ class ReactionList(QWidget):
         item.setText(ReactionListColumn.Scenario, scen_text)
         if item.reaction.id in self.appdata.project.df_values.keys():
             item.setText(ReactionListColumn.DF, str(self.appdata.project.df_values[item.reaction.id]))
+            item.df_val = self.appdata.project.df_values[item.reaction.id]
 
     def set_flux_value(self, item: ReactionListItem):
         key = item.reaction.id
