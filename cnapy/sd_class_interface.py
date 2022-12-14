@@ -69,7 +69,7 @@ class Solver(Enum):
 
     CPLEX = "cplex"
     """The IBM CPLEX (c) solver."""
-    GLPK = "GLPK"
+    GLPK = "glpk"
     """The open-source GNU Linear Programming kit."""
     GUROBI = "gurobi"
     """The Gurobi (c) solver."""

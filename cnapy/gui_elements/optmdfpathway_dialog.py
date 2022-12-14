@@ -5,18 +5,20 @@ import copy
 from numpy import exp
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel,
-                            QMessageBox, QPushButton, QVBoxLayout)
+                            QMessageBox, QPushButton, QVBoxLayout, QGroupBox)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
-from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
+from straindesign import avail_solvers
 from straindesign.names import *
-from cnapy.sd_class_interface import LinearProgram, Solver, Status
+from cnapy.sd_class_interface import LinearProgram, Solver, Status, ObjectiveDirection
 from cnapy.sd_ci_optmdfpathway import create_optmdfpathway_milp, STANDARD_R, STANDARD_T
 from typing import Dict
 from cobra.util.solver import interface_to_str
 from cnapy.core import model_optimization_with_exceptions
 import re
+from cnapy.gui_elements.solver_buttons import get_solver_buttons
+from straindesign.names import CPLEX, GLPK, GUROBI, SCIP
 
 
 def make_model_irreversible(cobra_model: cobra.Model,
@@ -99,12 +101,14 @@ class OptmdfpathwayDialog(QDialog):
         )
         self.layout.addWidget(l)
 
-        # editor_layout = QHBoxLayout()
-        # self.layout.addItem(editor_layout)
-
         self.at_objective = QCheckBox("Calculate OptMDF at optimized value of current objective")
         self.at_objective.setChecked(True)
         self.layout.addWidget(self.at_objective)
+
+        solver_group = QGroupBox("Solver:")
+        solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
+        solver_group.setLayout(solver_buttons_layout)
+        self.layout.addWidget(solver_group)
 
         l3 = QHBoxLayout()
         self.button_optmdf = QPushButton("Compute")
@@ -137,6 +141,8 @@ class OptmdfpathwayDialog(QDialog):
                     dG0_values[reaction.id+self.REVID]["uncertainty"] = float(reaction.annotation["dG0_uncertainty"])
                 else:
                     dG0_values[reaction.id]["uncertainty"] = 0.0
+                    dG0_values[reaction.id+self.FWDID]["uncertainty"] = 0.0
+                    dG0_values[reaction.id+self.REVID]["uncertainty"] = 0.0
 
         concentration_values: Dict[str, Dict[str, float]] = {}
         for metabolite in self.appdata.project.cobra_py_model.metabolites:
@@ -149,7 +155,6 @@ class OptmdfpathwayDialog(QDialog):
         with self.appdata.project.cobra_py_model as model:
             reaction_ids = [x.id for x in model.reactions]
             self.appdata.project.load_scenario_into_model(model)
-            solvers = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
 
             if self.at_objective.isChecked():
                 solution = model_optimization_with_exceptions(model)
@@ -171,25 +176,30 @@ class OptmdfpathwayDialog(QDialog):
             else:
                 extra_constraint = {}
 
-            if solvers is not None:
-                solver_str = solvers[0]
-            if solver_str == "cplex":
+            solver_name = self.solver_buttons["group"].checkedButton().property('name')
+            if solver_name == CPLEX:
                 solver = Solver.CPLEX
-            elif solver_str == "gurobi":
+            elif solver_name == GUROBI:
                 solver = Solver.GUROBI
-            else:
+            elif solver_name == SCIP:
+                solver = Solver.SCIP
+            elif solver_name == GLPK:
                 solver = Solver.GLPK
 
             R = STANDARD_R
             T = STANDARD_T
             optmdfpathway_lp = create_optmdfpathway_milp(
-                cobra_model=make_model_irreversible(cobra_model=model, forward_id=self.FWDID, reverse_id=self.REVID),
+                cobra_model=model,
                 dG0_values=dG0_values,
                 concentration_values=concentration_values,
                 extra_constraints=[extra_constraint],
                 ratio_constraints=[],
                 R=R,
                 T=T,
+            )
+            optmdfpathway_lp.set_objective(
+                {"var_B": 1},
+                direction=ObjectiveDirection.MAX,
             )
             optmdfpathway_lp.construct_solver_object(
                 solver=solver,

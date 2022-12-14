@@ -210,6 +210,38 @@ def create_optmdfpathway_milp(
         z_varname = f"z_var_{reaction.id}"
         lp.add_binary_variable(name=z_varname)
 
+        """
+        ALTERNATIVE BIG M FORMULATION:
+        z_zero_constraint_lhs = {
+            reaction.id: 1.0,
+            z_varname: -M,
+        }
+        z_zero_constraint_rhs = 0.0
+        lp.add_constraint(
+            name=f"z_zero_{reaction.id}",
+            lhs=z_zero_constraint_lhs,
+            sense=ConstraintSense.LEQ,
+            rhs=z_zero_constraint_rhs,
+        )
+
+        # z_r = 1 -> f_r >= B == f_r - B >= 0
+        # In Big M form: f_r + (1-z_i)*M >= B
+        # z_one_constraint: pulp.LpConstraint = 0.0
+        # z_one_constraint = var_B <= current_f_variable + (1-current_z_variable)*M
+        z_one_constraint_lhs = {
+            f_varname: 1.0,
+            z_varname: -M,
+            var_B.name: -1.0,
+        }
+        z_one_constraint_rhs = -M
+        lp.add_constraint(
+            name=f"z_one_{reaction.id}",
+            lhs=z_one_constraint_lhs,
+            sense=ConstraintSense.GEQ,
+            rhs=z_one_constraint_rhs,
+        )
+        """
+
         indicator_0_lhs = {
             reaction.id: 1,
         }
