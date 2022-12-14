@@ -17,7 +17,7 @@ from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
-from cnapy.gui_elements.objective_tab import ObjectiveTab
+from cnapy.gui_elements.scenario_tab import ScenarioTab
 from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
 from cnapy.utils import SignalThrottler
 
@@ -54,13 +54,13 @@ class CentralWidget(QWidget):
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self)
         self.metabolite_list = MetaboliteList(self.appdata)
-        self.objective_tab = ObjectiveTab(self.appdata)
+        self.scenario_tab = ScenarioTab(self.appdata)
         self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
         self.tabs.addTab(self.gene_list, "Genes")
-        self.tabs.addTab(self.objective_tab, "Objective")
+        self.tabs.addTab(self.scenario_tab, "Scenario")
         self.tabs.addTab(self.model_info, "Model")
 
         self.map_tabs = QTabWidget()
@@ -133,8 +133,8 @@ class CentralWidget(QWidget):
         self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
         self.gene_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
-        self.objective_tab.globalObjectiveChanged.connect(self.handle_changed_global_objective)
-        self.objective_tab.objectiveSetupChanged.connect(self.handle_changed_objective_setup)
+        self.model_info.globalObjectiveChanged.connect(self.handle_changed_global_objective)
+        self.scenario_tab.objectiveSetupChanged.connect(self.handle_changed_objective_setup)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
@@ -248,7 +248,7 @@ class CentralWidget(QWidget):
         elif idx == ModelTabIndex.Genes:
             self.gene_list.update()
         elif idx == ModelTabIndex.Objective:
-            self.objective_tab.update()
+            self.scenario_tab.update()
         elif idx == ModelTabIndex.Model:
             self.model_info.update()
 
@@ -457,7 +457,7 @@ class CentralWidget(QWidget):
         elif idx == ModelTabIndex.Genes or rebuild:
             self.gene_list.update()
         elif idx == ModelTabIndex.Objective or rebuild:
-            self.objective_tab.update()
+            self.scenario_tab.update()
         elif idx == ModelTabIndex.Model or rebuild:
             self.model_info.update()
 
