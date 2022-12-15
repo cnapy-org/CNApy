@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from enum import Enum
 from os import cpu_count
 from numpy import array_split, linspace
+
 # import ray
 from scipy import sparse
 from typing import Any, Callable, Dict, List, Tuple, Union
+
 # from helper import json_write, json_load
 
 # Internal packages
@@ -582,7 +584,6 @@ class LinearProgram:
             skip_checks=skip_checks,
             tlim=timelimit,
         )
-
 
     def delete_binary_variable(self, name: str) -> None:
         del self.binary_variables[name]

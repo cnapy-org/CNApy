@@ -3,7 +3,13 @@
 import cobra
 
 # Internal packages
-from cnapy.sd_class_interface import BinaryValue, ConstraintSense, IndicatorConstraint, FloatVariable, LinearProgram
+from cnapy.sd_class_interface import (
+    BinaryValue,
+    ConstraintSense,
+    IndicatorConstraint,
+    FloatVariable,
+    LinearProgram,
+)
 from numpy import log
 from typing import Any, List, Dict
 
@@ -185,8 +191,8 @@ def create_optmdfpathway_milp(
         dG0_uncertainty = abs(dG0_values[reaction.id]["uncertainty"])
         dG0_var = FloatVariable(
             name=f"dG0_{reaction.id}",
-            lb=dG0_value-dG0_uncertainty,
-            ub=dG0_value+dG0_uncertainty,
+            lb=dG0_value - dG0_uncertainty,
+            ub=dG0_value + dG0_uncertainty,
         )
         lp.add_existing_float_variable(dG0_var)
 

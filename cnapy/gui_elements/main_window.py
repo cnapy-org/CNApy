@@ -1930,7 +1930,7 @@ class MainWindow(QMainWindow):
             if cmin_in_cell is not None:
                 try:
                     cmin = float(cmin_in_cell)
-                except TypeError:
+                except ValueError:
                     warnings += f"WARNING: Cmin of {metabolite_id} could not be read as number. "\
                                 "This metabolite will be ignored.\n"
                     continue
@@ -1942,7 +1942,7 @@ class MainWindow(QMainWindow):
             if cmax_in_cell is not None:
                 try:
                     cmax = float(cmax_in_cell)
-                except TypeError:
+                except ValueError:
                     warnings += f"WARNING: Cmin of {metabolite_id} could not be read as number. "\
                                 "This metabolite will be ignored.\n"
                     continue
@@ -1990,7 +1990,7 @@ class MainWindow(QMainWindow):
             if dG0_in_cell is not None:
                 try:
                     dG0 = float(dG0_in_cell)
-                except TypeError:
+                except ValueError:
                     warnings += f"WARNING: dG'° of {reac_id} could not be read as number. "\
                                 "It will be ignored.\n"
                     continue
@@ -2001,7 +2001,7 @@ class MainWindow(QMainWindow):
                 if uncertainty_in_cell is not None:
                     try:
                         uncertainty = float(uncertainty_in_cell)
-                    except TypeError:
+                    except ValueError:
                         warnings += f"WARNING: Uncertainty of {reac_id} could not be read"\
                                     "as number. It will be ignored.\n"
                         continue
