@@ -252,13 +252,43 @@ class LinearProgram:
     Both can be defined using FloatVariable and BinaryVariable instance names for their left-hand side and a float for their
     right-hand side. The difference is that an indicator constraint is only active (i.e., it only plays a role) if and only
     if a selected binary value is one of 0 or 1. E.g., the indicator constraint T=0 → A <= 1 means that A must be smaller than
-    1 only and only if the binary variable T is zero.
+    1 only and only if the binary variable T is zero. The binary value must be an instance of
+    BinaryValue.
 
-    Normal constraints are of the class Constraint, indicator constraint of IndicatorConstraint.
+    Normal constraints are of the class Constraint, indicator constraints of IndicatorConstraint.
+
+    Constraints can be added as already created constraints through add_existing_constraint()
+    or add_existing_indicator_constraint() or, wihh all Constraint or IndicatorConstraint member
+    variables as parameters, add_constraint() or add_indicator_constraint().
 
     # Objective
 
+    The objective indicates which linear expression shall be maximized or minimized. In
+    a LinearProgram instance, objective are instances of Objective.
+
+    Objectives for linear expressions need a "vector", i.e. a dictionary which
+    describes the linear expression and a direction from ObjectiveDirection,
+    i.e. whether the linear expression is to be maximized or minimized.
+    Linear expression objectives for a LinearProgram can be set through
+    set_objective() or set_existing_objective().
+
+    There is also an additional function for the maximization or minimization
+    of a single variable called set_single_variable_objective().
+
     # Solving a LinearProgram
+
+    After all variables, constraints and the objective are set, the LinearProgram
+    can be solved. Before this can be one, a LinearProgram solver object must be
+    created through the function construct_solver_object(). This function needsd
+    an instance of Solver as parameter. StrainDesigncurrently supports the open-source
+    solvers GLPK and SCIP (of which only the latter supports indicator constraints
+    so that they are automatically converted into numerically more unstable Big-M
+    formulations) as well as the commercial solvers IBM CPLEX and Gurobi.
+
+    After this solver object is constructed, one can either run_slim_solve() (which
+    only returns the objective value) or run_solve() which results a full Result
+    instance. Additionally, with CPLEX, one can also run_populate() for many
+    alternative solutions.
     """
 
     def __init__(self) -> None:
@@ -267,6 +297,8 @@ class LinearProgram:
         self.constraints: Dict[str, Constraint] = {}
         self.indicator_constraints: Dict[str, IndicatorConstraint] = {}
         self.timelimit: int = 30
+        self.ineq_names: List[str] = []
+        self.active_variables: List[str] = []
         self.objective: Objective = Objective(
             vector={},
             direction=ObjectiveDirection.MAX,
@@ -435,6 +467,27 @@ class LinearProgram:
             )
             current_approx += 1
 
+    def replace_ineq_constraint_in_solver_object(
+        self, ineq_name: str, lhs: Dict[str, float], sense: ConstraintSense, rhs: float
+    ) -> None:
+        index = self.ineq_names.index(ineq_name)
+        constraint = self.constraints[ineq_name]
+        if sense == ConstraintSense.GEQ:
+            multiplier = -1.0
+        else:
+            multiplier = 1.0
+        a_ineq = [0.0 for _ in range(self.num_variables)]
+        for var_name, coeff in lhs.items():
+            column = self.active_variables.index(var_name)
+            a_ineq[column] = coeff * multiplier
+
+        b_ineq = rhs
+        self._milp_lp.set_ineq_constraint(
+            idx=index,
+            a_ineq=a_ineq,
+            b_ineq=b_ineq,
+        )
+
     def construct_solver_object(
         self,
         big_m_value: Union[None, float, int] = None,
@@ -443,28 +496,27 @@ class LinearProgram:
         solver: Solver = Solver.GLPK,
     ) -> None:
         # Pre-creation of data structures which will be used in the following steps
-        active_variables: List[str] = []
+        self.active_variables = []
         eq_names: List[str] = []
-        ineq_names: List[str] = []
+        self.ineq_names = []
         num_equalities = 0
         num_inequalities = 0
         get_var_names = lambda constraint_dict: [
             var_name for var_name in constraint_dict.keys()
         ]
         for constraint in self.constraints.values():
-            active_variables += get_var_names(constraint.lhs)
+            self.active_variables += get_var_names(constraint.lhs)
             if constraint.sense == ConstraintSense.EQ:
                 num_equalities += 1
                 eq_names.append(constraint.name)
             else:
                 num_inequalities += 1
-                ineq_names.append(constraint.name)
+                self.ineq_names.append(constraint.name)
         for indicator_constraint in self.indicator_constraints.values():
-            active_variables += get_var_names(indicator_constraint.lhs)
-            active_variables += [indicator_constraint.binary_name]
-        active_variables = list(set(active_variables))
-        num_variables = len(active_variables)
-        self.active_variables = active_variables
+            self.active_variables += get_var_names(indicator_constraint.lhs)
+            self.active_variables += [indicator_constraint.binary_name]
+        self.active_variables = list(set(self.active_variables))
+        num_variables = len(self.active_variables)
         self.num_variables = num_variables
 
         # Build A and b
@@ -472,15 +524,15 @@ class LinearProgram:
         A_ineq = sparse.lil_matrix((num_inequalities, num_matrix_columns))
         b_ineq: List[float] = [0.0 for _ in range(num_inequalities)]
         ineq_index = 0
-        for ineq_name in ineq_names:
+        for ineq_name in self.ineq_names:
             constraint = self.constraints[ineq_name]
-            row = ineq_names.index(constraint.name)
+            row = self.ineq_names.index(constraint.name)
             if constraint.sense == ConstraintSense.GEQ:
                 multiplier = -1.0
             else:
                 multiplier = 1.0
             for var_name, coeff in constraint.lhs.items():
-                column = active_variables.index(var_name)
+                column = self.active_variables.index(var_name)
                 A_ineq[row, column] = coeff * multiplier
             b_ineq[ineq_index] = self.constraints[ineq_name].rhs * multiplier
             ineq_index += 1
@@ -491,18 +543,18 @@ class LinearProgram:
             constraint = self.constraints[eq_name]
             row = eq_names.index(constraint.name)
             for var_name, coeff in constraint.lhs.items():
-                column = active_variables.index(var_name)
+                column = self.active_variables.index(var_name)
                 A_eq[row, column] = coeff
         A_eq = sparse.csr_matrix(A_eq)
         b_eq: List[float] = [self.constraints[eq_name].rhs for eq_name in eq_names]
 
         # Build LB and UB vectors
-        num_bounded_variables = len(active_variables)
+        num_bounded_variables = len(self.active_variables)
         lower_bounds: List[float] = [0.0 for _ in range(num_bounded_variables)]
         upper_bounds: List[float] = [0.0 for _ in range(num_bounded_variables)]
         variable_types: str = ""
         var_index = 0
-        for var_name in active_variables:
+        for var_name in self.active_variables:
             if var_name in self.binary_variables.keys():
                 lb = 0.0
                 ub = 1.0
@@ -537,10 +589,10 @@ class LinearProgram:
         indic_index = 0
         for indicator_constraint in self.indicator_constraints.values():
             binary_name = indicator_constraint.binary_name
-            binv.append(active_variables.index(binary_name))
+            binv.append(self.active_variables.index(binary_name))
 
             for var_name, coeff in indicator_constraint.lhs.items():
-                A_indic[indic_index, active_variables.index(var_name)] = coeff
+                A_indic[indic_index, self.active_variables.index(var_name)] = coeff
 
             b_indic[indic_index] = indicator_constraint.rhs
 
@@ -661,6 +713,12 @@ class LinearProgram:
         )
         if warmstart:
             self._milp_lp.set_objective(self._get_objective_vector())
+
+    def get_all_variable_names(self) -> List[str]:
+        return list(self.float_variables.keys()) + list(self.binary_variables.keys())
+
+    def get_all_constraint_name(self) -> List[str]:
+        return list(self.constraints.keys()) + list(self.indicator_constraints.keys())
 
     # def run_variability_analysis(
     #     self, varnames: List[str] = []
