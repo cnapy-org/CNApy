@@ -366,7 +366,7 @@ class OptmdfpathwayDialog(QDialog):
         for metabolite_id in self.metabolite_ids:
             var_id = f"x_{metabolite_id}"
             if var_id in solution.keys():
-                self.appdata.project.conc_values[var_id[2:]] = exp(solution[var_id])
+                self.appdata.project.conc_values[var_id[2:]] = round(exp(solution[var_id]), 6)
 
         # Show selected reaction-dependent values
         self.appdata.project.comp_values_type = 0
