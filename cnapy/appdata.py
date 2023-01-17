@@ -8,6 +8,7 @@ import pkg_resources
 from tempfile import TemporaryDirectory
 from typing import List, Set, Dict, Tuple
 from ast import literal_eval as make_tuple
+from math import isclose
 import appdirs
 
 import cobra
@@ -17,6 +18,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QMessageBox
 
+# from straindesign.parse_constr import linexprdict2str # indirectly leads to a JVM restart exception?!?
 
 class AppData:
     ''' The application data '''
@@ -100,8 +102,33 @@ class AppData:
             elif tag == "clear":
                 self.project.scen_values.clear_flux_values()
 
-    def format_flux_value(self, flux_value):
+    def format_flux_value(self, flux_value) -> str:
         return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
+
+    def flux_value_display(self, vl, vu): #  -> str, color, bool
+        # We differentiate special cases like (vl==vu)
+        if isclose(vl, vu, abs_tol=self.abs_tol):
+            if self.modes_coloring:
+                if vl == 0:
+                    background_color = Qt.red
+                else:
+                    background_color = Qt.green
+            else:
+                background_color = self.comp_color
+            as_one = True
+            flux_text = self.format_flux_value(vl)
+        else:
+            if isclose(vl, 0.0, abs_tol=self.abs_tol):
+                background_color = self.special_color_1
+            elif isclose(vu, 0.0, abs_tol=self.abs_tol):
+                background_color = self.special_color_1
+            elif vl <= 0 and vu >= 0:
+                background_color = self.special_color_1
+            else:
+                background_color = self.special_color_2
+            as_one = False
+            flux_text = self.format_flux_value(vl) + ", " + self.format_flux_value(vu)
+        return flux_text, background_color, as_one
 
     def save_cnapy_config(self):
         try:
@@ -174,6 +201,13 @@ class AppData:
         return (low, high)
 
 class Scenario(Dict[str, Tuple[float, float]]):
+    empty_constraint = (None, None, None)
+
+    # cannot do this because of the import problem
+    # @staticmethod
+    # def format_constraint(constraint):
+    #     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
+
     def __init__(self):
         super().__init__() # this dictionary contains the flux values
         self.objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
@@ -181,24 +215,28 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.use_scenario_objective: bool = False
         self.pinned_reactions: Set[str] = set()
         self.description: str = ""
-        self.version: int = 1
+        self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
+        self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
+        self.version: int = 2
 
     def save(self, filename: str):
         json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
                     'objective_direction': self.objective_direction, 'objective_coefficients': self.objective_coefficients,
-                    'use_scenario_objective': self.use_scenario_objective, 'version': self.version}
+                    'use_scenario_objective': self.use_scenario_objective, 'reactions': self.reactions,
+                    'constraints': self.constraints, 'version': self.version}
         with open(filename, 'w') as fp:
             json.dump(json_dict, fp)
 
-    def load(self, filename: str, appdata: AppData, merge=False) -> List[str]:
+    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List]:
         unknown_ids: List(str)= []
+        incompatible_constraints = []
         if not merge:
             self.clear()
         with open(filename, 'r') as fp:
             if filename.endswith('scen'): # CNApy scenario
                 json_dict = json.load(fp)
-                if json_dict.keys() == {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
-                                        'objective_coefficients', 'use_scenario_objective', 'version'}:
+                if {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
+                     'objective_coefficients', 'use_scenario_objective', 'version'}.issubset(json_dict.keys()):
                     flux_values = json_dict['fluxes']
                     for reac_id in json_dict['pinned_reactions']:
                         if reac_id in appdata.project.cobra_py_model.reactions:
@@ -209,19 +247,27 @@ class Scenario(Dict[str, Tuple[float, float]]):
                         self.pinned_reactions = set(json_dict['pinned_reactions'])
                         self.description = json_dict['description']
                         self.objective_direction = json_dict['objective_direction']
+                        all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
+                        if json_dict['version'] > 1:
+                            self.reactions = json_dict['reactions']
+                            self.constraints = []
+                            all_reaction_ids.update(self.reactions)
+                            for constr in json_dict['constraints']:
+                                if set(constr[0].keys()).issubset(all_reaction_ids):
+                                    self.constraints.append(constr)
+                                else:
+                                    incompatible_constraints.append(constr)
                         for reac_id, val in json_dict['objective_coefficients'].items():
-                            if reac_id in appdata.project.cobra_py_model.reactions:
-                                    self.objective_coefficients[reac_id] = val
+                            if reac_id in all_reaction_ids:
+                                self.objective_coefficients[reac_id] = val
                             else:
                                 unknown_ids.append(reac_id)
                         self.use_scenario_objective = json_dict['use_scenario_objective']
-                        self.version = json_dict['version']
+                        self.version = 2
                 else:
                     flux_values = json_dict
-                    self.version = 1
             elif filename.endswith('val'): # CellNetAnalyzer scenario
                 flux_values = dict()
-                self.version = 1
                 for line in fp:
                     line = line.strip()
                     if len(line) > 0 and not line.startswith("##"):
@@ -249,7 +295,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                 unknown_ids.append(reac_id)
         appdata.scen_values_set_multiple(reactions, scen_values)
 
-        return unknown_ids
+        return unknown_ids, incompatible_constraints
 
     def clear_flux_values(self):
         super().clear()
@@ -259,6 +305,8 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.objective_coefficients = {}
         self.objective_direction = "max"
         self.pinned_reactions = set()
+        self.constraints = []
+        self.reactions = {}
         self.description = ""
 
 class ProjectData:
@@ -290,7 +338,7 @@ class ProjectData:
         self.modes = []
         self.meta_data = {}
 
-    def load_scenario_into_model(self, model):
+    def load_scenario_into_model(self, model: cobra.Model):
         for x in self.scen_values:
             try:
                 y = model.reactions.get_by_id(x)
@@ -299,6 +347,23 @@ class ProjectData:
             else:
                 y.bounds = self.scen_values[x]
                 y.set_hash_value()
+
+        if len(self.scen_values.reactions) > 0:
+            scenario_metabolites = set()
+            for metabolites,_,_ in self.scen_values.reactions.values():
+                scenario_metabolites.update(metabolites.keys())
+            scenario_metabolites = scenario_metabolites.difference(self.cobra_py_model.metabolites.list_attr("id"))
+            self.cobra_py_model.add_metabolites([cobra.Metabolite(met_id) for met_id in scenario_metabolites])
+            for reac_id,(metabolites,lb,ub) in self.scen_values.reactions.items():
+                if reac_id in self.cobra_py_model.reactions: # overwrite existing reaction
+                    reaction = self.cobra_py_model.reactions.get_by_id(reac_id)
+                    reaction.subtract_metabolites(reaction.metabolites, combine=True) # remove current metabolites
+                else:
+                    reaction = cobra.Reaction(reac_id, lower_bound=lb, upper_bound=ub)
+                    self.cobra_py_model.add_reaction(reaction)
+                reaction.add_metabolites(metabolites)
+                reaction.set_hash_value()
+                print(reaction)
 
         if self.scen_values.use_scenario_objective:
             self.cobra_py_model.objective = self.cobra_py_model.problem.Objective(
@@ -311,6 +376,26 @@ class ProjectData:
                 else:
                     self.cobra_py_model.objective.set_linear_coefficients(
                         {reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
+
+        for (expression, constraint_type, rhs) in self.scen_values.constraints:
+            if constraint_type == '=':
+                lb = rhs
+                ub = rhs
+            elif constraint_type == '<=':
+                lb = None
+                ub = rhs
+            elif constraint_type == '>=':
+                lb = rhs
+                ub = None
+            else:
+                print("Skipping constraint of unknown type", constraint_type)
+                continue
+            constr = model.problem.Constraint(Zero, lb=lb, ub=ub)
+            model.add_cons_vars(constr)
+            for (reac_id, coeff) in expression.items():
+                reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
+                constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
+            # print(constr)
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []

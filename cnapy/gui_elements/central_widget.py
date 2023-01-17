@@ -25,7 +25,7 @@ class ModelTabIndex(IntEnum):
     Reactions = 0
     Metabolites = 1
     Genes = 2
-    Objective = 3
+    Scenario = 3
     Model = 4
 
 class CentralWidget(QWidget):
@@ -247,7 +247,7 @@ class CentralWidget(QWidget):
             self.metabolite_list.update()
         elif idx == ModelTabIndex.Genes:
             self.gene_list.update()
-        elif idx == ModelTabIndex.Objective:
+        elif idx == ModelTabIndex.Scenario:
             self.scenario_tab.update()
         elif idx == ModelTabIndex.Model:
             self.model_info.update()
@@ -456,7 +456,7 @@ class CentralWidget(QWidget):
             self.metabolite_list.update()
         elif idx == ModelTabIndex.Genes or rebuild:
             self.gene_list.update()
-        elif idx == ModelTabIndex.Objective or rebuild:
+        elif idx == ModelTabIndex.Scenario or rebuild:
             self.scenario_tab.update()
         elif idx == ModelTabIndex.Model or rebuild:
             self.model_info.update()

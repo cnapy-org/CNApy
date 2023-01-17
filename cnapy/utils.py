@@ -2,9 +2,11 @@
 from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer, QStringListModel
 from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, \
     QCompleter, QApplication, QFrame, QSizePolicy
-from straindesign import lineq2list, linexpr2dict
+from straindesign import lineq2list, linexpr2dict, linexprdict2str
 import re
 
+def format_scenario_constraint(constraint):
+    return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
 
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
     found_ids = [string]
@@ -124,7 +126,8 @@ class QComplReceivLineEdit(QLineEdit):
         self.sd_dialog = sd_dialog
         self.completer: QCompleter = QCompleter()
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.set_wordlist(wordlist)
+        if len(wordlist) > 0:
+            self.set_wordlist(wordlist)
         self.completer.setWidget(self)
         self.textChanged.connect(self.text_changed)
         self.completer.activated.connect(self.complete_text)
@@ -133,9 +136,13 @@ class QComplReceivLineEdit(QLineEdit):
         self.is_constr = is_constr
         self.is_valid = None
 
-    def set_wordlist(self, wordlist):
+    def set_wordlist(self, wordlist, replace_completer_model=True):
         self.wordlist = wordlist
-        self.completer.setModel(QStringListModel(self.wordlist))
+        if replace_completer_model:
+            self.completer.setModel(QStringListModel(self.wordlist))
+
+    def set_completer_model(self, wordlist: QStringListModel):
+        self.completer.setModel(wordlist)
 
     def text_changed(self, text):
         all_text = text

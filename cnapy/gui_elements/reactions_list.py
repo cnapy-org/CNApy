@@ -197,29 +197,8 @@ class ReactionList(QWidget):
         key = item.reaction.id
         if key in self.appdata.project.comp_values.keys():
             (vl, vu) = self.appdata.project.comp_values[key]
-
-            # We differentiate special cases like (vl==vu)
-            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
-                if self.appdata.modes_coloring:
-                    if vl == 0:
-                        background_color = Qt.red
-                    else:
-                        background_color = Qt.green
-                else:
-                    background_color = self.appdata.comp_color
-
-                item.set_flux_data(self.appdata.format_flux_value(vl), vl)
-            else:
-                if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
-                elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
-                elif vl <= 0 and vu >= 0:
-                    background_color = self.appdata.special_color_1
-                else:
-                    background_color = self.appdata.special_color_2
-                item.set_flux_data(self.appdata.format_flux_value(vl) + ", " +
-                                 self.appdata.format_flux_value(vu), (vl, vu))
+            flux_text, background_color, as_one = self.appdata.flux_value_display(vl, vu)
+            item.set_flux_data(flux_text, vl if as_one else (vl, vu))
         else:
             item.reset_flux_data()
             background_color = Qt.white
