@@ -269,6 +269,7 @@ class OptmdfpathwayDialog(QDialog):
                         else:
                             extra_constraint[reaction.id] = coefficient
                     extra_constraint["lb"] = solution.objective_value
+                    extra_constraints = [extra_constraint]
                 else:
                     QMessageBox.warning(
                         self,
@@ -279,7 +280,23 @@ class OptmdfpathwayDialog(QDialog):
                     )
                     return
             else:
-                extra_constraint = {}
+                extra_constraints = []
+
+            for constraint in self.appdata.project.scen_values.constraints:
+                # e.g., [({'EDD': 1.0}, '>=', 1.0)]
+                extra_constraint = {key: value for key, value in constraint[0].items()}
+
+                direction = constraint[1]
+                rhs = constraint[2]
+                if direction == ">=":
+                    extra_constraint["lb"] = rhs
+                elif direction == "<=":
+                    extra_constraint["ub"] = rhs
+                else:  # == "="
+                    extra_constraint["lb"] = rhs
+                    extra_constraint["ub"] = rhs
+
+                extra_constraints.append(extra_constraint)
 
             solver_name = self.solver_buttons["group"].checkedButton().property("name")
             if solver_name == CPLEX:
@@ -297,7 +314,7 @@ class OptmdfpathwayDialog(QDialog):
                 cobra_model=model,
                 dG0_values=dG0_values,
                 concentration_values=concentration_values,
-                extra_constraints=[extra_constraint],
+                extra_constraints=extra_constraints,
                 ratio_constraints=[],
                 R=R,
                 T=T,
