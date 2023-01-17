@@ -135,4 +135,4 @@ def model_optimization_with_exceptions(model: cobra.Model):
                        "it under 'Config->Configure cobrapy'):\n"+error.message+\
                        "\nNOTE: Another error message will follow, you can safely ignore it.")
         msgBox.setIcon(QMessageBox.Warning)
-        msgBox.exec()
+        msgBox.show()

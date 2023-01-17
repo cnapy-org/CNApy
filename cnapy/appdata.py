@@ -335,6 +335,8 @@ class ProjectData:
         self.comp_values: Dict[str, Tuple[float, float]] = {}
         self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
         self.fva_values: Dict[str, Tuple[float, float]] = {} # store FVA results persistently
+        self.conc_values: Dict[str, float] = {} # Metabolite concentrations
+        self.df_values: Dict[str, float] = {} # Driving forces
         self.modes = []
         self.meta_data = {}
 

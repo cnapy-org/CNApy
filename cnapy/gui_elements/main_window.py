@@ -16,7 +16,8 @@ from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 import matplotlib.pyplot as plt
-from typing import Dict
+from typing import Any, Dict
+import openpyxl
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -45,6 +46,7 @@ from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
+from cnapy.gui_elements.optmdfpathway_dialog import OptmdfpathwayDialog
 import cnapy.utils as utils
 
 
@@ -380,6 +382,33 @@ class MainWindow(QMainWindow):
         plot_space_action = QAction("Plot flux space...", self)
         plot_space_action.triggered.connect(self.plot_space)
         self.analysis_menu.addAction(plot_space_action)
+
+        self.analysis_menu.addSeparator()
+
+
+        optmdf_action = QAction("OptMDFpathway...", self)
+        optmdf_action.triggered.connect(self.perform_optmdfpathway)
+        self.analysis_menu.addAction(optmdf_action)
+
+        dG0_menu = self.analysis_menu.addMenu("Load dG'° values [in kJ/mol]...")
+
+        dG0_json_action = QAction("...as JSON...", self)
+        dG0_json_action.triggered.connect(self.load_dG0_json)
+        dG0_menu.addAction(dG0_json_action)
+
+        dG0_xlsx_action = QAction("...as Excel XLSX...", self)
+        dG0_xlsx_action.triggered.connect(self.load_dG0_xlsx)
+        dG0_menu.addAction(dG0_xlsx_action)
+
+        concentrations_menu = self.analysis_menu.addMenu("Load concentration ranges [in M]...")
+
+        concentrations_json_action = QAction("...as JSON...", self)
+        concentrations_json_action.triggered.connect(self.load_concentrations_json)
+        concentrations_menu.addAction(concentrations_json_action)
+
+        concentrations_xlsx_action = QAction("...as Excel XLSX...", self)
+        concentrations_xlsx_action.triggered.connect(self.load_concentrations_xlsx)
+        concentrations_menu.addAction(concentrations_xlsx_action)
 
         self.analysis_menu.addSeparator()
 
@@ -1041,6 +1070,8 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         self.appdata.project.comp_values_type = 0
         self.appdata.project.fva_values.clear()
+        self.appdata.project.conc_values.clear()
+        self.appdata.project.df_values.clear()
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
@@ -1815,3 +1846,189 @@ class MainWindow(QMainWindow):
     def set_status_unknown(self):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
+
+    @Slot()
+    def perform_optmdfpathway(self):
+        self.optmdfpathway_dialog = OptmdfpathwayDialog(
+            self.appdata, self.centralWidget())
+        self.optmdfpathway_dialog.exec_()
+
+    def _load_json(self) -> Dict[Any, Any]:
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.last_scen_directory, filter="*.json")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return {}
+
+        try:
+            with open(filename) as f:
+                json_data = json.load(f)
+        except json.decoder.JSONDecodeError:
+            QMessageBox.critical(
+                self,
+                "Could not open file",
+                "File could not be opened as it does not seem to be a valid JSON file."
+            )
+            return {}
+
+        return json_data
+
+    def _load_active_xlsx_worksheet(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getOpenFileName(
+            directory=self.appdata.last_scen_directory, filter="*.xlsx")[0]
+        if not filename or len(filename) == 0 or not os.path.exists(filename):
+            return
+        wb = openpyxl.load_workbook(filename, read_only=True)
+        ws = wb.active
+        return ws
+
+    def _set_concentrations(self, concentrations):
+        for metabolite in self.appdata.project.cobra_py_model.metabolites:
+            if "Cmin" in metabolite.annotation:
+                del(metabolite.annotation["Cmin"])
+            if "Cmax" in metabolite.annotation:
+                del(metabolite.annotation["Cmax"])
+            if metabolite.id not in concentrations.keys():
+                if "DEFAULT" in concentrations.keys():
+                    lb = concentrations["DEFAULT"]["min"]
+                    ub = concentrations["DEFAULT"]["max"]
+                else:
+                    continue
+            else:
+                lb = concentrations[metabolite.id]["min"]
+                ub = concentrations[metabolite.id]["max"]
+        self.centralWidget().update()
+        self.unsaved_changes()
+
+    def _set_dG0s(self, dG0s):
+        for reaction in self.appdata.project.cobra_py_model.reactions:
+            if "dG0" in reaction.annotation:
+                del(reaction.annotation["dG0"])
+            if "dG0_uncertainty" in reaction.annotation:
+                del(reaction.annotation["dG0_uncertainty"])
+
+        reaction_ids = [x.id for x in self.appdata.project.cobra_py_model.reactions]
+        for reaction_id in dG0s.keys():
+            if reaction_id not in reaction_ids:
+                continue
+            reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(reaction_id)
+            reaction.annotation["dG0"] = dG0s[reaction_id]["dG0"]
+            if "uncertainty" in dG0s[reaction_id].keys():
+                reaction.annotation["dG0_uncertainty"] = dG0s[reaction_id]["uncertainty"]
+        self.centralWidget().update()
+        self.unsaved_changes()
+
+    def load_concentrations_json(self):
+        concentrations = self._load_json()
+        self._set_concentrations(concentrations)
+
+    def load_concentrations_xlsx(self):
+        ws = self._load_active_xlsx_worksheet()
+
+        if ws is None:
+            return
+
+        metabolite_id_column = 1
+        cmin_column = 2
+        cmax_column = 3
+
+        concentrations: Dict[str, Dict[str, float]] = {}
+        warnings = ""
+        for row in range(2, ws.max_row+1):
+            metabolite_id = ws.cell(row=row, column=metabolite_id_column).value
+            cmin_in_cell = ws.cell(row=row, column=cmin_column).value
+            cmax_in_cell = ws.cell(row=row, column=cmax_column).value
+
+            if metabolite_id is None:
+                continue
+
+            if cmin_in_cell is not None:
+                try:
+                    cmin = float(cmin_in_cell)
+                except ValueError:
+                    warnings += f"WARNING: Cmin of {metabolite_id} could not be read as number. "\
+                                "This metabolite will be ignored.\n"
+                    continue
+            else:
+                warnings += f"WARNING: No Cmin for {metabolite_id}. "\
+                            "This metabolite will be ignored.\n"
+                continue
+
+            if cmax_in_cell is not None:
+                try:
+                    cmax = float(cmax_in_cell)
+                except ValueError:
+                    warnings += f"WARNING: Cmin of {metabolite_id} could not be read as number. "\
+                                "This metabolite will be ignored.\n"
+                    continue
+            else:
+                warnings += f"WARNING: No Cmax for {metabolite_id}. "\
+                                "This metabolite will be ignored.\n"
+                continue
+            print(warnings)
+            concentrations[metabolite_id] = {
+                "min": cmin,
+                "max": cmax,
+            }
+        if warnings != "":
+            QMessageBox.warning(
+                None,
+                "Warnings occured while loading XLSX",
+                f"The following warnings occured while loading the XLSX:\n{warnings}"
+            )
+        self._set_concentrations(concentrations)
+
+    def load_dG0_json(self):
+        dG0s = self._load_json()
+        self._set_dG0s(dG0s=dG0s)
+
+    def load_dG0_xlsx(self):
+        ws = self._load_active_xlsx_worksheet()
+
+        if ws is None:
+            return
+
+        reac_id_column = 1
+        dG0_column = 2
+        uncertainty_column = 3
+
+        dG0s: Dict[str, Dict[str, float]] = {}
+        warnings = ""
+        for row in range(2, ws.max_row+1):
+            reac_id = ws.cell(row=row, column=reac_id_column).value
+            dG0_in_cell = ws.cell(row=row, column=dG0_column).value
+            uncertainty_in_cell = ws.cell(row=row, column=uncertainty_column).value
+
+            if reac_id is None:
+                continue
+
+            if dG0_in_cell is not None:
+                try:
+                    dG0 = float(dG0_in_cell)
+                except ValueError:
+                    warnings += f"WARNING: dG'° of {reac_id} could not be read as number. "\
+                                "It will be ignored.\n"
+                    continue
+
+                dG0s[reac_id] = {}
+                dG0s[reac_id]["dG0"] = dG0
+
+                if uncertainty_in_cell is not None:
+                    try:
+                        uncertainty = float(uncertainty_in_cell)
+                    except ValueError:
+                        warnings += f"WARNING: Uncertainty of {reac_id} could not be read"\
+                                    "as number. It will be ignored.\n"
+                        continue
+                    dG0s[reac_id]["uncertainty"] = uncertainty
+            elif uncertainty_in_cell is not None:
+                warnings += f"WARNING: Uncertainty of {reac_id} is set but no dG'°"\
+                            " value exists. Hence, it will be ignored.\n"
+        if warnings != "":
+            QMessageBox.warning(
+                None,
+                "Warnings occured while loading XLSX",
+                f"The following warnings occured while loading the XLSX:\n{warnings}"
+            )
+        self._set_dG0s(dG0s)

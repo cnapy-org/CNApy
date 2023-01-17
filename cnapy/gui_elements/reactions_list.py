@@ -27,6 +27,7 @@ class ReactionListColumn(IntEnum):
     Flux = 3
     LB = 4
     UB = 5
+    DF = 6
 
 class DragableTreeWidget(QTreeWidget):
     '''A list of dragable reaction items'''
@@ -52,6 +53,7 @@ class ReactionListItem(QTreeWidgetItem):
         self.flux_sort_val = -float('inf')
         self.lb_val = -float('inf')
         self.ub_val = float('inf')
+        self.df_val = -float("inf")
         self.pin_at_top = False
 
     def set_flux_data(self, text, value):
@@ -81,6 +83,8 @@ class ReactionListItem(QTreeWidgetItem):
             return self.lb_val < other.lb_val
         elif column == ReactionListColumn.UB:
             return self.ub_val < other.ub_val
+        elif column == ReactionListColumn.DF:
+            return self.df_val < other.df_val
         else:  # use Qt default comparison for the other columns
 #            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
             return self.text(column) < other.text(column)
@@ -154,6 +158,8 @@ class ReactionList(QWidget):
             self.emit_jump_to_metabolite)
 
         self.add_button.clicked.connect(self.add_new_reaction)
+        self.reaction_list.setColumnHidden(ReactionListColumn.DF, True)
+        self.visible_column[ReactionListColumn.DF] = False
 
     def clear(self):
         self.reaction_list.clear()
@@ -192,6 +198,9 @@ class ReactionList(QWidget):
             scen_text = ""
         item.setBackground(ReactionListColumn.Scenario, scen_background_color)
         item.setText(ReactionListColumn.Scenario, scen_text)
+        if item.reaction.id in self.appdata.project.df_values.keys():
+            item.setText(ReactionListColumn.DF, str(self.appdata.project.df_values[item.reaction.id]))
+            item.df_val = self.appdata.project.df_values[item.reaction.id]
 
     def set_flux_value(self, item: ReactionListItem):
         key = item.reaction.id
@@ -357,6 +366,10 @@ class ReactionList(QWidget):
         )
 
     def update(self, rebuild=False):
+        if len(self.appdata.project.df_values.keys()) > 0:
+            self.reaction_list.setColumnHidden(ReactionListColumn.DF, False)
+            self.visible_column[ReactionListColumn.DF] = True
+
         # should only need to rebuild the whole list if the model changes
         self.reaction_list.itemChanged.disconnect(self.handle_item_changed)
         self.reaction_list.setSortingEnabled(False) # keep row order stable so that each item is updated
@@ -383,6 +396,7 @@ class ReactionList(QWidget):
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
+        self.reaction_list.resizeColumnToContents(ReactionListColumn.DF)
 
     def set_current_item(self, key: str):
         self.last_selected = key
