@@ -35,6 +35,7 @@ requirements:
     - straindesign>=1.9
     - gurobi
     - cplex
+    - numpy<1.24
 
 build:
   number: 0  # NOTE: increment for new build/set to zero for new version

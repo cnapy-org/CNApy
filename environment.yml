@@ -26,3 +26,4 @@ dependencies:
   - nest-asyncio
   - gurobi
   - cplex
+  - numpy<1.24

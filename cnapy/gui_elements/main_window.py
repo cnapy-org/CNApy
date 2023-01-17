@@ -5,6 +5,7 @@ import traceback
 from tempfile import TemporaryDirectory
 from typing import Tuple
 from zipfile import BadZipFile, ZipFile
+import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.core import model_optimization_with_exceptions
@@ -23,7 +24,7 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, ProjectData
+from cnapy.appdata import AppData, ProjectData, Scenario
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -739,7 +740,7 @@ class MainWindow(QMainWindow):
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
         try:
-            missing_reactions = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+            missing_reactions, incompatible_constraints = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
         except json.decoder.JSONDecodeError:
             QMessageBox.critical(
                 self,
@@ -755,6 +756,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Unknown reactions in scenario',
             'The following reaction IDs of the scenario do not exist in the current model and will be ignored:\n'+' '.join(missing_reactions))
 
+        if len(incompatible_constraints) > 0 :
+            QMessageBox.warning(self, 'Unknown reactions in scenario',
+            'The following scenario constraints refer to reactions not in the model and will be ignored:\n'+
+            '\n'.join([utils.format_scenario_constraint(c) for c in incompatible_constraints]))
+
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         if self.appdata.auto_fba:
@@ -762,6 +768,7 @@ class MainWindow(QMainWindow):
         else:
             self.centralWidget().update()
             self.clear_status_bar()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_reactions_constraints()
         self.appdata.last_scen_directory = os.path.dirname(filename)
 
     @Slot()
@@ -1171,6 +1178,7 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild=True)
+                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_reactions_constraints()
 
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)
@@ -1671,7 +1679,7 @@ class MainWindow(QMainWindow):
         self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            if len(self.appdata.project.scen_values) > 0:
+            if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
                 update_stoichiometry_hash = True
             else:
                 update_stoichiometry_hash = False
@@ -1684,12 +1692,20 @@ class MainWindow(QMainWindow):
                     r.upper_bound = cobra.Configuration().upper_bound
                     r.set_hash_value()
                     update_stoichiometry_hash = True
-            if self.appdata.use_results_cache and update_stoichiometry_hash:
-                model.set_stoichiometry_hash_object()
+            if self.appdata.use_results_cache:
+                if update_stoichiometry_hash:
+                    model.set_stoichiometry_hash_object()
+                fva_hash = model.stoichiometry_hash_object.copy()
+                if len(self.appdata.project.scen_values.constraints) > 0:
+                    # although the constraints are already in the model they are not covered by
+                    # the reaction hashes and therefore taken into account here
+                    fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
+            else:
+                fva_hash = None
             try:
                 solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
                     results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
-                    fva_hash=model.stoichiometry_hash_object.copy() if self.appdata.use_results_cache else None,
+                    fva_hash= fva_hash,
                     print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
