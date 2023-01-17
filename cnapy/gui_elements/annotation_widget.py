@@ -57,7 +57,10 @@ class AnnotationWidget(QVBoxLayout):
         model_element.annotation = {}
         rows = self.annotation.rowCount()
         for i in range(0, rows):
-            key = self.annotation.item(i, 0).text()
+            annotation_item = self.annotation.item(i, 0)
+            if annotation_item is None:
+                continue
+            key = annotation_item.text()
             if self.annotation.item(i, 1) is None:
                 value = ""
             else:
