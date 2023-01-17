@@ -23,6 +23,8 @@ class ScenarioReactionColumn(IntEnum):
     UB = 3
 
 #TODO: auto FBA for scenario reactions/constraints
+#TODO: check that LB/UB are respected by FVA
+#TODO: darker red for faulty constraints
 class ScenarioTab(QWidget):
     """A widget for display and modification of scenario objective, reactions and constraints"""
 
