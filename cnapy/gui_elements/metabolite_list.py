@@ -21,6 +21,32 @@ class MetaboliteListColumn(IntEnum):
     Concentration = 2
 
 
+class MetaboliteListItem(QTreeWidgetItem):
+    """ For custom sorting of columns """
+
+    def __init__(self, parent: QTreeWidget):
+        # although QTreeWidgetItem is constructed with the metabolite_list as parent this
+        # will not be its parent() which is None because it is a top-level item
+        QTreeWidgetItem.__init__(self, parent)
+
+    def __lt__(self, other):
+        """ overrides QTreeWidgetItem::operator< """
+        column = self.treeWidget().sortColumn()
+        if column == MetaboliteListColumn.Concentration:
+            try:
+                current_value = float(self.text(column))
+            except ValueError:
+                current_value = -float("inf")
+            try:
+                other_value = float(other.text(column))
+            except ValueError:
+                other_value = -float("inf")
+            return current_value < other_value
+        else:  # use Qt default comparison for the other columns
+#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
+            return self.text(column) < other.text(column)
+
+
 class MetaboliteList(QWidget):
     """A list of metabolites"""
 
@@ -78,7 +104,7 @@ class MetaboliteList(QWidget):
         self.metabolite_mask.hide()
 
     def add_metabolite(self, metabolite):
-        item = QTreeWidgetItem(self.metabolite_list)
+        item = MetaboliteListItem(self.metabolite_list)
         item.setText(MetaboliteListColumn.Id, metabolite.id)
         item.setText(MetaboliteListColumn.Name, metabolite.name)
         if metabolite.id in self.appdata.project.conc_values.keys():
