@@ -2,6 +2,7 @@
 import math
 from ast import literal_eval as make_tuple
 from math import isclose
+import pkg_resources
 from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
@@ -257,6 +258,10 @@ class MapView(QGraphicsView):
     def rebuild_scene(self):
         self.scene.clear()
         self.background = None
+
+        if (len(self.appdata.project.maps[self.name]["boxes"]) > 0) and self.appdata.project.maps[self.name]["background"].replace("\\", "/").endswith("/data/default-bg.svg"):
+            self.appdata.project.maps[self.name]["background"] = pkg_resources.resource_filename('cnapy', 'data/blank.svg')
+
         self.set_background()
 
         for r_id in self.appdata.project.maps[self.name]["boxes"]:
