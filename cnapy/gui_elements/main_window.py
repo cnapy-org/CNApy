@@ -46,7 +46,7 @@ from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
-from cnapy.gui_elements.optmdfpathway_dialog import OptmdfpathwayDialog
+from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicDialog
 import cnapy.utils as utils
 
 
@@ -389,6 +389,11 @@ class MainWindow(QMainWindow):
         optmdf_action = QAction("OptMDFpathway...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.analysis_menu.addAction(optmdf_action)
+
+
+        bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
+        bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
+        self.analysis_menu.addAction(bottleneck_action)
 
         dG0_menu = self.analysis_menu.addMenu("Load dG'° values [in kJ/mol]...")
 
@@ -1849,9 +1854,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        self.optmdfpathway_dialog = OptmdfpathwayDialog(
-            self.appdata, self.centralWidget())
+        self.optmdfpathway_dialog = ThermodynamicDialog(
+            self.appdata, self.centralWidget(), bottleneck_analysis=False)
         self.optmdfpathway_dialog.exec_()
+
+    @Slot()
+    def perform_bottleneck_analysis(self):
+        self.bottleneck_dialog = ThermodynamicDialog(
+            self.appdata, self.centralWidget(), bottleneck_analysis=True)
+        self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)

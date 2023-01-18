@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QVBoxLayout,
@@ -91,10 +92,10 @@ def make_model_irreversible(
     return cobra_model
 
 
-class OptmdfpathwayDialog(QDialog):
-    """A dialog to perform OptMDFpathway"""
+class ThermodynamicDialog(QDialog):
+    """A dialog to perform several thermodynamic methods."""
 
-    def __init__(self, appdata: AppData, central_widget: CentralWidget) -> None:
+    def __init__(self, appdata: AppData, central_widget: CentralWidget, bottleneck_analysis: bool) -> None:
         self.FWDID = "_FWDCNAPY"
         self.REVID = "_REVCNAPY"
 
@@ -103,6 +104,7 @@ class OptmdfpathwayDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
+        self.bottleneck_analysis = bottleneck_analysis
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         self.metabolite_ids = self.appdata.project.cobra_py_model.metabolites.list_attr(
@@ -110,14 +112,32 @@ class OptmdfpathwayDialog(QDialog):
         )
 
         self.layout = QVBoxLayout()
-        l = QLabel(
-            "Perform OptMDFpathway. dG'° values and metabolite concentration "
-            "ranges have to be given in relevant annotations."
-        )
-        self.layout.addWidget(l)
+        if not self.bottleneck_analysis:
+            l = QLabel(
+                "Perform OptMDFpathway. dG'° values and metabolite concentration "
+                "ranges have to be given in relevant annotations."
+            )
+            self.layout.addWidget(l)
+        else:
+            l = QLabel(
+                "Perform OptMDFpathway bottleneck analysis. dG'° values and metabolite concentration "
+                "ranges have to be given in relevant annotations.\nThe minimal amount of bottlenecks and their IDs "
+                "to reach the given minimal MDF will be shown in the console afterwards."
+            )
+            self.layout.addWidget(l)
+
+            lineedit_text = QLabel("MDF to reach [ín kJ/mol]:")
+
+            min_mdf_layout = QHBoxLayout()
+            self.min_mdf = QLineEdit()
+            self.min_mdf.setText("0.01")
+
+            min_mdf_layout.addWidget(lineedit_text)
+            min_mdf_layout.addWidget(self.min_mdf)
+            self.layout.addItem(min_mdf_layout)
 
         self.at_objective = QCheckBox(
-            "Calculate OptMDF at optimized value of current objective"
+            "Set optimized value of current objective as lower boundary constraint"
         )
         self.at_objective.setChecked(True)
         self.layout.addWidget(self.at_objective)
@@ -308,6 +328,20 @@ class OptmdfpathwayDialog(QDialog):
             elif solver_name == GLPK:
                 solver = Solver.GLPK
 
+            if not self.bottleneck_analysis:
+                minimal_optmdf = -float("inf")
+            else:
+                minimal_optmdf_str = self.min_mdf.text()
+                try:
+                    minimal_optmdf = float(minimal_optmdf_str)
+                except ValueError:
+                    QMessageBox.warning(
+                        self,
+                        "Invalid minimal OptMDF",
+                        f"The given minimal OptMDF could not be converted into a valid number (such as 1.231). Aborting calculation...",
+                    )
+                    return
+
             R = STANDARD_R
             T = STANDARD_T
             optmdfpathway_lp = create_optmdfpathway_milp(
@@ -318,11 +352,19 @@ class OptmdfpathwayDialog(QDialog):
                 ratio_constraints=[],
                 R=R,
                 T=T,
+                add_bottleneck_constraints=self.bottleneck_analysis,
+                minimal_optmdf=minimal_optmdf,
             )
-            optmdfpathway_lp.set_objective(
-                {"var_B": 1},
-                direction=ObjectiveDirection.MAX,
-            )
+            if not self.bottleneck_analysis:
+                optmdfpathway_lp.set_objective(
+                    {"var_B": 1},
+                    direction=ObjectiveDirection.MAX,
+                )
+            else:
+                optmdfpathway_lp.set_objective(
+                    {"bottleneck_z_sum": 1},
+                    direction=ObjectiveDirection.MIN,
+                )
             optmdfpathway_lp.construct_solver_object(
                 solver=solver,
             )
@@ -342,7 +384,7 @@ class OptmdfpathwayDialog(QDialog):
                 QMessageBox.warning(
                     self,
                     "Unbounded",
-                    "The OptMDF is unbounded (inf) so that no optimization solution can be shown.",
+                    "The solution is unbounded (inf) so that no optimization solution can be shown.",
                 )
             elif solution.status == Status.OPTIMAL:
                 self.set_boxes(solution=solution.values)
@@ -390,8 +432,23 @@ class OptmdfpathwayDialog(QDialog):
         self.central_widget.update()
 
         # Show OptMDF
-        optmdf = combined_solution["var_B"]
+        console_text = "print('\\n"
+        if not self.bottleneck_analysis:
+            optmdf = combined_solution["var_B"]
+            console_text += f"OptMDF: {optmdf} kJ/mol"
+        else:
+            bottleneck_z_sum = combined_solution["bottleneck_z_sum"]
+            console_text += f"Number of deactivated bottlenecks to reach minimal MDF: {bottleneck_z_sum}"
+
+            for key in combined_solution.keys():
+                if key.startswith("bottleneck_z_"):
+                    if key == "bottleneck_z_sum":
+                        continue
+                    if combined_solution[key] > 0.1:
+                        console_text += f"\\n* {key.replace('bottleneck_z_', '')}"
+        console_text += "')"
+        print(console_text)
         self.central_widget.kernel_client.execute(
-            f"print('\\nOptMDF: {optmdf} kJ/mol')"
+            console_text
         )
         self.central_widget.show_bottom_of_console()
