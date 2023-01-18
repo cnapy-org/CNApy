@@ -1706,10 +1706,13 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
-    def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
+    def fva(self, fraction_of_optimum=0.0, zero_objective_with_zero_fraction_of_optimum=True):
         self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            if zero_objective_with_zero_fraction_of_optimum:
+                # completely remove objective for basic FVA, not the same as only setting fraction_of_optimum = 0.0
+                model.objective = model.problem.Objective(Zero)
             if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
                 update_stoichiometry_hash = True
             else:
