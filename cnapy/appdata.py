@@ -227,9 +227,10 @@ class Scenario(Dict[str, Tuple[float, float]]):
         with open(filename, 'w') as fp:
             json.dump(json_dict, fp)
 
-    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List]:
+    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List, List]:
         unknown_ids: List(str)= []
         incompatible_constraints = []
+        skipped_scenario_reactions = []
         if not merge:
             self.clear()
         with open(filename, 'r') as fp:
@@ -250,6 +251,11 @@ class Scenario(Dict[str, Tuple[float, float]]):
                         all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
                         if json_dict['version'] > 1:
                             self.reactions = json_dict['reactions']
+                            for reac_id in self.reactions:
+                                if reac_id in all_reaction_ids:
+                                    skipped_scenario_reactions.append(reac_id)
+                            for reac_id in skipped_scenario_reactions:
+                                del self.reactions[reac_id]
                             self.constraints = []
                             all_reaction_ids.update(self.reactions)
                             for constr in json_dict['constraints']:
@@ -295,7 +301,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                 unknown_ids.append(reac_id)
         appdata.scen_values_set_multiple(reactions, scen_values)
 
-        return unknown_ids, incompatible_constraints
+        return unknown_ids, incompatible_constraints, skipped_scenario_reactions
 
     def clear_flux_values(self):
         super().clear()

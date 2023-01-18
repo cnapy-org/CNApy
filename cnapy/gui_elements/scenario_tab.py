@@ -23,8 +23,9 @@ class ScenarioReactionColumn(IntEnum):
     UB = 3
 
 #TODO: auto FBA for scenario reactions/constraints
-#TODO: check that LB/UB are respected by FVA
 #TODO: darker red for faulty constraints
+#TODO: clear scenario objective when loading a model
+
 class ScenarioTab(QWidget):
     """A widget for display and modification of scenario objective, reactions and constraints"""
 
@@ -272,8 +273,8 @@ class ScenarioTab(QWidget):
             self.equation.setText(reaction.build_reaction_string())
 
     def verify_scenario_reaction_id(self, reac_id: str) -> bool:
-        return reac_id not in self.appdata.project.scen_values.reactions #\
-                #and reac_id not in self.appdata.project.cobra_py_model.reactions
+        return reac_id not in self.appdata.project.scen_values.reactions \
+                and reac_id not in self.appdata.project.cobra_py_model.reactions
 
     @Slot()
     def add_scenario_reaction(self):

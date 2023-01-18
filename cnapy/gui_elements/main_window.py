@@ -769,7 +769,8 @@ class MainWindow(QMainWindow):
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
         try:
-            missing_reactions, incompatible_constraints = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+            missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
+                self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
         except json.decoder.JSONDecodeError:
             QMessageBox.critical(
                 self,
@@ -784,6 +785,10 @@ class MainWindow(QMainWindow):
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
             'The following reaction IDs of the scenario do not exist in the current model and will be ignored:\n'+' '.join(missing_reactions))
+
+        if len(skipped_scenario_reactions) > 0 :
+            QMessageBox.warning(self, 'Reactions with exitind IDs in scenario',
+            'The scenario reactions with the following IDs already exist in the current model and will be ignored:\n'+' '.join(skipped_scenario_reactions))
 
         if len(incompatible_constraints) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
