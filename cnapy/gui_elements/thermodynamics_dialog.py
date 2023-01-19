@@ -2,8 +2,10 @@
 import cobra
 import cobra.util.solver
 import copy
+import pickle
+from contextlib import redirect_stdout, redirect_stderr
 from numpy import exp
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Qt, QThread, Signal, Slot
 from qtpy.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -20,7 +22,13 @@ from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from straindesign import avail_solvers
 from straindesign.names import *
-from cnapy.sd_class_interface import LinearProgram, Solver, Status, ObjectiveDirection
+from cnapy.sd_class_interface import (
+    LinearProgram,
+    Result,
+    Solver,
+    Status,
+    ObjectiveDirection,
+)
 from cnapy.sd_ci_optmdfpathway import create_optmdfpathway_milp, STANDARD_R, STANDARD_T
 from typing import Dict
 from cobra.util.solver import interface_to_str
@@ -92,15 +100,82 @@ def make_model_irreversible(
     return cobra_model
 
 
+class ComputationViewer(QDialog):
+    """A dialog that shows the status of an ongoing computation"""
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Computation is running...")
+
+        self.setMinimumWidth(620)
+        self.layout = QVBoxLayout()
+
+        buttons_layout = QHBoxLayout()
+        cancel = QPushButton("Cancel")
+        cancel.setMaximumWidth(120)
+        cancel.clicked.connect(self.cancel)
+        buttons_layout.addWidget(cancel)
+        self.layout.addItem(buttons_layout)
+
+        self.setLayout(self.layout)
+        self.show()
+
+    @Slot()
+    def close_window(self):
+        self.deleteLater()
+        self.accept()
+
+    @Slot()
+    def cancel(self):
+        self.cancel_computation.emit()
+        self.deleteLater()
+        self.reject()
+
+    cancel_computation = Signal()
+
+import time
+class ComputationThread(QThread):
+    def __init__(self, linear_program: LinearProgram, bottleneck_analysis: bool):
+        # super().__init__()
+        QThread.__init__(self)
+        self.linear_program: LinearProgram = linear_program
+        self.bottleneck_analysis: bool = bottleneck_analysis
+
+    def run(self):
+        try:
+            with redirect_stdout(self), redirect_stderr(self):
+                solution = self.linear_program.run_solve()
+                self.send_solution.emit(pickle.dumps(solution))
+                self.finished_computation.emit()
+        except Exception:
+            self.send_solution.emit(pickle.dumps("ERROR"))
+            self.finished_computation.emit()
+
+    def flush(self):
+        pass
+
+    # the output from the computation needs to be passed as a signal because
+    # all Qt widgets must run on the main thread and their methods cannot be safely called
+    # from other threads
+    send_solution = Signal(bytes)
+    finished_computation = Signal()
+
+
 class ThermodynamicDialog(QDialog):
     """A dialog to perform several thermodynamic methods."""
 
-    def __init__(self, appdata: AppData, central_widget: CentralWidget, bottleneck_analysis: bool) -> None:
+    def __init__(
+        self, appdata: AppData, central_widget: CentralWidget, bottleneck_analysis: bool
+    ) -> None:
         self.FWDID = "_FWDCNAPY"
         self.REVID = "_REVCNAPY"
 
         QDialog.__init__(self)
-        self.setWindowTitle("Perform OptMDFpathway")
+        window_title = "Perform OptMDFpathway"
+        if bottleneck_analysis:
+            window_title += " bottleneck analysis"
+        self.setWindowTitle(window_title)
 
         self.appdata = appdata
         self.central_widget = central_widget
@@ -159,6 +234,60 @@ class ThermodynamicDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.button_optmdf.clicked.connect(self.compute_optmdf)
 
+    def get_solution_from_thread(self, solution) -> None:
+        solution = pickle.loads(solution)
+
+        if solution == "ERROR":
+            QMessageBox.warning(
+                self,
+                "Computational error",
+                "Something went really wrong. The computation could not run.",
+            )
+        elif solution.status == Status.INFEASIBLE:
+            QMessageBox.warning(
+                self, "Infeasible", "No solution exists, the problem is infeasible"
+            )
+        elif solution.status == Status.TIME_LIMIT:
+            QMessageBox.warning(
+                self,
+                "Time limit hit",
+                "No solution could be calculated as the time limit was hit.",
+            )
+        elif solution.status == Status.UNBOUNDED:
+            QMessageBox.warning(
+                self,
+                "Unbounded",
+                "The solution is unbounded (inf) so that no optimization solution can be shown.",
+            )
+        elif solution.status == Status.OPTIMAL:
+            self.set_boxes(solution=solution.values)
+
+        self.setCursor(Qt.ArrowCursor)
+        self.accept()
+
+    @Slot()
+    def compute_in_thread(
+        self, linear_program: LinearProgram, bottleneck_analysis: bool
+    ) -> None:
+        # launch progress viewer and computation thread
+        self.computation_viewer = ComputationViewer()
+        # connect signals to update progress
+        self.computation_thread = ComputationThread(linear_program, bottleneck_analysis)
+        self.computation_thread.finished_computation.connect(
+            self.computation_viewer.close_window, Qt.QueuedConnection
+        )
+        self.computation_thread.send_solution.connect(
+            self.get_solution_from_thread, Qt.QueuedConnection
+        )
+        self.computation_viewer.cancel_computation.connect(
+            self.computation_thread.terminate, Qt.QueuedConnection
+        )
+        # show dialog and launch process
+        self.computation_viewer.show()
+        self.computation_thread.start()
+        self.hide()
+
+    @Slot()
     def compute_optmdf(self):
         self.setCursor(Qt.BusyCursor)
 
@@ -338,7 +467,8 @@ class ThermodynamicDialog(QDialog):
                     QMessageBox.warning(
                         self,
                         "Invalid minimal OptMDF",
-                        f"The given minimal OptMDF could not be converted into a valid number (such as 1.231). Aborting calculation...",
+                        f"The given minimal OptMDF could not be converted into a valid number (such as, e.g., 1.231)."
+                        "Aborting calculation...",
                     )
                     return
 
@@ -368,29 +498,11 @@ class ThermodynamicDialog(QDialog):
             optmdfpathway_lp.construct_solver_object(
                 solver=solver,
             )
-            solution = optmdfpathway_lp.run_solve()
-
-            if solution.status == Status.INFEASIBLE:
-                QMessageBox.warning(
-                    self, "Infeasible", "No solution exists, the problem is infeasible"
-                )
-            elif solution.status == Status.TIME_LIMIT:
-                QMessageBox.warning(
-                    self,
-                    "Time limit hit",
-                    "No solution could be calculated as the time limit was hit.",
-                )
-            elif solution.status == Status.UNBOUNDED:
-                QMessageBox.warning(
-                    self,
-                    "Unbounded",
-                    "The solution is unbounded (inf) so that no optimization solution can be shown.",
-                )
-            elif solution.status == Status.OPTIMAL:
-                self.set_boxes(solution=solution.values)
-
-            self.setCursor(Qt.ArrowCursor)
-            self.accept()
+            # solution = optmdfpathway_lp.run_solve()
+            self.compute_in_thread(
+                linear_program=optmdfpathway_lp,
+                bottleneck_analysis=self.bottleneck_analysis,
+            )
 
     def set_boxes(self, solution: Dict[str, float]):
         # Combine FWD and REV flux solutions
@@ -425,7 +537,9 @@ class ThermodynamicDialog(QDialog):
         for metabolite_id in self.metabolite_ids:
             var_id = f"x_{metabolite_id}"
             if var_id in solution.keys():
-                self.appdata.project.conc_values[var_id[2:]] = round(exp(solution[var_id]), 6)
+                self.appdata.project.conc_values[var_id[2:]] = round(
+                    exp(solution[var_id]), 6
+                )
 
         # Show selected reaction-dependent values
         self.appdata.project.comp_values_type = 0
@@ -447,8 +561,5 @@ class ThermodynamicDialog(QDialog):
                     if combined_solution[key] > 0.1:
                         console_text += f"\\n* {key.replace('bottleneck_z_', '')}"
         console_text += "')"
-        print(console_text)
-        self.central_widget.kernel_client.execute(
-            console_text
-        )
+        self.central_widget.kernel_client.execute(console_text)
         self.central_widget.show_bottom_of_console()
