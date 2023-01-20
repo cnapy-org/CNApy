@@ -486,9 +486,7 @@ class ReactionList(QWidget):
         action.triggered.connect(self.copy_to_clipboard)
         menu.exec_(self.reaction_list.header().mapToGlobal(position))
 
-    @Slot()
-    def copy_to_clipboard(self):
-        clipboard = QGuiApplication.clipboard()
+    def get_as_table(self) -> str:
         visible_columns = [j.value for j in ReactionListColumn if not self.reaction_list.isColumnHidden(j)]
         table = ["\t".join([ReactionListColumn(j).name for j in visible_columns])]
         root = self.reaction_list.invisibleRootItem()
@@ -499,7 +497,13 @@ class ReactionList(QWidget):
             for j in visible_columns:
                 line.append(item.text(j))
             table.append("\t".join(line))
-        clipboard.setText("\r".join(table))
+        return "\r".join(table)
+
+    @Slot()
+    def copy_to_clipboard(self):
+        clipboard = QGuiApplication.clipboard()
+        table = self.get_as_table()
+        clipboard.setText(table)
 
     itemActivated = Signal(str)
     reactionChanged = Signal(str, cobra.Reaction)
