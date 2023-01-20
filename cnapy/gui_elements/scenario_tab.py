@@ -198,7 +198,7 @@ class ScenarioTab(QWidget):
             lb, lb_brush = self.verify_bound(self.reactions.item(row, ScenarioReactionColumn.LB))
             ub, ub_brush = self.verify_bound(self.reactions.item(row, ScenarioReactionColumn.UB))
             if not (isnan(lb) or isnan(ub)):
-                if lb < ub:
+                if lb <= ub:
                     self.appdata.project.scen_values.reactions[reac_id][1] = lb
                     self.appdata.project.scen_values.reactions[reac_id][2] = ub
                     if self.appdata.auto_fba:
