@@ -371,7 +371,6 @@ class ProjectData:
                     self.cobra_py_model.add_reaction(reaction)
                 reaction.add_metabolites(metabolites)
                 reaction.set_hash_value()
-                print(reaction)
 
         if self.scen_values.use_scenario_objective:
             self.cobra_py_model.objective = self.cobra_py_model.problem.Objective(
@@ -398,12 +397,15 @@ class ProjectData:
             else:
                 print("Skipping constraint of unknown type", constraint_type)
                 continue
+            try:
+                reactions = model.reactions.get_by_any(list(expression))
+            except KeyError:
+                print("Skipping constraint containing a reaction that is not in the model:", expression)
+                continue
             constr = model.problem.Constraint(Zero, lb=lb, ub=ub)
             model.add_cons_vars(constr)
-            for (reac_id, coeff) in expression.items():
-                reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
+            for (reaction, coeff) in zip(reactions, expression.values()):
                 constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
-            # print(constr)
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []

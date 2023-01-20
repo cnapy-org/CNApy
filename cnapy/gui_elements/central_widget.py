@@ -54,7 +54,7 @@ class CentralWidget(QWidget):
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self)
         self.metabolite_list = MetaboliteList(self.appdata)
-        self.scenario_tab = ScenarioTab(self.appdata)
+        self.scenario_tab = ScenarioTab(self)
         self.gene_list = GeneList(self.appdata)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
