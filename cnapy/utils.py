@@ -199,7 +199,7 @@ class QComplReceivLineEdit(QLineEdit):
                 except:
                     if final:
                         self.setStyleSheet(BACKGROUND_COLOR(
-                            "#fff0f0", self.objectName()))
+                            "#ffb0b0", self.objectName()))
                     else:
                         self.setStyleSheet(BACKGROUND_COLOR(
                             "#ffffff", self.objectName()))

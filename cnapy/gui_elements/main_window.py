@@ -774,7 +774,8 @@ class MainWindow(QMainWindow):
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
         try:
-            missing_reactions, incompatible_constraints = self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
+            missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
+                self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
         except json.decoder.JSONDecodeError:
             QMessageBox.critical(
                 self,
@@ -786,23 +787,28 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.pinned_reactions)
 
+        self.appdata.project.comp_values.clear()
+        self.appdata.project.fva_values.clear()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
+
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
             'The following reaction IDs of the scenario do not exist in the current model and will be ignored:\n'+' '.join(missing_reactions))
+
+        if len(skipped_scenario_reactions) > 0 :
+            QMessageBox.warning(self, 'Reactions with existing IDs in scenario',
+            'The scenario reactions with the following IDs already exist in the current model and will be ignored:\n'+' '.join(skipped_scenario_reactions))
 
         if len(incompatible_constraints) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
             'The following scenario constraints refer to reactions not in the model and will be ignored:\n'+
             '\n'.join([utils.format_scenario_constraint(c) for c in incompatible_constraints]))
 
-        self.appdata.project.comp_values.clear()
-        self.appdata.project.fva_values.clear()
         if self.appdata.auto_fba:
             self.fba()
         else:
             self.centralWidget().update()
             self.clear_status_bar()
-        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_reactions_constraints()
         self.appdata.last_scen_directory = os.path.dirname(filename)
 
     @Slot()
@@ -1068,6 +1074,7 @@ class MainWindow(QMainWindow):
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
         self.centralWidget().update()
 
     def clear_all(self):
@@ -1214,7 +1221,7 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild=True)
-                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_reactions_constraints()
+                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
 
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)
@@ -1711,10 +1718,13 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
-    def fva(self, fraction_of_optimum=0.0):  # cobrapy default is 1.0
+    def fva(self, fraction_of_optimum=0.0, zero_objective_with_zero_fraction_of_optimum=True):
         self.setCursor(Qt.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
+            if zero_objective_with_zero_fraction_of_optimum:
+                # completely remove objective for basic FVA, not the same as only setting fraction_of_optimum = 0.0
+                model.objective = model.problem.Objective(Zero)
             if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
                 update_stoichiometry_hash = True
             else:

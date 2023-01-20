@@ -227,9 +227,10 @@ class Scenario(Dict[str, Tuple[float, float]]):
         with open(filename, 'w') as fp:
             json.dump(json_dict, fp)
 
-    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List]:
+    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List, List]:
         unknown_ids: List(str)= []
         incompatible_constraints = []
+        skipped_scenario_reactions = []
         if not merge:
             self.clear()
         with open(filename, 'r') as fp:
@@ -250,6 +251,11 @@ class Scenario(Dict[str, Tuple[float, float]]):
                         all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
                         if json_dict['version'] > 1:
                             self.reactions = json_dict['reactions']
+                            for reac_id in self.reactions:
+                                if reac_id in all_reaction_ids:
+                                    skipped_scenario_reactions.append(reac_id)
+                            for reac_id in skipped_scenario_reactions:
+                                del self.reactions[reac_id]
                             self.constraints = []
                             all_reaction_ids.update(self.reactions)
                             for constr in json_dict['constraints']:
@@ -295,7 +301,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                 unknown_ids.append(reac_id)
         appdata.scen_values_set_multiple(reactions, scen_values)
 
-        return unknown_ids, incompatible_constraints
+        return unknown_ids, incompatible_constraints, skipped_scenario_reactions
 
     def clear_flux_values(self):
         super().clear()
@@ -365,7 +371,6 @@ class ProjectData:
                     self.cobra_py_model.add_reaction(reaction)
                 reaction.add_metabolites(metabolites)
                 reaction.set_hash_value()
-                print(reaction)
 
         if self.scen_values.use_scenario_objective:
             self.cobra_py_model.objective = self.cobra_py_model.problem.Objective(
@@ -392,12 +397,15 @@ class ProjectData:
             else:
                 print("Skipping constraint of unknown type", constraint_type)
                 continue
+            try:
+                reactions = model.reactions.get_by_any(list(expression))
+            except KeyError:
+                print("Skipping constraint containing a reaction that is not in the model:", expression)
+                continue
             constr = model.problem.Constraint(Zero, lb=lb, ub=ub)
             model.add_cons_vars(constr)
-            for (reac_id, coeff) in expression.items():
-                reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
+            for (reaction, coeff) in zip(reactions, expression.values()):
                 constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
-            # print(constr)
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []
