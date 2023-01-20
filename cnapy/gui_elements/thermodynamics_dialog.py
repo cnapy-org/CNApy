@@ -134,7 +134,7 @@ class ComputationViewer(QDialog):
 
     cancel_computation = Signal()
 
-import time
+
 class ComputationThread(QThread):
     def __init__(self, linear_program: LinearProgram, bottleneck_analysis: bool):
         # super().__init__()
@@ -529,17 +529,17 @@ class ThermodynamicDialog(QDialog):
                     float(combined_solution[search_key]),
                 )
             if "f_var_" + search_key in combined_solution.keys():
-                self.appdata.project.df_values[search_key] = combined_solution[
-                    "f_var_" + search_key
-                ]
+                rounded_df = round(
+                    combined_solution["f_var_" + search_key], self.appdata.rounding
+                )
+                self.appdata.project.df_values[search_key] = rounded_df
 
         # Write metabolite concentrations
         for metabolite_id in self.metabolite_ids:
             var_id = f"x_{metabolite_id}"
             if var_id in solution.keys():
-                self.appdata.project.conc_values[var_id[2:]] = round(
-                    exp(solution[var_id]), 6
-                )
+                rounded_conc = round(exp(solution[var_id]), 9)
+                self.appdata.project.conc_values[var_id[2:]] = rounded_conc
 
         # Show selected reaction-dependent values
         self.appdata.project.comp_values_type = 0
