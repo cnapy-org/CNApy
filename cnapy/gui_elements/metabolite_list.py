@@ -1,8 +1,8 @@
 """The metabolite list"""
 
 import cobra
-from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtGui import QColor, QIcon
+from qtpy.QtCore import Qt, QPoint, Signal, Slot
+from qtpy.QtGui import QColor, QGuiApplication, QIcon
 from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
@@ -21,6 +21,32 @@ class MetaboliteListColumn(IntEnum):
     Concentration = 2
 
 
+class MetaboliteListItem(QTreeWidgetItem):
+    """ For custom sorting of columns """
+
+    def __init__(self, parent: QTreeWidget):
+        # although QTreeWidgetItem is constructed with the metabolite_list as parent this
+        # will not be its parent() which is None because it is a top-level item
+        QTreeWidgetItem.__init__(self, parent)
+
+    def __lt__(self, other):
+        """ overrides QTreeWidgetItem::operator< """
+        column = self.treeWidget().sortColumn()
+        if column == MetaboliteListColumn.Concentration:
+            try:
+                current_value = float(self.text(column))
+            except ValueError:
+                current_value = -float("inf")
+            try:
+                other_value = float(other.text(column))
+            except ValueError:
+                other_value = -float("inf")
+            return current_value < other_value
+        else:  # use Qt default comparison for the other columns
+#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
+            return self.text(column) < other.text(column)
+
+
 class MetaboliteList(QWidget):
     """A list of metabolites"""
 
@@ -30,7 +56,12 @@ class MetaboliteList(QWidget):
         self.last_selected = None
 
         self.metabolite_list = QTreeWidget()
-        self.metabolite_list.setHeaderLabels(["Id", "Name", "Concentration"])
+
+        self.header_labels = [MetaboliteListColumn(i).name for i in range(len(MetaboliteListColumn))]
+        self.metabolite_list.setHeaderLabels(self.header_labels)
+        self.visible_column = [True]*len(self.header_labels)
+
+        # self.metabolite_list.setHeaderLabels(["Id", "Name", "Concentration"])
         self.metabolite_list.setSortingEnabled(True)
 
         for m in self.appdata.project.cobra_py_model.metabolites:
@@ -65,13 +96,15 @@ class MetaboliteList(QWidget):
             self.handle_changed_metabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
+        self.metabolite_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metabolite_list.header().customContextMenuRequested.connect(self.header_context_menu)
 
     def clear(self):
         self.metabolite_list.clear()
         self.metabolite_mask.hide()
 
     def add_metabolite(self, metabolite):
-        item = QTreeWidgetItem(self.metabolite_list)
+        item = MetaboliteListItem(self.metabolite_list)
         item.setText(MetaboliteListColumn.Id, metabolite.id)
         item.setText(MetaboliteListColumn.Name, metabolite.name)
         if metabolite.id in self.appdata.project.conc_values.keys():
@@ -164,6 +197,41 @@ class MetaboliteList(QWidget):
 
     def emit_in_out_fluxes_action(self):
         self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
+
+    @Slot()
+    def copy_to_clipboard(self):
+        clipboard = QGuiApplication.clipboard()
+        visible_columns = [j.value for j in MetaboliteListColumn if not self.metabolite_list.isColumnHidden(j)]
+        table = ["\t".join([MetaboliteListColumn(j).name for j in visible_columns])]
+        root = self.metabolite_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            line = []
+            for j in visible_columns:
+                line.append(item.text(j))
+            table.append("\t".join(line))
+        clipboard.setText("\r".join(table))
+
+    @Slot(bool)
+    def set_column_visibility_action(self, visible):
+        col_idx = self.sender().data()
+        self.metabolite_list.setColumnHidden(col_idx, not visible)
+        self.visible_column[col_idx] = visible
+
+    @Slot(QPoint)
+    def header_context_menu(self, position):
+        menu = QMenu(self.metabolite_list.header())
+        for col_idx in range(1, len(self.header_labels)):
+            action = menu.addAction(self.header_labels[col_idx])
+            action.setCheckable(True)
+            action.setChecked(self.visible_column[col_idx])
+            action.setData(col_idx)
+            action.triggered.connect(self.set_column_visibility_action)
+        menu.addSeparator()
+        action = menu.addAction("Copy table to system clipboard")
+        action.triggered.connect(self.copy_to_clipboard)
+        menu.exec_(self.metabolite_list.header().mapToGlobal(position))
 
     itemActivated = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite, object)
