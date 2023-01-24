@@ -1933,6 +1933,9 @@ class MainWindow(QMainWindow):
             else:
                 lb = concentrations[metabolite.id]["min"]
                 ub = concentrations[metabolite.id]["max"]
+
+            metabolite.annotation["Cmin"] = lb
+            metabolite.annotation["Cmax"] = ub
         self.centralWidget().update()
         self.unsaved_changes()
 
