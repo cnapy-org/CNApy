@@ -23,8 +23,7 @@ from qtpy.QtWidgets import QMessageBox
 class AppData:
     ''' The application data '''
 
-    def __init__(self, qapp):
-        self.qapp = qapp
+    def __init__(self):
         self.version = "cnapy-1.1.4"
         self.format_version = 2
         self.unsaved = False
@@ -308,12 +307,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
     def clear(self):
         super().clear()
-        self.objective_coefficients = {}
-        self.objective_direction = "max"
-        self.pinned_reactions = set()
-        self.constraints = []
-        self.reactions = {}
-        self.description = ""
+        self.__init__()
 
 class ProjectData:
     ''' The cnapy project data '''

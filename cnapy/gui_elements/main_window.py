@@ -342,6 +342,7 @@ class MainWindow(QMainWindow):
         make_scenario_feasible_action = QAction("Make scenario feasible...", self)
         make_scenario_feasible_action.triggered.connect(self.make_scenario_feasible)
         self.analysis_menu.addAction(make_scenario_feasible_action)
+        self.make_scenario_feasible_dialog = None
 
         self.analysis_menu.addSeparator()
 
@@ -1081,7 +1082,10 @@ class MainWindow(QMainWindow):
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
-        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
+        self.appdata.project.scen_values.clear()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
+        if self.appdata.auto_fba:
+            self.fba()
         self.centralWidget().update()
 
     def clear_all(self):
@@ -1227,8 +1231,8 @@ class MainWindow(QMainWindow):
                     self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                     self.centralWidget().fit_mapview()
 
+                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
                 self.centralWidget().update(rebuild=True)
-                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
 
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)
@@ -1272,6 +1276,9 @@ class MainWindow(QMainWindow):
             if self.sd_dialog.__weakref__:
                 del self.sd_dialog
             self.sd_dialog = None
+        if self.make_scenario_feasible_dialog is not None:
+            self.make_scenario_feasible_dialog.close()
+            self.make_scenario_feasible_dialog = None
 
     def save_sbml(self, filename):
         '''Save model as SBML'''
@@ -1538,26 +1545,12 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
 
     def make_scenario_feasible(self):
-        make_scenario_feasible_dialog = FluxFeasibilityDialog(self.appdata)
-        if make_scenario_feasible_dialog.exec_() == QDialog.Accepted:
-            self.appdata.project.solution = make_scenario_feasible_dialog.solution
-            self.process_fba_solution(update=False)
-            if len(make_scenario_feasible_dialog.reactions_in_objective) > 0:
-                if self.appdata.project.solution.status == 'optimal':
-                    self.centralWidget().console._append_plain_text(
-                        "\nThe fluxes of the following reactions were changed to make the scenario feasible:\n", before_prompt=True)
-                    for r in make_scenario_feasible_dialog.reactions_in_objective:
-                        given_value = self.appdata.project.scen_values[r][0]
-                        computed_value = self.appdata.project.comp_values[r][0]
-                        if abs(given_value - computed_value) > self.appdata.project.cobra_py_model.tolerance:
-                            self.centralWidget().console._append_plain_text(r+": "+self.appdata.format_flux_value(given_value)
-                                +" --> "+self.appdata.format_flux_value(computed_value)+"\n", before_prompt=True)
-                    self.appdata.scen_values_set_multiple(make_scenario_feasible_dialog.reactions_in_objective,
-                                [self.appdata.project.comp_values[r] for r in make_scenario_feasible_dialog.reactions_in_objective])
-                    self.centralWidget().update()
-                else:
-                    QMessageBox.critical(self, "Solver could not find an optimal solution",
-                                 "No optimal solution was found, solver returned status '"+self.appdata.project.solution.status+"'.")
+        if self.make_scenario_feasible_dialog is None:
+            self.make_scenario_feasible_dialog = FluxFeasibilityDialog(self)
+        else:
+            self.make_scenario_feasible_dialog.modified_scenario = None
+            self.make_scenario_feasible_dialog.bm_reac_id_select.set_wordlist(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
+        self.make_scenario_feasible_dialog.show()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
         with self.appdata.project.cobra_py_model as model:

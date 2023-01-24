@@ -220,6 +220,7 @@ class CentralWidget(QWidget):
     def maximize_reaction(self, reaction: str):
         self.parent.fba_optimize_reaction(reaction, mmin=False)
 
+    @Slot(str)
     def set_scen_value(self, reaction: str):
         self.appdata.set_comp_value_as_scen_value(reaction)
         self.update()
@@ -256,6 +257,7 @@ class CentralWidget(QWidget):
         mmap.switchToReactionMask.connect(self.switch_to_reaction)
         mmap.minimizeReaction.connect(self.minimize_reaction)
         mmap.maximizeReaction.connect(self.maximize_reaction)
+        mmap.setScenValue.connect(self.set_scen_value)
         mmap.reactionValueChanged.connect(self.update_reaction_value)
         mmap.reactionRemoved.connect(self.update_reaction_maps)
         mmap.reactionAdded.connect(self.update_reaction_maps)
