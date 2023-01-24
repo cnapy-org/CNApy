@@ -1070,7 +1070,10 @@ class MainWindow(QMainWindow):
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
-        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
+        self.appdata.project.scen_values.clear()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
+        if self.appdata.auto_fba:
+            self.fba()
         self.centralWidget().update()
 
     def clear_all(self):
@@ -1216,8 +1219,8 @@ class MainWindow(QMainWindow):
                     self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                     self.centralWidget().fit_mapview()
 
+                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
                 self.centralWidget().update(rebuild=True)
-                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
 
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)

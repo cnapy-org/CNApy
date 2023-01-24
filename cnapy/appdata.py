@@ -307,12 +307,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
     def clear(self):
         super().clear()
-        self.objective_coefficients = {}
-        self.objective_direction = "max"
-        self.pinned_reactions = set()
-        self.constraints = []
-        self.reactions = {}
-        self.description = ""
+        self.__init__()
 
 class ProjectData:
     ''' The cnapy project data '''

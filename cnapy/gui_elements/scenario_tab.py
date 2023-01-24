@@ -106,10 +106,15 @@ class ScenarioTab(QWidget):
         self.scenario_opt_direction.currentIndexChanged.connect(self.scenario_optimization_direction_changed)
         self.description.textChanged.connect(self.description_changed)
 
+        self.recreate_scenario_items_needed = False
+
         self.update()
 
     def update(self):
         self.update_reation_id_lists()
+        if self.recreate_scenario_items_needed:
+            self.recreate_scenario_items()
+            self.recreate_scenario_items_needed = False
 
         with QSignalBlocker(self.scenario_opt_direction):
             self.scenario_opt_direction.setCurrentIndex(OptimizationDirection[self.appdata.project.scen_values.objective_direction])
@@ -156,13 +161,11 @@ class ScenarioTab(QWidget):
             for row,reac_id in enumerate(self.appdata.project.scen_values.reactions):
                 self.new_reaction_row(row)
                 self.update_reaction_row(row, reac_id)
-        if num_scenario_reactions > 0:
-            self.reactions.setCurrentCell(0, ScenarioReactionColumn.Id)
-            self.equation.setEnabled(True)
-        else:
+                self.reactions.setCurrentCell(-1, -1)
+        with QSignalBlocker(self.equation):
             self.equation.clear()
             self.equation.setEnabled(False)
-        turn_white(self.equation)
+            turn_white(self.equation)
 
         self.constraints.clearContents()
         self.constraints.setRowCount(0)
@@ -334,6 +337,7 @@ class ScenarioTab(QWidget):
     def update_reaction_row(self, row: int, reac_id: str):
         reac_id_item = self.reactions.item(row, ScenarioReactionColumn.Id)
         reac_id_item.setText(reac_id)
+        reac_id_item.setToolTip(reac_id)
         reac_id_item.setData(Qt.UserRole, reac_id)
         _, lb, ub = self.appdata.project.scen_values.reactions[reac_id]
         self.reactions.item(row, ScenarioReactionColumn.LB).setText(str(lb))

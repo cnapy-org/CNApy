@@ -1,21 +1,33 @@
 from math import copysign
 from qtpy.QtCore import Qt, Slot, QSignalBlocker
-from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox,
+from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox, QMainWindow,
                             QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView,
-                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup)
+                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, QStyledItemDelegate)
 
 from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException
+from cnapy.gui_elements.central_widget import ModelTabIndex
 import cobra
 
 coefficient_format: str = "{:.4g}"
 
+class CoefficientDelegate(QStyledItemDelegate):
+    """
+    Use this class to format the coefficients in the table. The coefficients can then
+    be stored as numbers and so that proper sorting is possible.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+
+    def displayText(self, data, locale) -> str:
+        return coefficient_format.format(data)
+
 class FluxFeasibilityDialog(QDialog):
-    def __init__(self, main_window):
+    def __init__(self, main_window: QMainWindow):
         QDialog.__init__(self, parent=main_window)
         self.setWindowTitle("Make scenario feasible")
 
-        self.main_window = main_window
+        self.main_window: QMainWindow = main_window
         self.appdata = main_window.appdata
 
         self.layout = QVBoxLayout()
@@ -76,6 +88,10 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_constituents.verticalHeader().setVisible(False)
         self.bm_constituents.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.bm_constituents.resizeColumnsToContents()
+        coefficient_delegate = CoefficientDelegate()
+        self.bm_constituents.setItemDelegateForColumn(3, coefficient_delegate)
+        self.bm_constituents.setItemDelegateForColumn(4, coefficient_delegate)
+        self.bm_constituents.setItemDelegateForColumn(5, coefficient_delegate)
         vbox_bm_coeff.addWidget(self.bm_constituents)
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("Maximal relative coefficient change [%]:"))
@@ -131,6 +147,9 @@ class FluxFeasibilityDialog(QDialog):
         vbox_gam.addWidget(self.gam_adjustment)
         self.adjust_gam.setLayout(vbox_gam)
         vbox.addWidget(self.adjust_gam)
+        self.bm_mod_scenario = QCheckBox("Add modified biomass reaction to scenario")
+        self.bm_mod_scenario.setChecked(True)
+        vbox.addWidget(self.bm_mod_scenario)
         self.bm_group.setLayout(vbox)
         self.layout.addWidget(self.bm_group)
         self.enable_biomass_equation_modifications(False)
@@ -146,6 +165,7 @@ class FluxFeasibilityDialog(QDialog):
         self.setLayout(self.layout)
 
         self.bm_reac_id = ""
+        self.bm_mod_reac_id = ""
         self.bm_reac: cobra.Reaction = None
         self.modified_scenario = None
 
@@ -250,6 +270,10 @@ class FluxFeasibilityDialog(QDialog):
         if self.modified_scenario is self.appdata.scenario_past[-1]:
             self.main_window.undo_scenario_edit()
             self.modified_scenario = None
+        if self.bm_mod_reac_id in self.appdata.project.scen_values.reactions:
+            del self.appdata.project.scen_values.reactions[self.bm_mod_reac_id]
+            self.bm_mod_reac_id = ""
+            self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
 
         self.main_window.setCursor(Qt.BusyCursor)
         try:
@@ -260,6 +284,7 @@ class FluxFeasibilityDialog(QDialog):
                 bm_change_in_gram=self.bm_gram.isChecked(), gam_mets_param=gam_mets_param)
             self.main_window.process_fba_solution(update=False)
             if self.appdata.project.solution.status == 'optimal':
+                bm_is_modified = len(bm_mod) > 0 or gam_adjust != 0
                 if len(reactions_in_objective) > 0:
                     self.main_window.centralWidget().console._append_plain_text(
                         "\nThe fluxes of the following reactions were changed to make the scenario feasible:\n", before_prompt=True)
@@ -269,29 +294,43 @@ class FluxFeasibilityDialog(QDialog):
                         if abs(given_value - computed_value) > self.appdata.project.cobra_py_model.tolerance:
                             self.main_window.centralWidget().console._append_plain_text(r+": "+self.appdata.format_flux_value(given_value)
                                 +" --> "+self.appdata.format_flux_value(computed_value)+"\n", before_prompt=True)
-                    self.appdata.scen_values_set_multiple(reactions_in_objective,
-                                [self.appdata.project.comp_values[r] for r in reactions_in_objective])
+                    scenario_fluxes = [self.appdata.project.comp_values[r] for r in reactions_in_objective]
+                    if  bm_is_modified and self.bm_mod_scenario.isChecked():
+                        fixed_growth_rate = self.appdata.project.scen_values[bm_reac_id][0]
+                        self.appdata.scen_values_set_multiple(reactions_in_objective+[bm_reac_id], scenario_fluxes+[(0, 0)])
+                    else:
+                        self.appdata.scen_values_set_multiple(reactions_in_objective, scenario_fluxes)
                     self.modified_scenario = self.appdata.scenario_past[-1]
-                    self.main_window.centralWidget().update()
-                if len(bm_mod) > 0:
-                    self.bm_constituents.setSortingEnabled(False)
-                    for i in range(self.bm_constituents.rowCount()):
-                        met = self.bm_constituents.item(i, 1).data(Qt.UserRole)
-                        if met in bm_mod:
-                            mod = bm_mod[met]
-                            self.bm_constituents.setItem(i, 4, QTableWidgetItem(coefficient_format.format(mod)))
-                            ref = self.bm_reac.metabolites[met]
-                            if met in gam_mets:
-                                ref -= copysign(gam_base, ref)
-                            self.bm_constituents.setItem(i, 5, QTableWidgetItem(coefficient_format.format(100 * mod/ref)))
-                    self.bm_constituents.setSortingEnabled(True)
+                if bm_is_modified:
                     bm_reac_mod = self.bm_reac.copy()
-                    bm_reac_mod.add_metabolites(bm_mod)
+                    if len(bm_mod) > 0:
+                        self.bm_constituents.setSortingEnabled(False)
+                        for i in range(self.bm_constituents.rowCount()):
+                            met = self.bm_constituents.item(i, 1).data(Qt.UserRole)
+                            if met in bm_mod:
+                                mod = bm_mod[met]
+                                item =  QTableWidgetItem()
+                                item.setData(Qt.DisplayRole, mod)
+                                self.bm_constituents.setItem(i, 4, item)
+                                ref = self.bm_reac.metabolites[met]
+                                if met in gam_mets:
+                                    ref -= copysign(gam_base, ref)
+                                item =  QTableWidgetItem()
+                                item.setData(Qt.DisplayRole, 100 * mod/ref)
+                                self.bm_constituents.setItem(i, 5, item)
+                        self.bm_constituents.setSortingEnabled(True)
+                        bm_reac_mod.add_metabolites(bm_mod)
                     bm_reac_mod.add_metabolites({met: sign*gam_adjust for met, sign in zip(gam_mets, gam_mets_sign)})
                     self.main_window.centralWidget().console._append_plain_text("\nModified biomass reaction:\n"
                             +bm_reac_mod.build_reaction_string(), before_prompt=True)
+                    if self.bm_mod_scenario.isChecked():
+                        self.bm_mod_reac_id = "adjusted_" + bm_reac_id
+                        self.appdata.project.scen_values.reactions[self.bm_mod_reac_id] = \
+                            [{met.id: coeff for met, coeff in bm_reac_mod.metabolites.items()}, fixed_growth_rate, fixed_growth_rate]
+                        self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
                 if self.adjust_gam.isChecked():
                     self.gam_adjustment.setText("Calculated GAM adjustment: "+coefficient_format.format(gam_adjust))
+                self.main_window.centralWidget().update()
             else:
                 QMessageBox.critical(self, "Solver could not find an optimal solution",
                             "No optimal solution was found, solver returned status '"+self.appdata.project.solution.status+"'.")
@@ -321,7 +360,9 @@ class FluxFeasibilityDialog(QDialog):
             item.setData(Qt.UserRole, met)
             self.bm_constituents.setItem(i, 1, item)
             self.bm_constituents.setItem(i, 2, QTableWidgetItem(met.formula))
-            self.bm_constituents.setItem(i, 3, QTableWidgetItem(coefficient_format.format(coeff)))
+            item = QTableWidgetItem()
+            item.setData(Qt.DisplayRole, coeff)
+            self.bm_constituents.setItem(i, 3, item)
         self.bm_constituents.resizeColumnToContents(0)
         self.bm_constituents.setSortingEnabled(True)
 
