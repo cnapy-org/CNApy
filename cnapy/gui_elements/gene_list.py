@@ -32,12 +32,6 @@ class GeneList(QWidget):
             self.on_context_menu)
 
         # create context menu
-        self.pop_menu = QMenu(self.gene_list)
-        in_out_fluxes_action = QAction(
-            'compute in/out fluxes for this gene', self.gene_list)
-        self.pop_menu.addAction(in_out_fluxes_action)
-        in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
-
         self.gene_mask = GenesMask(self, appdata)
         self.gene_mask.hide()
 
@@ -146,9 +140,6 @@ class GeneList(QWidget):
 
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(metabolite)
-
-    def emit_in_out_fluxes_action(self):
-        self.computeInOutFlux.emit(self.gene_list.currentItem().text(0))
 
     itemActivated = Signal(str)
     geneChanged = Signal(str, cobra.Gene)

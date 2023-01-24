@@ -3,7 +3,6 @@ import json
 import os
 import traceback
 from tempfile import TemporaryDirectory
-from typing import Tuple
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
@@ -1836,6 +1835,20 @@ class MainWindow(QMainWindow):
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
+
+            # Pretty print cons and prod lists of tuples
+            pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
+                x[0].id: x[1]
+                for x in prod
+            }, indent=2)
+            pretty_cons_dict = f"\nConsuming reactions of {metabolite_id}:\n"+json.dumps({
+                x[0].id: x[1]
+                for x in cons
+            }, indent=2)
+            # The next print statements are directly printed in the Jupyter console
+            print(pretty_prod_dict)
+            print(pretty_cons_dict)
+
             plt.show()
         self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
