@@ -3,7 +3,6 @@ import json
 import os
 import traceback
 from tempfile import TemporaryDirectory
-from typing import Tuple
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
@@ -46,7 +45,7 @@ from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
-from cnapy.gui_elements.optmdfpathway_dialog import OptmdfpathwayDialog
+from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicDialog
 import cnapy.utils as utils
 
 
@@ -209,6 +208,14 @@ class MainWindow(QMainWindow):
         self.clipboard_menu.addAction(clipboard_arithmetics_action)
         clipboard_arithmetics_action.triggered.connect(
             self.clipboard_arithmetics)
+
+        save_fluxes_as_csv_action = QAction("Save flux solution as comma-separated .csv...", self)
+        self.clipboard_menu.addAction(save_fluxes_as_csv_action)
+        save_fluxes_as_csv_action.triggered.connect(self.save_fluxes_as_csv)
+
+        save_fluxes_as_xlsx_action = QAction("Save flux solution as Excel .xlsx...", self)
+        self.clipboard_menu.addAction(save_fluxes_as_xlsx_action)
+        save_fluxes_as_xlsx_action.triggered.connect(self.save_fluxes_as_xlsx)
 
         self.map_menu = self.menu.addMenu("Map")
         self.cnapy_map_actions = QActionGroup(self)
@@ -390,6 +397,11 @@ class MainWindow(QMainWindow):
         optmdf_action = QAction("OptMDFpathway...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.analysis_menu.addAction(optmdf_action)
+
+
+        bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
+        bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
+        self.analysis_menu.addAction(bottleneck_action)
 
         dG0_menu = self.analysis_menu.addMenu("Load dG'° values [in kJ/mol]...")
 
@@ -1816,6 +1828,20 @@ class MainWindow(QMainWindow):
             ax.set_ylabel('Flux')
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
+
+            # Pretty print cons and prod lists of tuples
+            pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
+                x[0].id: x[1]
+                for x in prod
+            }, indent=2)
+            pretty_cons_dict = f"\nConsuming reactions of {metabolite_id}:\n"+json.dumps({
+                x[0].id: x[1]
+                for x in cons
+            }, indent=2)
+            # The next print statements are directly printed in the Jupyter console
+            print(pretty_prod_dict)
+            print(pretty_cons_dict)
+
             plt.show()
         self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
@@ -1852,9 +1878,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        self.optmdfpathway_dialog = OptmdfpathwayDialog(
-            self.appdata, self.centralWidget())
+        self.optmdfpathway_dialog = ThermodynamicDialog(
+            self.appdata, self.centralWidget(), bottleneck_analysis=False)
         self.optmdfpathway_dialog.exec_()
+
+    @Slot()
+    def perform_bottleneck_analysis(self):
+        self.bottleneck_dialog = ThermodynamicDialog(
+            self.appdata, self.centralWidget(), bottleneck_analysis=True)
+        self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)
@@ -2035,3 +2067,39 @@ class MainWindow(QMainWindow):
                 f"The following warnings occured while loading the XLSX:\n{warnings}"
             )
         self._set_dG0s(dG0s)
+
+    def _save_fluxes(self, filetype: str):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter=f"*.{filetype}")[0]
+        if not filename or len(filename) == 0:
+            return
+        if not (filename.endswith(f".{filetype}")):
+            filename += f".{filetype}"
+
+        table = self.central_widget.reaction_list.get_as_table()
+
+        if filetype == "csv":
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(table)
+        elif filetype == "xlsx":
+            wb = openpyxl.Workbook()
+            sheet = wb.active
+            sheet.title = "CNApy"
+            lines = table.split("\r")
+            current_line = 1
+            for line in lines:
+                current_column = 1
+                cells = line.split("\t")
+                for cell in cells:
+                    sheet_cell = sheet.cell(row=current_line, column=current_column)
+                    sheet_cell.value = cell
+                    current_column += 1
+                current_line += 1
+            wb.save(filename)
+
+    def save_fluxes_as_csv(self):
+        self._save_fluxes("csv")
+
+    def save_fluxes_as_xlsx(self):
+        self._save_fluxes("xlsx")

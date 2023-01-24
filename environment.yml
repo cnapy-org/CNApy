@@ -27,3 +27,4 @@ dependencies:
   - gurobi
   - cplex
   - numpy<1.24
+  - openpyxl

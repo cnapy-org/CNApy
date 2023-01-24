@@ -38,6 +38,7 @@ requirements:
     - gurobi
     - cplex
     - numpy<1.24
+    - openpyxl
 
 build:
   noarch: python

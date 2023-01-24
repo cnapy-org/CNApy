@@ -1,8 +1,8 @@
-from qtpy.QtWidgets import (QButtonGroup, QRadioButton, QVBoxLayout)
-from straindesign.names import CPLEX, GUROBI, GLPK, SCIP
 from importlib import find_loader as module_exists
-from typing import Tuple
+from qtpy.QtWidgets import (QButtonGroup, QRadioButton, QVBoxLayout)
 from straindesign import select_solver
+from straindesign.names import CPLEX, GUROBI, GLPK, SCIP
+from typing import Tuple
 
 
 def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
@@ -63,7 +63,8 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
     solver_buttons["group"].addButton(solver_buttons[SCIP])
     # check best available solver
     if avail_solvers:
-        solver = select_solver(GLPK, appdata.project.cobra_py_model)
+        # Set cobrapy default solver if available
+        solver = select_solver(None, appdata.project.cobra_py_model)
         solver_buttons[solver].setChecked(True)
 
     return solver_buttons_layout, solver_buttons

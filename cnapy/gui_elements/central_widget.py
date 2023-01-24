@@ -313,10 +313,12 @@ class CentralWidget(QWidget):
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
-        if idx == ModelTabIndex.Metabolites:
+        elif idx == ModelTabIndex.Metabolites:
             found_ids =self.metabolite_list.update_selected(string, with_annotations)
-        if idx == ModelTabIndex.Genes:
+        elif idx == ModelTabIndex.Genes:
             found_ids =self.gene_list.update_selected(string, with_annotations)
+        else:
+            return
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:

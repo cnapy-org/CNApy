@@ -33,8 +33,9 @@ class InOutFluxDialog(QDialog):
         self.update()
 
     def update(self):
-        for m in self.appdata.project.cobra_py_model.metabolites:
-            self.metabolite_chooser.insertItem(0, m.id)
+        sorted_metabolite_ids = sorted([x.id for x in self.appdata.project.cobra_py_model.metabolites], reverse=True)
+        for metabolite_id in sorted_metabolite_ids:
+            self.metabolite_chooser.insertItem(0, metabolite_id)
 
     def compute(self):
         metabolite = self.metabolite_chooser.currentText()

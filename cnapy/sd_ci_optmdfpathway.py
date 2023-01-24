@@ -95,6 +95,8 @@ def create_optmdfpathway_milp(
     ratio_constraints: List[Dict[str, Any]] = [],
     R: float = STANDARD_R,
     T: float = STANDARD_T,
+    add_bottleneck_constraints: bool = False,
+    minimal_optmdf: float= -float("inf"),
 ) -> LinearProgram:
     lp = get_steady_state_lp_from_cobra_model(
         cobra_model=cobra_model,
@@ -173,6 +175,28 @@ def create_optmdfpathway_milp(
         ub=float("inf"),
     )
     lp.add_existing_float_variable(var_B)
+
+    if add_bottleneck_constraints:
+        bottleneck_z_sum_var_name = "bottleneck_z_sum"
+        lp.add_float_variable(
+            name=bottleneck_z_sum_var_name,
+            lb=-float("inf"),
+            ub=float("inf"),
+        )
+        bottleneck_z_sum_lhs = {
+            bottleneck_z_sum_var_name: -1.0
+        }
+
+    if minimal_optmdf > -float("inf"):
+        lp.add_constraint(
+            name="minimal_optmdf",
+            lhs={
+                "var_B": 1.0,
+            },
+            sense=ConstraintSense.GEQ,
+            rhs=minimal_optmdf,
+        )
+
     for reaction in cobra_model.reactions:
         reaction: cobra.Reaction = reaction
 
@@ -261,10 +285,22 @@ def create_optmdfpathway_milp(
         )
         lp.add_existing_indicator_constraint(indicator_constraint=indicator_0)
 
-        indicator_1_lhs = {
-            "var_B": 1,
-            f_varname: -1,
-        }
+
+        if add_bottleneck_constraints:
+            bottleneck_z_name = f"bottleneck_z_{reaction.id}"
+            lp.add_binary_variable(bottleneck_z_name)
+            indicator_1_lhs = {
+                "var_B": 1,
+                bottleneck_z_name: -10_000,
+                f_varname: -1,
+            }
+            bottleneck_z_sum_lhs[bottleneck_z_name] = 1.0
+        else:
+            indicator_1_lhs = {
+                "var_B": 1,
+                f_varname: -1,
+            }
+
         indicator_1 = IndicatorConstraint(
             name=f"indicator_1_{reaction.id}",
             lhs=indicator_1_lhs,
@@ -274,5 +310,13 @@ def create_optmdfpathway_milp(
             binary_value=BinaryValue.ONE,
         )
         lp.add_existing_indicator_constraint(indicator_constraint=indicator_1)
+
+    if add_bottleneck_constraints:
+        lp.add_constraint(
+            name="bottleneck_z_sum_constraint",
+            lhs=bottleneck_z_sum_lhs,
+            sense=ConstraintSense.EQ,
+            rhs=0,
+        )
 
     return lp
