@@ -121,7 +121,7 @@ class SignalThrottler(QObject):
 class QComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
 
-    def __init__(self, sd_dialog, wordlist, check=True, is_constr=False):
+    def __init__(self, sd_dialog, wordlist, check=True, is_constr=False, reject_empty_constraint=True):
         super().__init__("")
         self.sd_dialog = sd_dialog
         self.completer: QCompleter = QCompleter()
@@ -134,6 +134,7 @@ class QComplReceivLineEdit(QLineEdit):
         self.setObjectName("EditField")
         self.check = check
         self.is_constr = is_constr
+        self.reject_empty_constraint = reject_empty_constraint
         self.is_valid = None
 
     def set_wordlist(self, wordlist, replace_completer_model=True):
@@ -175,7 +176,7 @@ class QComplReceivLineEdit(QLineEdit):
 
     def check_text(self, final):
         if self.check:
-            if self.text().strip() == "":
+            if self.reject_empty_constraint and self.text().strip() == "":
                 self.setStyleSheet(BACKGROUND_COLOR(
                     "#ffffff", self.objectName()))
                 self.textCorrect.emit(False)
