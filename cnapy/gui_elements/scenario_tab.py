@@ -42,7 +42,7 @@ class ScenarioTab(QWidget):
         self.use_scenario_objective.setEnabled(True)
         self.use_scenario_objective.stateChanged.connect(self.use_scenario_objective_changed)
         self.objective_group_layout.addWidget(self.use_scenario_objective)
-        self.scenario_objective = QComplReceivLineEdit(self, [], reject_empty_constraint=False)
+        self.scenario_objective = QComplReceivLineEdit(self, [], reject_empty_string=False)
         self.scenario_objective.set_wordlist(self.reaction_ids, replace_completer_model=False)
         self.scenario_objective.set_completer_model(self.reaction_ids_model)
         self.objective_group_layout.addWidget(self.scenario_objective)
