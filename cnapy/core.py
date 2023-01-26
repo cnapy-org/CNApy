@@ -229,7 +229,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     if v != 0:
                         print(s.name, format_string.format(v, v/abs(coeff)))
                         bm_mod[m] = v
-                if gam_mets_param is not None:
+                if len(gam_mets) > 0:
                     gam_adjust = gam_max_change * model.solver.variables["gam_slack"].primal
             else:
                 for m,_,coeff,(s_p,s_n) in bm_coeff_var:
@@ -241,7 +241,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     if v != 0:
                         print(s_n.name, format_string.format(v, v/abs(coeff)))
                         bm_mod[m] = -v
-                if gam_mets_param is not None:
+                if len(gam_mets) > 0:
                     gam_adjust = gam_max_change * \
                         (model.solver.variables["gam_slack_pos"].primal - model.solver.variables["gam_slack_neg"].primal)
             if len(gam_mets) > 0:
