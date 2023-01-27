@@ -42,7 +42,7 @@ class ScenarioTab(QWidget):
         self.use_scenario_objective.setEnabled(True)
         self.use_scenario_objective.stateChanged.connect(self.use_scenario_objective_changed)
         self.objective_group_layout.addWidget(self.use_scenario_objective)
-        self.scenario_objective = QComplReceivLineEdit(self, [])
+        self.scenario_objective = QComplReceivLineEdit(self, [], reject_empty_string=False)
         self.scenario_objective.set_wordlist(self.reaction_ids, replace_completer_model=False)
         self.scenario_objective.set_completer_model(self.reaction_ids_model)
         self.objective_group_layout.addWidget(self.scenario_objective)
@@ -55,6 +55,7 @@ class ScenarioTab(QWidget):
         layout.addWidget(group)
 
         label = QLabel("Scenario reactions")
+        label.setToolTip("The IDs of the scenario reactions must be distinct from those in the network.\nYou may introduce new metabolites in scenario reactions.")
         hbox = QHBoxLayout()
         hbox.addWidget(label)
         self.add_reaction = QPushButton("+")
@@ -76,6 +77,7 @@ class ScenarioTab(QWidget):
         layout.addWidget(self.equation)
 
         label = QLabel("Scenario constraints")
+        label.setToolTip('Formulated as linear inequality constraints over the reactions,\ne.g. "R1 + R2 >= 10"\nmeans that the sum of fluxes through R1 and R2 must be at least 10.')
         hbox = QHBoxLayout()
         hbox.addWidget(label)
         self.add_constraint_button = QPushButton("+")
@@ -407,13 +409,13 @@ class ScenarioTab(QWidget):
                     self.objectiveSetupChanged.emit()
             self.use_scenario_objective.setEnabled(True)
         else:
-            self.appdata.project.scen_values.objective_coefficients.clear()
             self.use_scenario_objective.setEnabled(False)
 
     @Slot()
     def validate_objective(self):
         if not self.scenario_objective.is_valid and self.appdata.project.scen_values.use_scenario_objective:
-            self.use_scenario_objective.setChecked(False)
+            self.appdata.project.scen_values.objective_coefficients.clear()
+            self.use_scenario_objective.setChecked(False) # triggers use_scenario_objective_changed
 
     @Slot(int)
     def use_scenario_objective_changed(self, state: int):

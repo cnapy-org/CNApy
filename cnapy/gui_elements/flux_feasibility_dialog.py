@@ -1,8 +1,10 @@
 from math import copysign
 from qtpy.QtCore import Qt, Slot, QSignalBlocker
 from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox, QMainWindow,
-                            QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView,
-                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, QStyledItemDelegate)
+                            QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView, QAction,
+                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, 
+                            QStyledItemDelegate, QTableWidgetSelectionRange)
+from qtpy.QtGui import QGuiApplication
 
 from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException
@@ -93,11 +95,16 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_constituents.setSortingEnabled(True)
         self.bm_constituents.verticalHeader().setVisible(False)
         self.bm_constituents.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.bm_constituents.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.bm_constituents.resizeColumnsToContents()
         coefficient_delegate = CoefficientDelegate()
         self.bm_constituents.setItemDelegateForColumn(3, coefficient_delegate)
         self.bm_constituents.setItemDelegateForColumn(4, coefficient_delegate)
         self.bm_constituents.setItemDelegateForColumn(5, coefficient_delegate)
+        copy_action = QAction("Copy", self.bm_constituents)
+        copy_action.setShortcut("Ctrl+C")
+        copy_action.triggered.connect(self.copy_table_selection)
+        self.bm_constituents.addAction(copy_action)
         vbox_bm_coeff.addWidget(self.bm_constituents)
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("Maximal relative coefficient change [%]:"))
@@ -182,6 +189,12 @@ class FluxFeasibilityDialog(QDialog):
         abs_flux_weights: bool = False
         weights_key: str = None
 
+        # clear previous results
+        self.gam_adjustment.setText("")
+        for i in range(self.bm_constituents.rowCount()):
+            self.bm_constituents.setItem(i, 4, None)
+            self.bm_constituents.setItem(i, 5, None)
+
         if self.flux_group.isChecked():
             if self.abs_flux_weights_button.isChecked():
                 abs_flux_weights = True
@@ -212,8 +225,6 @@ class FluxFeasibilityDialog(QDialog):
                     checkbox = self.bm_constituents.cellWidget(i, 0)
                     if checkbox is not None and checkbox.isChecked():
                         variable_constituents.append(self.bm_constituents.item(i, 1).data(Qt.UserRole))
-                    self.bm_constituents.setItem(i, 4, None)
-                    self.bm_constituents.setItem(i, 5, None)
                 try:
                     max_coeff_change = float(self.max_coeff_change.text())
                 except ValueError:
@@ -333,7 +344,7 @@ class FluxFeasibilityDialog(QDialog):
                         self.appdata.project.scen_values.reactions[self.bm_mod_reac_id] = \
                             [{met.id: coeff for met, coeff in bm_reac_mod.metabolites.items()}, fixed_growth_rate, fixed_growth_rate]
                         self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
-                if self.adjust_gam.isChecked():
+                if self.bm_group.isChecked() and self.adjust_gam.isChecked():
                     self.gam_adjustment.setText("Calculated GAM adjustment: "+coefficient_format.format(gam_adjust))
                 self.main_window.centralWidget().update()
             else:
@@ -409,3 +420,26 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_group.setChecked(enable)
         self.adjust_bm_coeff.setEnabled(enable)
         self.adjust_gam.setEnabled(enable)
+
+    @Slot()
+    def copy_table_selection(self):
+        selection_range: QTableWidgetSelectionRange = self.bm_constituents.selectedRanges()[0]
+        table = []
+        r = selection_range.topRow()
+        while r <= selection_range.bottomRow():
+            row = []
+            c = selection_range.leftColumn()
+            while c <= selection_range.rightColumn():
+                if c == 0:
+                    row.append(str(self.bm_constituents.cellWidget(r, c).isChecked()))
+                else:
+                    item: QTableWidgetItem = self.bm_constituents.item(r, c)
+                    if item is None:
+                        row.append("")
+                    else:
+                        row.append(str(item.data(Qt.DisplayRole)))
+                c += 1
+            table.append('\t'.join(row))
+            r += 1
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setText('\r'.join(table))

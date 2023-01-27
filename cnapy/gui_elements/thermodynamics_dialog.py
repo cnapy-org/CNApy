@@ -36,6 +36,13 @@ from cnapy.core import model_optimization_with_exceptions
 import re
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from straindesign.names import CPLEX, GLPK, GUROBI, SCIP
+from enum import Enum
+
+
+class ThermodynamicAnalysisTypes(Enum):
+    OPTMDFPATHWAY = 1
+    THERMODYNAMIC_FBA = 2
+    BOTTLENECK_ANALYSIS = 3
 
 
 def make_model_irreversible(
@@ -136,11 +143,10 @@ class ComputationViewer(QDialog):
 
 
 class ComputationThread(QThread):
-    def __init__(self, linear_program: LinearProgram, bottleneck_analysis: bool):
+    def __init__(self, linear_program: LinearProgram):
         # super().__init__()
         QThread.__init__(self)
         self.linear_program: LinearProgram = linear_program
-        self.bottleneck_analysis: bool = bottleneck_analysis
 
     def run(self):
         try:
@@ -166,20 +172,23 @@ class ThermodynamicDialog(QDialog):
     """A dialog to perform several thermodynamic methods."""
 
     def __init__(
-        self, appdata: AppData, central_widget: CentralWidget, bottleneck_analysis: bool
+        self, appdata: AppData, central_widget: CentralWidget, analysis_type: ThermodynamicAnalysisTypes
     ) -> None:
         self.FWDID = "_FWDCNAPY"
         self.REVID = "_REVCNAPY"
 
         QDialog.__init__(self)
-        window_title = "Perform OptMDFpathway"
-        if bottleneck_analysis:
-            window_title += " bottleneck analysis"
+        if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            window_title = "Perform OptMDFpathway"
+        elif analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
+            window_title = "Perform OptMDFpathway bottleneck analysis"
+        elif analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+            window_title = "Perform thermodynamic FBA"
         self.setWindowTitle(window_title)
 
         self.appdata = appdata
         self.central_widget = central_widget
-        self.bottleneck_analysis = bottleneck_analysis
+        self.analysis_type = analysis_type
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         self.metabolite_ids = self.appdata.project.cobra_py_model.metabolites.list_attr(
@@ -187,20 +196,30 @@ class ThermodynamicDialog(QDialog):
         )
 
         self.layout = QVBoxLayout()
-        if not self.bottleneck_analysis:
+        if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
             l = QLabel(
                 "Perform OptMDFpathway. dG'° values and metabolite concentration "
                 "ranges have to be given in relevant annotations."
             )
             self.layout.addWidget(l)
-        else:
+        elif analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
             l = QLabel(
                 "Perform OptMDFpathway bottleneck analysis. dG'° values and metabolite concentration "
                 "ranges have to be given in relevant annotations.\nThe minimal amount of bottlenecks and their IDs "
                 "to reach the given minimal MDF will be shown in the console afterwards."
             )
             self.layout.addWidget(l)
+        elif analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+            l = QLabel(
+                "Perform thermodynamic Flux Balance Analysis. Based on OptMDFpathway, you can perform an FBA at an OptMDF greater than the given value. "
+                "\nE.g., if the OptMDF is greater than 0 kJ/mol, you perform an FBA with enforced thermodynamic feasibility."
+                "\nFor this analysis, dG'° values and metabolite concentration "
+                "ranges have to be given in relevant annotations.\nThe minimal amount of bottlenecks and their IDs "
+                "to reach the given minimal MDF will be shown in the console afterwards."
+            )
+            self.layout.addWidget(l)
 
+        if (analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS) or (analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
             lineedit_text = QLabel("MDF to reach [ín kJ/mol]:")
 
             min_mdf_layout = QHBoxLayout()
@@ -216,6 +235,9 @@ class ThermodynamicDialog(QDialog):
         )
         self.at_objective.setChecked(True)
         self.layout.addWidget(self.at_objective)
+
+        if analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+            self.at_objective.hide()
 
         solver_group = QGroupBox("Solver:")
         solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
@@ -245,7 +267,7 @@ class ThermodynamicDialog(QDialog):
             )
         elif solution.status == Status.INFEASIBLE:
             QMessageBox.warning(
-                self, "Infeasible", "No solution exists, the problem is infeasible"
+                self, "Infeasible", "No solution exists, the problem is either stoichiometrically or thermodynamically (e.g., the minimal MDF is too high) infeasible"
             )
         elif solution.status == Status.TIME_LIMIT:
             QMessageBox.warning(
@@ -260,19 +282,19 @@ class ThermodynamicDialog(QDialog):
                 "The solution is unbounded (inf) so that no optimization solution can be shown.",
             )
         elif solution.status == Status.OPTIMAL:
-            self.set_boxes(solution=solution.values)
+            self.set_boxes(solution=solution.values, objective_value=solution.objective_value)
 
         self.setCursor(Qt.ArrowCursor)
         self.accept()
 
     @Slot()
     def compute_in_thread(
-        self, linear_program: LinearProgram, bottleneck_analysis: bool
+        self, linear_program: LinearProgram
     ) -> None:
         # launch progress viewer and computation thread
         self.computation_viewer = ComputationViewer()
         # connect signals to update progress
-        self.computation_thread = ComputationThread(linear_program, bottleneck_analysis)
+        self.computation_thread = ComputationThread(linear_program)
         self.computation_thread.finished_computation.connect(
             self.computation_viewer.close_window, Qt.QueuedConnection
         )
@@ -457,7 +479,7 @@ class ThermodynamicDialog(QDialog):
             elif solver_name == GLPK:
                 solver = Solver.GLPK
 
-            if not self.bottleneck_analysis:
+            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
                 minimal_optmdf = -float("inf")
             else:
                 minimal_optmdf_str = self.min_mdf.text()
@@ -482,17 +504,33 @@ class ThermodynamicDialog(QDialog):
                 ratio_constraints=[],
                 R=R,
                 T=T,
-                add_bottleneck_constraints=self.bottleneck_analysis,
+                add_bottleneck_constraints=self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS,
                 minimal_optmdf=minimal_optmdf,
             )
-            if not self.bottleneck_analysis:
+            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
                 optmdfpathway_lp.set_objective(
                     {"var_B": 1},
                     direction=ObjectiveDirection.MAX,
                 )
-            else:
+            elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
                 optmdfpathway_lp.set_objective(
                     {"bottleneck_z_sum": 1},
+                    direction=ObjectiveDirection.MIN,
+                )
+            elif self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+                objective_dict = {}
+                for (
+                    reaction,
+                    coefficient,
+                ) in cobra.util.solver.linear_reaction_coefficients(model).items():
+                    if reaction.reversibility:
+                        objective_dict[reaction.id + self.FWDID] = coefficient
+                        objective_dict[reaction.id + self.REVID] = -coefficient
+                    else:
+                        objective_dict[reaction.id] = coefficient
+
+                optmdfpathway_lp.set_objective(
+                    objective_dict,
                     direction=ObjectiveDirection.MIN,
                 )
             optmdfpathway_lp.construct_solver_object(
@@ -501,10 +539,9 @@ class ThermodynamicDialog(QDialog):
             # solution = optmdfpathway_lp.run_solve()
             self.compute_in_thread(
                 linear_program=optmdfpathway_lp,
-                bottleneck_analysis=self.bottleneck_analysis,
             )
 
-    def set_boxes(self, solution: Dict[str, float]):
+    def set_boxes(self, solution: Dict[str, float], objective_value: float):
         # Combine FWD and REV flux solutions
         combined_solution = {}
         for var_id in solution.keys():
@@ -547,10 +584,14 @@ class ThermodynamicDialog(QDialog):
 
         # Show OptMDF
         console_text = "print('\\n"
-        if not self.bottleneck_analysis:
+        if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
             optmdf = combined_solution["var_B"]
             console_text += f"OptMDF: {optmdf} kJ/mol"
-        else:
+        elif self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+            optmdf = combined_solution["var_B"]
+            console_text += f"Reached objective value: {objective_value}"
+            console_text += f"\\nReached MDF @ optimum of objective: {optmdf} kJ/mol"
+        elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
             bottleneck_z_sum = combined_solution["bottleneck_z_sum"]
             console_text += f"Number of deactivated bottlenecks to reach minimal MDF: {bottleneck_z_sum}"
 
