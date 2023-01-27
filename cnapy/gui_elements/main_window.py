@@ -1881,30 +1881,30 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        self.optmdfpathway_dialog = ThermodynamicDialog(
+        optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
         )
-        self.optmdfpathway_dialog.exec_()
+        optmdfpathway_dialog.exec_()
 
     @Slot()
     def perform_thermodynamic_fba(self):
-        self.bottleneck_dialog = ThermodynamicDialog(
+        thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
         )
-        self.bottleneck_dialog.exec_()
+        thermodynamic_fba_dialog.exec_()
 
     @Slot()
     def perform_bottleneck_analysis(self):
-        self.bottleneck_dialog = ThermodynamicDialog(
+        bottleneck_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
         )
-        self.bottleneck_dialog.exec_()
+        bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)
