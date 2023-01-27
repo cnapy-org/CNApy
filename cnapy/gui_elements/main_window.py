@@ -45,7 +45,7 @@ from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
-from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicDialog
+from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
 import cnapy.utils as utils
 
 
@@ -398,6 +398,9 @@ class MainWindow(QMainWindow):
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.analysis_menu.addAction(optmdf_action)
 
+        tfba_action = QAction("Thermodynamic FBA...", self)
+        tfba_action.triggered.connect(self.perform_thermodynamic_fba)
+        self.analysis_menu.addAction(tfba_action)
 
         bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
         bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
@@ -1879,13 +1882,28 @@ class MainWindow(QMainWindow):
     @Slot()
     def perform_optmdfpathway(self):
         self.optmdfpathway_dialog = ThermodynamicDialog(
-            self.appdata, self.centralWidget(), bottleneck_analysis=False)
+            self.appdata,
+            self.centralWidget(),
+            analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
+        )
         self.optmdfpathway_dialog.exec_()
+
+    @Slot()
+    def perform_thermodynamic_fba(self):
+        self.bottleneck_dialog = ThermodynamicDialog(
+            self.appdata,
+            self.centralWidget(),
+            analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
+        )
+        self.bottleneck_dialog.exec_()
 
     @Slot()
     def perform_bottleneck_analysis(self):
         self.bottleneck_dialog = ThermodynamicDialog(
-            self.appdata, self.centralWidget(), bottleneck_analysis=True)
+            self.appdata,
+            self.centralWidget(),
+            analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
+        )
         self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
