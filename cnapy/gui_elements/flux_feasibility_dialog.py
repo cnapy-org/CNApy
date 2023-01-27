@@ -423,7 +423,6 @@ class FluxFeasibilityDialog(QDialog):
 
     @Slot()
     def copy_table_selection(self):
-        print("copy_table", self.bm_constituents.selectedRanges())
         selection_range: QTableWidgetSelectionRange = self.bm_constituents.selectedRanges()[0]
         table = []
         r = selection_range.topRow()
