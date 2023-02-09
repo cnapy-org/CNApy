@@ -5,20 +5,22 @@ from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetIte
 from straindesign import lineq2list, linexpr2dict, linexprdict2str
 import re
 
+
 def format_scenario_constraint(constraint):
     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
 
+
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
     found_ids = [string]
-    if with_annotations:
-        for model_element in model_elements:
-            for key in model_element.annotation.keys():
-                annotations = model_element.annotation[key]
-                if type(annotations) is str:
-                    annotations = [annotations]
-                for annotation in annotations:
-                    if string.lower() in annotation.lower():
-                        found_ids.append(model_element.id)
+    if with_annotations and (string != ""):
+        annotations = [str(x.values()) for x in model_elements.list_attr("annotation")]
+        element_ids = model_elements.list_attr("id")
+
+        element_counter = 0
+        for annotation in annotations:
+            if string in annotation:
+                found_ids.append(element_ids[element_counter])
+            element_counter += 1
 
     root = element_list.invisibleRootItem()
     child_count = root.childCount()
