@@ -311,6 +311,7 @@ class CentralWidget(QWidget):
 
         idx = self.tabs.currentIndex()
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
+        self.setCursor(Qt.BusyCursor)
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
         elif idx == ModelTabIndex.Metabolites:
@@ -324,6 +325,7 @@ class CentralWidget(QWidget):
         if idx >= 0:
             m = self.map_tabs.widget(idx)
             m.update_selected(found_ids)
+        self.setCursor(Qt.ArrowCursor)
 
     def update_mode(self):
         if self.mode_navigator.mode_type <= 1:
