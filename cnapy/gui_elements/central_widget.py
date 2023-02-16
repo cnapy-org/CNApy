@@ -310,25 +310,41 @@ class CentralWidget(QWidget):
         string = self.searchbar.text()
 
         idx = self.tabs.currentIndex()
+        map_idx = self.map_tabs.currentIndex()
+
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
         QApplication.setOverrideCursor(Qt.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
+            found_reaction_ids = found_ids
         elif idx == ModelTabIndex.Metabolites:
             found_ids = self.metabolite_list.update_selected(string, with_annotations)
+            if map_idx >= 0:
+                found_reaction_ids = []
+                for found_id in found_ids:
+                    metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(found_id)
+                    found_reaction_ids += [x.id for x in metabolite.reactions]
+            else:
+                found_reaction_ids = found_ids
         elif idx == ModelTabIndex.Genes:
             found_ids = self.gene_list.update_selected(string, with_annotations)
+            if map_idx >= 0:
+                found_reaction_ids = []
+                for found_id in found_ids:
+                    gene = self.appdata.project.cobra_py_model.genes.get_by_id(found_id)
+                    found_reaction_ids += [x.id for x in gene.reactions]
+            else:
+                found_reaction_ids = found_ids
         else:
             return
 
-        idx = self.map_tabs.currentIndex()
-        if idx >= 0:
-            m = self.map_tabs.widget(idx)
+        if map_idx >= 0:
+            m = self.map_tabs.widget(map_idx)
             if isinstance(m, EscherMapView):
                 m.update_selected(string)
             else:
-                m.update_selected(found_ids)
+                m.update_selected(found_reaction_ids)
         QApplication.restoreOverrideCursor()
 
     def update_mode(self):
