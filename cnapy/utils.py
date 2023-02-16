@@ -3,34 +3,36 @@ from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer, QStringListModel
 from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, \
     QCompleter, QApplication, QFrame, QSizePolicy
 from straindesign import lineq2list, linexpr2dict, linexprdict2str
+import fnmatch
 import re
 
 def format_scenario_constraint(constraint):
     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
 
+
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
-    found_ids = [string]
-    if with_annotations:
-        for model_element in model_elements:
-            for key in model_element.annotation.keys():
-                annotations = model_element.annotation[key]
-                if type(annotations) is str:
-                    annotations = [annotations]
-                for annotation in annotations:
-                    if string.lower() in annotation.lower():
-                        found_ids.append(model_element.id)
+    if len(string) >= 2:
+        regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
+        found_ids = []
+        for el in model_elements:
+            if regex.search(el.id) or regex.search(el.name) or (with_annotations and \
+                (any(regex.search(x) for x in el.annotation.keys()) or any(regex.search(str(x)) for x in el.annotation.values()))):
+                found_ids.append(el.id)
 
-    root = element_list.invisibleRootItem()
-    child_count = root.childCount()
-    for i in range(child_count):
-        item = root.child(i)
-        item.setHidden(True)
+        root = element_list.invisibleRootItem()
+        child_count = root.childCount()
+        for i in range(child_count):
+            item = root.child(i)
+            item.setHidden(True)
 
-    for found_id in found_ids:
-        for item in element_list.findItems(found_id, Qt.MatchContains, 0):
-            item.setHidden(False)
-        for item in element_list.findItems(found_id, Qt.MatchContains, 1):
-            item.setHidden(False)
+        for found_id in found_ids:
+            for item in element_list.findItems(found_id, Qt.MatchExactly, 0):
+                item.setHidden(False)
+    else:
+        found_ids = [x.id for x in model_elements]
+        root = element_list.invisibleRootItem()
+        for child_counter in range(root.childCount()):
+             root.child(child_counter).setHidden(False)
 
     return found_ids
 

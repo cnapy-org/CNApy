@@ -166,8 +166,7 @@ class EscherMapView(QWebEngineView):
         # highlight all reactions with this reac_id
         self.page().runJavaScript("highlightReaction('"+reac_id+"')")
 
-    def update_selected(self, found_ids):
-        find = found_ids[0]  # Only search for the search string as Escher does not seem to be to search multiple different IDs
+    def update_selected(self, find):
         if len(find) == 0:
             self.page().runJavaScript("search_container.style.display='none'")
         else:

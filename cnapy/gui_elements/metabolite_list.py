@@ -133,9 +133,9 @@ class MetaboliteList(QWidget):
 
         self.last_selected = self.metabolite_mask.id.text()
         self.metaboliteChanged.emit(metabolite, affected_reactions)
-        self.resizeColumnToContents(MetaboliteListColumn.Id)
-        self.resizeColumnToContents(MetaboliteListColumn.Name)
-        self.resizeColumnToContents(MetaboliteListColumn.Concentration)
+        self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Id)
+        self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Name)
+        self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Concentration)
 
     def update_selected(self, string, with_annotations=True):
         return update_selected(
