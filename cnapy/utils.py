@@ -34,9 +34,7 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
             item.setHidden(True)
 
         for found_id in found_ids:
-            for item in element_list.findItems(found_id, Qt.MatchContains, 0):
-                item.setHidden(False)
-            for item in element_list.findItems(found_id, Qt.MatchContains, 1):
+            for item in element_list.findItems(found_id, Qt.MatchExactly, 0):
                 item.setHidden(False)
     else:
         found_ids = [string]
