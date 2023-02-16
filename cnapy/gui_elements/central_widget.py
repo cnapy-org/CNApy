@@ -315,9 +315,9 @@ class CentralWidget(QWidget):
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
         elif idx == ModelTabIndex.Metabolites:
-            found_ids =self.metabolite_list.update_selected(string, with_annotations)
+            found_ids = self.metabolite_list.update_selected(string, with_annotations)
         elif idx == ModelTabIndex.Genes:
-            found_ids =self.gene_list.update_selected(string, with_annotations)
+            found_ids = self.gene_list.update_selected(string, with_annotations)
         else:
             return
 

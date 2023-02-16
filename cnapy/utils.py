@@ -37,7 +37,7 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
             for item in element_list.findItems(found_id, Qt.MatchExactly, 0):
                 item.setHidden(False)
     else:
-        found_ids = [string]
+        found_ids = [x.id for x in model_elements]
         root = element_list.invisibleRootItem()
         for child_counter in range(root.childCount()):
              root.child(child_counter).setHidden(False)
