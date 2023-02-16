@@ -1833,6 +1833,9 @@ class MainWindow(QMainWindow):
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
 
+            # Print plot in CNApy's console
+            plt.show()
+
             # Pretty print cons and prod lists of tuples
             pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
                 x[0].id: x[1]
@@ -1842,11 +1845,10 @@ class MainWindow(QMainWindow):
                 x[0].id: x[1]
                 for x in cons
             }, indent=2)
-            # The next print statements are directly printed in the Jupyter console
+            # The next print statements are directly executed in CNApy's Jupyter console
             print(pretty_prod_dict)
             print(pretty_cons_dict)
 
-            plt.show()
         self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
     def show_console(self):
