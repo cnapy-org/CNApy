@@ -8,7 +8,7 @@ from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction)
+                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication)
 
 from cnapy.appdata import AppData, CnaMap, parse_scenario
 from cnapy.gui_elements.map_view import MapView
@@ -311,7 +311,8 @@ class CentralWidget(QWidget):
 
         idx = self.tabs.currentIndex()
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
-        self.setCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents() # to put the change above into effect
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
         elif idx == ModelTabIndex.Metabolites:
@@ -324,8 +325,11 @@ class CentralWidget(QWidget):
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
             m = self.map_tabs.widget(idx)
-            m.update_selected(found_ids)
-        self.setCursor(Qt.ArrowCursor)
+            if isinstance(m, EscherMapView):
+                m.update_selected(string)
+            else:
+                m.update_selected(found_ids)
+        QApplication.restoreOverrideCursor()
 
     def update_mode(self):
         if self.mode_navigator.mode_type <= 1:

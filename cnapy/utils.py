@@ -6,26 +6,18 @@ from straindesign import lineq2list, linexpr2dict, linexprdict2str
 import fnmatch
 import re
 
-
 def format_scenario_constraint(constraint):
     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
 
 
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
     if len(string) >= 2:
-        string = "*" + string + "*"
-
-        if with_annotations:
-            search_strings = [
-                x.id+"\n"+x.name+"\n"+str(x.annotation.keys())+"\n"+str(x.annotation.values()) for x in model_elements
-            ]
-        else:
-            search_strings = [
-                x.id+"\n"+x.name for x in model_elements
-            ]
-
-        eligible_search_strings = fnmatch.filter(search_strings, string)
-        found_ids = [x.split("\n")[0] for x in eligible_search_strings]
+        regex = re.compile(re.escape(string), re.IGNORECASE)
+        found_ids = []
+        for el in model_elements:
+            if regex.search(el.id) or regex.search(el.name) or (with_annotations and \
+                (any(regex.search(x) for x in el.annotation.keys()) or any(regex.search(str(x)) for x in el.annotation.values()))):
+                found_ids.append(el.id)
 
         root = element_list.invisibleRootItem()
         child_count = root.childCount()
