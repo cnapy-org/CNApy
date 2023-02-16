@@ -451,20 +451,22 @@ class MainWindow(QMainWindow):
         self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy...", self)
+        config_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
         config_action = QAction("Configure COBRApy...", self)
+        config_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
-
         config_action = QAction("Configure IBM CPLEX Full Version...", self)
+        config_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_cplex_configuration_dialog)
 
-
         config_action = QAction("Configure Gurobi Full Version...", self)
+        config_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_gurobi_configuration_dialog)
 
@@ -481,6 +483,7 @@ class MainWindow(QMainWindow):
         show_model_view_action.triggered.connect(self.show_model_view)
 
         about_action = QAction("About CNApy...", self)
+        about_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
@@ -1051,17 +1054,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_scenario(self):
-        dialog = QFileDialog(self)
-        filename: str = dialog.getSaveFileName(
+        filename: str = QFileDialog.getSaveFileName(
             directory=self.appdata.last_scen_directory, filter="*.scen")[0]
-        if not filename or len(filename) == 0:
-            return
-
-        # with open(filename, 'w') as fp:
-        #     json.dump(self.appdata.project.scen_values, fp)
-        self.appdata.project.scen_values.save(filename)
-
-        self.appdata.last_scen_directory = os.path.dirname(filename)
+        if len(filename) > 0:
+            if not filename.endswith(".scen"):
+                filename += ".scen"
+            # with open(filename, 'w') as fp:
+            #     json.dump(self.appdata.project.scen_values, fp)
+            self.appdata.project.scen_values.save(filename)
+            self.appdata.last_scen_directory = os.path.dirname(filename)
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
@@ -1401,16 +1402,13 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_project_as(self):
-
-        dialog = QFileDialog(self)
-        filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.cna")
-
-        if len(filename[0]) != 0:
-            self.set_current_filename(filename[0])
+        filename: str = QFileDialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter="*.cna")[0]
+        if len(filename) > 0:
+            if not filename.endswith(".cna"):
+                filename += ".cna"
+            self.set_current_filename(filename)
             self.save_project()
-        else:
-            return
 
     # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
@@ -1806,6 +1804,7 @@ class MainWindow(QMainWindow):
     def in_out_fluxes(self, metabolite_id, soldict):
         self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
         with self.appdata.project.cobra_py_model as model:
+            #TODO: take scenario reactions into account
             met = model.metabolites.get_by_id(metabolite_id)
             fig, ax = plt.subplots()
             ax.set_xticks([1, 2])
@@ -1815,11 +1814,13 @@ class MainWindow(QMainWindow):
             sum_cons = 0
             sum_prod = 0
             for rxn in met.reactions:
-                flux = rxn.get_coefficient(metabolite_id) * soldict.get(rxn.id, 0.0)
-                if flux < 0:
-                    cons.append((rxn, -flux))
-                elif flux > 0:
-                    prod.append((rxn, flux))
+                flux = soldict.get(rxn.id, 0.0)
+                if abs(flux) > model.tolerance:
+                    flux *= rxn.get_coefficient(metabolite_id)
+                    if flux < 0:
+                        cons.append((rxn, -flux))
+                    elif flux > 0:
+                        prod.append((rxn, flux))
             cons = sorted(cons, key=lambda x: x[1], reverse=True)
             prod = sorted(prod, key=lambda x: x[1], reverse=True)
             for rxn, flux in prod:
@@ -1832,6 +1833,9 @@ class MainWindow(QMainWindow):
             ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
             ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
 
+            # Print plot in CNApy's console
+            plt.show()
+
             # Pretty print cons and prod lists of tuples
             pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
                 x[0].id: x[1]
@@ -1841,11 +1845,10 @@ class MainWindow(QMainWindow):
                 x[0].id: x[1]
                 for x in cons
             }, indent=2)
-            # The next print statements are directly printed in the Jupyter console
+            # The next print statements are directly executed in CNApy's Jupyter console
             print(pretty_prod_dict)
             print(pretty_cons_dict)
 
-            plt.show()
         self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
 
     def show_console(self):
