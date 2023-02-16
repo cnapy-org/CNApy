@@ -12,7 +12,7 @@ def format_scenario_constraint(constraint):
 
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
     if len(string) >= 2:
-        regex = re.compile(re.escape(string), re.IGNORECASE)
+        regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
         found_ids = []
         for el in model_elements:
             if regex.search(el.id) or regex.search(el.name) or (with_annotations and \
