@@ -1,4 +1,4 @@
-# CNApy - An integrated environment for metabolic modeling
+# CNApy: An integrated environment for metabolic modeling
 
 [![Latest stable release](https://flat.badgen.net/github/release/cnapy-org/cnapy/stable)](https://github.com/cnapy-org/CNApy/releases/latest)
 [![Last commit](https://flat.badgen.net/github/last-commit/cnapy-org/cnapy)](https://github.com/cnapy-org/CNApy/commits/master)
@@ -9,13 +9,22 @@
 
 ## Introduction
 
-**If you have questions or suggestions regarding CNApy, you can use either of the [CNApy GitHub issues](https://github.com/cnapy-org/CNApy/issues), the [CNApy GitHub discussions](https://github.com/cnapy-org/CNApy/discussions) or the [CNApy Gitter chat room](https://gitter.im/cnapy-org/community).**
+**If you have questions, suggestions or bug reports regarding CNApy, you can use either of the [CNApy GitHub issues](https://github.com/cnapy-org/CNApy/issues), the [CNApy GitHub discussions](https://github.com/cnapy-org/CNApy/discussions) or the [CNApy Gitter chat room](https://gitter.im/cnapy-org/community).**
 
 CNApy is a Python-based graphical user interface for a) many common methods of Constraint-Based Reconstruction and Analysis (COBRA) with stoichiometric metabolic models, b) the visualization of COBRA calculation results and c) the creation and editing of metabolic models.
 
-Supported COBRA methods include Flux Balance Analysis (FBA), Flux Variability Analysis (FVA), Minimal Cut Sets (MCS), Elementary Flux Modes (EFM) and many more advanced strain design algorithms through its integration of the [StrainDesign](https://github.com/klamt-lab/straindesign) package.
+Supported COBRA methods (partly provided by [cobrapy](https://opencobra.github.io/cobrapy/)) include:
 
-All calculation results can be visualized in CNApy's interactive metabolic maps, which can be directly edited by the user. [Escher maps](https://escher.github.io/#/) are also natively supported and can be created and edited inside CNApy.
+- Flux Balance Analysis (FBA)
+- Flux Variability Analysis (FVA)
+- Making measured flux scenarios stoichiometrically feasible
+- Elementary Flux Modes (EFM)
+- Thermodynamic methods based on [OptMDFpathway](https://doi.org/10.1371/journal.pcbi.1006492)
+- Many advanced strain design algorithms such as [OptKnock](https://doi.org/10.1002/bit.10803), [RobustKnock](https://doi.org/10.1093/bioinformatics/btp704), [OptCouple](https://doi.org/10.1016/j.mec.2019.e00087) and [advanced Minimal Cut Sets](https://doi.org/10.1371/journal.pcbi.1008110) through its integration of the [StrainDesign](https://github.com/klamt-lab/straindesign) package.
+- Yield optimization (based on linear-fractional programming)
+- Phase plane analysis
+
+All calculation results can be visualized in CNApy's interactive metabolic maps which can use vector-based (SVG) backgrounds, which can be directly edited by the user. [Escher maps](https://escher.github.io/#/) are also natively supported and can be created and edited inside CNApy.
 
 Aside of performing calculations on metabolic models, CNApy can also be used to create and/or edit metabolic models, including all important aspects of the model's reactions, metabolites and genes. CNApy supports the widely used [SBML standard format](https://sbml.org/) for model loading and export.
 
