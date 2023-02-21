@@ -20,13 +20,13 @@ Supported COBRA methods (partly provided by [cobrapy](https://opencobra.github.i
 - Making measured flux scenarios stoichiometrically feasible
 - Elementary Flux Modes (EFM)
 - Thermodynamic methods based on [OptMDFpathway](https://doi.org/10.1371/journal.pcbi.1006492)
-- Many advanced strain design algorithms such as [OptKnock](https://doi.org/10.1002/bit.10803), [RobustKnock](https://doi.org/10.1093/bioinformatics/btp704), [OptCouple](https://doi.org/10.1016/j.mec.2019.e00087) and [advanced Minimal Cut Sets](https://doi.org/10.1371/journal.pcbi.1008110) through its integration of the [StrainDesign](https://github.com/klamt-lab/straindesign) package.
+- Many advanced strain design algorithms such as [OptKnock](https://doi.org/10.1002/bit.10803), [RobustKnock](https://doi.org/10.1093/bioinformatics/btp704), [OptCouple](https://doi.org/10.1016/j.mec.2019.e00087) and [advanced Minimal Cut Sets](https://doi.org/10.1371/journal.pcbi.1008110) through its integration of the [StrainDesign](https://github.com/klamt-lab/straindesign) package
 - Yield optimization (based on linear-fractional programming)
 - Phase plane analysis
 
-All calculation results can be visualized in CNApy's interactive metabolic maps which can use vector-based (SVG) backgrounds, which can be directly edited by the user. [Escher maps](https://escher.github.io/#/) are also natively supported and can be created and edited inside CNApy.
+All calculation results can be visualized in CNApy's interactive and editable metabolic maps. These maps can also use vector-based (SVG) backgrounds. [Escher maps](https://escher.github.io/#/) are also natively supported and can be created and edited inside CNApy.
 
-Aside of performing calculations on metabolic models, CNApy can also be used to create and/or edit metabolic models, including all important aspects of the model's reactions, metabolites and genes. CNApy supports the widely used [SBML standard format](https://sbml.org/) for model loading and export.
+Aside of performing calculations on metabolic models, CNApy can also be used to create and/or edit metabolic models. This includes all important aspects of the model's reactions, metabolites and genes. For model loading and export, CNApy supports the widely used [SBML standard format](https://sbml.org/).
 
 **For more details on CNApy's many more features, see section [Documentation and Tutorials](#documentation-and-tutorials).**
 
