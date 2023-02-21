@@ -679,7 +679,6 @@ class ReactionMask(QWidget):
             self.delete_selected_annotation
         )
 
-
     def apply(self):
         bounds = self.reaction.bounds
         try:
@@ -701,8 +700,10 @@ class ReactionMask(QWidget):
                 self.equation.setModified(False)
             objective_coefficient = self.reaction.objective_coefficient
             self.reaction.objective_coefficient = float(self.coefficent.text())
+            gene_reaction_rule = self.reaction.gene_reaction_rule
             if self.gene_reaction_rule.isModified():
                 self.handle_changed_gpr()
+                self.gene_reaction_rule.setModified(False)
             self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
             annotation = self.reaction.annotation
             self.annotation_widget.apply_annotation(self.reaction)
@@ -713,7 +714,7 @@ class ReactionMask(QWidget):
                 self.reaction.set_hash_value()
                 self.parent.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
             if self.fba_relevant_change or name != self.reaction.name or \
-                self.reaction.gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
+                gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
                 annotation != self.reaction.annotation:
                 self.reactionChanged.emit(self.reaction)
                 current_item = self.parent.reaction_list.currentItem()
@@ -723,8 +724,8 @@ class ReactionMask(QWidget):
 
     def auto_fba(self):
         if self.fba_relevant_change and self.parent.appdata.auto_fba:
-            self.fba_relevant_change = False
             self.parent.central_widget.parent.fba()
+        self.fba_relevant_change = False
 
     def check_in_identifiers_org(self):
         check_in_identifiers_org(self)
