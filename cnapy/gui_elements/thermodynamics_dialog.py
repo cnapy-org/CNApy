@@ -220,7 +220,7 @@ class ThermodynamicDialog(QDialog):
             self.layout.addWidget(l)
 
         if (analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS) or (analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
-            lineedit_text = QLabel("MDF to reach [ín kJ/mol]:")
+            lineedit_text = QLabel("MDF to reach [in kJ/mol]:")
 
             min_mdf_layout = QHBoxLayout()
             self.min_mdf = QLineEdit()
@@ -239,6 +239,27 @@ class ThermodynamicDialog(QDialog):
         if analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
             self.at_objective.hide()
 
+        met_concs_text = QLabel(
+            "Default 'Cmin' and 'Cmax' values [in M] that will be used when not defined in a metabolite's annotation:"
+        )
+        self.layout.addWidget(met_concs_text)
+
+        default_concs_layout = QHBoxLayout()
+
+        text_min_default_conc = QLabel("Default Cmin [in M]:")
+        self.min_default_conc = QLineEdit()
+        self.min_default_conc.setText("1e-6")
+        default_concs_layout.addWidget(text_min_default_conc)
+        default_concs_layout.addWidget(self.min_default_conc)
+
+        text_max_default_conc = QLabel(" Default Cmax [in M]:")
+        self.max_default_conc = QLineEdit()
+        self.max_default_conc.setText("0.2")
+        default_concs_layout.addWidget(text_max_default_conc)
+        default_concs_layout.addWidget(self.max_default_conc)
+
+        self.layout.addItem(default_concs_layout)
+
         solver_group = QGroupBox("Solver:")
         solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
         solver_group.setLayout(solver_buttons_layout)
@@ -250,6 +271,7 @@ class ThermodynamicDialog(QDialog):
         l3.addWidget(self.button_optmdf)
         l3.addWidget(self.cancel)
         self.layout.addItem(l3)
+
         self.setLayout(self.layout)
 
         # Connecting the signal
@@ -366,64 +388,51 @@ class ThermodynamicDialog(QDialog):
                 "No dG'° set",
                 f"No reaction has a given standard Gibbs free energy (i.e., a dG'° which "
                 "is set through the reaction annotation 'dG0'. This means that no thermodynamic "
-                "constraints are set so that no thermodynamic OptMDFpathway can be calculated. "
+                "constraints are set so that no thermodynamic OptMDFpathway can be calculated as "
+                "at least one reaction needs a given dG'°. "
                 "In order to solve this, please set or calculate (e.g., with eQuilibrator) dG'° "
                 "values and either type them directly in as 'dG0' annotations or load them as "
                 "JSON or Excel XLSX.",
             )
             return
 
-        missing_concentrations_str = ""
         concentration_values: Dict[str, Dict[str, float]] = {}
         for metabolite in self.appdata.project.cobra_py_model.metabolites:
             metabolite: cobra.Metabolite = metabolite
-            if ("Cmin" in metabolite.annotation.keys()) and (
-                "Cmax" in metabolite.annotation.keys()
-            ):
-                concentration_values[metabolite.id] = {}
-                try:
-                    concentration_values[metabolite.id]["min"] = float(
-                        metabolite.annotation["Cmin"]
-                    )
-                except ValueError:
-                    QMessageBox.warning(
-                        self,
-                        "Wrong Cmin data type",
-                        f"The Cmin given in metabolite {metabolite.id} is set as {metabolite.annotation['Cmin']} "
-                        "and does not seem to be a valid number. Please correct this entry.",
-                    )
-                    return
-                try:
-                    concentration_values[metabolite.id]["max"] = float(
-                        metabolite.annotation["Cmax"]
-                    )
-                except ValueError:
-                    QMessageBox.warning(
-                        self,
-                        "Wrong Cmax data type",
-                        f"The Cmax given in metabolite {metabolite.id} is set as {metabolite.annotation['Cmax']} "
-                        "and does not seem to be a valid number. Please correct this entry.",
-                    )
-                    return
-            else:
-                missing_concentrations_str += f"* {metabolite.id}\n"
-
-            if missing_concentrations_str != "":
-                QMessageBox.warning(
-                    self,
-                    "Metabolite(s) without concentration range",
-                    f"Some metabolite(s) do not have a given concentration range "
-                    "(i.e., Cmin and Cmax in their annotation). This would cause an OptMDFpathway "
-                    "computation error. In order to solve this, add concentration ranges (i.e., Cmin "
-                    "and Cmax) for these metabolites. If you load concentration ranges from a JSON or Excel XLSX, "
-                    "add a 'DEFAULT' concentration range which will be used for all unset metabolites."
-                    "The following metabolites are affected:\n"
-                    f"{missing_concentrations_str}",
-                )
-                return
+            concentration_values[metabolite.id] = {}
+            for conc_bound in ("Cmin", "Cmax"):
+                if (conc_bound in metabolite.annotation.keys()):
+                    try:
+                        concentration_values[metabolite.id][conc_bound.replace("C", "")] = float(
+                            metabolite.annotation[conc_bound]
+                        )
+                    except ValueError:
+                        QMessageBox.warning(
+                            self,
+                            f"Wrong {conc_bound} data type",
+                            f"The {conc_bound} given in metabolite {metabolite.id} is set as "
+                            f"{metabolite.annotation['Cmin']} and does not seem to be a valid number."
+                            " Please correct this entry so that it becomes a valid number.",
+                        )
+                        return
+                else:
+                    try:
+                        if conc_bound == "Cmin":
+                            bound_value = float(self.max_default_conc.text())
+                        else:
+                            bound_value = float(self.max_default_conc.text())
+                    except ValueError:
+                        QMessageBox.warning(
+                            self,
+                            f"Wrong default {conc_bound} data type",
+                            f"The default {conc_bound} given by you in the dialog is set as "
+                            f"{bound_value} and does not seem to be a valid number."
+                            " Please correct this entry so that it becomes a valid number.",
+                        )
+                        return
+                    concentration_values[metabolite.id][conc_bound.replace("C", "")] = bound_value
 
         with self.appdata.project.cobra_py_model as model:
-            reaction_ids = [x.id for x in model.reactions]
             self.appdata.project.load_scenario_into_model(model)
 
             if self.at_objective.isChecked():
