@@ -240,7 +240,7 @@ class ThermodynamicDialog(QDialog):
             self.at_objective.hide()
 
         met_concs_text = QLabel(
-            "Default metabolite concentration ranges for all metabolites without them (i.e., no 'Cmin' and/or 'Cmax' annotation) [in M]:"
+            "Default 'Cmin' and 'Cmax' values [in M] that will be used when not defined in a metabolite's annotation:"
         )
         self.layout.addWidget(met_concs_text)
 
