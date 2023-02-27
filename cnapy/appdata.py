@@ -10,6 +10,7 @@ from typing import List, Set, Dict, Tuple
 from ast import literal_eval as make_tuple
 from math import isclose
 import appdirs
+from enum import IntEnum
 
 import cobra
 from optlang.symbolics import Zero
@@ -20,6 +21,11 @@ from qtpy.QtWidgets import QMessageBox
 
 # from straindesign.parse_constr import linexprdict2str # indirectly leads to a JVM restart exception?!?
 
+class ModelItemType(IntEnum):
+    Metabolite = 0
+    Reaction = 1
+    Gene = 2
+ 
 class AppData:
     ''' The application data '''
 
@@ -244,7 +250,6 @@ class Scenario(Dict[str, Tuple[float, float]]):
                         else:
                             unknown_ids.append(reac_id)
                     if not merge:
-                        self.pinned_reactions = set(json_dict['pinned_reactions'])
                         self.description = json_dict['description']
                         self.objective_direction = json_dict['objective_direction']
                         all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
@@ -302,6 +307,23 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
         return unknown_ids, incompatible_constraints, skipped_scenario_reactions
 
+    def add_scenario_reactions_to_model(self, model: cobra.Model):
+        if len(self.reactions) > 0:
+            scenario_metabolites = set()
+            for metabolites,_,_ in self.reactions.values():
+                scenario_metabolites.update(metabolites.keys())
+            scenario_metabolites = scenario_metabolites.difference(model.metabolites.list_attr("id"))
+            model.add_metabolites([cobra.Metabolite(met_id) for met_id in scenario_metabolites])
+            for reac_id,(metabolites,lb,ub) in self.reactions.items():
+                if reac_id in model.reactions: # overwrite existing reaction
+                    reaction = model.reactions.get_by_id(reac_id)
+                    reaction.subtract_metabolites(reaction.metabolites, combine=True) # remove current metabolites
+                else:
+                    reaction = cobra.Reaction(reac_id, lower_bound=lb, upper_bound=ub)
+                    model.add_reaction(reaction)
+                reaction.add_metabolites(metabolites)
+                reaction.set_hash_value()
+
     def clear_flux_values(self):
         super().clear()
 
@@ -350,24 +372,10 @@ class ProjectData:
                 y.bounds = self.scen_values[x]
                 y.set_hash_value()
 
-        if len(self.scen_values.reactions) > 0:
-            scenario_metabolites = set()
-            for metabolites,_,_ in self.scen_values.reactions.values():
-                scenario_metabolites.update(metabolites.keys())
-            scenario_metabolites = scenario_metabolites.difference(self.cobra_py_model.metabolites.list_attr("id"))
-            self.cobra_py_model.add_metabolites([cobra.Metabolite(met_id) for met_id in scenario_metabolites])
-            for reac_id,(metabolites,lb,ub) in self.scen_values.reactions.items():
-                if reac_id in self.cobra_py_model.reactions: # overwrite existing reaction
-                    reaction = self.cobra_py_model.reactions.get_by_id(reac_id)
-                    reaction.subtract_metabolites(reaction.metabolites, combine=True) # remove current metabolites
-                else:
-                    reaction = cobra.Reaction(reac_id, lower_bound=lb, upper_bound=ub)
-                    self.cobra_py_model.add_reaction(reaction)
-                reaction.add_metabolites(metabolites)
-                reaction.set_hash_value()
+        self.scen_values.add_scenario_reactions_to_model(model)
 
         if self.scen_values.use_scenario_objective:
-            self.cobra_py_model.objective = self.cobra_py_model.problem.Objective(
+            model.objective = model.problem.Objective(
                 Zero, direction=self.scen_values.objective_direction)
             for reac_id, coeff in self.scen_values.objective_coefficients.items():
                 try:
@@ -375,7 +383,7 @@ class ProjectData:
                 except KeyError:
                     print('reaction', reac_id, 'not found!')
                 else:
-                    self.cobra_py_model.objective.set_linear_coefficients(
+                    model.objective.set_linear_coefficients(
                         {reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
 
         for (expression, constraint_type, rhs) in self.scen_values.constraints:
