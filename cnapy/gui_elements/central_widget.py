@@ -8,9 +8,9 @@ from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication)
+                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame)
 
-from cnapy.appdata import AppData, CnaMap, parse_scenario
+from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
@@ -42,9 +42,26 @@ class CentralWidget(QWidget):
         self.searchbar.setPlaceholderText("Enter search term")
         self.searchbar.setClearButtonEnabled(True)
         searchbar_layout.addWidget(self.searchbar)
+        searchbar_layout.addSpacing(1)
         self.search_annotations = QCheckBox("+Annotations")
         self.search_annotations.setChecked(False)
         searchbar_layout.addWidget(self.search_annotations)
+        line = QFrame()
+        line.setFrameShape(QFrame.VLine)
+        line.setFrameShadow(QFrame.Sunken)
+        searchbar_layout.addWidget(line)
+        searchbar_layout.addSpacing(10)
+        self.model_item_history = QComboBox()
+        self.model_item_history.setToolTip("Recently viewed model items")
+        self.model_item_history.currentIndexChanged.connect(self.select_item_from_history)
+        self.model_item_history.setMaxCount(30)
+        self.model_item_history.setMinimumContentsLength(25)
+        self.model_item_history.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        searchbar_layout.addWidget(self.model_item_history)
+        model_item_history_clear = QPushButton("Clear")
+        model_item_history_clear.setFixedWidth(model_item_history_clear.fontMetrics().horizontalAdvance("Clear") + 10)
+        searchbar_layout.addWidget(model_item_history_clear)
+        model_item_history_clear.clicked.connect(self.clear_model_item_history)
 
         self.throttler = SignalThrottler(300)
         self.searchbar.textChanged.connect(self.throttler.throttle)
@@ -53,9 +70,9 @@ class CentralWidget(QWidget):
 
         self.tabs = QTabWidget()
         self.reaction_list = ReactionList(self)
-        self.metabolite_list = MetaboliteList(self.appdata)
+        self.metabolite_list = MetaboliteList(self)
         self.scenario_tab = ScenarioTab(self)
-        self.gene_list = GeneList(self.appdata)
+        self.gene_list = GeneList(self)
         self.model_info = ModelInfo(self.appdata)
         self.tabs.addTab(self.reaction_list, "Reactions")
         self.tabs.addTab(self.metabolite_list, "Metabolites")
@@ -128,6 +145,8 @@ class CentralWidget(QWidget):
                 self.reaction_list.reaction_mask.update_reaction_string)
         self.metabolite_list.metabolite_mask.metaboliteDeleted.connect(
                 self.handle_changed_metabolite)
+        self.metabolite_list.metabolite_mask.metaboliteDeleted.connect(
+                self.remove_top_item_history_entry)
         self.gene_list.geneChanged.connect(
             self.handle_changed_gene)
         self.gene_list.jumpToReaction.connect(self.jump_to_reaction)
@@ -154,22 +173,24 @@ class CentralWidget(QWidget):
         max_scroll = vSB.maximum()
         vSB.setValue(max_scroll-100)
 
-    def handle_changed_reaction(self, old_id: str, reaction: cobra.Reaction):
+    def handle_changed_reaction(self, previous_id: str, reaction: cobra.Reaction):
         self.parent.unsaved_changes()
         reaction_has_box = False
         for mmap in self.appdata.project.maps:
-            if old_id in self.appdata.project.maps[mmap]["boxes"].keys():
+            if previous_id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
-                    old_id)
+                    previous_id)
                 reaction_has_box = True
         if reaction_has_box:
-            self.update_reaction_on_maps(old_id, reaction.id)
+            self.update_reaction_on_maps(previous_id, reaction.id)
+        self.replace_id_in_item_history(previous_id, reaction.id, ModelItemType.Reaction)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
         self.appdata.project.scen_values.pop(reaction.id, None)
         self.appdata.project.scen_values.objective_coefficients.pop(reaction.id, None)
+        self.remove_top_item_history_entry()
 
         self.parent.unsaved_changes()
         for mmap in self.appdata.project.maps:
@@ -180,16 +201,18 @@ class CentralWidget(QWidget):
         if self.appdata.auto_fba:
             self.parent.fba()
 
-    @Slot(cobra.Metabolite, object)
-    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
+    @Slot(cobra.Metabolite, object, str)
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions, previous_id: str):
         self.parent.unsaved_changes()
         for reaction in affected_reactions:
             self.update_reaction_on_maps(reaction.id, reaction.id)
+        self.replace_id_in_item_history(previous_id, metabolite.id, ModelItemType.Metabolite)
 
-    def handle_changed_gene(self, old_id: str, gene: cobra.Gene):
+    def handle_changed_gene(self, previous_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
+        self.replace_id_in_item_history(previous_id, gene.id, ModelItemType.Gene)
 
     @Slot()
     def handle_changed_global_objective(self):
@@ -641,6 +664,48 @@ class CentralWidget(QWidget):
         self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
         m = self.tabs.widget(ModelTabIndex.Reactions)
         m.set_current_item(reaction)
+
+    def jump_to_gene(self, gene: str):
+        self.tabs.setCurrentIndex(ModelTabIndex.Genes)
+        m = self.tabs.widget(ModelTabIndex.Genes)
+        m.set_current_item(gene)
+
+    @Slot(int)
+    def select_item_from_history(self, index: int):
+        item_id, item_type = self.model_item_history.itemData(index)
+        if item_type == ModelItemType.Reaction:
+            self.jump_to_reaction(item_id)
+        elif item_type == ModelItemType.Metabolite:
+            self.jump_to_metabolite(item_id)
+        elif item_type == ModelItemType.Gene:
+            self.jump_to_gene(item_id)
+
+    def add_model_item_to_history(self, item_id: str, item_type: ModelItemType):
+        item_data = [item_id, item_type]
+        index = self.model_item_history.findData(item_data)
+        with QSignalBlocker(self.model_item_history):
+            if index >= 0:
+                index = self.model_item_history.removeItem(index)
+            self.model_item_history.insertItem(0, item_id + " (" + ModelItemType(item_type).name + ")", item_data)
+            self.model_item_history.setCurrentIndex(0)
+
+    def replace_id_in_item_history(self, previous_id: str, new_id: str, item_type: ModelItemType):
+        index = self.model_item_history.findData([previous_id, item_type])
+        if index >= 0:
+            self.model_item_history.setItemData(index, [new_id, item_type])
+            self.model_item_history.setItemText(index, new_id + " (" + ModelItemType(item_type).name + ")")
+
+    def remove_top_item_history_entry(self):
+        # can be used when a reaction or metabolite is deleted because
+        # in that case the item which is being deleted is at the top
+        with QSignalBlocker(self.model_item_history):
+            self.model_item_history.removeItem(0)
+            self.model_item_history.setCurrentIndex(-1)
+
+    @Slot()
+    def clear_model_item_history(self):
+        with QSignalBlocker(self.model_item_history):
+            self.model_item_history.clear()
 
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")

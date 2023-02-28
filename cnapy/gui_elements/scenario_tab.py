@@ -1,5 +1,6 @@
 from enum import IntEnum
 from math import isnan
+from typing import List
 
 from qtpy.QtCore import Signal, Slot, QSignalBlocker, Qt, QStringListModel
 from qtpy.QtGui import QBrush, QColor
@@ -22,6 +23,31 @@ class ScenarioReactionColumn(IntEnum):
     LB = 2
     UB = 3
 
+class IDList(object):
+    """
+    provides a list of identifiers (id_list) and a corresponding QStringListModel (ids_model)
+    the identifiers can be set with the set_ids method
+    the implementation guarantees that id() of the properties id_list and ids_model
+    is constant so that they can be used like const references
+    """
+    def __init__(self):
+        self._id_list = []
+        self._ids_model: QStringListModel = QStringListModel()
+
+    def set_ids(self, *id_lists: List[str]):
+        self._id_list.clear()
+        for id_list in id_lists:
+            self._id_list[len(self._id_list):] = id_list
+        self._ids_model.setStringList(self._id_list)
+
+    @property # getter only
+    def id_list(self) -> List[str]:
+        return self._id_list
+
+    @property # getter only
+    def ids_model(self) -> QStringListModel:
+        return self._ids_model
+
 red_brush = QBrush(QColor.fromRgb(0xff, 0x99, 0x99))
 white_brush = QBrush(QColor.fromRgb(0xff, 0xff, 0xff))
 
@@ -32,8 +58,7 @@ class ScenarioTab(QWidget):
         QWidget.__init__(self)
         self.appdata: AppData = central_widget.appdata
         self.central_widget = central_widget
-        self.reaction_ids = []
-        self.reaction_ids_model: QStringListModel = QStringListModel()
+        self.reaction_ids: IDList = IDList()
 
         layout = QVBoxLayout()
         group = QGroupBox("Scenario ojective")
@@ -43,8 +68,8 @@ class ScenarioTab(QWidget):
         self.use_scenario_objective.stateChanged.connect(self.use_scenario_objective_changed)
         self.objective_group_layout.addWidget(self.use_scenario_objective)
         self.scenario_objective = QComplReceivLineEdit(self, [], reject_empty_string=False)
-        self.scenario_objective.set_wordlist(self.reaction_ids, replace_completer_model=False)
-        self.scenario_objective.set_completer_model(self.reaction_ids_model)
+        self.scenario_objective.set_wordlist(self.reaction_ids.id_list, replace_completer_model=False)
+        self.scenario_objective.set_completer_model(self.reaction_ids.ids_model)
         self.objective_group_layout.addWidget(self.scenario_objective)
         label = QLabel("Optimization direction")
         self.objective_group_layout.addWidget(label)
@@ -134,19 +159,8 @@ class ScenarioTab(QWidget):
             item.setBackground(QBrush(background_color))
 
     def update_reation_id_lists(self):
-        # update the reaction ids within the same list (such a list should be kept on a project level)
-        num_reac = len(self.appdata.project.cobra_py_model.reactions)
-        num_scenario_reac = len(self.appdata.project.scen_values.reactions)
-        diff = num_reac + num_scenario_reac - len(self.reaction_ids)
-        if diff > 0:
-            self.reaction_ids += [None]*diff
-        elif diff < 0:
-            del self.reaction_ids[diff:]
-        for i in range(num_reac):
-            self.reaction_ids[i] = self.appdata.project.cobra_py_model.reactions[i].id
-        for i, reac_id in enumerate(self.appdata.project.scen_values.reactions.keys()):
-            self.reaction_ids[num_reac+i] = reac_id
-        self.reaction_ids_model.setStringList(self.reaction_ids)
+        self.reaction_ids.set_ids(self.appdata.project.cobra_py_model.reactions.list_attr("id"),
+                                    self.appdata.project.scen_values.reactions.keys())
             
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid
@@ -206,6 +220,7 @@ class ScenarioTab(QWidget):
                 if lb <= ub:
                     self.appdata.project.scen_values.reactions[reac_id][1] = lb
                     self.appdata.project.scen_values.reactions[reac_id][2] = ub
+                    self.update_reaction_equation(reac_id)
                     if self.appdata.auto_fba:
                         self.central_widget.parent.fba()
                 else:
@@ -243,8 +258,12 @@ class ScenarioTab(QWidget):
                     raise ValueError
                 reaction.build_reaction_from_string(eqtxt)
                 self.appdata.project.scen_values.reactions[reac_id][0] = {m.id: c for m,c in reaction.metabolites.items()}
-                self.appdata.project.scen_values.reactions[reac_id][1] = reaction.lower_bound
-                self.appdata.project.scen_values.reactions[reac_id][2] = reaction.upper_bound
+                if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound > 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound < 0):
+                    self.appdata.project.scen_values.reactions[reac_id][1] = reaction.lower_bound
+                if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound > 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound < 0):
+                    self.appdata.project.scen_values.reactions[reac_id][2] = reaction.upper_bound
                 turn_white(self.equation)
                 with QSignalBlocker(self.reactions):
                     self.update_reaction_row(row, reac_id)
@@ -275,6 +294,7 @@ class ScenarioTab(QWidget):
             self.equation.setEnabled(True)
             if row != previous_row:
                 self.update_reaction_equation(self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole))
+                turn_white(self.equation)
 
     def update_reaction_equation(self, reac_id: str):
         metabolites, lb, ub = self.appdata.project.scen_values.reactions[reac_id]
@@ -289,7 +309,6 @@ class ScenarioTab(QWidget):
             reaction.add_metabolites(metabolites)
             reaction.lower_bound = lb
             reaction.upper_bound = ub
-            turn_white(self.equation)
             self.equation.setText(reaction.build_reaction_string())
 
     def verify_scenario_reaction_id(self, reac_id: str) -> bool:
@@ -355,8 +374,8 @@ class ScenarioTab(QWidget):
         row: int = self.constraints.rowCount()
         self.constraints.setRowCount(row + 1)
         constraint_edit = QComplReceivLineEdit(self.constraints, [], is_constr=True)
-        constraint_edit.set_wordlist(self.reaction_ids, replace_completer_model=False)
-        constraint_edit.set_completer_model(self.reaction_ids_model)
+        constraint_edit.set_wordlist(self.reaction_ids.id_list, replace_completer_model=False)
+        constraint_edit.set_completer_model(self.reaction_ids.ids_model)
         constraint_edit.textCorrect.connect(self.constraint_edited)
         constraint_edit.editingFinished.connect(self.constraint_editing_finished)
         self.constraints.setCellWidget(row, 0, constraint_edit)
@@ -388,7 +407,7 @@ class ScenarioTab(QWidget):
             constraint_edit: QComplReceivLineEdit = self.constraints.cellWidget(row, 0)
             if text_correct:
                 self.appdata.project.scen_values.constraints[row] = lineq2list([constraint_edit.text()],
-                    self.reaction_ids)[0]
+                    self.reaction_ids.id_list)[0]
             else:
                 self.appdata.project.scen_values.constraints[row] = Scenario.empty_constraint
 
@@ -402,7 +421,7 @@ class ScenarioTab(QWidget):
     @Slot(bool)
     def change_scenario_objective_coefficients(self, text_correct: bool):
         if text_correct:
-            new_objective = linexpr2dict(self.scenario_objective.text(), self.reaction_ids)
+            new_objective = linexpr2dict(self.scenario_objective.text(), self.reaction_ids.id_list)
             if new_objective != self.appdata.project.scen_values.objective_coefficients:
                 self.appdata.project.scen_values.objective_coefficients = new_objective
                 if self.appdata.project.scen_values.use_scenario_objective:

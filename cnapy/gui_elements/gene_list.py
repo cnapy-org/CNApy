@@ -7,7 +7,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from cnapy.appdata import AppData
+from cnapy.appdata import AppData, ModelItemType
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
@@ -16,14 +16,16 @@ from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionT
 class GeneList(QWidget):
     """A list of genes"""
 
-    def __init__(self, appdata: AppData):
+    def __init__(self, central_widget):
         QWidget.__init__(self)
-        self.appdata = appdata
+        self.appdata: AppData = central_widget.appdata
+        self.central_widget = central_widget
         self.last_selected = None
 
         self.gene_list = QTreeWidget()
         self.gene_list.setHeaderLabels(["Id", "Name"])
         self.gene_list.setSortingEnabled(True)
+        self.gene_list.sortByColumn(0, Qt.AscendingOrder)
 
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
@@ -32,7 +34,7 @@ class GeneList(QWidget):
             self.on_context_menu)
 
         # create context menu
-        self.gene_mask = GenesMask(self, appdata)
+        self.gene_mask = GenesMask(self, self.appdata)
         self.gene_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -115,6 +117,7 @@ class GeneList(QWidget):
             turn_white(self.gene_mask.name)
             self.gene_mask.is_valid = True
             self.gene_mask.reactions.update_state(self.gene_mask.id.text(), self.gene_mask.gene_list)
+            self.central_widget.add_model_item_to_history(gene.id, ModelItemType.Gene)
 
     def update(self):
         self.gene_list.clear()
@@ -122,7 +125,7 @@ class GeneList(QWidget):
             self.add_gene(m)
 
         if self.last_selected is None:
-            pass
+            self.gene_list.setCurrentItem(None)
         else:
             items = self.gene_list.findItems(
                 self.last_selected, Qt.MatchExactly)

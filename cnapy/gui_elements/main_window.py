@@ -1132,6 +1132,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         self.centralWidget().mode_navigator.clear()
+        self.centralWidget().clear_model_item_history()
         self.centralWidget().reaction_list.reaction_list.clear()
         self.close_project_dialogs()
 
@@ -1218,6 +1219,7 @@ class MainWindow(QMainWindow):
                 self.set_current_filename(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
+                self.centralWidget().clear_model_item_history()
                 self.appdata.project.scen_values.clear()
                 self.appdata.project.comp_values.clear()
                 self.appdata.project.fva_values.clear()
@@ -1804,7 +1806,7 @@ class MainWindow(QMainWindow):
     def in_out_fluxes(self, metabolite_id, soldict):
         self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
         with self.appdata.project.cobra_py_model as model:
-            #TODO: take scenario reactions into account
+            self.appdata.project.scen_values.add_scenario_reactions_to_model(model)
             met = model.metabolites.get_by_id(metabolite_id)
             fig, ax = plt.subplots()
             ax.set_xticks([1, 2])

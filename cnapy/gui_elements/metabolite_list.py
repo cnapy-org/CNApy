@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from cnapy.appdata import AppData
+from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
@@ -50,9 +50,10 @@ class MetaboliteListItem(QTreeWidgetItem):
 class MetaboliteList(QWidget):
     """A list of metabolites"""
 
-    def __init__(self, appdata: AppData):
+    def __init__(self, central_widget):
         QWidget.__init__(self)
-        self.appdata = appdata
+        self.appdata: AppData = central_widget.appdata
+        self.central_widget = central_widget
         self.last_selected = None
 
         self.metabolite_list = QTreeWidget()
@@ -60,9 +61,8 @@ class MetaboliteList(QWidget):
         self.header_labels = [MetaboliteListColumn(i).name for i in range(len(MetaboliteListColumn))]
         self.metabolite_list.setHeaderLabels(self.header_labels)
         self.visible_column = [True]*len(self.header_labels)
-
-        # self.metabolite_list.setHeaderLabels(["Id", "Name", "Concentration"])
         self.metabolite_list.setSortingEnabled(True)
+        self.metabolite_list.sortByColumn(MetaboliteListColumn.Id, Qt.AscendingOrder)
 
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
@@ -77,7 +77,7 @@ class MetaboliteList(QWidget):
         self.pop_menu.addAction(in_out_fluxes_action)
         in_out_fluxes_action.triggered.connect(self.emit_in_out_fluxes_action)
 
-        self.metabolite_mask = MetabolitesMask(self, appdata)
+        self.metabolite_mask = MetabolitesMask(self, self.appdata)
         self.metabolite_mask.hide()
 
         self.layout = QVBoxLayout()
@@ -118,7 +118,7 @@ class MetaboliteList(QWidget):
     def update_annotations(self, annotation):
         self.metabolite_mask.annotation_widget.update_annotations(annotation)
 
-    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions):
+    def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions, previous_id: str):
         # Update metabolite item in list
         root = self.metabolite_list.invisibleRootItem()
         child_count = root.childCount()
@@ -132,7 +132,7 @@ class MetaboliteList(QWidget):
                 break
 
         self.last_selected = self.metabolite_mask.id.text()
-        self.metaboliteChanged.emit(metabolite, affected_reactions)
+        self.metaboliteChanged.emit(metabolite, affected_reactions, previous_id)
         self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Id)
         self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Name)
         self.metabolite_list.resizeColumnToContents(MetaboliteListColumn.Concentration)
@@ -172,6 +172,7 @@ class MetaboliteList(QWidget):
             turn_white(self.metabolite_mask.compartment)
             self.metabolite_mask.is_valid = True
             self.metabolite_mask.reactions.update_state(self.metabolite_mask.id.text(), self.metabolite_mask.metabolite_list)
+            self.central_widget.add_model_item_to_history(metabolite.id, ModelItemType.Metabolite)
 
     def update(self):
         self.metabolite_list.clear()
@@ -179,7 +180,7 @@ class MetaboliteList(QWidget):
             self.add_metabolite(m)
 
         if self.last_selected is None:
-            pass
+            self.metabolite_list.setCurrentItem(None)
         else:
             items = self.metabolite_list.findItems(
                 self.last_selected, Qt.MatchExactly)
@@ -234,7 +235,7 @@ class MetaboliteList(QWidget):
         menu.exec_(self.metabolite_list.header().mapToGlobal(position))
 
     itemActivated = Signal(str)
-    metaboliteChanged = Signal(cobra.Metabolite, object)
+    metaboliteChanged = Signal(cobra.Metabolite, object, str)
     jumpToReaction = Signal(str)
     computeInOutFlux = Signal(str)
 
@@ -325,7 +326,7 @@ class MetabolitesMask(QWidget):
         self.annotation_widget.deleteAnnotation.connect(
             self.delete_selected_annotation
         )
-        self.validate_mask()
+        # self.validate_mask()
 
     def delete_metabolite(self):
         self.hide()
@@ -339,7 +340,7 @@ class MetabolitesMask(QWidget):
             current_row_index)
         self.appdata.window.unsaved_changes()
         self.appdata.window.setFocus()
-        self.metaboliteDeleted.emit(self.metabolite, affected_reactions)
+        self.metaboliteDeleted.emit(self.metabolite, affected_reactions, self.metabolite.id)
 
     def delete_selected_annotation(self, identifier_key):
         try:
@@ -349,6 +350,7 @@ class MetabolitesMask(QWidget):
             pass
 
     def apply(self):
+        previous_id = self.metabolite.id
         try:
             self.metabolite.id = self.id.text()
         except ValueError:
@@ -367,8 +369,7 @@ class MetabolitesMask(QWidget):
             self.annotation_widget.apply_annotation(self.metabolite)
 
             self.changed = False
-            self.metaboliteChanged.emit(
-                self.metabolite, self.metabolite.reactions)
+            self.metaboliteChanged.emit(self.metabolite, self.metabolite.reactions, previous_id)
 
     def validate_id(self):
         with self.appdata.project.cobra_py_model as model:
@@ -473,5 +474,5 @@ class MetabolitesMask(QWidget):
         self.jumpToReaction.emit(item.text())
 
     jumpToReaction = Signal(str)
-    metaboliteChanged = Signal(cobra.Metabolite, object)
-    metaboliteDeleted = Signal(cobra.Metabolite, object)
+    metaboliteChanged = Signal(cobra.Metabolite, object, str)
+    metaboliteDeleted = Signal(cobra.Metabolite, object, str)

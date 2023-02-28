@@ -5,7 +5,7 @@ from typing_extensions import Annotated
 
 import cobra
 import copy
-from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint
+from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                             QTreeWidgetItem, QVBoxLayout, QWidget, QMenu,
                             QAbstractItemView)
 
-from cnapy.appdata import AppData
+from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_identifiers_org
@@ -122,6 +122,7 @@ class ReactionList(QWidget):
         self.reaction_list.header().resizeSection(ReactionListColumn.Name, width)
         self.visible_column = [True]*len(self.header_labels)
         self.reaction_list.setSortingEnabled(True)
+        self.reaction_list.sortByColumn(ReactionListColumn.Id, Qt.AscendingOrder)
         self.reaction_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
         self.reaction_list.header().customContextMenuRequested.connect(self.header_context_menu)
 
@@ -304,6 +305,7 @@ class ReactionList(QWidget):
             self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
+            self.central_widget.add_model_item_to_history(reaction.id, ModelItemType.Reaction)
             self.central_widget.reaction_selected(reaction.id)
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
@@ -325,13 +327,14 @@ class ReactionList(QWidget):
         '''Remove reaction item from reaction list'''
         root = self.reaction_list.invisibleRootItem()
         child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            if item.reaction == reaction:
-                # remove item
-                self.reaction_list.takeTopLevelItem(
-                    self.reaction_list.indexOfTopLevelItem(item))
-                break
+        with QSignalBlocker(self.reaction_list):
+            for i in range(child_count):
+                item = root.child(i)
+                if item.reaction == reaction:
+                    # remove item
+                    self.reaction_list.takeTopLevelItem(
+                        self.reaction_list.indexOfTopLevelItem(item))
+                    break
 
         self.last_selected = self.reaction_mask.id.text()
         self.reactionDeleted.emit(reaction)
@@ -380,9 +383,10 @@ class ReactionList(QWidget):
         else:
             for i in range(self.reaction_list.topLevelItemCount()):
                 self.update_item(self.reaction_list.topLevelItem(i))
+        self.reaction_list.itemChanged.connect(self.handle_item_changed)
 
         if self.last_selected is None:
-            pass
+            self.reaction_list.setCurrentItem(None)
         else:
             items = self.reaction_list.findItems(
                 self.last_selected, Qt.MatchExactly)
@@ -392,7 +396,6 @@ class ReactionList(QWidget):
                 break
 
         self.reaction_list.setSortingEnabled(True)
-        self.reaction_list.itemChanged.connect(self.handle_item_changed)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
