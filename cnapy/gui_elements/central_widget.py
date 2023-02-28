@@ -55,10 +55,11 @@ class CentralWidget(QWidget):
         self.model_item_history.setToolTip("Recently viewed model items")
         self.model_item_history.currentIndexChanged.connect(self.select_item_from_history)
         self.model_item_history.setMaxCount(30)
-        self.model_item_history.setMinimumContentsLength(20)
+        self.model_item_history.setMinimumContentsLength(25)
         self.model_item_history.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         searchbar_layout.addWidget(self.model_item_history)
         model_item_history_clear = QPushButton("Clear")
+        model_item_history_clear.setFixedWidth(model_item_history_clear.fontMetrics().horizontalAdvance("Clear") + 10)
         searchbar_layout.addWidget(model_item_history_clear)
         model_item_history_clear.clicked.connect(self.clear_model_item_history)
 
