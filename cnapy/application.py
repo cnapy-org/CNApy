@@ -68,6 +68,10 @@ class Application:
         self.qapp = QApplication(sys.argv)
         self.appdata = AppData()
         self.qapp.setStyle("fusion")
+        config_file_version = self.read_config()
+        font = self.qapp.font()
+        font.setPointSize(self.appdata.font_size)
+        self.qapp.setFont(font)
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
         self.window.recreate_maps()
@@ -75,8 +79,6 @@ class Application:
         self.window.save_project_action.setEnabled(False)
         self.window.show()
 
-        config_file_version = self.read_config()
-        self.qapp.setStyleSheet("*{font-size: "+str(self.appdata.font_size)+"pt;}")
         # First start-up behaviour (it can also happen whenever the cnapy-config.txt is deleted)
         if config_file_version == "unknown":
             self.first_start_up_message()
