@@ -2,7 +2,7 @@ from math import copysign
 from qtpy.QtCore import Qt, Slot, QSignalBlocker
 from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox, QMainWindow,
                             QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView, QAction,
-                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, 
+                            QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup,
                             QStyledItemDelegate, QTableWidgetSelectionRange)
 from qtpy.QtGui import QGuiApplication
 
@@ -153,7 +153,7 @@ class FluxFeasibilityDialog(QDialog):
         hbox.addWidget(QLabel("Maximal change in ATP amount: "))
         self.gam_max_change = QLineEdit("20")
         hbox.addWidget(self.gam_max_change)
-        vbox_gam.addLayout(hbox)        
+        vbox_gam.addLayout(hbox)
         hbox.addWidget(QLabel("Weight for ATP change: "))
         self.gam_weight = QLineEdit("0.1")
         hbox.addWidget(self.gam_weight)
@@ -234,7 +234,7 @@ class FluxFeasibilityDialog(QDialog):
                         "The maximal relative coefficient change must be a number between 0 and 100.")
 
                     return
-            
+
             if self.adjust_gam.isChecked():
                 gam_mets = self.gam_mets.text().split()
                 try:
@@ -281,7 +281,7 @@ class FluxFeasibilityDialog(QDialog):
                 gam_mets_param = (gam_mets, 0.0, 0.0, 0.0)
         else:
             bm_reac_id = ""
-        
+
         # if the last scenario change comes from the previous computation undo it
         if self.modified_scenario is self.appdata.scenario_past[-1]:
             self.main_window.undo_scenario_edit()

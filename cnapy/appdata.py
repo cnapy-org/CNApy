@@ -25,7 +25,7 @@ class ModelItemType(IntEnum):
     Metabolite = 0
     Reaction = 1
     Gene = 2
- 
+
 class AppData:
     ''' The application data '''
 
@@ -41,6 +41,7 @@ class AppData:
         self.scen_color_warn = QColor(255, 200, 0)
         self.scen_color_bad = Qt.red
 
+        self.font_size = 9
         self.box_width = 80
         self.box_height = 40
         self.comp_color = QColor(0, 170, 255)
@@ -150,6 +151,7 @@ class AppData:
         parser.set('cnapy-config', 'spec1_color', str(self.special_color_1.rgb()))
         parser.set('cnapy-config', 'spec2_color', str(self.special_color_2.rgb()))
         parser.set('cnapy-config', 'default_color', str(self.default_color.rgb()))
+        parser.set('cnapy-config', 'font_size', str(self.font_size))
         parser.set('cnapy-config', 'box_width', str(self.box_width))
         parser.set('cnapy-config', 'rounding', str(self.rounding))
         parser.set('cnapy-config', 'abs_tol', str(self.abs_tol))

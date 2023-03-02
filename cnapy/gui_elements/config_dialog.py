@@ -4,7 +4,7 @@ from pathlib import Path
 
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
 from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog,
-                            QHBoxLayout, QLabel, QLineEdit, QPushButton,
+                            QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
                             QVBoxLayout, QCheckBox)
 from cnapy.appdata import AppData
 
@@ -12,12 +12,23 @@ from cnapy.appdata import AppData
 class ConfigDialog(QDialog):
     """A dialog to set values in cnapy-config.txt"""
 
-    def __init__(self, appdata: AppData, first_start: bool):
+    def __init__(self, main_window, first_start: bool):
         QDialog.__init__(self)
         self.setWindowTitle("Configure CNApy")
-        self.appdata = appdata
+        self.main_window = main_window
+        self.appdata: AppData = main_window.appdata
 
         self.layout = QVBoxLayout()
+
+        fs = QHBoxLayout()
+        label = QLabel("Font size:")
+        fs.addWidget(label)
+        self.font_size = QLineEdit()
+        self.font_size.setFixedWidth(100)
+        self.font_size.setText(str(self.appdata.font_size))
+        fs.addWidget(self.font_size)
+        self.layout.addItem(fs)
+
         bw = QHBoxLayout()
         label = QLabel("Box width:")
         bw.addWidget(label)
@@ -219,6 +230,17 @@ class ConfigDialog(QDialog):
             self.default_color_btn.setPalette(palette)
 
     def apply(self):
+        new_fontsize = float(self.font_size.text())
+        if new_fontsize != self.appdata.font_size:
+            self.appdata.font_size = new_fontsize
+            self.main_window.setStyleSheet("*{font-size: "+str(new_fontsize)+"pt;}")
+            QMessageBox.information(
+                self,
+                "Restart for full font size change effect",
+                "Please restart CNApy. This will also apply your font size change "
+                "on all of CNApy's subwindows."
+            )
+
         self.appdata.box_width = int(self.box_width.text())
 
         self.appdata.work_directory = self.work_directory.text()
