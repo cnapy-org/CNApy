@@ -698,7 +698,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_config_dialog(self, first_start=False):
-        dialog = ConfigDialog(self.appdata, first_start)
+        dialog = ConfigDialog(self, first_start)
         if not first_start:
             dialog.exec_()
 

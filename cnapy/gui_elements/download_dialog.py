@@ -25,7 +25,8 @@ class DownloadDialog(QDialog):
         label = QLabel(
             "Should CNApy download metabolic network example projects to your CNApy working directory?\n"
             "This requires an active internet connection.\n"
-            "If a working directory error occurs, you can solve by setting a working directory under 'Config->Configure CNApy'."
+            "If a working directory error occurs, you can solve by setting a working directory under 'Config->Configure CNApy'.\n"
+            "In this configuration dialog, you can also change CNApy's font size."
         )
         label_line.addWidget(label)
         self.layout.addItem(label_line)

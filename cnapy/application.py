@@ -24,7 +24,7 @@ from pathlib import Path
 
 import cobra
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
 
@@ -76,6 +76,7 @@ class Application:
         self.window.show()
 
         config_file_version = self.read_config()
+        self.qapp.setStyleSheet("*{font-size: "+str(self.appdata.font_size)+"pt;}")
         # First start-up behaviour (it can also happen whenever the cnapy-config.txt is deleted)
         if config_file_version == "unknown":
             self.first_start_up_message()
@@ -98,7 +99,9 @@ class Application:
         msgBox.setText(
             "Welcome to CNApy! In the next step, you can choose to download CNApy's "
             "metabolic network example projects.\n"
-            "You can also do this later under 'Project->Download CNApy example projects...'."
+            "You can also do this later under 'Project->Download CNApy example projects...'.\n"
+            "Also, should CNApy's font size be too small or too large, you can change\n"
+            "it under 'Config->Configure CNApy...'."
         )
         msgBox.setIcon(QMessageBox.Information)
         msgBox.exec()
@@ -162,6 +165,12 @@ class Application:
                 self.appdata.default_color = QColor.fromRgb(int(color))
             except (KeyError, NoOptionError):
                 print("Could not find default_color in cnapy-config.txt")
+            try:
+                font_size = config_parser.get(
+                    'cnapy-config', 'font_size')
+                self.appdata.font_size = int(font_size)
+            except (KeyError, NoOptionError):
+                print("Could not find font_size in cnapy-config.txt")
             try:
                 box_width = config_parser.get(
                     'cnapy-config', 'box_width')
