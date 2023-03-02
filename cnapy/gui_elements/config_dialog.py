@@ -230,7 +230,7 @@ class ConfigDialog(QDialog):
             self.default_color_btn.setPalette(palette)
 
     def apply(self):
-        new_fontsize = int(self.font_size.text())
+        new_fontsize = float(self.font_size.text())
         if new_fontsize != self.appdata.font_size:
             self.appdata.font_size = new_fontsize
             self.main_window.setStyleSheet("*{font-size: "+str(new_fontsize)+"pt;}")

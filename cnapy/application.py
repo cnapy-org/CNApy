@@ -170,7 +170,7 @@ class Application:
             try:
                 font_size = config_parser.get(
                     'cnapy-config', 'font_size')
-                self.appdata.font_size = int(font_size)
+                self.appdata.font_size = float(font_size)
             except (KeyError, NoOptionError):
                 print("Could not find font_size in cnapy-config.txt")
             try:
