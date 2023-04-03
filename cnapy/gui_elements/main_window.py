@@ -20,8 +20,8 @@ import openpyxl
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
 from qtpy.QtGui import QColor, QIcon, QKeySequence
-from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel, QDialog)
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
+                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, ProjectData, Scenario
@@ -121,7 +121,6 @@ class MainWindow(QMainWindow):
         load_default_scenario_action.triggered.connect(
             self.load_default_scenario)
 
-
         set_scenario_to_default_scenario_action = QAction(
             "Set current scenario fluxes as default scenario fluxes", self)
         self.scenario_menu.addAction(set_scenario_to_default_scenario_action)
@@ -129,12 +128,24 @@ class MainWindow(QMainWindow):
             self.set_scenario_to_default_scenario)
 
         load_scenario_action = QAction("Load scenario...", self)
+        load_scenario_action.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))
         self.scenario_menu.addAction(load_scenario_action)
         load_scenario_action.triggered.connect(self.load_scenario)
 
-        save_scenario_action = QAction("Save scenario...", self)
-        self.scenario_menu.addAction(save_scenario_action)
-        save_scenario_action.triggered.connect(self.save_scenario)
+        self.reload_scenario_action = QAction("Reload scenario...", self)
+        self.reload_scenario_action.setIcon(self.style().standardIcon(QStyle.SP_BrowserReload))
+        self.scenario_menu.addAction(self.reload_scenario_action)
+        self.reload_scenario_action.triggered.connect(self.reload_scenario)
+
+        self.save_scenario_action = QAction("Save scenario", self)
+        self.save_scenario_action.setIcon(QIcon(":/icons/save_file.png"))
+        self.scenario_menu.addAction(self.save_scenario_action)
+        self.save_scenario_action.triggered.connect(self.save_scenario)
+
+        save_scenario_as_action = QAction("Save scenario as...", self)
+        save_scenario_as_action.setIcon(QIcon(":/icons/save_file_as.png"))
+        self.scenario_menu.addAction(save_scenario_as_action)
+        save_scenario_as_action.triggered.connect(self.save_scenario_as)
 
         undo_scenario_action = QAction("Undo scenario flux values edit", self)
         undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
@@ -508,6 +519,14 @@ class MainWindow(QMainWindow):
         self.colorings.setExclusive(True)
 
         self.tool_bar = QToolBar()
+        self.tool_bar.addAction(load_scenario_action)
+        self.scenario_file_name = QLabel()
+        self.scenario_file_name.setToolTip("Current scenario file")
+        self.tool_bar.addWidget(self.scenario_file_name)
+        self.tool_bar.addAction(self.reload_scenario_action)
+        self.tool_bar.addAction(self.save_scenario_action)
+        self.tool_bar.addAction(save_scenario_as_action)
+        self.tool_bar.addSeparator()
         self.tool_bar.addAction(clear_all_action)
         self.tool_bar.addAction(undo_scenario_action)
         self.tool_bar.addAction(redo_scenario_action)
@@ -530,6 +549,7 @@ class MainWindow(QMainWindow):
         self.solver_status_symbol = QLabel()
         status_bar.addPermanentWidget(self.solver_status_symbol)
 
+        self.update_scenario_file_name()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
     def closeEvent(self, event):
@@ -784,7 +804,9 @@ class MainWindow(QMainWindow):
             directory=self.appdata.last_scen_directory, filter="*.scen *.val")[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
+        self.load_scenario_file(filename, merge=merge)
 
+    def load_scenario_file(self, filename, merge=False):
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
         try:
@@ -824,6 +846,7 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
             self.clear_status_bar()
         self.appdata.last_scen_directory = os.path.dirname(filename)
+        self.update_scenario_file_name()
 
     @Slot()
     def load_modes(self):
@@ -1054,15 +1077,19 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_scenario(self):
+        self.appdata.project.scen_values.save(self.appdata.project.scen_values.file_name)
+
+    @Slot()
+    def save_scenario_as(self):
         filename: str = QFileDialog.getSaveFileName(
             directory=self.appdata.last_scen_directory, filter="*.scen")[0]
         if len(filename) > 0:
             if not filename.endswith(".scen"):
                 filename += ".scen"
-            # with open(filename, 'w') as fp:
-            #     json.dump(self.appdata.project.scen_values, fp)
+            self.appdata.project.scen_values.file_name = filename
             self.appdata.project.scen_values.save(filename)
             self.appdata.last_scen_directory = os.path.dirname(filename)
+            self.update_scenario_file_name()
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
@@ -1087,6 +1114,7 @@ class MainWindow(QMainWindow):
     def clear_scenario(self):
         self.appdata.scen_values_clear()
         self.appdata.project.scen_values.clear()
+        self.update_scenario_file_name()
         self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
         if self.appdata.auto_fba:
             self.fba()
@@ -1094,6 +1122,7 @@ class MainWindow(QMainWindow):
 
     def clear_all(self):
         self.appdata.scen_values_clear()
+        self.update_scenario_file_name()
         self.appdata.project.comp_values.clear()
         self.appdata.project.comp_values_type = 0
         self.appdata.project.fva_values.clear()
@@ -1107,7 +1136,8 @@ class MainWindow(QMainWindow):
     def load_default_scenario(self):
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
-        self.appdata.scen_values_clear()
+        self.appdata.project.scen_values.clear()
+        self.update_scenario_file_name()
         (reactions, values) = self.appdata.project.collect_default_scenario_values()
         if len(reactions) == 0:
             self.appdata.scen_values_clear()
@@ -1166,7 +1196,8 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model = cobra_py_model
 
             self.recreate_maps()
-            self.centralWidget().update(rebuild=True)
+            self.centralWidget().update(rebuild_all_tabs=True)
+            self.update_scenario_file_name()
 
             self.setCursor(Qt.ArrowCursor)
 
@@ -1226,6 +1257,7 @@ class MainWindow(QMainWindow):
                 self.appdata.scenario_past.clear()
                 self.appdata.scenario_future.clear()
                 self.clear_status_bar()
+                self.update_scenario_file_name()
                 (reactions, values) = self.appdata.project.collect_default_scenario_values()
                 if len(reactions) > 0:
                     self.appdata.scen_values_set_multiple(reactions, values)
@@ -1237,13 +1269,12 @@ class MainWindow(QMainWindow):
                     self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                     self.centralWidget().fit_mapview()
 
-                self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
-                self.centralWidget().update(rebuild=True)
+                self.centralWidget().update(rebuild_all_tabs=True)
 
                 if filename in self.appdata.recent_cna_files:
                     filename_index = self.appdata.recent_cna_files.index(filename)
                     del(self.appdata.recent_cna_files[filename_index])
-                if len(self.appdata.recent_cna_files) > 9:  # Actually allows 10 shown recent .cna files
+                if len(self.appdata.recent_cna_files) > 19:  # Actually allows 20 shown recent .cna files
                     del(self.appdata.recent_cna_files[-1])
                 self.appdata.recent_cna_files.insert(0, filename)
                 self.appdata.save_cnapy_config()
@@ -1555,17 +1586,14 @@ class MainWindow(QMainWindow):
             self.make_scenario_feasible_dialog.bm_reac_id_select.set_wordlist(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
         self.make_scenario_feasible_dialog.show()
 
-    def fba_optimize_reaction(self, reaction: str, mmin: bool): # use status bar
+    def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            for r in self.appdata.project.cobra_py_model.reactions:
-                if r.id == reaction:
-                    if mmin:
-                        r.objective_coefficient = -1
-                    else:
-                        r.objective_coefficient = 1
-                else:
-                    r.objective_coefficient = 0
+            model.objective = model.reactions.get_by_id(reaction)
+            if mmin:
+                model.objective.direction = 'min'
+            else:
+                model.objective.direction = 'max'
             self.appdata.project.solution = model_optimization_with_exceptions(model)
         self.process_fba_solution()
 
@@ -2132,3 +2160,18 @@ class MainWindow(QMainWindow):
 
     def save_fluxes_as_xlsx(self):
         self._save_fluxes("xlsx")
+
+    def update_scenario_file_name(self):
+        if len(self.appdata.project.scen_values.file_name) == 0:
+            self.scenario_file_name.setText("No scenario file loaded")
+            self.reload_scenario_action.setEnabled(False)
+            self.save_scenario_action.setEnabled(False)
+        else:
+            dir_name, file_name = os.path.split(self.appdata.project.scen_values.file_name)
+            self.scenario_file_name.setText(os.path.basename(dir_name) + os.path.sep + file_name)
+            self.reload_scenario_action.setEnabled(True)
+            self.save_scenario_action.setEnabled(True)
+
+    @Slot()
+    def reload_scenario(self):
+        self.load_scenario_file(self.appdata.project.scen_values.file_name)

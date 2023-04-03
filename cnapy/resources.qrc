@@ -9,6 +9,8 @@
         <file alias="default-color.png">/data/default-color.png</file>
         <file alias="d-font.png">/data/d-font.png</file>
         <file alias="save.png">/data/save.png</file>
+        <file alias="save_file.png">/data/200px-Gnome-document-save.svg.png</file>
+        <file alias="save_file_as.png">/data/240px-Gnome-document-save-as.svg.png</file>
         <file alias="clear.png">/data/clear.png</file>
         <file alias="undo.png">/data/undo.png</file>
         <file alias="redo.png">/data/redo.png</file>

@@ -224,6 +224,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.description: str = ""
         self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
         self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
+        self.file_name: str = ""
         self.version: int = 2
 
     def save(self, filename: str):
@@ -242,6 +243,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
             self.clear()
         with open(filename, 'r') as fp:
             if filename.endswith('scen'): # CNApy scenario
+                self.file_name = filename
                 json_dict = json.load(fp)
                 if {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
                      'objective_coefficients', 'use_scenario_objective', 'version'}.issubset(json_dict.keys()):
@@ -279,6 +281,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                 else:
                     flux_values = json_dict
             elif filename.endswith('val'): # CellNetAnalyzer scenario
+                self.file_name = ""
                 flux_values = dict()
                 for line in fp:
                     line = line.strip()

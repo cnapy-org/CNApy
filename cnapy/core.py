@@ -3,16 +3,21 @@
 import itertools
 from collections import defaultdict
 from typing import Dict, Tuple, List
+from collections import Counter
 import gurobipy
 import numpy
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
+from cobra.core.dictlist import DictList
 from optlang.symbolics import Zero, Add
 from qtpy.QtWidgets import QMessageBox
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
+from cnapy.appdata import Scenario
+
+organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
 
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool,
@@ -207,7 +212,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     else: # change in [mmol] relative
                         model.objective.set_linear_coefficients({s: abs(1/c) for (s,c) in itertools.chain(*(((s_p,c),(s_n,c)) for _,_,c,(s_p,s_n) in bm_coeff_var))})
                 else:
-                    if bm_change_in_gram: # change in [gram] absolute
+                    if bm_change_in_gram: # change in [g] absolute
                         model.objective.set_linear_coefficients({s: c*w for (s,c,w) in
                             itertools.chain(*(((s_p,c,w),(s_n,c,w)) for _,w,c,(s_p,s_n) in bm_coeff_var))})
                     else: # change in [mmol] absolute
@@ -253,49 +258,102 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
 
         return solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust
 
-def element_exchange_balance(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], non_boundary_reactions: List[str],
-                             organic_elements_only=False):
-    reaction_fluxes: List[Tuple(cobra.Reaction, float)] = []
-    for reac_id in non_boundary_reactions:
-        if reac_id in scen_values:
-            reaction_fluxes.append((model.reactions.get_by_id(reac_id), scen_values[reac_id][0]))
-        else:
-            print("Reaction", reac_id, "is not in the current scenario.")
-    for reac_id, (flux, ub) in scen_values.items():
-        if flux != ub:
-            print("Reaction", reac_id, "does not have a fixed flux value, using its lower bound for the calculation.")
-        rxn = model.reactions.get_by_id(reac_id)
-        if rxn.boundary:
-            reaction_fluxes.append((rxn, flux))
-
+def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boundary_reactions: List[str],
+                             organic_elements_only=False, print_func=print):
     influx = defaultdict(int)
     efflux = defaultdict(int)
-    organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
-    for rxn, flux in reaction_fluxes:
-        for met, coeff in rxn.metabolites.items():
-            val = coeff * flux
-            if val > 0:
-                flux_dict = influx
-            elif val < 0:
-                flux_dict = efflux
+    with model as model:
+        scen_values.add_scenario_reactions_to_model(model)
+        reaction_fluxes: List[Tuple(cobra.Reaction, float)] = []
+        for reac_id in non_boundary_reactions:
+            reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
+            val = scen_values.get(reac_id, None)
+            if val is None:
+                val = reaction.bounds
+            if val[0] == val[1]:
+                reaction_fluxes.append((reaction, val[0]))
             else:
-                continue
-            for el, count in met.elements.items():
-                if not organic_elements_only or el in organic_elements:
-                    flux_dict[el] += count * val
+                print_func("Non-boundary reaction", reac_id, "does not have a fixed flux value and will be ignored.")
 
-    elements = set(influx.keys()).union(efflux.keys())
-    def print_in_out_balance():
-        in_ = influx.get(el, 0)
-        out = efflux.get(el, 0)
-        print("{:2s}:{:.2f},\t{:.2f},\t{:.5g}".format(el, in_, out, in_ + out))
-    for el in organic_elements:
-        if el in elements:
+        for reac_id, (flux, ub) in scen_values.items():
+            if flux != ub:
+                print_func("Reaction", reac_id, "does not have a fixed flux value, using its lower bound for the calculation.")
+            rxn = model.reactions.get_by_id(reac_id)
+            if rxn.boundary:
+                reaction_fluxes.append((rxn, flux))
+
+        for rxn, flux in reaction_fluxes:
+            for met, coeff in rxn.metabolites.items():
+                val = coeff * flux
+                if val > 0:
+                    flux_dict = influx
+                elif val < 0:
+                    flux_dict = efflux
+                else:
+                    continue
+                for el, count in met.elements.items():
+                    if not organic_elements_only or el in organic_elements:
+                        flux_dict[el] += count * val
+
+        elements = set(influx.keys()).union(efflux.keys())
+        print_func("Element   Influx    Outflux    Balance")
+        def print_in_out_balance():
+            in_ = influx.get(el, 0)
+            out = efflux.get(el, 0)
+            print_func(" {:3s}  {:10.2f} {:10.2f} {:10.4g}".format(el, in_, out, in_ + out))
+        for el in organic_elements:
+            if el in elements:
+                print_in_out_balance()
+                elements.remove(el)
+        for el in elements:
             print_in_out_balance()
-            elements.remove(el)
-    for el in elements:
-        print_in_out_balance()
     return influx, efflux
+
+def check_biomass_weight(model: cobra.Model, bm_reac_id: str) -> float:
+    """
+    This function assumes that the biomass coefficients are in mmol/gDW.
+    It only returns a correct value if the molecular weights of all biomass constituents are given.
+    """
+    bm_coeff = [(m, c) for m,c in model.reactions.get_by_id(bm_reac_id).metabolites.items()]
+    bm_weight = sum(m.formula_weight/1000*-c for m,c in bm_coeff)
+    print("Flux of 1 through the biomass reaction produces", bm_weight, "g biomass.")
+    return bm_weight
+
+def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool = False,
+                unique_only: bool = True, candidates_separator: str ="") -> None:
+    # can be used to replace IDs of reactions or metabolites with ones that are taken from the anotation
+    # use model.compartments.keys() as compartment_ids if the metabolites have compartment suffixes
+    # does not rename exchange reactions
+    all_candidates = [None] * len(dict_list)
+    if unique_only:
+        candidates_count: Counter = Counter()
+    for i, entry in enumerate(dict_list):
+        candidates = entry.annotation.get(annotation_key, [])
+        if not isinstance(candidates, list):
+            if len(candidates_separator) > 0:
+                candidates = candidates.split(candidates_separator)
+            else:
+                candidates = [candidates]
+        if len(candidates) > 0 and hasattr(entry, 'compartment'):
+            candidates = [c+"_"+entry.compartment for c in candidates]
+        if unique_only:
+            candidates_count.update(candidates)
+        all_candidates[i] = candidates
+
+    for entry, candidates in zip(dict_list, all_candidates):
+        if unique_only:
+            candidates = [c for c in candidates if candidates_count[c] == 1]
+        if unambiguous_only and len(candidates) > 1:
+            continue
+        old_id = entry.id
+        for new_id in candidates:
+            try:
+                entry.id = new_id
+                break
+            except ValueError: # new_id already in use
+                pass
+        if len(candidates) > 0 and old_id == entry.id:
+            print("Could not find a new ID for", entry.id, "in", candidates)
 
 # TODO: should not be in the core module
 def model_optimization_with_exceptions(model: cobra.Model):

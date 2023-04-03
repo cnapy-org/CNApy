@@ -7,9 +7,8 @@ import cobra
 import copy
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
-from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+from qtpy.QtWidgets import (QHBoxLayout, QTreeWidget, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
-                            QTableWidget, QTableWidgetItem, QTreeWidget,
                             QTreeWidgetItem, QVBoxLayout, QWidget, QMenu,
                             QAbstractItemView)
 
@@ -305,7 +304,7 @@ class ReactionList(QWidget):
             self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
-            self.central_widget.add_model_item_to_history(reaction.id, ModelItemType.Reaction)
+            self.central_widget.add_model_item_to_history(reaction.id, reaction.name, ModelItemType.Reaction)
             self.central_widget.reaction_selected(reaction.id)
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
