@@ -91,7 +91,7 @@ class FluxFeasibilityDialog(QDialog):
         hbox.addWidget(self.bm_mod_scenario)
         vbox.addLayout(hbox)
 
-        self.adjust_bm_coeff = QGroupBox("Select adjustable biomass constituents:")
+        self.adjust_bm_coeff = QGroupBox("Select adjustable biomass constituents (must have formula):")
         self.adjust_bm_coeff.setCheckable(True)
         vbox_bm_coeff = QVBoxLayout()
         self.bm_constituents: QTableWidget = QTableWidget(0, 6)
@@ -340,16 +340,15 @@ class FluxFeasibilityDialog(QDialog):
         for i, (met, coeff) in enumerate(bm_reac.metabolites.items()):
             if remove_gam and met in gam_mets:
                 coeff -= copysign(gam_base, bm_reac.metabolites[met])
+            checkbox = QCheckBox()
+            checkbox.setStyleSheet("text-align: center; margin-left:10%; margin-right:10%;")
+            self.bm_constituents.setCellWidget(i, 0, checkbox)
             if met.formula_weight > 0:
-                checkbox = QCheckBox()
-                self.bm_constituents.setCellWidget(i, 0, checkbox)
-                checkbox.setStyleSheet("text-align: center; margin-left:10%; margin-right:10%;")
                 checkbox.setChecked(coeff < 0 and met.elements.get('C', 0) > 0
                                     and not met.id.lower().startswith(('datp', 'dgtp', 'dctp', 'dttp')))
             else:
-                item = QTableWidgetItem("n/a")
-                item.setToolTip("metabolite has no formula")
-                self.bm_constituents.setItem(i, 0, item)
+                checkbox.setEnabled(False)
+                checkbox.setToolTip("cannot be adjusted because it has no formula")
             item = QTableWidgetItem(met.id)
             item.setToolTip(met.name)
             item.setData(Qt.UserRole, met)

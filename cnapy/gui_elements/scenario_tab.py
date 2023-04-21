@@ -267,11 +267,11 @@ class ScenarioTab(QWidget):
                     raise ValueError
                 reaction.build_reaction_from_string(eqtxt)
                 self.appdata.project.scen_values.reactions[reac_id][0] = {m.id: c for m,c in reaction.metabolites.items()}
-                if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound > 0) or \
-                    (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound < 0):
+                if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound >= 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound <= 0):
                     self.appdata.project.scen_values.reactions[reac_id][1] = reaction.lower_bound
-                if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound > 0) or \
-                    (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound < 0):
+                if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound >= 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound <= 0):
                     self.appdata.project.scen_values.reactions[reac_id][2] = reaction.upper_bound
                 turn_white(self.equation)
                 with QSignalBlocker(self.reactions):

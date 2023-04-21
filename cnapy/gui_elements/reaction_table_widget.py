@@ -76,10 +76,10 @@ class ReactionTableWidget(QTableWidget):
                 base_height = reaction_string_widget.fontMetrics().height()
                 # TODO: determined 12 empirically, but how programmatically?
                 if reaction_string_widget.text_width + 12 > new_size:
-                    self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
                     self.setRowHeight(row, base_height*2 + 12)
                 else:
-                    self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
                     self.setRowHeight(row, base_height + 12)
 
     jumpToMetabolite = Signal(str)
