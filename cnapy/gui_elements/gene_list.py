@@ -117,7 +117,7 @@ class GeneList(QWidget):
             turn_white(self.gene_mask.name)
             self.gene_mask.is_valid = True
             self.gene_mask.reactions.update_state(self.gene_mask.id.text(), self.gene_mask.gene_list)
-            self.central_widget.add_model_item_to_history(gene.id, ModelItemType.Gene)
+            self.central_widget.add_model_item_to_history(gene.id, gene.name, ModelItemType.Gene)
 
     def update(self):
         self.gene_list.clear()

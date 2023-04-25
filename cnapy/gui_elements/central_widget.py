@@ -53,7 +53,7 @@ class CentralWidget(QWidget):
         searchbar_layout.addSpacing(10)
         self.model_item_history = QComboBox()
         self.model_item_history.setToolTip("Recently viewed model items")
-        self.model_item_history.currentIndexChanged.connect(self.select_item_from_history)
+        self.model_item_history.activated.connect(self.select_item_from_history)
         self.model_item_history.setMaxCount(30)
         self.model_item_history.setMinimumContentsLength(25)
         self.model_item_history.setSizeAdjustPolicy(QComboBox.AdjustToContents)
@@ -183,7 +183,7 @@ class CentralWidget(QWidget):
                 reaction_has_box = True
         if reaction_has_box:
             self.update_reaction_on_maps(previous_id, reaction.id)
-        self.replace_id_in_item_history(previous_id, reaction.id, ModelItemType.Reaction)
+        self.update_item_in_history(previous_id, reaction.id, reaction.name, ModelItemType.Reaction)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
@@ -206,13 +206,13 @@ class CentralWidget(QWidget):
         self.parent.unsaved_changes()
         for reaction in affected_reactions:
             self.update_reaction_on_maps(reaction.id, reaction.id)
-        self.replace_id_in_item_history(previous_id, metabolite.id, ModelItemType.Metabolite)
+        self.update_item_in_history(previous_id, metabolite.id, metabolite.name, ModelItemType.Metabolite)
 
     def handle_changed_gene(self, previous_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
         # TODO update only relevant reaction boxes on maps
         self.update_maps()
-        self.replace_id_in_item_history(previous_id, gene.id, ModelItemType.Gene)
+        self.update_item_in_history(previous_id, gene.id, gene.name, ModelItemType.Gene)
 
     @Slot()
     def handle_changed_global_objective(self):
@@ -360,7 +360,12 @@ class CentralWidget(QWidget):
             else:
                 found_reaction_ids = found_ids
         else:
-            return
+            if len(string) == 0:
+                # needed to reset selection on map
+                found_reaction_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+            else:
+                QApplication.restoreOverrideCursor()
+                return
 
         if map_idx >= 0:
             m = self.map_tabs.widget(map_idx)
@@ -489,8 +494,8 @@ class CentralWidget(QWidget):
         self.update()
         self.parent.set_heaton()
 
-    def update(self, rebuild=False):
-        # use rebuild=True to rebuild all tabs when the model changes
+    def update(self, rebuild_all_tabs=False):
+        # use rebuild_all_tabs=True to rebuild all tabs when the model changes
         if len(self.appdata.project.modes) == 0:
             self.mode_navigator.hide()
             self.mode_navigator.current = 0
@@ -498,17 +503,25 @@ class CentralWidget(QWidget):
             self.mode_navigator.show()
             self.mode_navigator.update()
 
-        idx = self.tabs.currentIndex()
-        if idx == ModelTabIndex.Reactions or rebuild:
-            self.reaction_list.update(rebuild=rebuild)
-        elif idx == ModelTabIndex.Metabolites or rebuild:
-            self.metabolite_list.update()
-        elif idx == ModelTabIndex.Genes or rebuild:
-            self.gene_list.update()
-        elif idx == ModelTabIndex.Scenario or rebuild:
-            self.scenario_tab.update()
-        elif idx == ModelTabIndex.Model or rebuild:
-            self.model_info.update()
+        if rebuild_all_tabs:
+                self.reaction_list.update(rebuild=True)
+                self.metabolite_list.update()
+                self.gene_list.update()
+                self.scenario_tab.recreate_scenario_items_needed = True
+                self.scenario_tab.update()
+                self.model_info.update()
+        else:
+            idx = self.tabs.currentIndex()
+            if idx == ModelTabIndex.Reactions:
+                self.reaction_list.update()
+            elif idx == ModelTabIndex.Metabolites:
+                self.metabolite_list.update()
+            elif idx == ModelTabIndex.Genes:
+                self.gene_list.update()
+            elif idx == ModelTabIndex.Scenario:
+                self.scenario_tab.update()
+            elif idx == ModelTabIndex.Model:
+                self.model_info.update()
 
         idx = self.map_tabs.currentIndex()
         if idx >= 0:
@@ -680,16 +693,17 @@ class CentralWidget(QWidget):
         elif item_type == ModelItemType.Gene:
             self.jump_to_gene(item_id)
 
-    def add_model_item_to_history(self, item_id: str, item_type: ModelItemType):
+    def add_model_item_to_history(self, item_id: str, item_name: str, item_type: ModelItemType):
         item_data = [item_id, item_type]
         index = self.model_item_history.findData(item_data)
         with QSignalBlocker(self.model_item_history):
             if index >= 0:
                 index = self.model_item_history.removeItem(index)
             self.model_item_history.insertItem(0, item_id + " (" + ModelItemType(item_type).name + ")", item_data)
+            self.model_item_history.setItemData(0, item_name, Qt.ToolTipRole)
             self.model_item_history.setCurrentIndex(0)
 
-    def replace_id_in_item_history(self, previous_id: str, new_id: str, item_type: ModelItemType):
+    def update_item_in_history(self, previous_id: str, new_id: str, new_name: str, item_type: ModelItemType):
         index = self.model_item_history.findData([previous_id, item_type])
         if index >= 0:
             self.model_item_history.setItemData(index, [new_id, item_type])

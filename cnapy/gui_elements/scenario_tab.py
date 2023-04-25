@@ -6,7 +6,7 @@ from qtpy.QtCore import Signal, Slot, QSignalBlocker, Qt, QStringListModel
 from qtpy.QtGui import QBrush, QColor
 from qtpy.QtWidgets import (QLabel, QCheckBox, QComboBox, QVBoxLayout, QWidget, QTextEdit, QGroupBox,
                             QTableWidget, QTableWidgetItem, QHBoxLayout, QPushButton, QLineEdit,
-                            QAbstractItemView, QMessageBox)
+                            QAbstractItemView, QMessageBox, QSplitter)
 
 import cobra
 from cnapy.appdata import AppData, Scenario
@@ -79,6 +79,8 @@ class ScenarioTab(QWidget):
         group.setLayout(self.objective_group_layout)
         layout.addWidget(group)
 
+        upper = QWidget()
+        upper_layout =  QVBoxLayout(upper)
         label = QLabel("Scenario reactions")
         label.setToolTip("The IDs of the scenario reactions must be distinct from those in the network.\nYou may introduce new metabolites in scenario reactions.")
         hbox = QHBoxLayout()
@@ -90,17 +92,19 @@ class ScenarioTab(QWidget):
         self.delete_reaction.clicked.connect(self.delete_scenario_reaction)
         hbox.addWidget(self.delete_reaction)
         hbox.addStretch()
-        layout.addLayout(hbox)
+        upper_layout.addLayout(hbox)
         self.reactions = QTableWidget(0, len(ScenarioReactionColumn))
         self.reactions.setHorizontalHeaderLabels([ScenarioReactionColumn(i).name for i in range(len(ScenarioReactionColumn))])
         self.reactions.setEditTriggers(QAbstractItemView.CurrentChanged | QAbstractItemView.SelectedClicked)
-        layout.addWidget(self.reactions)
+        upper_layout.addWidget(self.reactions)
 
-        layout.addWidget(QLabel("Reaction equation"))
+        upper_layout.addWidget(QLabel("Reaction equation"))
         self.equation = QLineEdit()
         self.equation.setPlaceholderText("Enter a reaction equation")
-        layout.addWidget(self.equation)
+        upper_layout.addWidget(self.equation)
 
+        lower = QWidget()
+        lower_layout =  QVBoxLayout(lower)
         label = QLabel("Scenario constraints")
         label.setToolTip('Formulated as linear inequality constraints over the reactions,\ne.g. "R1 + R2 >= 10"\nmeans that the sum of fluxes through R1 and R2 must be at least 10.')
         hbox = QHBoxLayout()
@@ -112,17 +116,22 @@ class ScenarioTab(QWidget):
         self.delete_constraint_button.clicked.connect(self.delete_constraint)
         hbox.addWidget(self.delete_constraint_button)
         hbox.addStretch()
-        layout.addLayout(hbox)
+        lower_layout.addLayout(hbox)
         self.constraints = QTableWidget(0, 1) # table with fixed row order
         self.constraints.horizontalHeader().setHidden(True)
         self.constraints.horizontalHeader().setStretchLastSection(True)
-        layout.addWidget(self.constraints)
+        lower_layout.addWidget(self.constraints)
 
         label = QLabel("Scenario description")
-        layout.addWidget(label)
+        lower_layout.addWidget(label)
         self.description = QTextEdit()
         self.description.setPlaceholderText("Enter a description for this scenario")
-        layout.addWidget(self.description)
+        lower_layout.addWidget(self.description)
+
+        splitter = QSplitter(Qt.Vertical)
+        splitter.addWidget(upper)
+        splitter.addWidget(lower)
+        layout.addWidget(splitter)
         self.setLayout(layout)
 
         self.reactions.currentCellChanged.connect(self.handle_current_cell_changed)
@@ -258,11 +267,11 @@ class ScenarioTab(QWidget):
                     raise ValueError
                 reaction.build_reaction_from_string(eqtxt)
                 self.appdata.project.scen_values.reactions[reac_id][0] = {m.id: c for m,c in reaction.metabolites.items()}
-                if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound > 0) or \
-                    (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound < 0):
+                if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound >= 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound <= 0):
                     self.appdata.project.scen_values.reactions[reac_id][1] = reaction.lower_bound
-                if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound > 0) or \
-                    (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound < 0):
+                if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound >= 0) or \
+                    (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound <= 0):
                     self.appdata.project.scen_values.reactions[reac_id][2] = reaction.upper_bound
                 turn_white(self.equation)
                 with QSignalBlocker(self.reactions):

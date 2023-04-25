@@ -172,7 +172,7 @@ class MetaboliteList(QWidget):
             turn_white(self.metabolite_mask.compartment)
             self.metabolite_mask.is_valid = True
             self.metabolite_mask.reactions.update_state(self.metabolite_mask.id.text(), self.metabolite_mask.metabolite_list)
-            self.central_widget.add_model_item_to_history(metabolite.id, ModelItemType.Metabolite)
+            self.central_widget.add_model_item_to_history(metabolite.id, metabolite.name, ModelItemType.Metabolite)
 
     def update(self):
         self.metabolite_list.clear()

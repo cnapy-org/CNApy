@@ -23,7 +23,7 @@ from configparser import NoOptionError, NoSectionError
 from pathlib import Path
 
 import cobra
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QLocale
 from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
@@ -65,6 +65,7 @@ class Application:
     '''The Application class'''
 
     def __init__(self):
+        QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
         self.appdata = AppData()
         self.qapp.setStyle("fusion")
