@@ -521,8 +521,8 @@ class FluxFeasibilityDialog(QDialog):
         elif len(self.bm_reac_id) > 0:
             non_boundary_reactions.append(self.bm_reac_id)
             biomass_text = " including biomass reaction " + self.bm_reac_id
-        def print_to_console(txt):
-            self.main_window.centralWidget().console._append_plain_text(txt + "\n", before_prompt=True)
+        def print_to_console(*txt):
+            self.main_window.centralWidget().console._append_plain_text(' '.join(list(txt)) + "\n", before_prompt=True)
         print_to_console("\nScenario fluxes" + biomass_text + ":")
         element_exchange_balance(self.appdata.project.cobra_py_model, self.appdata.project.scen_values,
                                  non_boundary_reactions, organic_elements_only=True, print_func=print_to_console)
