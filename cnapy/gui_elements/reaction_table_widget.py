@@ -1,6 +1,7 @@
 from enum import Enum
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QPlainTextEdit
+from qtpy.QtGui import QMouseEvent, QTextCursor
 
 
 class ModelElementType(Enum):
@@ -11,23 +12,31 @@ class ModelElementType(Enum):
 class ReactionString(QPlainTextEdit):
     def __init__(self, reaction, metabolite_list):
         super().__init__()
-        reaction_string = reaction.build_reaction_string()
+        reaction_string = reaction.build_reaction_string() + " " # extra space to be able to click outside the equation without triggering a jump to the metabolite
         self.setPlainText(reaction_string)
         self.text_width = self.fontMetrics().horizontalAdvance(reaction_string)
         self.setReadOnly(True)
         self.model = reaction.model
         self.metabolite_list = metabolite_list
-        self.selectionChanged.connect(self.switch_metabolite)
 
     jumpToMetabolite = Signal(str)
 
-    @Slot()
-    def switch_metabolite(self):
-        selected_text = self.textCursor().selectedText()
-        if self.model.metabolites.has_id(selected_text):
-            self.jumpToMetabolite.emit(selected_text)
-            self.metabolite_list.set_current_item(selected_text)
-
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            text_cursor: QTextCursor = self.textCursor()
+            if not text_cursor.hasSelection():
+                start: int = text_cursor.position()
+                text: str = self.toPlainText()
+                if start >= len(text):
+                    return
+                while start > 0:
+                    start -= 1
+                    if text[start].isspace():
+                        break
+                text = text[start:].split(maxsplit=1)[0]
+                if self.model.metabolites.has_id(text):
+                    self.jumpToMetabolite.emit(text)
+                    self.metabolite_list.set_current_item(text)
 
 class ReactionTableWidget(QTableWidget):
     def __init__(self, appdata, element_type: ModelElementType) -> None:

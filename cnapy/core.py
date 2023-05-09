@@ -282,6 +282,7 @@ def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boun
             if rxn.boundary:
                 reaction_fluxes.append((rxn, flux))
 
+        metabolites_without_formulas = set()
         for rxn, flux in reaction_fluxes:
             for met, coeff in rxn.metabolites.items():
                 val = coeff * flux
@@ -291,6 +292,8 @@ def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boun
                     flux_dict = efflux
                 else:
                     continue
+                if len(met.elements) == 0:
+                    metabolites_without_formulas.add(met.id)
                 for el, count in met.elements.items():
                     if not organic_elements_only or el in organic_elements:
                         flux_dict[el] += count * val
@@ -307,6 +310,10 @@ def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boun
                 elements.remove(el)
         for el in elements:
             print_in_out_balance()
+        if len(metabolites_without_formulas) > 0:
+            print_func("WARNING: Metabolites wihtout formulas encountered:")
+            print_func(", ".join(met for met in metabolites_without_formulas))
+            print_func("The results are likely to be incorrect!")
     return influx, efflux
 
 def check_biomass_weight(model: cobra.Model, bm_reac_id: str) -> float:
