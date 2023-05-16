@@ -30,7 +30,7 @@ class AppData:
     ''' The application data '''
 
     def __init__(self):
-        self.version = "cnapy-1.1.7"
+        self.version = "cnapy-1.1.8"
         self.format_version = 2
         self.unsaved = False
         self.project = ProjectData()
