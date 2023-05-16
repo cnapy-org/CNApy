@@ -937,8 +937,12 @@ class ReactionMask(QWidget):
         self.jump_list.clear()
         for name, mmap in self.parent.appdata.project.maps.items():
             if EscherMapView in mmap:
-                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
-                    lambda on_map: self.jump_list.add(name) if on_map else None)
+                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text().replace("'", r"\'")+
+                                                         "','"+name.replace("'", r"\'")+"')",
+                    lambda map_name: self.jump_list.add(map_name) if len(map_name) > 0 else print(map_name))
+                # below will not work correctly with multiple Escher maps because of asynchronous execution of the lambda function
+                # mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
+                #     lambda on_map: self.jump_list.add(name) if on_map else None)
             else: # CNApy map
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)
