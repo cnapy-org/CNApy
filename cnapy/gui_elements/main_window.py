@@ -1054,7 +1054,9 @@ class MainWindow(QMainWindow):
     def set_escher_edit_mode(self, checked: bool):
         # cannot use the parameter checked because in ActionGroup the entries are mutually exclusive
         # and the policy cannot be changed in Python (why?)
-        self.centralWidget().map_tabs.currentWidget().enable_editing(not self.centralWidget().map_tabs.currentWidget().editing_enabled)
+        now_enabled = not self.centralWidget().map_tabs.currentWidget().editing_enabled
+        self.centralWidget().map_tabs.currentWidget().enable_editing(now_enabled)
+        self.escher_edit_mode_action.setChecked(now_enabled)
         self.unsaved_changes() # preliminary solution until checking for changes in Escher maps is implemented
 
     @Slot()

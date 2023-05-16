@@ -675,7 +675,7 @@ class ReactionMask(QWidget):
         reaction = cobra.Reaction('GPR_TEST')
         metabolite = cobra.Metabolite('X')
         reaction.add_metabolites({metabolite: -1})
-        self.grp_test_model.add_reaction(reaction)
+        self.grp_test_model.add_reactions([reaction])
 
         self.annotation_widget.deleteAnnotation.connect(
             self.delete_selected_annotation
@@ -825,7 +825,7 @@ class ReactionMask(QWidget):
         with self.parent.appdata.project.cobra_py_model as model:
             try:
                 r = cobra.Reaction(id="testid", name=self.name.text())
-                model.add_reaction(r)
+                model.add_reactions([r])
             except ValueError:
                 turn_red(self.name)
                 return False
@@ -841,7 +841,7 @@ class ReactionMask(QWidget):
         test_reaction = cobra.Reaction(
             "xxxx_cnapy_test_reaction", name="cnapy test reaction")
         with self.parent.appdata.project.cobra_py_model as model:
-            model.add_reaction(test_reaction)
+            model.add_reactions([test_reaction])
 
             try:
                 eqtxt = self.equation.text().rstrip()
@@ -937,8 +937,12 @@ class ReactionMask(QWidget):
         self.jump_list.clear()
         for name, mmap in self.parent.appdata.project.maps.items():
             if EscherMapView in mmap:
-                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
-                    lambda on_map: self.jump_list.add(name) if on_map else None)
+                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text().replace("'", r"\'")+
+                                                         "','"+name.replace("'", r"\'")+"')",
+                    lambda map_name: self.jump_list.add(map_name) if len(map_name) > 0 else print(map_name))
+                # below will not work correctly with multiple Escher maps because of asynchronous execution of the lambda function
+                # mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
+                #     lambda on_map: self.jump_list.add(name) if on_map else None)
             else: # CNApy map
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)

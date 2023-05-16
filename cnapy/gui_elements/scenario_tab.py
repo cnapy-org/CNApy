@@ -259,7 +259,7 @@ class ScenarioTab(QWidget):
                 original_metabolites = reaction.metabolites.copy()
             else:
                 reaction = cobra.Reaction(reac_id)
-                self.appdata.project.cobra_py_model.add_reaction(reaction)
+                self.appdata.project.cobra_py_model.add_reactions([reaction])
                 original_metabolites = None
             try:
                 eqtxt = self.equation.text().rstrip()
@@ -314,7 +314,7 @@ class ScenarioTab(QWidget):
                 reaction.subtract_metabolites(reaction.metabolites, combine=True) # remove current metabolites
             else:
                 reaction = cobra.Reaction(reac_id)
-                model.add_reaction(reaction)
+                model.add_reactions([reaction])
             reaction.add_metabolites(metabolites)
             reaction.lower_bound = lb
             reaction.upper_bound = ub

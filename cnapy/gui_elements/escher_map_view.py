@@ -3,7 +3,7 @@ import os
 from math import isclose
 from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
 from qtpy.QtWidgets import QFileDialog
-from qtpy.QtWebEngineWidgets import QWebEngineView
+from qtpy.QtWebEngineWidgets import QWebEngineView # QWebEngineProfile not in qtpy?
 from qtpy.QtWebChannel import QWebChannel
 import cobra
 from cnapy.appdata import AppData
@@ -29,13 +29,10 @@ class EscherMapView(QWebEngineView):
         self.enable_editing(not self.set_map_data())
         self.set_geometry()
         self.show()
-        self.initialized = True
         # set up the Escher search bar, its visibilty will be controlled by CNApy
         self.page().runJavaScript(r"builder.passPropsSearchBar({display:true})",
             lambda x: self.page().runJavaScript(
                 r"var search_container=document.getElementsByClassName('search-container')[0];var search_field=document.getElementsByClassName('search-field')[0];search_container.style.display='none';document.getElementsByClassName('search-bar-button')[2].hidden=true"))
-        self.update()
-        self.set_file_selector_download()
         # self.focusProxy().installEventFilter(self) # can be used for event tracking
 
     def finish_setup(self):
@@ -139,6 +136,13 @@ class EscherMapView(QWebEngineView):
             semaphore[0] += 1
 
     def set_file_selector_download(self):
+        try:
+            # prevent multiple connections because profile is shared among all Escher maps
+            self.page().profile().downloadRequested.disconnect()
+            # it would be nice to set up one separate profile for all Escher maps
+            # but it seems that QWebEngineProfile is not in qtpy
+        except TypeError: # disconnect raises this error when no signals were connected
+            pass
         self.page().profile().downloadRequested.connect(self.save_from_escher)
 
     @Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy

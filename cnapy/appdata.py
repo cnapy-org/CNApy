@@ -325,7 +325,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                     reaction.subtract_metabolites(reaction.metabolites, combine=True) # remove current metabolites
                 else:
                     reaction = cobra.Reaction(reac_id, lower_bound=lb, upper_bound=ub)
-                    model.add_reaction(reaction)
+                    model.add_reactions([reaction])
                 reaction.add_metabolites(metabolites)
                 reaction.set_hash_value()
 

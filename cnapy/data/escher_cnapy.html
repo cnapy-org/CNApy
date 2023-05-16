@@ -108,14 +108,14 @@
       builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'),
         {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, scroll_behavior: 'zoom'})
 
-      function reactionOnMap(reacId) {
+      function reactionOnMap(reacId, mapName) {
         var records = builder.map.search_index.find(reacId);
         for (i=0; i<records.length; i++) {
           var record = records[i];
           if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId)
-            return true;
+            return mapName;
         }
-        return false;
+        return "";
       }
 
       function highlightAndFocusReaction(reacId) {
