@@ -519,10 +519,13 @@ class MainWindow(QMainWindow):
         self.colorings.setExclusive(True)
 
         self.tool_bar = QToolBar()
-        self.tool_bar.addAction(load_scenario_action)
-        self.scenario_file_name = QLabel()
-        self.scenario_file_name.setToolTip("Current scenario file")
-        self.tool_bar.addWidget(self.scenario_file_name)
+
+        # load scenario action for tool bar
+        self.load_scenario_action_tb = QAction("Load scenario...", self)
+        self.load_scenario_action_tb.setToolTip("Load scenario file")
+        self.load_scenario_action_tb.triggered.connect(self.load_scenario)
+        self.tool_bar.addAction(self.load_scenario_action_tb)
+
         self.tool_bar.addAction(self.reload_scenario_action)
         self.tool_bar.addAction(self.save_scenario_action)
         self.tool_bar.addAction(save_scenario_as_action)
@@ -801,7 +804,10 @@ class MainWindow(QMainWindow):
     def load_scenario(self, merge=False):
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
-            directory=self.appdata.last_scen_directory, filter="*.scen *.val")[0]
+            caption="Load scenario",
+            directory=self.appdata.last_scen_directory,
+            filter="*.scen *.val"
+        )[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
         self.load_scenario_file(filename, merge=merge)
@@ -2165,12 +2171,14 @@ class MainWindow(QMainWindow):
 
     def update_scenario_file_name(self):
         if len(self.appdata.project.scen_values.file_name) == 0:
-            self.scenario_file_name.setText("No scenario file loaded")
+            self.load_scenario_action_tb.setIconText("No scenario file loaded")
             self.reload_scenario_action.setEnabled(False)
             self.save_scenario_action.setEnabled(False)
         else:
-            dir_name, file_name = os.path.split(self.appdata.project.scen_values.file_name)
-            self.scenario_file_name.setText(os.path.basename(dir_name) + os.path.sep + file_name)
+            dir_name, file_name = os.path.split(
+                self.appdata.project.scen_values.file_name)
+            self.load_scenario_action_tb.setIconText(
+                os.path.basename(dir_name) + os.path.sep + file_name)
             self.reload_scenario_action.setEnabled(True)
             self.save_scenario_action.setEnabled(True)
 
