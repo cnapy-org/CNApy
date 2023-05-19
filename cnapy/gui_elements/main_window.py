@@ -1448,6 +1448,8 @@ class MainWindow(QMainWindow):
     # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
         self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
+        for i in range(0, self.centralWidget().map_tabs.count()):
+            self.centralWidget().map_tabs.widget(i).deleteLater()
         self.centralWidget().map_tabs.clear()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
