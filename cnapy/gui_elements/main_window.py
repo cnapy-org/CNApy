@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
@@ -1159,9 +1159,7 @@ class MainWindow(QMainWindow):
 
     def new_project_unchecked(self):
         self.appdata.project = ProjectData()
-        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
-        self.centralWidget().map_tabs.clear()
-        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+        self.delete_maps()
 
         self.centralWidget().mode_navigator.clear()
         self.centralWidget().clear_model_item_history()
@@ -1253,6 +1251,9 @@ class MainWindow(QMainWindow):
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
                 self.centralWidget().clear_model_item_history()
+                self.centralWidget().reaction_list.last_selected = None
+                self.centralWidget().metabolite_list.last_selected = None
+                self.centralWidget().gene_list.last_selected = None
                 self.appdata.project.scen_values.clear()
                 self.appdata.project.comp_values.clear()
                 self.appdata.project.fva_values.clear()
@@ -1447,12 +1448,7 @@ class MainWindow(QMainWindow):
 
     # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
-        self.centralWidget().map_tabs.currentChanged.disconnect(self.on_tab_change)
-        for i in range(0, self.centralWidget().map_tabs.count()):
-            self.centralWidget().map_tabs.widget(i).deleteLater()
-        self.centralWidget().map_tabs.clear()
-        self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
-
+        self.delete_maps()
         for name, mmap in self.appdata.project.maps.items():
             if mmap.get("view", "cnapy") == "cnapy":
                 mmap = MapView(self.appdata, self.centralWidget(), name)
@@ -1466,6 +1462,12 @@ class MainWindow(QMainWindow):
                 raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
             mmap.update()
+
+    def delete_maps(self):
+        with QSignalBlocker(self.centralWidget().map_tabs):
+            for i in range(0, self.centralWidget().map_tabs.count()):
+                self.centralWidget().map_tabs.widget(i).deleteLater()
+            self.centralWidget().map_tabs.clear()
 
     def on_tab_change(self, idx):
         if idx >= 0:
