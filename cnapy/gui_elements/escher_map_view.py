@@ -3,21 +3,45 @@ import os
 from math import isclose
 from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
 from qtpy.QtWidgets import QFileDialog
-from qtpy.QtWebEngineWidgets import QWebEngineView # QWebEngineProfile not in qtpy?
+from qtpy.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
 from qtpy.QtWebChannel import QWebChannel
 import cobra
 from cnapy.appdata import AppData
 from cnapy.gui_elements.map_view import validate_value
 
+# couldn't figure out how to use a static method as slot
+@Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
+def save_from_escher(download):
+    file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
+    (_, ext) = os.path.splitext(file_name)
+    file_name = QFileDialog.getSaveFileName(directory=EscherMapView.download_directory, filter="*"+ext)[0]
+    if file_name is None or len(file_name) == 0:
+        download.cancel()
+    else:
+        if not file_name.endswith(ext):
+            file_name += ext
+        EscherMapView.download_directory = os.path.dirname(file_name)
+        download.setPath(file_name)
+        download.accept()
+
 class EscherMapView(QWebEngineView):
+    web_engine_profile: QWebEngineProfile = None #QWebEngineProfile()
+    download_directory: str = ""
+
     def __init__(self, central_widget, name: str):
         QWebEngineView.__init__(self)
+        self.appdata: AppData = central_widget.appdata
+        if EscherMapView.web_engine_profile is None:
+            EscherMapView.web_engine_profile = QWebEngineProfile()
+            EscherMapView.download_directory = self.appdata.work_directory
+            EscherMapView.web_engine_profile.downloadRequested.connect(save_from_escher)
+        page = QWebEnginePage(EscherMapView.web_engine_profile, self)
+        self.setPage(page)
         self.setContextMenuPolicy(Qt.NoContextMenu)
         self.initialized = False
-        self.appdata: AppData = central_widget.appdata
         self.central_widget = central_widget
         self.cnapy_bridge = CnapyBridge(self, central_widget)
-        self.channel = QWebChannel()
+        self.channel = QWebChannel() # reference to channel necessary on Python side for correct operation
         self.page().setWebChannel(self.channel)
         self.channel.registerObject("cnapy_bridge", self.cnapy_bridge)
         self.load(QUrl.fromLocalFile(resource_filename("cnapy", r"data/escher_cnapy.html")))
@@ -43,7 +67,6 @@ class EscherMapView(QWebEngineView):
         self.initialized = True
         self.enable_editing(len(self.appdata.project.maps[self.name].get('escher_map_data', "")) == 0)
         self.update()
-        self.set_file_selector_download()
 
     def set_map_data(self) -> bool:
         map_data = self.appdata.project.maps[self.name].get('escher_map_data', "")
@@ -135,29 +158,6 @@ class EscherMapView(QWebEngineView):
         if semaphore is not None:
             semaphore[0] += 1
 
-    def set_file_selector_download(self):
-        try:
-            # prevent multiple connections because profile is shared among all Escher maps
-            self.page().profile().downloadRequested.disconnect()
-            # it would be nice to set up one separate profile for all Escher maps
-            # but it seems that QWebEngineProfile is not in qtpy
-        except TypeError: # disconnect raises this error when no signals were connected
-            pass
-        self.page().profile().downloadRequested.connect(self.save_from_escher)
-
-    @Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
-    def save_from_escher(self, download):
-        file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
-        (_, ext) = os.path.splitext(file_name)
-        file_name = QFileDialog.getSaveFileName(directory=self.appdata.work_directory, filter="*"+ext)[0]
-        if file_name is None or len(file_name) == 0:
-            download.cancel()
-        else:
-            if not file_name.endswith(ext):
-                file_name += ext
-            download.setPath(file_name)
-            download.accept()
-
     def focus_reaction(self, reac_id: str):
         # Escher allows the same reaction to be multiple times on a map, so we abuse its search bar here
         self.central_widget.searchbar.setText(reac_id)
@@ -182,7 +182,7 @@ class EscherMapView(QWebEngineView):
 
     def closeEvent(self, event):
         self.channel.deregisterObject(self.cnapy_bridge)
-        super().closeEvent(event)
+        event.accept()
 
 
 class CnapyBridge(QObject):
