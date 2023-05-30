@@ -558,6 +558,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self.checked_unsaved():
             self.close_project_dialogs()
+            # make sure Escher pages are destroyed before their profile
+            self.delete_maps()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
             self.appdata.project.modes.clear()
