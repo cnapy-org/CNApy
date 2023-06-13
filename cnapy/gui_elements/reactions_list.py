@@ -301,7 +301,6 @@ class ReactionList(QWidget):
 
             (_, r) = self.splitter.getRange(1)
             self.splitter.moveSplitter(r/2, 1)
-            self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
             self.central_widget.add_model_item_to_history(reaction.id, reaction.name, ModelItemType.Reaction)
@@ -392,6 +391,7 @@ class ReactionList(QWidget):
             for i in items:
                 # triggers self.reaction_selected which also does a self.reaction_mask.update_state()
                 self.reaction_list.setCurrentItem(i)
+                self.reaction_list.scrollToItem(i)
                 break
 
         self.reaction_list.setSortingEnabled(True)
