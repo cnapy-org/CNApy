@@ -1206,7 +1206,7 @@ class SDDialog(QDialog):
             sd_setup = json.loads(sd_setup)
         # warn if strain design setup was constructed for another model
         if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:
-            QMessageBox.information(self,"Model IDs not matching",+\
+            QMessageBox.information(self,"Model IDs not matching",
                 "The strain design setup was specified for a different model. "+\
                 "Errors might occur due to non-matching reaction or gene-identifiers.")
         # write back content to dialog
@@ -1299,12 +1299,12 @@ class SDDialog(QDialog):
         if not valid:
             return
         if not self.modules:
-            QMessageBox.information(self,"Please add modules",\
+            QMessageBox.information(self,"Please add modules",
                                     "At least one module must be added to the "+\
                                     "strain design problem.")
             return
         if any([True for m in self.modules if m is None]):
-            QMessageBox.information(self,"Please complete module setup",\
+            QMessageBox.information(self,"Please complete module setup",
                                     "Some modules were added to the strain design problem "+\
                                     "but not yet set up. Please use the Edit button(s) in the " +\
                                     "module list to ensure all modules were set up correctly.")
@@ -1314,7 +1314,7 @@ class SDDialog(QDialog):
         bilvl_modules = [i for i,m in enumerate(self.modules) \
                             if m[MODULE_TYPE] in [OPTKNOCK,ROBUSTKNOCK,OPTCOUPLE]]
         if len(bilvl_modules) > 1:
-            QMessageBox.information(self,"Conflicting Modules",+\
+            QMessageBox.information(self, "Conflicting Modules",
                                     "Only one of the module types 'OptKnock', " +\
                                     "'RobustKnock' and 'OptCouple' can be defined per " +\
                                     "strain design setup.")
@@ -1591,7 +1591,7 @@ class SDViewer(QDialog):
         self.setLayout(self.layout)
         self.show()
         if self.solutions.has_complex_regul_itv:
-            QMessageBox.information(self,"Non-trivial regulatory interventions",\
+            QMessageBox.information(self,"Non-trivial regulatory interventions",
                                          "The strain design contains 'complex' " +\
                                          "regulatory interventions that cannot be shown " +\
                                          "in the network map. Please refer to table.")
