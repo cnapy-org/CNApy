@@ -220,6 +220,7 @@ class ScenarioTab(QWidget):
                                             'Choose a different reaction identifier.')
             self.update_reation_id_lists()
             self.check_constraints_and_objective()
+            self.scenario_changed()
             if self.appdata.auto_fba:
                 self.central_widget.parent.fba()
         elif column == ScenarioReactionColumn.LB or column == ScenarioReactionColumn.UB:
@@ -230,6 +231,7 @@ class ScenarioTab(QWidget):
                     self.appdata.project.scen_values.reactions[reac_id][1] = lb
                     self.appdata.project.scen_values.reactions[reac_id][2] = ub
                     self.update_reaction_equation(reac_id)
+                    self.scenario_changed()
                     if self.appdata.auto_fba:
                         self.central_widget.parent.fba()
                 else:
@@ -291,8 +293,10 @@ class ScenarioTab(QWidget):
                 reaction.add_metabolites(original_metabolites)
             self.appdata.project.cobra_py_model.remove_metabolites(added_metabolites)
 
-            if equation_valid and self.appdata.auto_fba:
-                self.central_widget.parent.fba()
+            if equation_valid:
+                self.scenario_changed()
+                if self.appdata.auto_fba:
+                    self.central_widget.parent.fba()
 
     @Slot(int, int, int, int)
     def handle_current_cell_changed(self, row: int, column: int, previous_row: int, previous_column: int):
@@ -340,6 +344,7 @@ class ScenarioTab(QWidget):
             self.update_reaction_row(row, reac_id)
         self.reactions.setCurrentCell(row, ScenarioReactionColumn.Id)
         # self.reactions.setSortingEnabled(True)
+        self.scenario_changed()
 
     @Slot()
     def delete_scenario_reaction(self):
@@ -351,6 +356,7 @@ class ScenarioTab(QWidget):
             self.update_reation_id_lists()
             self.check_constraints_and_objective()
             self.reactions.setCurrentCell(self.reactions.currentRow(), 0) # to make the cell appear selected in the GUI
+            self.scenario_changed()
             if self.appdata.auto_fba:
                 self.central_widget.parent.fba()
 
@@ -363,6 +369,7 @@ class ScenarioTab(QWidget):
         self.reactions.setItem(row, ScenarioReactionColumn.Flux, flux_item)
         self.reactions.setItem(row, ScenarioReactionColumn.LB, QTableWidgetItem())
         self.reactions.setItem(row, ScenarioReactionColumn.UB, QTableWidgetItem())
+        self.scenario_changed()
 
     def update_reaction_row(self, row: int, reac_id: str):
         reac_id_item = self.reactions.item(row, ScenarioReactionColumn.Id)
@@ -378,6 +385,7 @@ class ScenarioTab(QWidget):
         row, _ = self.add_constraint_row()
         self.appdata.project.scen_values.constraints.append(Scenario.empty_constraint)
         self.constraints.setCurrentCell(row, 0)
+        self.scenario_changed()
         
     def add_constraint_row(self):
         row: int = self.constraints.rowCount()
@@ -406,6 +414,7 @@ class ScenarioTab(QWidget):
             with QSignalBlocker(self.constraints): # does not appear to suppress the focus out event
                 self.constraints.removeRow(row)
             del self.appdata.project.scen_values.constraints[row]
+            self.scenario_changed()
             if self.appdata.auto_fba:
                 self.central_widget.parent.fba()
 
@@ -419,6 +428,7 @@ class ScenarioTab(QWidget):
                     self.reaction_ids.id_list)[0]
             else:
                 self.appdata.project.scen_values.constraints[row] = Scenario.empty_constraint
+            self.scenario_changed()
 
     def check_constraints_and_objective(self):
         for row in range(self.constraints.rowCount()):
@@ -429,15 +439,18 @@ class ScenarioTab(QWidget):
 
     @Slot(bool)
     def change_scenario_objective_coefficients(self, text_correct: bool):
-        if text_correct:
-            new_objective = linexpr2dict(self.scenario_objective.text(), self.reaction_ids.id_list)
-            if new_objective != self.appdata.project.scen_values.objective_coefficients:
-                self.appdata.project.scen_values.objective_coefficients = new_objective
-                if self.appdata.project.scen_values.use_scenario_objective:
-                    self.objectiveSetupChanged.emit()
-            self.use_scenario_objective.setEnabled(True)
-        else:
-            self.use_scenario_objective.setEnabled(False)
+        if self.scenario_objective.isModified():
+            self.scenario_objective.setModified(False)
+            if text_correct:
+                new_objective = linexpr2dict(self.scenario_objective.text(), self.reaction_ids.id_list)
+                if new_objective != self.appdata.project.scen_values.objective_coefficients:
+                    self.appdata.project.scen_values.objective_coefficients = new_objective
+                    self.scenario_changed()
+                    if self.appdata.project.scen_values.use_scenario_objective:
+                        self.objectiveSetupChanged.emit()
+                self.use_scenario_objective.setEnabled(True)
+            else:
+                self.use_scenario_objective.setEnabled(False)
 
     @Slot()
     def validate_objective(self):
@@ -456,10 +469,16 @@ class ScenarioTab(QWidget):
     @Slot(int)
     def scenario_optimization_direction_changed(self, index: int):
         self.appdata.project.scen_values.objective_direction = OptimizationDirection(index).name
+        self.scenario_changed()
         if self.appdata.project.scen_values.use_scenario_objective:
             self.objectiveSetupChanged.emit()
 
     def description_changed(self):
         self.appdata.project.scen_values.description = self.description.toPlainText()
 
+    def scenario_changed(self):
+        self.appdata.project.scen_values.has_unsaved_changes = True
+        self.scenarioChanged.emit()
+
     objectiveSetupChanged = Signal()
+    scenarioChanged = Signal()

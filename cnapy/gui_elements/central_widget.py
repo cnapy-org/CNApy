@@ -154,6 +154,7 @@ class CentralWidget(QWidget):
         self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.model_info.globalObjectiveChanged.connect(self.handle_changed_global_objective)
         self.scenario_tab.objectiveSetupChanged.connect(self.handle_changed_objective_setup)
+        self.scenario_tab.scenarioChanged.connect(self.parent.update_scenario_file_name)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
