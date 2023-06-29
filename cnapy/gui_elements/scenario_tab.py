@@ -475,6 +475,7 @@ class ScenarioTab(QWidget):
 
     def description_changed(self):
         self.appdata.project.scen_values.description = self.description.toPlainText()
+        self.scenario_changed()
 
     def scenario_changed(self):
         self.appdata.project.scen_values.has_unsaved_changes = True
