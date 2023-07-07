@@ -470,6 +470,7 @@ class CentralWidget(QWidget):
                             self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
                             if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
                                 self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
+        self.mode_navigator.current_flux_values = self.appdata.project.comp_values.copy()
 
     def reaction_participation(self):
         self.appdata.project.comp_values.clear()

@@ -18,8 +18,10 @@ class ModeNavigator(QWidget):
         self.appdata = appdata
         self.central_widget = central_widget
         self.current = 0
+        self.current_flux_values = None # are set in update_mode of central_widget
         self.mode_type = 0 # EFM or some sort of flux vector
         self.scenario = {}
+        self.modified_scenario = None
         self.setFixedHeight(70)
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -33,6 +35,8 @@ class ModeNavigator(QWidget):
         self.prev_button = QPushButton("<")
         self.next_button = QPushButton(">")
         self.label = QLabel()
+        self.apply_button = QPushButton("Apply")
+        self.apply_button.setToolTip("Add interventions to current scenario")
         self.reaction_participation_button = QPushButton("Reaction participation")
         self.size_histogram_button = QPushButton("Size histogram")
 
@@ -60,6 +64,7 @@ class ModeNavigator(QWidget):
         l2.addWidget(self.prev_button)
         l2.addWidget(self.label)
         l2.addWidget(self.next_button)
+        l2.addWidget(self.apply_button)
         l2.addWidget(self.reaction_participation_button)
         l2.addWidget(self.size_histogram_button)
 
@@ -69,6 +74,7 @@ class ModeNavigator(QWidget):
 
         self.prev_button.clicked.connect(self.prev)
         self.next_button.clicked.connect(self.next)
+        self.apply_button.clicked.connect(self.apply)
         self.clear_button.clicked.connect(self.clear)
         self.selector.returnPressed.connect(self.apply_selection)
         self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
@@ -131,6 +137,7 @@ class ModeNavigator(QWidget):
         self.save_button_connection = self.save_button.clicked.connect(self.save_mcs)
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
+        self.apply_button.setVisible(True)
         self.select_all()
         self.update_completion_list()
 
@@ -142,6 +149,7 @@ class ModeNavigator(QWidget):
         self.save_button_connection = self.save_button.clicked.connect(self.save_efm)
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
+        self.apply_button.setVisible(False)
         self.select_all()
         self.update_completion_list()
 
@@ -153,6 +161,7 @@ class ModeNavigator(QWidget):
         self.save_button_connection = self.save_button.clicked.connect(self.save_sd)
         self.save_button.setToolTip("save strain designs")
         self.clear_button.setToolTip("clear strain designs")
+        self.apply_button.setVisible(True)
         self.select_all()
         self.update_completion_list()
 
@@ -165,6 +174,11 @@ class ModeNavigator(QWidget):
         self.modeNavigatorClosed.emit()
 
     def display_mode(self):
+        # if the last scenario change comes from a previous apply undo it
+        if len(self.appdata.scenario_past) > 0 and self.modified_scenario is self.appdata.scenario_past[-1]:
+            print("Resetting scenario")
+            self.central_widget.parent.undo_scenario_edit()
+            self.modified_scenario = None
         self.appdata.modes_coloring = True
         self.update()
         self.changedCurrentMode.emit(self.current)
@@ -189,6 +203,15 @@ class ModeNavigator(QWidget):
             if self.selection[self.current]:
                 break
         self.display_mode()
+
+    def apply(self):
+        self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
+                                              list(self.current_flux_values.values()))
+        self.modified_scenario = self.appdata.scenario_past[-1]
+        if self.appdata.auto_fba:
+            self.central_widget.parent.fba()
+        else:
+            self.central_widget.update()
 
     def select_all(self):
         self.selection = numpy.ones(len(self.appdata.project.modes), dtype=numpy.bool)
