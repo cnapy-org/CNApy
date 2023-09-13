@@ -1571,19 +1571,29 @@ class MainWindow(QMainWindow):
         self.process_fba_solution()
 
     def process_fba_solution(self, update=True):
-        if self.appdata.project.solution.status == 'optimal':
-            display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
-            self.set_status_optimal()
-            for r, v in self.appdata.project.solution.fluxes.items():
-                self.appdata.project.comp_values[r] = (v, v)
-        elif self.appdata.project.solution.status == 'infeasible':
-            display_text = "No solution, the current scenario is infeasible"
-            self.set_status_infeasible()
-            self.appdata.project.comp_values.clear()
-        else:
-            display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
-            self.set_status_unknown()
-            self.appdata.project.comp_values.clear()
+        solution_error = True
+        if hasattr(self.appdata.project, "solution"):
+            if hasattr(self.appdata.project.solution, "status"):
+                solution_error = False
+                if self.appdata.project.solution.status == 'optimal':
+                    display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
+                    self.set_status_optimal()
+                    for r, v in self.appdata.project.solution.fluxes.items():
+                        self.appdata.project.comp_values[r] = (v, v)
+                elif self.appdata.project.solution.status == 'infeasible':
+                    display_text = "No solution, the current scenario is infeasible"
+                    self.set_status_infeasible()
+                    self.appdata.project.comp_values.clear()
+                else:
+                    display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
+                    self.set_status_unknown()
+                    self.appdata.project.comp_values.clear()
+
+        if solution_error:
+            display_text = "Solver error. One possible reason: You set CPLEX or Gurobi as solver although you only use their\n"+\
+                           "Community edition which only work for small models. To solve this, either follow the instructions under\n"+\
+                           "'Config->Configure IBM CPLEX full version' or 'Config->Configure Gurobi full version', or use a different solver such as GLPK."
+
         self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
         self.solver_status_display.setText(display_text)
         self.appdata.project.comp_values_type = 0
