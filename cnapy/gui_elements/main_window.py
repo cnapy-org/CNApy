@@ -555,6 +555,22 @@ class MainWindow(QMainWindow):
         self.update_scenario_file_name()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
+    def except_likely_community_model_error(self):
+        """Shows a message in the case that using a (size-limited) community edition solver version probably caused an error."""
+        community_error_text = "Solver error. One possible reason: You set CPLEX or Gurobi as solver although you only use their\n"+\
+                               "Community edition which only work for small models. To solve this, either follow the instructions under\n"+\
+                               "'Config->Configure IBM CPLEX full version' or 'Config->Configure Gurobi full version', or use a different solver such as GLPK."
+
+        self.centralWidget().console._append_plain_text(
+            "\n"+community_error_text,
+            before_prompt=True
+        )
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("Error")
+        msgBox.setText("Solver error! See console text (bottom left of CNApy's main window) for more.")
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.exec()
+
     def closeEvent(self, event):
         if self.checked_unsaved():
             self.close_project_dialogs()
@@ -1571,10 +1587,10 @@ class MainWindow(QMainWindow):
         self.process_fba_solution()
 
     def process_fba_solution(self, update=True):
-        solution_error = True
+        general_solution_error = True
         if hasattr(self.appdata.project, "solution"):
             if hasattr(self.appdata.project.solution, "status"):
-                solution_error = False
+                general_solution_error = False
                 if self.appdata.project.solution.status == 'optimal':
                     display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
                     self.set_status_optimal()
@@ -1589,14 +1605,12 @@ class MainWindow(QMainWindow):
                     self.set_status_unknown()
                     self.appdata.project.comp_values.clear()
 
-        if solution_error:
-            display_text = "Solver error. One possible reason: You set CPLEX or Gurobi as solver although you only use their\n"+\
-                           "Community edition which only work for small models. To solve this, either follow the instructions under\n"+\
-                           "'Config->Configure IBM CPLEX full version' or 'Config->Configure Gurobi full version', or use a different solver such as GLPK."
-
-        self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
-        self.solver_status_display.setText(display_text)
-        self.appdata.project.comp_values_type = 0
+        if general_solution_error:
+            display_text = self.except_likely_community_model_error()
+        else:
+            self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
+            self.solver_status_display.setText(display_text)
+            self.appdata.project.comp_values_type = 0
         if update:
             self.centralWidget().update()
 
@@ -1813,8 +1827,12 @@ class MainWindow(QMainWindow):
                 output = io.StringIO()
                 traceback.print_exc(file=output)
                 exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
+                # Check for substrings of Gurobi and CPLEX community edition errors
+                if ("Model too large for size-limited license" in exstr) or ("1016: Community Edition" in exstr):
+                    self.except_likely_community_model_error()
+                else:
+                    print(exstr)
+                    utils.show_unknown_error_box(exstr)
             else:
                 minimum = solution.minimum.to_dict()
                 maximum = solution.maximum.to_dict()
