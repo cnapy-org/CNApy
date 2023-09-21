@@ -1837,8 +1837,8 @@ class MainWindow(QMainWindow):
         self.efmtool_dialog.exec_()
 
     def mcs(self):
-        self.mcs_dialog = MCSDialog(
-            self.appdata, self.centralWidget())
+        if self.mcs_dialog is None:
+            self.mcs_dialog = MCSDialog(self.appdata, self.centralWidget())
         self.mcs_dialog.show()
 
     def set_onoff(self):
