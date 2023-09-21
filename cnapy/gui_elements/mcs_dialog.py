@@ -15,7 +15,7 @@ from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
+from cnapy.core_gui import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 
 
 class MCSDialog(QDialog):
@@ -474,8 +474,6 @@ class MCSDialog(QDialog):
                 errors += f"ERROR in {equation}:\n* or / must not follow * or /\n"
             if last_is_dash and (semantic in ("multiplication", "division")):
                 errors += f"ERROR in {equation}:\n* or / must not follow + or -\n"
-            if last_is_number and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nA reaction must not directly follow a number without a mathematical operation\n"
             if last_is_reaction and (semantic == "reaction"):
                 errors += f"ERROR in {equation}:\nA reaction must not follow a reaction ID\n"
             if last_is_number and (semantic == "number"):
