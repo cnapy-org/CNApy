@@ -183,7 +183,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     model.add_cons_vars([gam_slack])
                     for i in range(len(gam_mets)):
                         met = gam_mets[i]
-                        sign = numpy.sign(bm_reaction.metabolites[met])
+                        sign = numpy.sign(bm_reaction.metabolites[met]) # !! FIXME: only correct when gam_base is larger than biomass part !! 
                         met.constraint.set_linear_coefficients({gam_slack: sign*gam_max_change*mue_fixed})
                         gam_mets_sign[i] = sign
                     qp_terms.append(gam_weight * (gam_slack**2))
@@ -322,7 +322,14 @@ def check_biomass_weight(model: cobra.Model, bm_reac_id: str) -> float:
     It only returns a correct value if the molecular weights of all biomass constituents are given.
     """
     bm_coeff = [(m, c) for m,c in model.reactions.get_by_id(bm_reac_id).metabolites.items()]
-    bm_weight = sum(m.formula_weight/1000*-c for m,c in bm_coeff)
+    bm_weight = 0.0
+    for m,c in bm_coeff:
+        w = m.formula_weight
+        if w is None or w == 0:
+            print("Molecular weight of biomass component", m.id, "cannot be calculated from its formula", m.formula)
+        else:
+            bm_weight += w/1000*-c
+#    bm_weight = sum(m.formula_weight/1000*-c for m,c in bm_coeff)
     print("Flux of 1 through the biomass reaction produces", bm_weight, "g biomass.")
     return bm_weight
 
@@ -356,6 +363,7 @@ def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool
         for new_id in candidates:
             try:
                 entry.id = new_id
+                entry.annotation['original ID'] = old_id
                 break
             except ValueError: # new_id already in use
                 pass
