@@ -71,7 +71,7 @@ class Application:
         self.qapp.setStyle("fusion")
         config_file_version = self.read_config()
         font = self.qapp.font()
-        font.setPointSize(self.appdata.font_size)
+        font.setPointSizeF(self.appdata.font_size)
         self.qapp.setFont(font)
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window

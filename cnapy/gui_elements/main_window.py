@@ -7,7 +7,7 @@ from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import model_optimization_with_exceptions
+from cnapy.core import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
@@ -561,22 +561,6 @@ class MainWindow(QMainWindow):
         self.update_scenario_file_name()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
-    def except_likely_community_model_error(self):
-        """Shows a message in the case that using a (size-limited) community edition solver version probably caused an error."""
-        community_error_text = "Solver error. One possible reason: You set CPLEX or Gurobi as solver although you only use their\n"+\
-                               "Community edition which only work for small models. To solve this, either follow the instructions under\n"+\
-                               "'Config->Configure IBM CPLEX full version' or 'Config->Configure Gurobi full version', or use a different solver such as GLPK."
-
-        self.centralWidget().console._append_plain_text(
-            "\n"+community_error_text,
-            before_prompt=True
-        )
-        msgBox = QMessageBox()
-        msgBox.setWindowTitle("Error")
-        msgBox.setText("Solver error! See console text (bottom left of CNApy's main window) for more.")
-        msgBox.setIcon(QMessageBox.Warning)
-        msgBox.exec()
-
     def closeEvent(self, event):
         if self.checked_unsaved():
             self.close_project_dialogs()
@@ -777,9 +761,7 @@ class MainWindow(QMainWindow):
         try:
             self.save_sbml(filename)
         except ValueError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
         self.setCursor(Qt.ArrowCursor)
@@ -1214,9 +1196,7 @@ class MainWindow(QMainWindow):
             try:
                 cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
+                exstr = get_last_exception_string()
                 QMessageBox.warning(
                     self, 'Could not read sbml.', exstr)
                 return
@@ -1265,9 +1245,7 @@ class MainWindow(QMainWindow):
                     cobra_py_model = CNApyModel.read_sbml_model(
                         temp_dir.name + "/model.sbml")
                 except cobra.io.sbml.CobraSBMLError:
-                    output = io.StringIO()
-                    traceback.print_exc(file=output)
-                    exstr = output.getvalue()
+                    exstr = get_last_exception_string()
                     QMessageBox.warning(
                         self, 'Could not open project.', exstr)
                     return
@@ -1311,9 +1289,7 @@ class MainWindow(QMainWindow):
                 self.appdata.save_cnapy_config()
                 self.build_recent_cna_menu()
         except FileNotFoundError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             QMessageBox.warning(self, 'Could not open project.', exstr)
         except BadZipFile:
             QMessageBox.critical(
@@ -1418,9 +1394,7 @@ class MainWindow(QMainWindow):
         try:
             self.save_sbml(tmp_dir + "model.sbml")
         except ValueError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
             return
@@ -1611,9 +1585,7 @@ class MainWindow(QMainWindow):
                     self.set_status_unknown()
                     self.appdata.project.comp_values.clear()
 
-        if general_solution_error:
-            display_text = self.except_likely_community_model_error()
-        else:
+        if not general_solution_error:
             self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
             self.solver_status_display.setText(display_text)
             self.appdata.project.comp_values_type = 0
@@ -1652,11 +1624,13 @@ class MainWindow(QMainWindow):
                 display_text = "An unexpected error occured."
                 self.set_status_unknown()
                 self.appdata.project.comp_values.clear()
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
+                exstr = get_last_exception_string()
+                # Check for substrings of Gurobi and CPLEX community edition errors
+                if has_community_error_substring(exstr):
+                    except_likely_community_model_error()
+                else:
+                    print(exstr)
+                    utils.show_unknown_error_box(exstr)
             else:
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
@@ -1830,12 +1804,10 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
             except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
+                exstr = get_last_exception_string()
                 # Check for substrings of Gurobi and CPLEX community edition errors
-                if ("Model too large for size-limited license" in exstr) or ("1016: Community Edition" in exstr):
-                    self.except_likely_community_model_error()
+                if has_community_error_substring(exstr):
+                    except_likely_community_model_error()
                 else:
                     print(exstr)
                     utils.show_unknown_error_box(exstr)
