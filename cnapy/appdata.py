@@ -15,7 +15,7 @@ from enum import IntEnum
 import cobra
 from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal, QObject
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QMessageBox
 
@@ -26,10 +26,11 @@ class ModelItemType(IntEnum):
     Reaction = 1
     Gene = 2
 
-class AppData:
+class AppData(QObject):
     ''' The application data '''
 
     def __init__(self):
+        QObject.__init__(self)
         self.version = "cnapy-1.1.8"
         self.format_version = 2
         self.unsaved = False
@@ -72,27 +73,32 @@ class AppData:
             self.project.scen_values[reaction] = values
             self.scenario_past.append(("set", reaction, values))
             self.scenario_future.clear()
+            self.unsaved_scenario_changes()
 
     def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
         for r, v in zip(reactions, values):
             self.project.scen_values[r] = v
         self.scenario_past.append(("set", reactions, values))
         self.scenario_future.clear()
+        self.unsaved_scenario_changes()
 
     def scen_values_pop(self, reaction: str):
         self.project.scen_values.pop(reaction, None)
         self.scenario_past.append(("pop", reaction, 0))
         self.scenario_future.clear()
+        self.unsaved_scenario_changes()
 
     def scen_values_clear(self):
         self.project.scen_values.clear_flux_values()
         self.scenario_past.append(("clear", "all", 0))
         self.scenario_future.clear()
+        self.unsaved_scenario_changes()
 
     def set_comp_value_as_scen_value(self, reaction: str):
         val = self.project.comp_values.get(reaction, None)
         if val:
             self.scen_values_set(reaction, val)
+        self.unsaved_scenario_changes()
 
     def recreate_scenario_from_history(self):
         self.project.scen_values.clear_flux_values()
@@ -107,6 +113,7 @@ class AppData:
                 self.project.scen_values.pop(reaction, None)
             elif tag == "clear":
                 self.project.scen_values.clear_flux_values()
+        self.unsaved_scenario_changes()
 
     def format_flux_value(self, flux_value) -> str:
         return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
@@ -207,8 +214,14 @@ class AppData:
                 high = mean
         return (low, high)
 
+    def unsaved_scenario_changes(self):
+        self.project.scen_values.has_unsaved_changes = True
+        self.unsavedScenarioChanges.emit()
+
+    unsavedScenarioChanges = Signal()
+
 class Scenario(Dict[str, Tuple[float, float]]):
-    empty_constraint = (None, None, None)
+    empty_constraint = (None, "", "")
 
     # cannot do this because of the import problem
     # @staticmethod
@@ -225,6 +238,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
         self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
         self.file_name: str = ""
+        self.has_unsaved_changes = False
         self.version: int = 2
 
     def save(self, filename: str):
@@ -234,6 +248,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                     'constraints': self.constraints, 'version': self.version}
         with open(filename, 'w') as fp:
             json.dump(json_dict, fp)
+        self.has_unsaved_changes = False
 
     def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List, List]:
         unknown_ids: List(str)= []
@@ -267,7 +282,9 @@ class Scenario(Dict[str, Tuple[float, float]]):
                             self.constraints = []
                             all_reaction_ids.update(self.reactions)
                             for constr in json_dict['constraints']:
-                                if set(constr[0].keys()).issubset(all_reaction_ids):
+                                if constr[0] is None:
+                                    self.constraints.append(Scenario.empty_constraint)
+                                elif set(constr[0].keys()).issubset(all_reaction_ids):
                                     self.constraints.append(constr)
                                 else:
                                     incompatible_constraints.append(constr)

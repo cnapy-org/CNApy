@@ -187,6 +187,7 @@ class MetaboliteList(QWidget):
 
             for i in items:
                 self.metabolite_list.setCurrentItem(i)
+                self.metabolite_list.scrollToItem(i)
                 break
 
     def set_current_item(self, key):

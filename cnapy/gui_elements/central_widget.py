@@ -154,6 +154,7 @@ class CentralWidget(QWidget):
         self.gene_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.model_info.globalObjectiveChanged.connect(self.handle_changed_global_objective)
         self.scenario_tab.objectiveSetupChanged.connect(self.handle_changed_objective_setup)
+        self.scenario_tab.scenarioChanged.connect(self.parent.update_scenario_file_name)
         self.map_tabs.tabCloseRequested.connect(self.delete_map)
         self.mode_navigator.changedCurrentMode.connect(self.update_mode)
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
@@ -469,6 +470,7 @@ class CentralWidget(QWidget):
                             self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
                             if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
                                 self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
+        self.mode_navigator.current_flux_values = self.appdata.project.comp_values.copy()
 
     def reaction_participation(self):
         self.appdata.project.comp_values.clear()

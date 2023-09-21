@@ -132,6 +132,7 @@ class GeneList(QWidget):
 
             for i in items:
                 self.gene_list.setCurrentItem(i)
+                self.gene_list.scrollToItem(i)
                 break
 
     def set_current_item(self, key):

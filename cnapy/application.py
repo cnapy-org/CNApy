@@ -75,6 +75,7 @@ class Application:
         self.qapp.setFont(font)
         self.window = MainWindow(self.appdata)
         self.appdata.window = self.window
+        self.appdata.unsavedScenarioChanges.connect(self.window.update_scenario_file_name)
         self.window.recreate_maps()
         self.window.resize(1200, 1000)
         self.window.save_project_action.setEnabled(False)

@@ -426,7 +426,7 @@ class ReactionBox(QGraphicsItem):
         self.item.setTextMargins(1, -13, 0, -10)  # l t r b
         font = self.item.font()
         point_size = font.pointSize()
-        font.setPointSizeF(float(point_size+13))
+        font.setPointSize(point_size+13)
         self.item.setFont(font)
         self.item.setAttribute(Qt.WA_TranslucentBackground)
 
