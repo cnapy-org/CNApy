@@ -161,7 +161,7 @@ class CplexConfigurationDialog(QDialog):
                 self.get_and_set_environmental_variable()
 
     def get_and_set_environmental_variable(self):
-        base_path = self.cplex_directory.text() + "cplex/python/3.8/"
+        base_path = self.cplex_directory.text() + "cplex/python/3.10/"
 
         folders_list = [
             base_path+folder for folder in os.listdir(base_path) if os.path.isdir(base_path+folder)
