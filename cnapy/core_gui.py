@@ -30,15 +30,6 @@ def has_community_error_substring(string: str) -> bool:
 def model_optimization_with_exceptions(model: cobra.Model) -> None:
     try:
         return model.optimize()
-    except gurobipy.GurobiError as error:
-        msgBox = QMessageBox()
-        msgBox.setWindowTitle("Gurobi Error!")
-        msgBox.setText("Calculation failed due to the following Gurobi solver error " +\
-                       "(if this error cannot be resolved,\ntry using a different solver by changing " +\
-                       "it under 'Config->Configure cobrapy'):\n"+error.message+\
-                       "\nNOTE: Another error message will follow, you can safely ignore it.")
-        msgBox.setIcon(QMessageBox.Warning)
-        msgBox.show()
     except Exception:
         exstr = get_last_exception_string()
         # Check for substrings of Gurobi and CPLEX community edition errors
