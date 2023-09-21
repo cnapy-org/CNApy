@@ -1733,7 +1733,7 @@ class MainWindow(QMainWindow):
                     return
 
                 print(
-                    '\x1b[1;04;30m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    '\n\x1b[1;04;30m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
                 print(' + '.join(imports))
                 print('-->')
                 print(' + '.join(exports))
