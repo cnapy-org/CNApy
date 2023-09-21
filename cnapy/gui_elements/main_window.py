@@ -564,6 +564,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self.checked_unsaved():
             self.close_project_dialogs()
+            # make sure Escher pages are destroyed before their profile
+            self.delete_maps()
             event.accept()
             # releases the memory map file if this is a FluxVectorMemmap
             self.appdata.project.modes.clear()
@@ -856,6 +858,7 @@ class MainWindow(QMainWindow):
             self.centralWidget().update()
             self.clear_status_bar()
         self.appdata.last_scen_directory = os.path.dirname(filename)
+        self.appdata.project.scen_values.has_unsaved_changes = False
         self.update_scenario_file_name()
 
     @Slot()
@@ -1090,6 +1093,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def save_scenario(self):
         self.appdata.project.scen_values.save(self.appdata.project.scen_values.file_name)
+        self.update_scenario_file_name()
 
     @Slot()
     def save_scenario_as(self):
@@ -1967,8 +1971,8 @@ class MainWindow(QMainWindow):
         self.efmtool_dialog.exec_()
 
     def mcs(self):
-        self.mcs_dialog = MCSDialog(
-            self.appdata, self.centralWidget())
+        if self.mcs_dialog is None:
+            self.mcs_dialog = MCSDialog(self.appdata, self.centralWidget())
         self.mcs_dialog.show()
 
     def set_onoff(self):
@@ -2315,6 +2319,7 @@ class MainWindow(QMainWindow):
     def save_fluxes_as_xlsx(self):
         self._save_fluxes("xlsx")
 
+    @Slot()
     def update_scenario_file_name(self):
         if len(self.appdata.project.scen_values.file_name) == 0:
             self.load_scenario_action_tb.setIconText("No scenario file loaded")
@@ -2323,6 +2328,8 @@ class MainWindow(QMainWindow):
         else:
             dir_name, file_name = os.path.split(
                 self.appdata.project.scen_values.file_name)
+            if self.appdata.project.scen_values.has_unsaved_changes:
+                file_name += "*"
             self.load_scenario_action_tb.setIconText(
                 os.path.basename(dir_name) + os.path.sep + file_name)
             self.reload_scenario_action.setEnabled(True)

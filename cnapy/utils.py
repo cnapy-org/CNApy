@@ -34,6 +34,10 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
         for child_counter in range(root.childCount()):
              root.child(child_counter).setHidden(False)
 
+    current_item = element_list.currentItem()
+    if current_item is not None and not current_item.isHidden():
+        element_list.scrollToItem(current_item)
+
     return found_ids
 
 

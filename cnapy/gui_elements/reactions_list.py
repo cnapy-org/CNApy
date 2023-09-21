@@ -88,6 +88,15 @@ class ReactionListItem(QTreeWidgetItem):
 #            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
             return self.text(column) < other.text(column)
 
+    def update_tooltips(self):
+        text = "Id: " + self.reaction.id + "\nName: " + self.reaction.name \
+            + "\nEquation: " + self.reaction.build_reaction_string()\
+            + "\nLowerbound: " + str(self.reaction.lower_bound) \
+            + "\nUpper bound: " + str(self.reaction.upper_bound) \
+            + "\nObjective coefficient: " + str(self.reaction.objective_coefficient)
+        self.setToolTip(ReactionListColumn.Id, text)
+        self.setToolTip(ReactionListColumn.Name, text)
+
 class ReactionList(QWidget):
     """A list of reaction"""
 
@@ -172,13 +181,7 @@ class ReactionList(QWidget):
         item.setFlags(item.flags() | Qt.ItemIsEditable)
         item.setText(ReactionListColumn.Id, reaction.id)
         item.setText(ReactionListColumn.Name, reaction.name)
-        text = "Id: " + reaction.id + "\nName: " + reaction.name \
-            + "\nEquation: " + reaction.build_reaction_string()\
-            + "\nLowerbound: " + str(reaction.lower_bound) \
-            + "\nUpper bound: " + str(reaction.upper_bound) \
-            + "\nObjective coefficient: " + str(reaction.objective_coefficient)
-        item.setToolTip(ReactionListColumn.Id, text)
-        item.setToolTip(ReactionListColumn.Name, text)
+        item.update_tooltips()
         self.update_item(item)
         return item
 
@@ -317,6 +320,7 @@ class ReactionList(QWidget):
                 old_id = item.text(ReactionListColumn.Id)
                 item.setText(ReactionListColumn.Id, reaction.id)
                 item.setText(ReactionListColumn.Name, reaction.name)
+                item.update_tooltips()
                 break
 
         self.last_selected = self.reaction_mask.id.text()
@@ -392,6 +396,7 @@ class ReactionList(QWidget):
             for i in items:
                 # triggers self.reaction_selected which also does a self.reaction_mask.update_state()
                 self.reaction_list.setCurrentItem(i)
+                self.reaction_list.scrollToItem(i)
                 break
 
         self.reaction_list.setSortingEnabled(True)
