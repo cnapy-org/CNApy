@@ -7,7 +7,7 @@ from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
+from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis

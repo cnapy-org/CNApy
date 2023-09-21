@@ -32,7 +32,7 @@ from cnapy.sd_class_interface import (
 from cnapy.sd_ci_optmdfpathway import create_optmdfpathway_milp, STANDARD_R, STANDARD_T
 from typing import Dict
 from cobra.util.solver import interface_to_str
-from cnapy.core import model_optimization_with_exceptions
+from cnapy.core_gui import model_optimization_with_exceptions
 import re
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from straindesign.names import CPLEX, GLPK, GUROBI, SCIP

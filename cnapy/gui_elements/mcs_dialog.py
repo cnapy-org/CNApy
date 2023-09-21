@@ -15,7 +15,7 @@ from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
+from cnapy.core_gui import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 
 
 class MCSDialog(QDialog):
