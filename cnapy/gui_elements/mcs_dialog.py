@@ -15,6 +15,7 @@ from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
 from cnapy.flux_vector_container import FluxVectorContainer
+from cnapy.core_gui import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 
 
 class MCSDialog(QDialog):
@@ -379,9 +380,10 @@ class MCSDialog(QDialog):
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return targets, desired
             except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
+                exstr = get_last_exception_string()
+                if has_community_error_substring(exstr):
+                    except_likely_community_model_error()
+                    return
                 print(exstr)
                 utils.show_unknown_error_box(exstr)
                 return targets, desired
@@ -469,15 +471,13 @@ class MCSDialog(QDialog):
                 is_start = False
 
             if (last_is_multiplication or last_is_division) and (semantic in ("multiplication", "division")):
-                errors += f"ERROR in {equation}:\n* or / must not follow on * or /\n"
+                errors += f"ERROR in {equation}:\n* or / must not follow * or /\n"
             if last_is_dash and (semantic in ("multiplication", "division")):
-                errors += f"ERROR in {equation}:\n* or / must not follow on + or -\n"
-            if last_is_number and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nA reaction must not directly follow on a number without a mathematical operation\n"
+                errors += f"ERROR in {equation}:\n* or / must not follow + or -\n"
             if last_is_reaction and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nA reaction must not follow on a reaction ID\n"
+                errors += f"ERROR in {equation}:\nA reaction must not follow a reaction ID\n"
             if last_is_number and (semantic == "number"):
-                errors += f"ERROR in {equation}:\nA number must not follow on a number ID\n"
+                errors += f"ERROR in {equation}:\nA number must not follow a number ID\n"
 
             if prelast_is_reaction and last_is_multiplication and (semantic == "reaction"):
                 errors += f"ERROR in {equation}:\nTwo reactions must not be multiplied together\n"

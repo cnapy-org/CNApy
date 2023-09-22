@@ -7,7 +7,7 @@ from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import model_optimization_with_exceptions
+from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
@@ -454,10 +454,16 @@ class MainWindow(QMainWindow):
         net_conversion_action.triggered.connect(
             self.show_net_conversion)
 
+        all_in_out_fluxes_action = QAction(
+            "Export all in/out fluxes as an XLSX table...", self)
+        all_in_out_fluxes_action.triggered.connect(self.all_in_out_fluxes)
+        self.analysis_menu.addAction(all_in_out_fluxes_action)
+
         in_out_flux_action = QAction(
-            "Compute in/out fluxes at metabolite...", self)
+            "Compute in/out fluxes at single metabolite...", self)
         in_out_flux_action.triggered.connect(self.in_out_flux)
         self.analysis_menu.addAction(in_out_flux_action)
+
 
         self.config_menu = self.menu.addMenu("Config")
 
@@ -757,9 +763,7 @@ class MainWindow(QMainWindow):
         try:
             self.save_sbml(filename)
         except ValueError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
         self.setCursor(Qt.ArrowCursor)
@@ -1196,9 +1200,7 @@ class MainWindow(QMainWindow):
             try:
                 cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
+                exstr = get_last_exception_string()
                 QMessageBox.warning(
                     self, 'Could not read sbml.', exstr)
                 return
@@ -1247,9 +1249,7 @@ class MainWindow(QMainWindow):
                     cobra_py_model = CNApyModel.read_sbml_model(
                         temp_dir.name + "/model.sbml")
                 except cobra.io.sbml.CobraSBMLError:
-                    output = io.StringIO()
-                    traceback.print_exc(file=output)
-                    exstr = output.getvalue()
+                    exstr = get_last_exception_string()
                     QMessageBox.warning(
                         self, 'Could not open project.', exstr)
                     return
@@ -1293,9 +1293,7 @@ class MainWindow(QMainWindow):
                 self.appdata.save_cnapy_config()
                 self.build_recent_cna_menu()
         except FileNotFoundError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             QMessageBox.warning(self, 'Could not open project.', exstr)
         except BadZipFile:
             QMessageBox.critical(
@@ -1400,9 +1398,7 @@ class MainWindow(QMainWindow):
         try:
             self.save_sbml(tmp_dir + "model.sbml")
         except ValueError:
-            output = io.StringIO()
-            traceback.print_exc(file=output)
-            exstr = output.getvalue()
+            exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
             return
@@ -1575,22 +1571,28 @@ class MainWindow(QMainWindow):
         self.process_fba_solution()
 
     def process_fba_solution(self, update=True):
-        if self.appdata.project.solution.status == 'optimal':
-            display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
-            self.set_status_optimal()
-            for r, v in self.appdata.project.solution.fluxes.items():
-                self.appdata.project.comp_values[r] = (v, v)
-        elif self.appdata.project.solution.status == 'infeasible':
-            display_text = "No solution, the current scenario is infeasible"
-            self.set_status_infeasible()
-            self.appdata.project.comp_values.clear()
-        else:
-            display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
-            self.set_status_unknown()
-            self.appdata.project.comp_values.clear()
-        self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
-        self.solver_status_display.setText(display_text)
-        self.appdata.project.comp_values_type = 0
+        general_solution_error = True
+        if hasattr(self.appdata.project, "solution"):
+            if hasattr(self.appdata.project.solution, "status"):
+                general_solution_error = False
+                if self.appdata.project.solution.status == 'optimal':
+                    display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
+                    self.set_status_optimal()
+                    for r, v in self.appdata.project.solution.fluxes.items():
+                        self.appdata.project.comp_values[r] = (v, v)
+                elif self.appdata.project.solution.status == 'infeasible':
+                    display_text = "No solution, the current scenario is infeasible"
+                    self.set_status_infeasible()
+                    self.appdata.project.comp_values.clear()
+                else:
+                    display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
+                    self.set_status_unknown()
+                    self.appdata.project.comp_values.clear()
+
+        if not general_solution_error:
+            self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
+            self.solver_status_display.setText(display_text)
+            self.appdata.project.comp_values_type = 0
         if update:
             self.centralWidget().update()
 
@@ -1626,11 +1628,13 @@ class MainWindow(QMainWindow):
                 display_text = "An unexpected error occured."
                 self.set_status_unknown()
                 self.appdata.project.comp_values.clear()
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
+                exstr = get_last_exception_string()
+                # Check for substrings of Gurobi and CPLEX community edition errors
+                if has_community_error_substring(exstr):
+                    except_likely_community_model_error()
+                else:
+                    print(exstr)
+                    utils.show_unknown_error_box(exstr)
             else:
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
@@ -1707,7 +1711,7 @@ class MainWindow(QMainWindow):
                     return
 
                 print(
-                    '\x1b[1;04;30m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
+                    '\n\x1b[1;04;30m'+"Net conversion of external metabolites by the given scenario is:\x1b[0m\n")
                 print(' + '.join(imports))
                 print('-->')
                 print(' + '.join(exports))
@@ -1804,11 +1808,13 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
             except Exception:
-                output = io.StringIO()
-                traceback.print_exc(file=output)
-                exstr = output.getvalue()
-                print(exstr)
-                utils.show_unknown_error_box(exstr)
+                exstr = get_last_exception_string()
+                # Check for substrings of Gurobi and CPLEX community edition errors
+                if has_community_error_substring(exstr):
+                    except_likely_community_model_error()
+                else:
+                    print(exstr)
+                    utils.show_unknown_error_box(exstr)
             else:
                 minimum = solution.minimum.to_dict()
                 maximum = solution.maximum.to_dict()
@@ -1830,6 +1836,134 @@ class MainWindow(QMainWindow):
         in_out_flux_dialog = InOutFluxDialog(
             self.appdata)
         in_out_flux_dialog.exec_()
+
+    def all_in_out_fluxes(self):
+        filename = self._get_filename("xlsx")
+        if filename is None:
+            return
+
+        soldict = {
+            id: val[0] for (id, val) in self.appdata.project.comp_values.items()
+        }
+
+        fluxes_per_metabolite = {}
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.scen_values.add_scenario_reactions_to_model(model)
+            for metabolite in model.metabolites:
+                for reaction in metabolite.reactions:
+                    if reaction.id not in soldict.keys():
+                        continue
+                    if abs(soldict[reaction.id]) < self.appdata.project.cobra_py_model.tolerance:
+                        continue
+
+                    if (metabolite.id, metabolite.name) not in fluxes_per_metabolite.keys():
+                        fluxes_per_metabolite[(metabolite.id, metabolite.name)] = []
+
+                    stoichiometry = reaction.metabolites[metabolite]
+                    fluxes_per_metabolite[(metabolite.id, metabolite.name)].append([
+                        stoichiometry * soldict[reaction.id],
+                        reaction.id,
+                        reaction.reaction,
+                    ])
+
+        # Sheet styles
+        italic = openpyxl.styles.Font(italic=True)
+        bold = openpyxl.styles.Font(bold=True)
+        underlined = openpyxl.styles.Font(underline="single")
+
+        # Main spreadsheet variable
+        wb = openpyxl.Workbook()
+
+        # In and out sums sheet
+        ws1 = wb.create_sheet("In and out sums")
+        cell = ws1.cell(1, 1)
+        cell.value = "Metabolite ID"
+        cell.font = bold
+
+        cell = ws1.cell(1, 2)
+        cell.value = "Metabolite name"
+        cell.font = bold
+
+        cell = ws1.cell(1, 3)
+        cell.value = "In flux sum"
+        cell.font = bold
+
+        cell = ws1.cell(1, 4)
+        cell.value = "Out flux sum"
+        cell.font = bold
+
+        current_line = 2
+        for met_data, reac_data in fluxes_per_metabolite.items():
+            positive_fluxes = [x[0] for x in reac_data if x[0] > 0.0]
+            negative_fluxes = [x[0] for x in reac_data if x[0] < 0.0]
+
+            cell = ws1.cell(current_line, 1)
+            cell.value = met_data[0]
+            cell = ws1.cell(current_line, 2)
+            cell.value = met_data[1]
+            cell = ws1.cell(current_line, 3)
+            cell.value = sum(positive_fluxes)
+            cell = ws1.cell(current_line, 4)
+            cell.value = sum(negative_fluxes)
+
+            current_line += 1
+
+        ws1.column_dimensions['A'].width = 16
+        ws1.column_dimensions['B'].width = 18
+        ws1.column_dimensions['C'].width = 16
+        ws1.column_dimensions['D'].width = 16
+
+        # Details sheet
+        ws2 = wb.create_sheet("Details")
+        current_line = 1
+        for met_data, reac_data in fluxes_per_metabolite.items():
+            positive_reactions = [x for x in reac_data if x[0] > 0.0]
+            positive_reactions = sorted(positive_reactions, key=lambda x: x[1])
+            negative_reactions = [x for x in reac_data if x[0] < 0.0]
+            negative_reactions = sorted(negative_reactions, key=lambda x: x[1])
+
+            cell = ws2.cell(current_line, 1)
+            cell.value = "Metabolite ID:"
+            cell.font = bold
+            cell = ws2.cell(current_line, 2)
+            cell.value = met_data[0]
+
+            for reaction_set in (("Producing", positive_reactions), ("Consuming", negative_reactions)):
+                current_line += 1
+                cell = ws2.cell(current_line, 1)
+                cell.value = f"{reaction_set[0]} reactions:"
+                cell.font = underlined
+
+                current_line += 1
+                cell = ws2.cell(current_line, 1)
+                cell.value = f"{reaction_set[0]} flux"
+                cell.font = italic
+
+                cell = ws2.cell(current_line, 2)
+                cell.value = "Reaction ID"
+                cell.font = italic
+
+                cell = ws2.cell(current_line, 3)
+                cell.value = "Reaction string"
+                cell.font = italic
+
+                for reaction_data in reaction_set[1]:
+                    current_line += 1
+                    cell = ws2.cell(current_line, 1)
+                    cell.value = reaction_data[0]
+                    cell = ws2.cell(current_line, 2)
+                    cell.value = reaction_data[1]
+                    cell = ws2.cell(current_line, 3)
+                    cell.value = reaction_data[2]
+            current_line += 2
+
+        ws2.column_dimensions['A'].width = 20
+        ws2.column_dimensions['B'].width = 16
+        ws2.column_dimensions['C'].width = 16
+
+        del(wb["Sheet"])
+        wb.save(filename)
+
 
     def efmtool(self):
         self.efmtool_dialog = EFMtoolDialog(
@@ -1896,6 +2030,8 @@ class MainWindow(QMainWindow):
             print(pretty_cons_dict)
 
         self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
+
+        return prod, cons
 
     def show_console(self):
         print("show model view")
@@ -2141,7 +2277,8 @@ class MainWindow(QMainWindow):
             )
         self._set_dG0s(dG0s)
 
-    def _save_fluxes(self, filetype: str):
+
+    def _get_filename(self, filetype: str) -> str:
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
             directory=self.appdata.work_directory, filter=f"*.{filetype}")[0]
@@ -2149,6 +2286,11 @@ class MainWindow(QMainWindow):
             return
         if not (filename.endswith(f".{filetype}")):
             filename += f".{filetype}"
+        return filename
+
+
+    def _save_fluxes(self, filetype: str):
+        filename = self._get_filename(filetype)
 
         table = self.central_widget.reaction_list.get_as_table()
 

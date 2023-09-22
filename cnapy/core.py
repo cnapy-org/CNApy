@@ -4,13 +4,11 @@ import itertools
 from collections import defaultdict
 from typing import Dict, Tuple, List
 from collections import Counter
-import gurobipy
 import numpy
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
 from cobra.core.dictlist import DictList
 from optlang.symbolics import Zero, Add
-from qtpy.QtWidgets import QMessageBox
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
@@ -369,17 +367,3 @@ def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool
                 pass
         if len(candidates) > 0 and old_id == entry.id:
             print("Could not find a new ID for", entry.id, "in", candidates)
-
-# TODO: should not be in the core module
-def model_optimization_with_exceptions(model: cobra.Model):
-    try:
-        return model.optimize()
-    except gurobipy.GurobiError as error:
-        msgBox = QMessageBox()
-        msgBox.setWindowTitle("Gurobi Error!")
-        msgBox.setText("Calculation failed due to the following Gurobi solver error " +\
-                       "(if this error cannot be resolved,\ntry using a different solver by changing " +\
-                       "it under 'Config->Configure cobrapy'):\n"+error.message+\
-                       "\nNOTE: Another error message will follow, you can safely ignore it.")
-        msgBox.setIcon(QMessageBox.Warning)
-        msgBox.show()

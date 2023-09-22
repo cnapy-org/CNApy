@@ -303,7 +303,8 @@ class ReactionList(QWidget):
             self.reaction_mask.is_valid = True
 
             (_, r) = self.splitter.getRange(1)
-            self.splitter.moveSplitter(r/2, 1)
+            self.splitter.moveSplitter(int(r/2), 1)
+            self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
             self.central_widget.add_model_item_to_history(reaction.id, reaction.name, ModelItemType.Reaction)
