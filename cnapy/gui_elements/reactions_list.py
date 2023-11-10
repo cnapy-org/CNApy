@@ -695,39 +695,48 @@ class ReactionMask(QWidget):
             turn_red(self.lower_bound)
             turn_red(self.upper_bound)
             QMessageBox.warning(self, 'ValueError', str(exception))
-        else:
-            id_ = self.reaction.id
-            if self.reaction.id != self.id.text():
-                self.reaction.id = self.id.text()
-            name = self.reaction.name
-            self.reaction.name = self.name.text()
-            metabolites = self.reaction.metabolites
-            if self.equation.isModified():
-                self.reaction.build_reaction_from_string(self.equation.text()) # creates a new metabolites dict
-                self.equation.setModified(False)
-            objective_coefficient = self.reaction.objective_coefficient
-            self.reaction.objective_coefficient = float(self.coefficent.text())
-            gene_reaction_rule = self.reaction.gene_reaction_rule
-            if self.gene_reaction_rule.isModified():
-                self.handle_changed_gpr()
-                self.gene_reaction_rule.setModified(False)
-            self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
-            annotation = self.reaction.annotation
-            self.annotation_widget.apply_annotation(self.reaction)
+            return
 
-            if bounds != self.reaction.bounds or metabolites != self.reaction.metabolites or \
-                objective_coefficient != self.reaction.objective_coefficient:
-                self.fba_relevant_change = True
-                self.reaction.set_hash_value()
-                self.parent.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
-            if self.fba_relevant_change or name != self.reaction.name or \
-                gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
-                annotation != self.reaction.annotation:
-                self.reactionChanged.emit(self.reaction)
-                current_item = self.parent.reaction_list.currentItem()
-                if current_item is not None:
-                    self.parent.update_item(current_item)
-                    self.parent.central_widget.update()
+        id_ = self.reaction.id
+        if self.reaction.id != self.id.text():
+            if (" " in self.id.text()):
+                turn_red(self.id)
+                QMessageBox.warning(
+                    self,
+                    "Reaction ID error",
+                    "A reaction ID must not contain a whitespace."
+                )
+                return
+            self.reaction.id = self.id.text()
+        name = self.reaction.name
+        self.reaction.name = self.name.text()
+        metabolites = self.reaction.metabolites
+        if self.equation.isModified():
+            self.reaction.build_reaction_from_string(self.equation.text()) # creates a new metabolites dict
+            self.equation.setModified(False)
+        objective_coefficient = self.reaction.objective_coefficient
+        self.reaction.objective_coefficient = float(self.coefficent.text())
+        gene_reaction_rule = self.reaction.gene_reaction_rule
+        if self.gene_reaction_rule.isModified():
+            self.handle_changed_gpr()
+            self.gene_reaction_rule.setModified(False)
+        self.reaction.bounds = (float(self.lower_bound.text()), float(self.upper_bound.text()))
+        annotation = self.reaction.annotation
+        self.annotation_widget.apply_annotation(self.reaction)
+
+        if bounds != self.reaction.bounds or metabolites != self.reaction.metabolites or \
+            objective_coefficient != self.reaction.objective_coefficient:
+            self.fba_relevant_change = True
+            self.reaction.set_hash_value()
+            self.parent.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
+        if self.fba_relevant_change or name != self.reaction.name or \
+            gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
+            annotation != self.reaction.annotation:
+            self.reactionChanged.emit(self.reaction)
+            current_item = self.parent.reaction_list.currentItem()
+            if current_item is not None:
+                self.parent.update_item(current_item)
+                self.parent.central_widget.update()
 
     def auto_fba(self):
         if self.fba_relevant_change and self.parent.appdata.auto_fba:
