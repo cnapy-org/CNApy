@@ -48,6 +48,7 @@ from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
 import cnapy.utils as utils
 
+SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
 
 class MainWindow(QMainWindow):
     """The cnapy main window"""
@@ -755,7 +756,7 @@ class MainWindow(QMainWindow):
     def export_sbml(self):
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
+            directory=self.appdata.work_directory, filter=SBML_suffixes)[0]
         if not filename or len(filename) == 0:
             return
 
@@ -1192,7 +1193,7 @@ class MainWindow(QMainWindow):
         if self.checked_unsaved():
             dialog = QFileDialog(self)
             filename: str = dialog.getOpenFileName(
-                directory=self.appdata.work_directory, filter="*.xml *.sbml")[0]
+                directory=self.appdata.work_directory, filter=SBML_suffixes)[0]
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
 
