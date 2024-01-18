@@ -358,18 +358,32 @@ class ProjectData:
 
     def __init__(self):
         self.name = "Unnamed project"
+
         try:
-            self.cobra_py_model = CNApyModel()
+            cobra.Model(id_or_model="empty", name="empty")
         except gurobipy.GurobiError as error:
+            # See https://github.com/cnapy-org/CNApy/issues/490 and
+            # https://github.com/opencobra/cobrapy/issues/854
+            # When Gurobi (or another external solver) is found by cobrapy
+            # but not correctly configured, the model cannot be built :-|
+            # Hence, in this exception, we try the model instantiation
+            # with GLPK in the hope that it works with this solver :3
+            configuration = cobra.Configuration()
+            configuration.solver = "glpk"
+
             msgBox = QMessageBox()
             msgBox.setWindowTitle("Gurobi Error!")
-            msgBox.setText("Calculation failed due to the following Gurobi solver error " +\
-                        "(if this error cannot be resolved,\ntry using a different solver by changing " +\
-                        "it under 'Config->Configure cobrapy'):\n"+error.message+\
-                        "\nNOTE: Another error message will follow, you can safely ignore it.")
+            msgBox.setText(
+                "Gurobi could not be set as solver due to the following error:\n" +\
+                error.message+"\n"+\
+                "If this error cannot be resolved, try using a different solver by changing " +\
+                "it under 'Config->Configure cobrapy').\n"+\
+                "Right now, GLPK is set as alternative solver instead of Gurobi."
+            )
             msgBox.setIcon(QMessageBox.Warning)
             msgBox.exec()
-            return
+
+        self.cobra_py_model = CNApyModel()
 
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
