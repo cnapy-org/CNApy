@@ -249,7 +249,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                         (model.solver.variables["gam_slack_pos"].primal - model.solver.variables["gam_slack_neg"].primal)
             if len(gam_mets) > 0:
                 if use_QP:
-                    print("gam_slack", model.solver.variables["gam_slack"].primal)
+                    print("gam_slack {:.3g}".format(model.solver.variables["gam_slack"].primal))
                 else:
                     print("gam_slack_pos", model.solver.variables["gam_slack_pos"].primal)
                     print("gam_slack_neg", model.solver.variables["gam_slack_neg"].primal)
