@@ -205,11 +205,12 @@ class MCSDialog(QDialog):
 
     @Slot(str)
     def receive_input(self, text):
-        completer_mode = self.active_receiver.completer().completionMode()
-        # temporarily disable completer popup
-        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
-        self.active_receiver.insert(text)
-        self.active_receiver.completer().setCompletionMode(completer_mode)
+        if self.isVisible():
+            completer_mode = self.active_receiver.completer().completionMode()
+            # temporarily disable completer popup
+            self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+            self.active_receiver.insert(text)
+            self.active_receiver.completer().setCompletionMode(completer_mode)
 
     @Slot()
     def set_optlang_solver_text(self):
