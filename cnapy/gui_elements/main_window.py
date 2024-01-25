@@ -399,26 +399,27 @@ class MainWindow(QMainWindow):
         self.yield_optimization_action.triggered.connect(self.optimize_yield)
         self.analysis_menu.addAction(self.yield_optimization_action)
 
-        plot_space_action = QAction("Plot flux space...", self)
+        plot_space_action = QAction("Plot phase plane/yield space...", self)
         plot_space_action.triggered.connect(self.plot_space)
         self.analysis_menu.addAction(plot_space_action)
 
         self.analysis_menu.addSeparator()
 
+        self.thermodynamic_menu = self.analysis_menu.addMenu("Thermodynamic analyses")
 
         optmdf_action = QAction("OptMDFpathway...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
-        self.analysis_menu.addAction(optmdf_action)
+        self.thermodynamic_menu.addAction(optmdf_action)
 
         tfba_action = QAction("Thermodynamic FBA...", self)
         tfba_action.triggered.connect(self.perform_thermodynamic_fba)
-        self.analysis_menu.addAction(tfba_action)
+        self.thermodynamic_menu.addAction(tfba_action)
 
         bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
         bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
-        self.analysis_menu.addAction(bottleneck_action)
+        self.thermodynamic_menu.addAction(bottleneck_action)
 
-        dG0_menu = self.analysis_menu.addMenu("Load dG'° values [in kJ/mol]...")
+        dG0_menu = self.thermodynamic_menu.addMenu("Load dG'° values [in kJ/mol]...")
 
         dG0_json_action = QAction("...as JSON...", self)
         dG0_json_action.triggered.connect(self.load_dG0_json)
@@ -428,7 +429,7 @@ class MainWindow(QMainWindow):
         dG0_xlsx_action.triggered.connect(self.load_dG0_xlsx)
         dG0_menu.addAction(dG0_xlsx_action)
 
-        concentrations_menu = self.analysis_menu.addMenu("Load concentration ranges [in M]...")
+        concentrations_menu = self.thermodynamic_menu.addMenu("Load concentration ranges [in M]...")
 
         concentrations_json_action = QAction("...as JSON...", self)
         concentrations_json_action.triggered.connect(self.load_concentrations_json)
