@@ -6,7 +6,7 @@ from typing_extensions import Annotated
 import cobra
 import copy
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
-from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
+from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication, QKeyEvent
 from qtpy.QtWidgets import (QHBoxLayout, QTreeWidget, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTreeWidgetItem, QVBoxLayout, QWidget, QMenu,
@@ -40,6 +40,14 @@ class DragableTreeWidget(QTreeWidget):
             drag.setMimeData(mime_data)
             drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
 
+    def keyPressEvent(self, event: QKeyEvent):
+        # enable sequential editing of scenario values using up/down arrow keys
+        super().keyPressEvent(event)
+        if self.currentColumn() == ReactionListColumn.Scenario:
+            if not self.isPersistentEditorOpen(self.currentItem(), self.currentColumn()):
+                key = event.key()
+                if key == Qt.Key_Up or key == Qt.Key_Down:
+                    self.editItem(self.currentItem(), self.currentColumn())
 
 class ReactionListItem(QTreeWidgetItem):
     """ For custom sorting of columns """
