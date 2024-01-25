@@ -1,11 +1,10 @@
 """The dialog for calculating minimal cut sets"""
 
 import io
-import traceback
 import scipy
 
 from qtpy.QtCore import Qt, Slot
-from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
+from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
@@ -14,6 +13,7 @@ import cobra
 from cobra.util.solver import interface_to_str
 from cnapy.appdata import AppData
 import cnapy.utils as utils
+from cnapy.utils import QComplReceivLineEdit
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.core_gui import except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 
@@ -35,22 +35,19 @@ class MCSDialog(QDialog):
         self.layout.addWidget(l1)
         s1 = QHBoxLayout()
 
-        completer = QCompleter(
-            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
 
         self.target_list = QTableWidget(1, 4)
         self.target_list.setHorizontalHeaderLabels(
-            ["region no", "T", "≥/≤", "t"])
+            ["region no.", "T", "≥/≤", "t"])
         self.target_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.target_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.target_list.horizontalHeader().resizeSection(0, 100)
+        self.target_list.horizontalHeader().resizeSection(0, 75)
         self.target_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self.target_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.target_list.setCellWidget(0, 0, item)
-        item2 = ReceiverLineEdit(self)
-        item2.setCompleter(completer)
+        item2 = QComplReceivLineEdit(self, self.reac_ids, check=False)
         self.target_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.target_list)
         combo.insertItem(1, "≤")
@@ -77,16 +74,15 @@ class MCSDialog(QDialog):
         s2 = QHBoxLayout()
         self.desired_list = QTableWidget(1, 4)
         self.desired_list.setHorizontalHeaderLabels(
-            ["region no", "D", "≥/≤", "d"])
+            ["region no.", "D", "≥/≤", "d"])
         self.desired_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.desired_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.desired_list.horizontalHeader().resizeSection(0, 100)
+        self.desired_list.horizontalHeader().resizeSection(0, 75)
         self.desired_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self.desired_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.desired_list.setCellWidget(0, 0, item)
-        item2 = ReceiverLineEdit(self)
-        item2.setCompleter(completer)
+        item2 = QComplReceivLineEdit(self, self.reac_ids, check=False)
         self.desired_list.setCellWidget(0, 1, item2)
         combo = QComboBox(self.desired_list)
         combo.insertItem(1, "≤")
@@ -201,16 +197,6 @@ class MCSDialog(QDialog):
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
 
-        self.central_widget.broadcastReactionID.connect(self.receive_input)
-
-    @Slot(str)
-    def receive_input(self, text):
-        completer_mode = self.active_receiver.completer().completionMode()
-        # temporarily disable completer popup
-        self.active_receiver.completer().setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
-        self.active_receiver.insert(text)
-        self.active_receiver.completer().setCompletionMode(completer_mode)
-
     @Slot()
     def set_optlang_solver_text(self):
         self.optlang_solver_name = interface_to_str(self.appdata.project.cobra_py_model.problem)
@@ -233,14 +219,9 @@ class MCSDialog(QDialog):
         i = self.target_list.rowCount()
         self.target_list.insertRow(i)
 
-        completer = QCompleter(
-            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
-
         item = QLineEdit("1")
         self.target_list.setCellWidget(i, 0, item)
-        item2 = ReceiverLineEdit(self)
-        item2.setCompleter(completer)
+        item2 = QComplReceivLineEdit(self, self.reac_ids, check=False)
         self.target_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.target_list)
         combo.insertItem(1, "≤")
@@ -253,14 +234,9 @@ class MCSDialog(QDialog):
         i = self.desired_list.rowCount()
         self.desired_list.insertRow(i)
 
-        completer = QCompleter(
-            self.appdata.project.cobra_py_model.reactions.list_attr("id"), self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
-
         item = QLineEdit("1")
         self.desired_list.setCellWidget(i, 0, item)
-        item2 = ReceiverLineEdit(self)
-        item2.setCompleter(completer)
+        item2 = QComplReceivLineEdit(self, self.reac_ids, check=False)
         self.desired_list.setCellWidget(i, 1, item2)
         combo = QComboBox(self.desired_list)
         combo.insertItem(1, "≤")
@@ -327,46 +303,73 @@ class MCSDialog(QDialog):
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
-            targets = dict()
+            targets_dict = dict()
             for i in range(0, rows):
                 p1 = self.target_list.cellWidget(i, 0).text()
                 p2 = self.target_list.cellWidget(i, 1).text()
+                p2 = p2.replace(" - ", " + -")  # Clunky fix to allow "-" in equations
                 if len(p1) > 0 and len(p2) > 0:
                     if self.target_list.cellWidget(i, 2).currentText() == '≤':
                         p3 = "<="
                     else:
                         p3 = ">="
                     p4 = float(self.target_list.cellWidget(i, 3).text())
-                    targets.setdefault(p1, []).append((p2, p3, p4))
-            targets = list(targets.values())
-            try:
-                targets = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
-                    t, reac_id_symbols=reac_id_symbols), reac_id) for t in targets]
-            except ValueError:
-                QMessageBox.warning(self, "Failed to parse the target region(s)",
-                                    "Check that the equations are correct.")
-                return
+                    targets_dict.setdefault(p1, []).append((p2, p3, p4))
+            region_numbers = list(targets_dict.keys())
+            targets = list(targets_dict.values())
+
+            for counter in range(len(targets)):
+                try:
+                    targets[counter] = mcs_computation.relations2leq_matrix(
+                        mcs_computation.parse_relations(
+                            targets[counter],
+                            reac_id_symbols=reac_id_symbols
+                        ),
+                        reac_id
+                    )
+                except (ValueError, TypeError):
+                    QMessageBox.warning(
+                        self,
+                        "Failed to parse a target region",
+                        f"Check that the equation in the target region with no. {region_numbers[counter]} "
+                        "is correct."
+                    )
+                    return
 
             rows = self.desired_list.rowCount()
-            desired = dict()
+            desired_dict = dict()
             for i in range(0, rows):
                 p1 = self.desired_list.cellWidget(i, 0).text()
+                p1 = p1.replace(" - ", " + -")
                 p2 = self.desired_list.cellWidget(i, 1).text()
+                p2 = p2.replace(" - ", " + -")  # Clunky fix to allow "-" in equations
                 if len(p1) > 0 and len(p2) > 0:
                     if self.desired_list.cellWidget(i, 2).currentText() == '≤':
                         p3 = "<="
                     else:
                         p3 = ">="
                     p4 = float(self.desired_list.cellWidget(i, 3).text())
-                    desired.setdefault(p1, []).append((p2, p3, p4))
-            desired = list(desired.values())
-            try:
-                desired = [mcs_computation.relations2leq_matrix(mcs_computation.parse_relations(
-                    d, reac_id_symbols=reac_id_symbols), reac_id) for d in desired]
-            except ValueError:
-                QMessageBox.warning(self, "Failed to parse the desired region(s)",
-                                    "Check that the equations are correct.")
-                return
+                    desired_dict.setdefault(p1, []).append((p2, p3, p4))
+            region_numbers = list(desired_dict.keys())
+            desired = list(desired_dict.values())
+
+            for counter in range(len(desired)):
+                try:
+                    desired[counter] = mcs_computation.relations2leq_matrix(
+                        mcs_computation.parse_relations(
+                            desired[counter],
+                            reac_id_symbols=reac_id_symbols
+                        ),
+                        reac_id
+                    )
+                except (ValueError, TypeError):
+                    QMessageBox.warning(
+                        self,
+                        "Failed to parse a desired region",
+                        f"Check that the equation in the desired region with no. {region_numbers[counter]} "
+                        "is correct."
+                    )
+                    return
 
             self.setCursor(Qt.BusyCursor)
             try:
@@ -418,114 +421,6 @@ class MCSDialog(QDialog):
         self.central_widget.update_mode()
         self.accept()
 
-    def check_left_mcs_equation(self, equation: str) -> str:
-        errors = ""
-
-        semantics = []
-        reaction_ids = []
-        last_part = ""
-        counter = 1
-        for char in equation+" ":
-            if (char == " ") or (char in ("*", "/", "+", "-")) or (counter == len(equation+" ")):
-                if last_part != "":
-                    try:
-                        float(last_part)
-                    except ValueError:
-                        reaction_ids.append(last_part)
-                        semantics.append("reaction")
-                    else:
-                        semantics.append("number")
-                    last_part = ""
-
-                if counter == len(equation+" "):
-                    break
-
-            if char in "*":
-                semantics.append("multiplication")
-            elif char in "/":
-                semantics.append("division")
-            elif char in ("+", "-"):
-                semantics.append("dash")
-            elif char not in " ":
-                last_part += char
-            counter += 1
-
-        if len(reaction_ids) == 0:
-            errors += f"EQUATION ERROR in {equation}:\nNo reaction ID is given in the equation\n"
-
-        if semantics.count("division") > 1:
-            errors += f"ERROR in {equation}:\nAn equation must not have more than one /"
-
-        last_is_multiplication = False
-        last_is_division = False
-        last_is_dash = False
-        last_is_reaction = False
-        prelast_is_reaction = False
-        prelast_is_dash = False
-        last_is_number = False
-        is_start = True
-        for semantic in semantics:
-            if is_start:
-                if semantic in ("multiplication", "division"):
-                    errors += f"ERROR in {equation}:\nAn equation must not start with * or /"
-                is_start = False
-
-            if (last_is_multiplication or last_is_division) and (semantic in ("multiplication", "division")):
-                errors += f"ERROR in {equation}:\n* or / must not follow * or /\n"
-            if last_is_dash and (semantic in ("multiplication", "division")):
-                errors += f"ERROR in {equation}:\n* or / must not follow + or -\n"
-            if last_is_reaction and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nA reaction must not follow a reaction ID\n"
-            if last_is_number and (semantic == "number"):
-                errors += f"ERROR in {equation}:\nA number must not follow a number ID\n"
-
-            if prelast_is_reaction and last_is_multiplication and (semantic == "reaction"):
-                errors += f"ERROR in {equation}:\nTwo reactions must not be multiplied together\n"
-
-            if last_is_reaction:
-                prelast_is_reaction = True
-            else:
-                prelast_is_reaction = False
-
-            if last_is_dash:
-                prelast_is_dash = True
-            else:
-                prelast_is_dash = False
-
-            last_is_multiplication = False
-            last_is_division = False
-            last_is_dash = False
-            last_is_reaction = False
-            last_is_number = False
-            if semantic == "multiplication":
-                last_is_multiplication = True
-            elif semantic == "division":
-                last_is_division = True
-            elif semantic == "reaction":
-                last_is_reaction = True
-            elif semantic == "dash":
-                last_is_dash = True
-            elif semantic == "number":
-                last_is_number = True
-
-        if last_is_dash or last_is_multiplication or last_is_division:
-            errors += (f"ERROR in {equation}:\nA reaction must not end "
-                       f"with a +, -, * or /")
-
-        if prelast_is_dash and last_is_number:
-            errors += (f"ERROR in {equation}:\nA reaction must not end "
-                       f"with a separated number term only")
-
-        with self.appdata.project.cobra_py_model as model:
-            model_reaction_ids = [x.id for x in model.reactions]
-            for reaction_id in reaction_ids:
-                if reaction_id not in model_reaction_ids:
-                    errors += (f"ERROR in {equation}:\nA reaction with "
-                               f"the ID {reaction_id} does not exist in the model\n")
-
-        return errors
-
-
     def check_right_mcs_equation(self, equation: str) -> str:
         try:
             float(equation)
@@ -539,28 +434,13 @@ class MCSDialog(QDialog):
         errors = ""
         rows = self.target_list.rowCount()
         for i in range(0, rows):
-            target_left = self.target_list.cellWidget(i, 1).text()
-            errors += self.check_left_mcs_equation(target_left)
             target_right = self.target_list.cellWidget(i, 3).text()
             errors += self.check_right_mcs_equation(target_right)
 
         rows = self.desired_list.rowCount()
         for i in range(0, rows):
-            desired_left = self.desired_list.cellWidget(i, 1).text()
-            if len(desired_left) > 0:
-                errors += self.check_left_mcs_equation(desired_left)
-
             desired_right = self.desired_list.cellWidget(i, 3).text()
             if len(desired_right) > 0:
                 errors += self.check_right_mcs_equation(desired_right)
 
         return errors
-
-class ReceiverLineEdit(QLineEdit):
-    def __init__(self, mcs_dialog):
-        super().__init__()
-        self.mcs_dialog = mcs_dialog
-
-    def focusInEvent(self, event):
-        super().focusInEvent(event)
-        self.mcs_dialog.active_receiver = self
