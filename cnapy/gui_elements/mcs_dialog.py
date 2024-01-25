@@ -4,7 +4,7 @@ import io
 import scipy
 
 from qtpy.QtCore import Qt, Slot
-from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox,
+from qtpy.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QCompleter,
                             QDialog, QGroupBox, QHBoxLayout, QHeaderView,
                             QLabel, QLineEdit, QMessageBox, QPushButton,
                             QRadioButton, QTableWidget, QVBoxLayout)
@@ -196,6 +196,17 @@ class MCSDialog(QDialog):
         # Connecting the signal
         self.cancel.clicked.connect(self.reject)
         self.compute_mcs.clicked.connect(self.compute)
+
+        self.central_widget.broadcastReactionID.connect(self.receive_input)
+
+    @Slot(str)
+    def receive_input(self, text):
+        if self.isVisible():
+            completer_mode = self.active_receiver.completer.completionMode()
+            # temporarily disable completer popup
+            self.active_receiver.completer.setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+            self.active_receiver.insert(text+' ')
+            self.active_receiver.completer.setCompletionMode(completer_mode)
 
     @Slot()
     def set_optlang_solver_text(self):
