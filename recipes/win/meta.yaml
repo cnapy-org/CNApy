@@ -37,7 +37,7 @@ requirements:
     - nest-asyncio
     - gurobi
     - cplex
-    - numpy<1.24
+    - numpy=1.23
     - openpyxl
 
 build:
