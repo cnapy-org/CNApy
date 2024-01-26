@@ -318,7 +318,6 @@ class MCSDialog(QDialog):
             for i in range(0, rows):
                 p1 = self.target_list.cellWidget(i, 0).text()
                 p2 = self.target_list.cellWidget(i, 1).text()
-                p2 = p2.replace(" - ", " + -")  # Clunky fix to allow "-" in equations
                 if len(p1) > 0 and len(p2) > 0:
                     if self.target_list.cellWidget(i, 2).currentText() == '≤':
                         p3 = "<="
@@ -351,9 +350,7 @@ class MCSDialog(QDialog):
             desired_dict = dict()
             for i in range(0, rows):
                 p1 = self.desired_list.cellWidget(i, 0).text()
-                p1 = p1.replace(" - ", " + -")
                 p2 = self.desired_list.cellWidget(i, 1).text()
-                p2 = p2.replace(" - ", " + -")  # Clunky fix to allow "-" in equations
                 if len(p1) > 0 and len(p2) > 0:
                     if self.desired_list.cellWidget(i, 2).currentText() == '≤':
                         p3 = "<="
