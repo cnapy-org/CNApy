@@ -127,9 +127,8 @@ class SignalThrottler(QObject):
 class QComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
 
-    def __init__(self, sd_dialog, wordlist, check=True, is_constr=False, reject_empty_string=True):
-        super().__init__("")
-        self.sd_dialog = sd_dialog
+    def __init__(self, parent, wordlist, check=True, is_constr=False, reject_empty_string=True):
+        super().__init__("", parent)
         self.completer: QCompleter = QCompleter()
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
         if len(wordlist) > 0:
@@ -174,7 +173,7 @@ class QComplReceivLineEdit(QLineEdit):
 
     def focusInEvent(self, event):
         super().focusInEvent(event)
-        self.sd_dialog.active_receiver = self
+        self.parent().active_receiver = self
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
