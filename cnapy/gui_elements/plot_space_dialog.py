@@ -13,7 +13,7 @@ class PlotSpaceDialog(QDialog):
 
     def __init__(self, appdata):
         QDialog.__init__(self)
-        self.setWindowTitle("Flux space plotting")
+        self.setWindowTitle("Plot phase plane/yield space")
         self.setMinimumWidth(500)
 
         self.appdata = appdata
