@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
         self.sd_viewer = SDComputationViewer(self.appdata, sd_setup)
-        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs,Qt.QueuedConnection)
+        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.QueuedConnection)
         # connect signals to update progress
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
         self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
@@ -703,8 +703,12 @@ class MainWindow(QMainWindow):
         self.sd_computation.terminate()
 
     @Slot(bytes)
-    def show_strain_designs(self,solutions):
-        self.sd_sols = SDViewer(self.appdata, solutions)
+    def show_strain_designs_with_setup(self, solutions_with_setup):
+        self.show_strain_designs(solutions_with_setup, with_setup=True)
+
+    @Slot(bytes)
+    def show_strain_designs(self,solutions, with_setup=False):
+        self.sd_sols = SDViewer(self.appdata, solutions, with_setup)
         self.sd_sols.show()
         self.centralWidget().update_mode()
 

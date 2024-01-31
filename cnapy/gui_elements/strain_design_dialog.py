@@ -1456,10 +1456,13 @@ class SDComputationThread(QThread):
 
 class SDViewer(QDialog):
     """A dialog that shows the results of the strain design computation"""
-    def __init__(self, appdata: AppData, solutions):
+    def __init__(self, appdata: AppData, solutions, with_setup: bool):
         super().__init__()
         try:
-            (self.solutions,self.sd_setup) = pickle.loads(solutions)
+            if with_setup:
+                (self.solutions,self.sd_setup) = pickle.loads(solutions)
+            else:
+                self.solutions = pickle.loads(solutions)
         except pickle.UnpicklingError:
             QMessageBox.critical(
                 self,
