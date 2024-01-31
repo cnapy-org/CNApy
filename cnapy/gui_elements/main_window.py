@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
+from copy import deepcopy
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
@@ -66,6 +67,7 @@ class MainWindow(QMainWindow):
         self.onoff_action = QAction("On/Off coloring", self)
         self.onoff_action.setIcon(QIcon(":/icons/onoff.png"))
         self.onoff_action.triggered.connect(self.set_onoff)
+
         self.central_widget = CentralWidget(self)
         self.setCentralWidget(self.central_widget)
 
@@ -296,6 +298,10 @@ class MainWindow(QMainWindow):
         self.dec_box_size_action.setEnabled(False)
         self.cnapy_map_actions.addAction(self.dec_box_size_action)
 
+        self.cnapy_screenshot_action = QAction("Take map view screenshot...", self)
+        self.cnapy_screenshot_action.triggered.connect(self.take_screenshot_cnapy)
+        self.cnapy_map_actions.addAction(self.cnapy_screenshot_action)
+
         escher_export_svg_action = QAction("Export as SVG...")
         escher_export_svg_action.triggered.connect(
             lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.save_svg()"))
@@ -330,6 +336,7 @@ class MainWindow(QMainWindow):
         self.map_menu.addActions(self.cnapy_map_actions.actions())
         self.escher_map_actions.setVisible(False)
         self.map_menu.addActions(self.escher_map_actions.actions())
+
 
         self.analysis_menu = self.menu.addMenu("Analysis")
 
@@ -1476,6 +1483,32 @@ class MainWindow(QMainWindow):
             for i in range(0, self.centralWidget().map_tabs.count()):
                 self.centralWidget().map_tabs.widget(i).deleteLater()
             self.centralWidget().map_tabs.clear()
+
+    def take_screenshot_cnapy(self):
+        dialog = QFileDialog(self)
+        filename: str = dialog.getSaveFileName(
+            directory=self.appdata.work_directory,
+            filter="*.png",
+        )[0]
+        if not filename or len(filename) == 0:
+            return
+        elif len(filename) <= 4 or filename[-4:] != ".png":
+            filename += ".png"
+
+        self.setCursor(Qt.BusyCursor)
+        scale_factor = 10.0
+        view = self.centralWidget().map_tabs.currentWidget()
+        original_size = deepcopy(view.size())
+
+        view.resize(original_size * scale_factor)
+        view.setTransform(view.transform().scale(scale_factor, scale_factor))
+
+        pixmap = view.grab()
+        pixmap.save(filename, "PNG")
+
+        view.setTransform(view.transform().scale(1/scale_factor, 1/scale_factor))
+        view.resize(original_size)
+        self.setCursor(Qt.ArrowCursor)
 
     def on_tab_change(self, idx):
         if idx >= 0:
