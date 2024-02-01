@@ -1,14 +1,17 @@
 import numpy
+from random import randint
+from copy import deepcopy
 import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, Signal, Slot, QStringListModel
 from qtpy.QtGui import QIcon, QBrush, QColor
-from qtpy.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPushButton,
+from qtpy.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel, QPushButton,
                             QVBoxLayout, QWidget, QCompleter, QLineEdit, QMessageBox, QToolButton)
 
 
+from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
-
+from cnapy.utils import QComplReceivLineEdit
 
 class ModeNavigator(QWidget):
     """A navigator widget"""
@@ -39,6 +42,8 @@ class ModeNavigator(QWidget):
         self.apply_button.setToolTip("Add interventions to current scenario")
         self.reaction_participation_button = QPushButton("Reaction participation")
         self.size_histogram_button = QPushButton("Size histogram")
+        self.normalization_button = QPushButton("Normalize to...")
+        self.normalization_button.setVisible(False)
 
         l1 = QHBoxLayout()
         self.title = QLabel("Mode Navigation")
@@ -67,6 +72,7 @@ class ModeNavigator(QWidget):
         l2.addWidget(self.apply_button)
         l2.addWidget(self.reaction_participation_button)
         l2.addWidget(self.size_histogram_button)
+        l2.addWidget(self.normalization_button)
 
         self.layout.addLayout(l1)
         self.layout.addLayout(l2)
@@ -79,6 +85,7 @@ class ModeNavigator(QWidget):
         self.selector.returnPressed.connect(self.apply_selection)
         self.selector.findChild(QToolButton).triggered.connect(self.reset_selection) # findChild(QToolButton) retrieves the clear button
         self.size_histogram_button.clicked.connect(self.size_histogram)
+        self.normalization_button.clicked.connect(self.normalization)
         self.central_widget.broadcastReactionID.connect(self.selector.receive_input)
 
     def update(self):
@@ -138,6 +145,7 @@ class ModeNavigator(QWidget):
         self.save_button.setToolTip("save minimal cut sets")
         self.clear_button.setToolTip("clear minimal cut sets")
         self.apply_button.setVisible(True)
+        self.normalization_button.setVisible(False)
         self.select_all()
         self.update_completion_list()
 
@@ -150,6 +158,7 @@ class ModeNavigator(QWidget):
         self.save_button.setToolTip("save modes")
         self.clear_button.setToolTip("clear modes")
         self.apply_button.setVisible(False)
+        self.normalization_button.setVisible(True)
         self.select_all()
         self.update_completion_list()
 
@@ -305,6 +314,10 @@ class ModeNavigator(QWidget):
         plt.hist(sizes, bins="auto")
         plt.show()
 
+    def normalization(self):
+        dialog = NormalizationDialog(self.appdata, self)
+        dialog.exec_()
+
     def __del__(self):
         self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
 
@@ -347,3 +360,74 @@ class CustomCompleter(QCompleter):
     def splitPath(self, path): # overrides Qcompleter method
         path = str(path.split(',')[-1]).lstrip(' ')
         return [path]
+
+
+class NormalizationDialog(QDialog):
+    """A dialog to select a reaction for normalization."""
+
+    def __init__(self, appdata: AppData, parent):
+        QDialog.__init__(self)
+        self.setWindowTitle("Flux optimization")
+
+        self.appdata = appdata
+        self.parent = parent
+
+        self.reac_ids = list(self.appdata.project.comp_values.keys()) #self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        numr = len(self.reac_ids) # len(self.appdata.project.cobra_py_model.reactions)
+        if numr > 1:
+            r1 = self.reac_ids[randint(0, numr-1)]
+        else:
+            r1 = 'r_product'
+
+        self.layout = QVBoxLayout()
+        label = QLabel("Select reaction to which the Flux Mode shall be normalized:")
+        self.layout.addWidget(label)
+
+        flux_expr_layout = QVBoxLayout()
+        self.expr = QComplReceivLineEdit(self, self.reac_ids, check=True)
+        self.expr.setPlaceholderText(f"Reaction ID, e.g. {r1}")
+        flux_expr_layout.addWidget(self.expr)
+        self.layout.addItem(flux_expr_layout)
+
+        l3 = QHBoxLayout()
+        self.button = QPushButton("Normalize")
+        self.cancel = QPushButton("Close")
+        l3.addWidget(self.button)
+        l3.addWidget(self.cancel)
+        self.layout.addItem(l3)
+        self.setLayout(self.layout)
+
+        # Connecting the signal
+        self.expr.textCorrect.connect(self.validate_dialog)
+        self.cancel.clicked.connect(self.reject)
+        self.button.clicked.connect(self.normalize)
+
+        self.validate_dialog()
+
+    @Slot()
+    def validate_dialog(self):
+        if self.expr.is_valid:
+            self.button.setEnabled(True)
+        else:
+            self.button.setEnabled(False)
+        if self.expr.text().strip() not in self.reac_ids:
+            self.button.setEnabled(False)
+
+    @Slot()
+    def normalize(self):
+        self.setCursor(Qt.BusyCursor)
+        selected_reaction = self.expr.text().strip()
+        new_comp_values = deepcopy(self.appdata.project.comp_values)
+
+        normalized_value = new_comp_values[selected_reaction][0]
+        for (reac_id, values) in new_comp_values.items():
+            new_comp_values[reac_id] = (
+                new_comp_values[reac_id][0]/normalized_value,
+                new_comp_values[reac_id][1]/normalized_value,
+            )
+        self.appdata.project.comp_values.clear()
+        self.appdata.project.comp_values = new_comp_values
+        self.parent.update()
+        self.parent.central_widget.update()
+        self.setCursor(Qt.ArrowCursor)
+        self.accept()
