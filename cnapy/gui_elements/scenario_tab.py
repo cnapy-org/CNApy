@@ -273,7 +273,7 @@ class ScenarioTab(QWidget):
 
     @Slot(int, int)
     def cell_content_changed_annotations(self, row: int, column: int):
-        reaction_id: str = self.annotations.item(row, ScenarioAnnotationColumn.Reaction_id).text()
+        reaction_id: str = self.annotations.cellWidget(row, ScenarioAnnotationColumn.Reaction_id).text().strip()
         key: str = self.annotations.item(row, ScenarioAnnotationColumn.Key).text()
         value: str = self.annotations.item(row, ScenarioAnnotationColumn.Value).text()
         changed_annotation = {
@@ -411,6 +411,7 @@ class ScenarioTab(QWidget):
             self.appdata.project.scen_values.annotations.append({})
             self.new_annotation_row(row)
         self.scenario_changed()
+        self.annotations.setCurrentCell(row, ScenarioReactionColumn.Id)
 
     def delete_scenario_annotation(self):
         row: int = self.annotations.currentRow()
@@ -421,7 +422,7 @@ class ScenarioTab(QWidget):
             self.scenario_changed()
 
     def new_annotation_row(self, row: int):
-        self.annotations.setItem(row, ScenarioAnnotationColumn.Reaction_id, QTableWidgetItem())
+        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id, QComplReceivLineEdit(self, self.reaction_ids.id_list))
         self.annotations.setItem(row, ScenarioAnnotationColumn.Key, QTableWidgetItem())
         self.annotations.setItem(row, ScenarioAnnotationColumn.Value, QTableWidgetItem())
         self.scenario_changed()

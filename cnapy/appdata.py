@@ -450,6 +450,8 @@ class ProjectData:
 
         reaction_ids = [reaction.id for reaction in model.reactions]
         for annotation in self.scen_values.annotations:
+            if "reaction_id" not in annotation.keys():
+                continue
             if annotation["reaction_id"] not in reaction_ids:
                 continue
             reaction: cobra.Reaction = model.reactions.get_by_id(annotation["reaction_id"])
