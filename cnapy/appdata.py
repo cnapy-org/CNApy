@@ -448,11 +448,11 @@ class ProjectData:
             for (reaction, coeff) in zip(reactions, expression.values()):
                 constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
 
-        reac_ids = [x.id for x in model.reactions]
+        reaction_ids = [reaction.id for reaction in model.reactions]
         for annotation in self.scen_values.annotations:
-            if annotation["key"] not in reac_ids:
+            if annotation["reaction_id"] not in reaction_ids:
                 continue
-            reaction: cobra.Reaction = model.reactions.get_by_id(annotation["key"])
+            reaction: cobra.Reaction = model.reactions.get_by_id(annotation["reaction_id"])
             reaction.annotation[annotation["key"]] = annotation["value"]
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:

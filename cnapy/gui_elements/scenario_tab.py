@@ -24,7 +24,7 @@ class ScenarioReactionColumn(IntEnum):
     UB = 3
 
 class ScenarioAnnotationColumn(IntEnum):
-    Id = 0
+    Reaction_id = 0
     Key = 1
     Value = 2
 
@@ -131,7 +131,7 @@ class ScenarioTab(QWidget):
 
         scenario_annotations = QWidget()
         annotations_layout = QVBoxLayout(scenario_annotations)
-        label = QLabel("Scenario annotations")
+        label = QLabel("Scenario reaction annotations")
         label.setToolTip("The IDs of the scenario annotations are the affected reaction ID.")
         hbox = QHBoxLayout()
         hbox.addWidget(label)
@@ -273,15 +273,15 @@ class ScenarioTab(QWidget):
 
     @Slot(int, int)
     def cell_content_changed_annotations(self, row: int, column: int):
-        reac_id: str = self.annotations.item(row, ScenarioAnnotationColumn.Id).text()
+        reaction_id: str = self.annotations.item(row, ScenarioAnnotationColumn.Reaction_id).text()
         key: str = self.annotations.item(row, ScenarioAnnotationColumn.Key).text()
         value: str = self.annotations.item(row, ScenarioAnnotationColumn.Value).text()
         changed_annotation = {
-            "id": reac_id,
+            "reaction_id": reaction_id,
             "key": key,
             "value": value,
         }
-        self.appdata.project.scen_values[row] = changed_annotation
+        self.appdata.project.scen_values.annotations[row] = changed_annotation
         self.scenario_changed()
 
     def verify_bound(self, item: QTableWidgetItem):
@@ -421,7 +421,7 @@ class ScenarioTab(QWidget):
             self.scenario_changed()
 
     def new_annotation_row(self, row: int):
-        self.annotations.setItem(row, ScenarioAnnotationColumn.Id, QTableWidgetItem())
+        self.annotations.setItem(row, ScenarioAnnotationColumn.Reaction_id, QTableWidgetItem())
         self.annotations.setItem(row, ScenarioAnnotationColumn.Key, QTableWidgetItem())
         self.annotations.setItem(row, ScenarioAnnotationColumn.Value, QTableWidgetItem())
         self.scenario_changed()
