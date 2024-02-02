@@ -403,8 +403,6 @@ class MainWindow(QMainWindow):
         plot_space_action.triggered.connect(self.plot_space)
         self.analysis_menu.addAction(plot_space_action)
 
-        self.analysis_menu.addSeparator()
-
         self.thermodynamic_menu = self.analysis_menu.addMenu("Thermodynamic analyses")
 
         optmdf_action = QAction("OptMDFpathway...", self)
@@ -419,24 +417,47 @@ class MainWindow(QMainWindow):
         bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
         self.thermodynamic_menu.addAction(bottleneck_action)
 
-        dG0_menu = self.thermodynamic_menu.addMenu("Load dG'° values [in kJ/mol]...")
+        self.thermodynamic_menu.addSeparator()
+
+        dG0_menu = self.thermodynamic_menu.addMenu("Load dG'° values [in kJ/mol] (replacing all current values)...")
 
         dG0_json_action = QAction("...as JSON...", self)
-        dG0_json_action.triggered.connect(self.load_dG0_json)
+        dG0_json_action.triggered.connect(self.load_dG0_json_replace_all)
         dG0_menu.addAction(dG0_json_action)
 
         dG0_xlsx_action = QAction("...as Excel XLSX...", self)
-        dG0_xlsx_action.triggered.connect(self.load_dG0_xlsx)
+        dG0_xlsx_action.triggered.connect(self.load_dG0_xlsx_replace_all)
         dG0_menu.addAction(dG0_xlsx_action)
 
-        concentrations_menu = self.thermodynamic_menu.addMenu("Load concentration ranges [in M]...")
+        dG0_menu = self.thermodynamic_menu.addMenu("Load dG'° values [in kJ/mol] (amending current values)...")
+
+        dG0_json_action = QAction("...as JSON...", self)
+        dG0_json_action.triggered.connect(self.load_dG0_json_amend)
+        dG0_menu.addAction(dG0_json_action)
+
+        dG0_xlsx_action = QAction("...as Excel XLSX...", self)
+        dG0_xlsx_action.triggered.connect(self.load_dG0_xlsx_amend)
+        dG0_menu.addAction(dG0_xlsx_action)
+
+        concentrations_menu = self.thermodynamic_menu.addMenu("Load concentration ranges [in M] (replacing all current values)...")
 
         concentrations_json_action = QAction("...as JSON...", self)
-        concentrations_json_action.triggered.connect(self.load_concentrations_json)
+        concentrations_json_action.triggered.connect(self.load_concentrations_json_replace_all)
         concentrations_menu.addAction(concentrations_json_action)
 
         concentrations_xlsx_action = QAction("...as Excel XLSX...", self)
-        concentrations_xlsx_action.triggered.connect(self.load_concentrations_xlsx)
+        concentrations_xlsx_action.triggered.connect(self.load_concentrations_xlsx_replace_all)
+        concentrations_menu.addAction(concentrations_xlsx_action)
+
+
+        concentrations_menu = self.thermodynamic_menu.addMenu("Load concentration ranges [in M] (amending current values)...")
+
+        concentrations_json_action = QAction("...as JSON...", self)
+        concentrations_json_action.triggered.connect(self.load_concentrations_json_amend)
+        concentrations_menu.addAction(concentrations_json_action)
+
+        concentrations_xlsx_action = QAction("...as Excel XLSX...", self)
+        concentrations_xlsx_action.triggered.connect(self.load_concentrations_xlsx_amend)
         concentrations_menu.addAction(concentrations_xlsx_action)
 
         self.analysis_menu.addSeparator()
@@ -2130,12 +2151,13 @@ class MainWindow(QMainWindow):
         ws = wb.active
         return ws
 
-    def _set_concentrations(self, concentrations):
+    def _set_concentrations(self, concentrations, replace_all):
         for metabolite in self.appdata.project.cobra_py_model.metabolites:
-            if "Cmin" in metabolite.annotation:
-                del(metabolite.annotation["Cmin"])
-            if "Cmax" in metabolite.annotation:
-                del(metabolite.annotation["Cmax"])
+            if replace_all:
+                if "Cmin" in metabolite.annotation:
+                    del(metabolite.annotation["Cmin"])
+                if "Cmax" in metabolite.annotation:
+                    del(metabolite.annotation["Cmax"])
             if metabolite.id not in concentrations.keys():
                 if "DEFAULT" in concentrations.keys():
                     lb = concentrations["DEFAULT"]["min"]
@@ -2151,12 +2173,13 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
         self.unsaved_changes()
 
-    def _set_dG0s(self, dG0s):
-        for reaction in self.appdata.project.cobra_py_model.reactions:
-            if "dG0" in reaction.annotation:
-                del(reaction.annotation["dG0"])
-            if "dG0_uncertainty" in reaction.annotation:
-                del(reaction.annotation["dG0_uncertainty"])
+    def _set_dG0s(self, dG0s, replace_all):
+        if replace_all:
+            for reaction in self.appdata.project.cobra_py_model.reactions:
+                if "dG0" in reaction.annotation:
+                    del(reaction.annotation["dG0"])
+                if "dG0_uncertainty" in reaction.annotation:
+                    del(reaction.annotation["dG0_uncertainty"])
 
         reaction_ids = [x.id for x in self.appdata.project.cobra_py_model.reactions]
         for reaction_id in dG0s.keys():
@@ -2169,11 +2192,17 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
         self.unsaved_changes()
 
-    def load_concentrations_json(self):
+    def _load_concentrations_json(self, replace_all):
         concentrations = self._load_json()
         self._set_concentrations(concentrations)
 
-    def load_concentrations_xlsx(self):
+    def load_concentrations_json_amend(self, replace_all):
+        self._load_concentrations_json(False)
+
+    def load_concentrations_json_replace_all(self, replace_all):
+        self._load_concentrations_json(True)
+
+    def _load_concentrations_xlsx(self, replace_all):
         ws = self._load_active_xlsx_worksheet()
 
         if ws is None:
@@ -2229,11 +2258,23 @@ class MainWindow(QMainWindow):
             )
         self._set_concentrations(concentrations)
 
-    def load_dG0_json(self):
-        dG0s = self._load_json()
-        self._set_dG0s(dG0s=dG0s)
+    def load_concentrations_xlsx_amend(self):
+        self._load_concentrations_xlsx(False)
 
-    def load_dG0_xlsx(self):
+    def load_concentrations_xlsx_replace_all(self):
+        self._load_concentrations_xlsx(True)
+
+    def _load_dG0_json(self, replace_all):
+        dG0s = self._load_json()
+        self._set_dG0s(dG0s, replace_all)
+
+    def load_dG0_json_amend(self):
+        self._load_dG0_json(False)
+
+    def load_dG0_json_replace_all(self):
+        self._load_dG0_json(True)
+
+    def _load_dG0_xlsx(self, replace_all):
         ws = self._load_active_xlsx_worksheet()
 
         if ws is None:
@@ -2281,8 +2322,13 @@ class MainWindow(QMainWindow):
                 "Warnings occured while loading XLSX",
                 f"The following warnings occured while loading the XLSX:\n{warnings}"
             )
-        self._set_dG0s(dG0s)
+        self._set_dG0s(dG0s, replace_all)
 
+    def load_dG0_xlsx_amend(self):
+        self._load_dG0_xlsx(False)
+
+    def load_dG0_xlsx_replace_all(self):
+        self._load_dG0_xlsx(True)
 
     def _get_filename(self, filetype: str) -> str:
         dialog = QFileDialog(self)
