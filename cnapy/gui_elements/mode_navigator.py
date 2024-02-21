@@ -137,6 +137,7 @@ class ModeNavigator(QWidget):
         self.completion_list.setStringList(reac_id+["!"+str(r) for r in reac_id])
 
     def set_to_mcs(self):
+        self.central_widget.mode_normalization_reaction = ""
         self.mode_type = 1
         self.title.setText("MCS Navigation")
         if self.save_button_connection is not None:
@@ -416,18 +417,7 @@ class NormalizationDialog(QDialog):
     @Slot()
     def normalize(self):
         self.setCursor(Qt.BusyCursor)
-        selected_reaction = self.expr.text().strip()
-        new_comp_values = deepcopy(self.appdata.project.comp_values)
-
-        normalized_value = new_comp_values[selected_reaction][0]
-        for (reac_id, values) in new_comp_values.items():
-            new_comp_values[reac_id] = (
-                new_comp_values[reac_id][0]/normalized_value,
-                new_comp_values[reac_id][1]/normalized_value,
-            )
-        self.appdata.project.comp_values.clear()
-        self.appdata.project.comp_values = new_comp_values
-        self.parent.update()
-        self.parent.central_widget.update()
+        self.parent.central_widget.mode_normalization_reaction = self.expr.text().strip()
+        self.parent.central_widget.update_mode()
         self.setCursor(Qt.ArrowCursor)
         self.accept()
