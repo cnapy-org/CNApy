@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
-from copy import deepcopy
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
@@ -19,7 +18,7 @@ import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
@@ -1498,7 +1497,7 @@ class MainWindow(QMainWindow):
         self.setCursor(Qt.BusyCursor)
         scale_factor = 10.0
         view = self.centralWidget().map_tabs.currentWidget()
-        original_size = deepcopy(view.size())
+        original_size = QSize(view.size())
 
         view.resize(original_size * scale_factor)
         view.setTransform(view.transform().scale(scale_factor, scale_factor))
