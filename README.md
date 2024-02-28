@@ -61,7 +61,7 @@ Everyone is welcome to contribute to CNApy's development. [See our contribution 
 
 1. Download the zipped CNApy Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.10/cnapy-windows-installer.zip).
 2. Unzip the file into your desired location. You can do this by right-clicking on the file and selecting the option to extract the files.
-3. In the location where you unzipped the file, click on "INSTALL_CNAPY.bat". As soon as the installation is finished, the appearing window closes and you can start CNApy either by double-clicking on the newly created CNApy shortcut on your desktop (which also shows CNApy's logo) or the newly created RUN_CNAPY.bat in the folder where INSTALL_CNAPY.bat lies. To uninstall CNApy, double-click on the UNINSTALL_CNAPY.bat in the same folder.
+3. In the location where you unzipped the file, click on "INSTALL_CNAPY.bat"; This installation procedure only works with an active internet conncection. As soon as the installation is finished, the appearing window closes and you can start CNApy either by double-clicking on the newly created CNApy shortcut on your desktop (which also shows CNApy's logo) or the newly created RUN_CNAPY.bat in the folder where INSTALL_CNAPY.bat lies. If CNApy is not starting, this might have been caused by an internet connection problem; Running "INSTALL_CNAPY.bat" again might solve the problem. To uninstall CNApy, double-click on the UNINSTALL_CNAPY.bat in the same folder.
 
 ## Assisted installation under Linux and MacOS X
 
