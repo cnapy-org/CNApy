@@ -160,6 +160,8 @@ class CentralWidget(QWidget):
         self.mode_navigator.modeNavigatorClosed.connect(self.update)
         self.mode_navigator.reaction_participation_button.clicked.connect(self.reaction_participation)
 
+        self.mode_normalization_reaction = ""
+
         self.update()
 
     def fit_mapview(self):
@@ -386,6 +388,12 @@ class CentralWidget(QWidget):
                     mean = sum(abs(v) for v in values.values())/len(values)
                     for r,v in values.items():
                         values[r] = v/mean
+                if self.mode_normalization_reaction != "":
+                    if self.mode_normalization_reaction in values.keys():
+                        normalization_value = values[self.mode_normalization_reaction]
+                        if normalization_value != 0.0:
+                            for r,v in values.items():
+                                values[r] = v/normalization_value
 
                 # set values
                 self.appdata.project.comp_values.clear()
