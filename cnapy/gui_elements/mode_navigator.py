@@ -176,6 +176,7 @@ class ModeNavigator(QWidget):
         self.update_completion_list()
 
     def clear(self):
+        self.central_widget.mode_normalization_reaction = ""
         self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
         self.appdata.recreate_scenario_from_history()
