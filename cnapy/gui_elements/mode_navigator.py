@@ -320,6 +320,7 @@ class ModeNavigator(QWidget):
         dialog.exec_()
 
     def __del__(self):
+        self.central_widget.mode_normalization_reaction = ""
         self.appdata.project.modes.clear() # for proper deallocation when it is a FluxVectorMemmap
 
     changedCurrentMode = Signal(int)
