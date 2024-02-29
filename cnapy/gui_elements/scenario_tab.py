@@ -23,6 +23,11 @@ class ScenarioReactionColumn(IntEnum):
     LB = 2
     UB = 3
 
+class ScenarioAnnotationColumn(IntEnum):
+    Reaction_id = 0
+    Key = 1
+    Value = 2
+
 class IDList(object):
     """
     provides a list of identifiers (id_list) and a corresponding QStringListModel (ids_model)
@@ -61,7 +66,7 @@ class ScenarioTab(QWidget):
         self.reaction_ids: IDList = IDList()
 
         layout = QVBoxLayout()
-        group = QGroupBox("Scenario ojective")
+        group = QGroupBox("Scenario objective")
         self.objective_group_layout = QVBoxLayout()
         self.use_scenario_objective = QCheckBox("Use scenario objective (overrides the model objective)")
         self.use_scenario_objective.setEnabled(True)
@@ -71,11 +76,13 @@ class ScenarioTab(QWidget):
         self.scenario_objective.set_wordlist(self.reaction_ids.id_list, replace_completer_model=False)
         self.scenario_objective.set_completer_model(self.reaction_ids.ids_model)
         self.objective_group_layout.addWidget(self.scenario_objective)
-        label = QLabel("Optimization direction")
-        self.objective_group_layout.addWidget(label)
+        self.optimization_direction_layout = QHBoxLayout()
+        label = QLabel("Optimization direction:")
+        self.optimization_direction_layout.addWidget(label)
         self.scenario_opt_direction = QComboBox()
         self.scenario_opt_direction.insertItems(0, ["minimize", "maximize"])
-        self.objective_group_layout.addWidget(self.scenario_opt_direction)
+        self.optimization_direction_layout.addWidget(self.scenario_opt_direction)
+        self.objective_group_layout.addLayout(self.optimization_direction_layout)
         group.setLayout(self.objective_group_layout)
         layout.addWidget(group)
 
@@ -91,7 +98,6 @@ class ScenarioTab(QWidget):
         self.delete_reaction = QPushButton("-")
         self.delete_reaction.clicked.connect(self.delete_scenario_reaction)
         hbox.addWidget(self.delete_reaction)
-        hbox.addStretch()
         upper_layout.addLayout(hbox)
         self.reactions = QTableWidget(0, len(ScenarioReactionColumn))
         self.reactions.setHorizontalHeaderLabels([ScenarioReactionColumn(i).name for i in range(len(ScenarioReactionColumn))])
@@ -115,27 +121,53 @@ class ScenarioTab(QWidget):
         self.delete_constraint_button = QPushButton("-")
         self.delete_constraint_button.clicked.connect(self.delete_constraint)
         hbox.addWidget(self.delete_constraint_button)
-        hbox.addStretch()
         lower_layout.addLayout(hbox)
         self.constraints = QTableWidget(0, 1) # table with fixed row order
         self.constraints.horizontalHeader().setHidden(True)
         self.constraints.horizontalHeader().setStretchLastSection(True)
         lower_layout.addWidget(self.constraints)
 
+        scenario_annotations = QWidget()
+        annotations_layout = QVBoxLayout(scenario_annotations)
+        label = QLabel("Scenario reaction annotations")
+        label.setToolTip("The IDs of the scenario annotations are the affected reaction ID.")
+        hbox = QHBoxLayout()
+        hbox.addWidget(label)
+        self.add_annotation = QPushButton("+")
+        self.add_annotation.clicked.connect(self.add_scenario_annotation)
+        hbox.addWidget(self.add_annotation)
+        self.delete_annotation = QPushButton("-")
+        self.delete_annotation.clicked.connect(self.delete_scenario_annotation)
+        hbox.addWidget(self.delete_annotation)
+        annotations_layout.addLayout(hbox)
+        self.annotations = QTableWidget(0, len(ScenarioAnnotationColumn))
+        self.annotations.setHorizontalHeaderLabels([ScenarioAnnotationColumn(i).name for i in range(len(ScenarioAnnotationColumn))])
+        self.annotations.setEditTriggers(QAbstractItemView.CurrentChanged | QAbstractItemView.SelectedClicked)
+        annotations_layout.addWidget(self.annotations)
+
+        bottom = QWidget()
+        bottom_layout =  QVBoxLayout(bottom)
         label = QLabel("Scenario description")
-        lower_layout.addWidget(label)
+        bottom_layout.addWidget(label)
         self.description = QTextEdit()
         self.description.setPlaceholderText("Enter a description for this scenario")
-        lower_layout.addWidget(self.description)
+        bottom_layout.addWidget(self.description)
 
-        splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(upper)
-        splitter.addWidget(lower)
-        layout.addWidget(splitter)
+        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter.addWidget(upper)
+        self.splitter.addWidget(lower)
+        self.splitter.addWidget(scenario_annotations)
+        self.splitter.addWidget(bottom)
+        self.splitter.setStretchFactor(0, 3)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(2, 1)
+        self.splitter.setStretchFactor(3, 1)
+        layout.addWidget(self.splitter)
         self.setLayout(layout)
 
         self.reactions.currentCellChanged.connect(self.handle_current_cell_changed)
         self.reactions.cellChanged.connect(self.cell_content_changed)
+        self.annotations.cellChanged.connect(self.cell_content_changed_annotations)
         self.equation.editingFinished.connect(self.equation_edited)
         self.scenario_objective.textCorrect.connect(self.change_scenario_objective_coefficients)
         self.scenario_objective.editingFinished.connect(self.validate_objective)
@@ -147,7 +179,7 @@ class ScenarioTab(QWidget):
         self.update()
 
     def update(self):
-        self.update_reation_id_lists()
+        self.update_reaction_id_lists()
         if self.recreate_scenario_items_needed:
             self.recreate_scenario_items()
             self.recreate_scenario_items_needed = False
@@ -167,10 +199,10 @@ class ScenarioTab(QWidget):
             item.setText(flux_text)
             item.setBackground(QBrush(background_color))
 
-    def update_reation_id_lists(self):
+    def update_reaction_id_lists(self):
         self.reaction_ids.set_ids(self.appdata.project.cobra_py_model.reactions.list_attr("id"),
                                     self.appdata.project.scen_values.reactions.keys())
-            
+
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid
         with QSignalBlocker(self.scenario_objective):
@@ -218,7 +250,7 @@ class ScenarioTab(QWidget):
                     self.reactions.item(row, ScenarioReactionColumn.Id).setText(reac_id)
                     QMessageBox.information(self, 'Reaction ID already in use',
                                             'Choose a different reaction identifier.')
-            self.update_reation_id_lists()
+            self.update_reaction_id_lists()
             self.check_constraints_and_objective()
             self.scenario_changed()
             if self.appdata.auto_fba:
@@ -240,11 +272,24 @@ class ScenarioTab(QWidget):
             self.reactions.item(row, ScenarioReactionColumn.LB).setBackground(lb_brush)
             self.reactions.item(row, ScenarioReactionColumn.UB).setBackground(ub_brush)
 
+    @Slot(int, int)
+    def cell_content_changed_annotations(self, row: int, column: int):
+        reaction_id: str = self.annotations.cellWidget(row, ScenarioAnnotationColumn.Reaction_id).text().strip()
+        key: str = self.annotations.item(row, ScenarioAnnotationColumn.Key).text()
+        value: str = self.annotations.item(row, ScenarioAnnotationColumn.Value).text()
+        changed_annotation = {
+            "reaction_id": reaction_id,
+            "key": key,
+            "value": value,
+        }
+        self.appdata.project.scen_values.annotations[row] = changed_annotation
+        self.scenario_changed()
+
     def verify_bound(self, item: QTableWidgetItem):
         try:
             val = float(item.text())
             brush = white_brush
-        except:
+        except Exception:
             val = float('NaN')
             brush = red_brush
         return val, brush
@@ -279,7 +324,7 @@ class ScenarioTab(QWidget):
                 with QSignalBlocker(self.reactions):
                     self.update_reaction_row(row, reac_id)
                 equation_valid = True
-            except:
+            except Exception:
                 turn_red(self.equation)
                 with QSignalBlocker(self.equation):
                     QMessageBox.information(self, 'Cannot parse equation',
@@ -337,7 +382,7 @@ class ScenarioTab(QWidget):
         while not self.verify_scenario_reaction_id(reac_id):
             reac_id += "_"
         self.appdata.project.scen_values.reactions[reac_id] = [{}, cobra.Configuration().lower_bound, cobra.Configuration().upper_bound]
-        self.update_reation_id_lists()
+        self.update_reaction_id_lists()
         self.check_constraints_and_objective()
         with QSignalBlocker(self.reactions):
             self.new_reaction_row(row)
@@ -353,12 +398,35 @@ class ScenarioTab(QWidget):
             reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
             self.reactions.removeRow(row)
             del self.appdata.project.scen_values.reactions[reac_id]
-            self.update_reation_id_lists()
+            self.update_reaction_id_lists()
             self.check_constraints_and_objective()
             self.reactions.setCurrentCell(self.reactions.currentRow(), 0) # to make the cell appear selected in the GUI
             self.scenario_changed()
             if self.appdata.auto_fba:
                 self.central_widget.parent.fba()
+
+    def add_scenario_annotation(self):
+        row: int = self.annotations.rowCount()
+        self.annotations.setRowCount(row + 1)
+        with QSignalBlocker(self.annotations):
+            self.appdata.project.scen_values.annotations.append({})
+            self.new_annotation_row(row)
+        self.scenario_changed()
+        self.annotations.setCurrentCell(row, ScenarioReactionColumn.Id)
+
+    def delete_scenario_annotation(self):
+        row: int = self.annotations.currentRow()
+        if row >= 0:
+            del(self.appdata.project.scen_values.annotations[row])
+            self.annotations.removeRow(row)
+            self.annotations.setCurrentCell(self.annotations.currentRow(), 0) # to make the cell appear selected in the GUI
+            self.scenario_changed()
+
+    def new_annotation_row(self, row: int):
+        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id, QComplReceivLineEdit(self, self.reaction_ids.id_list))
+        self.annotations.setItem(row, ScenarioAnnotationColumn.Key, QTableWidgetItem())
+        self.annotations.setItem(row, ScenarioAnnotationColumn.Value, QTableWidgetItem())
+        self.scenario_changed()
 
     def new_reaction_row(self, row: int):
         item = QTableWidgetItem()
@@ -386,7 +454,7 @@ class ScenarioTab(QWidget):
         self.appdata.project.scen_values.constraints.append(Scenario.empty_constraint)
         self.constraints.setCurrentCell(row, 0)
         self.scenario_changed()
-        
+
     def add_constraint_row(self):
         row: int = self.constraints.rowCount()
         self.constraints.setRowCount(row + 1)
@@ -449,22 +517,27 @@ class ScenarioTab(QWidget):
                     if self.appdata.project.scen_values.use_scenario_objective:
                         self.objectiveSetupChanged.emit()
                 self.use_scenario_objective.setEnabled(True)
-            else:
-                self.use_scenario_objective.setEnabled(False)
 
     @Slot()
     def validate_objective(self):
-        if not self.scenario_objective.is_valid and self.appdata.project.scen_values.use_scenario_objective:
-            self.appdata.project.scen_values.objective_coefficients.clear()
-            self.use_scenario_objective.setChecked(False) # triggers use_scenario_objective_changed
+        if not self.scenario_objective.is_valid:
+            with QSignalBlocker(self.use_scenario_objective):
+                self.use_scenario_objective.setChecked(False)
+                self.use_scenario_objective.setEnabled(False)
+            if self.appdata.project.scen_values.use_scenario_objective:
+                self.appdata.project.scen_values.objective_coefficients.clear()
+                self.appdata.project.scen_values.use_scenario_objective = False
+                self.objectiveSetupChanged.emit()
 
     @Slot(int)
     def use_scenario_objective_changed(self, state: int):
-        if state == Qt.Checked:
-            self.appdata.project.scen_values.use_scenario_objective = True
-        elif state == Qt.Unchecked:
-            self.appdata.project.scen_values.use_scenario_objective = False
-        self.objectiveSetupChanged.emit()
+        self.validate_objective()
+        if self.use_scenario_objective.isEnabled():
+            if state == Qt.Checked:
+                self.appdata.project.scen_values.use_scenario_objective = True
+            elif state == Qt.Unchecked:
+                self.appdata.project.scen_values.use_scenario_objective = False
+            self.objectiveSetupChanged.emit()
 
     @Slot(int)
     def scenario_optimization_direction_changed(self, index: int):

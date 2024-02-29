@@ -237,15 +237,16 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.description: str = ""
         self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
         self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
+        self.annotations = [] # List of dicts with: { "id": $reac_id, "key": $key_value, "value": $value_at_key }
         self.file_name: str = ""
         self.has_unsaved_changes = False
-        self.version: int = 2
+        self.version: int = 3
 
     def save(self, filename: str):
         json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
                     'objective_direction': self.objective_direction, 'objective_coefficients': self.objective_coefficients,
                     'use_scenario_objective': self.use_scenario_objective, 'reactions': self.reactions,
-                    'constraints': self.constraints, 'version': self.version}
+                    'constraints': self.constraints, "annotations": self.annotations, 'version': self.version}
         with open(filename, 'w') as fp:
             json.dump(json_dict, fp)
         self.has_unsaved_changes = False
@@ -288,13 +289,15 @@ class Scenario(Dict[str, Tuple[float, float]]):
                                     self.constraints.append(constr)
                                 else:
                                     incompatible_constraints.append(constr)
+                            if json_dict['version'] >= 3:
+                                self.annotations = json_dict["annotations"]
                         for reac_id, val in json_dict['objective_coefficients'].items():
                             if reac_id in all_reaction_ids:
                                 self.objective_coefficients[reac_id] = val
                             else:
                                 unknown_ids.append(reac_id)
                         self.use_scenario_objective = json_dict['use_scenario_objective']
-                        self.version = 2
+                        self.version = 3
                 else:
                     flux_values = json_dict
             elif filename.endswith('val'): # CellNetAnalyzer scenario
@@ -307,7 +310,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
                             reac_id, val = line.split()
                             val = float(val)
                             flux_values[reac_id] = (val, val)
-                        except:
+                        except Exception:
                             print("Could not parse line ", line)
 
         reactions = []
@@ -444,6 +447,15 @@ class ProjectData:
             model.add_cons_vars(constr)
             for (reaction, coeff) in zip(reactions, expression.values()):
                 constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
+
+        reaction_ids = [reaction.id for reaction in model.reactions]
+        for annotation in self.scen_values.annotations:
+            if "reaction_id" not in annotation.keys():
+                continue
+            if annotation["reaction_id"] not in reaction_ids:
+                continue
+            reaction: cobra.Reaction = model.reactions.get_by_id(annotation["reaction_id"])
+            reaction.annotation[annotation["key"]] = annotation["value"]
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []
