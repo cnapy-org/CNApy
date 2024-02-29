@@ -517,22 +517,27 @@ class ScenarioTab(QWidget):
                     if self.appdata.project.scen_values.use_scenario_objective:
                         self.objectiveSetupChanged.emit()
                 self.use_scenario_objective.setEnabled(True)
-            else:
-                self.use_scenario_objective.setEnabled(False)
 
     @Slot()
     def validate_objective(self):
-        if not self.scenario_objective.is_valid and self.appdata.project.scen_values.use_scenario_objective:
-            self.appdata.project.scen_values.objective_coefficients.clear()
-            self.use_scenario_objective.setChecked(False) # triggers use_scenario_objective_changed
+        if not self.scenario_objective.is_valid:
+            with QSignalBlocker(self.use_scenario_objective):
+                self.use_scenario_objective.setChecked(False)
+                self.use_scenario_objective.setEnabled(False)
+            if self.appdata.project.scen_values.use_scenario_objective:
+                self.appdata.project.scen_values.objective_coefficients.clear()
+                self.appdata.project.scen_values.use_scenario_objective = False
+                self.objectiveSetupChanged.emit()
 
     @Slot(int)
     def use_scenario_objective_changed(self, state: int):
-        if state == Qt.Checked:
-            self.appdata.project.scen_values.use_scenario_objective = True
-        elif state == Qt.Unchecked:
-            self.appdata.project.scen_values.use_scenario_objective = False
-        self.objectiveSetupChanged.emit()
+        self.validate_objective()
+        if self.use_scenario_objective.isEnabled():
+            if state == Qt.Checked:
+                self.appdata.project.scen_values.use_scenario_objective = True
+            elif state == Qt.Unchecked:
+                self.appdata.project.scen_values.use_scenario_objective = False
+            self.objectiveSetupChanged.emit()
 
     @Slot(int)
     def scenario_optimization_direction_changed(self, index: int):
