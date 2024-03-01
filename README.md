@@ -59,7 +59,7 @@ Everyone is welcome to contribute to CNApy's development. [See our contribution 
 
 ## Using the Windows installer
 
-1. Download the zipped CNApy Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.10/cnapy-windows-installer.zip).
+1. Download the zipped CNApy Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.11/cnapy-windows-installer.zip).
 2. Unzip the file into your desired location. You can do this by right-clicking on the file and selecting the option to extract the files.
 3. In the location where you unzipped the file, click on "INSTALL_CNAPY.bat"; This installation procedure only works with an active internet conncection. As soon as the installation is finished, the appearing window closes and you can start CNApy either by double-clicking on the newly created CNApy shortcut on your desktop (which also shows CNApy's logo) or the newly created RUN_CNAPY.bat in the folder where INSTALL_CNAPY.bat lies. If CNApy is not starting, this might have been caused by an internet connection problem; Running "INSTALL_CNAPY.bat" again might solve the problem. To uninstall CNApy, double-click on the UNINSTALL_CNAPY.bat in the same folder.
 
@@ -75,12 +75,12 @@ Click on the operating system you use:
 1. Download Miniforge [from here](https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh).
 2. Install Miniforge by double-clicking the downloaded file. If the script does not run, right-click on the file, open its settings and select the option to make it executable (alternative: run 'chmod u+x ./Miniconda3-latest-Linux-x86_64.sh' in your terminal). Follow the appearing installation instructions and remember in which folder you install Miniconda. *Note*: If you already have installed Anaconda on your computer before (for which we also directly provide a conda CNApy package, [see here](#install-cnapy-as-conda-package)), deactivate all installation options which put Miniconda to your console or system PATH to avoid possible problems.
 3. Using your file manager, go to the folder where you installed Miniforge. Then, open the appearing sub-folder "condabin".
-4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.10/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
+4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.11/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
 5. In the file manager, double-click on the newly downloaded installation assistant script which is called "cnapy-assistant-script.sh". If the script does not run, right-click on the file, open its settings and select the option to make it executable or, alternatively, run 'chmod u+x ./cnapy-assistant-script.sh' in your terminal in the mentioned "condabin" folder. Wait until CNApy is downloaded and installed.
 6. You can now run CNApy by executing the following two terminal instructions in the mentioned "condabin" folder:
 
 ```sh
-./conda activate cnapy-1.1.10
+./conda activate cnapy-1.1.11
 cnapy
 ```
 
@@ -91,12 +91,12 @@ If you installed Miniforge system-wide, it's also possible to run these commands
 1. If you have a (new) Mac with an ARM processor, such as the M1, M2 or M3, download Miniconda [from here](https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.pkg). If you have an (older) Mac with an Intel processor, download Miniconda [from here](https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.pkg). If you are unsure which processor your Mac has, click on the Apple menu in the upper-left of your screen and choose "About This Mac". *Note*: Currently, if you want to use the CPLEX solver within CNApy, you have to install the Intel processor version of Miniconda regardless of your Mac's processor. This is caused by the lack of a CPLEX ARM Python package ([see also this issue for more details](https://github.com/cnapy-org/CNApy/issues/491)).
 2. Install Miniconda by double-clicking the downloaded file. Follow the appearing installation instructions and remember in which folder you install Miniconda. *Note*: If you already use Anaconda on your computer (for which we directly provide a conda CNApy package, [see here](#install-cnapy-as-conda-package)), deactivate all installation options which put Miniconda to your console or system PATH to avoid possible problems
 3. Using Finder, go to the folder where you installed Miniconda. Then, open the appearing sub-folder "condabin".
-4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.10/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
+4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.1.11/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
 5. In the file manager, double-click on the newly downloaded installation assistant script which is called "cnapy-installation-script.sh". If the script does not run, right-click on the file, open its settings and select the option to make it executable (alternative: run 'chmod u+x ./cnapy-assistant-script.sh' in your terminal). Wait until CNApy is downloaded and installed.
 6. Open the terminal in the mentioned "condabin" folder. You can now run CNApy by executing the following two terminal instructions:
 
 ```sh
-./conda activate cnapy-1.1.10
+./conda activate cnapy-1.1.11
 cnapy
 ```
 
@@ -109,13 +109,13 @@ cnapy
 1. Create a conda environment with all dependencies
 
     ```sh
-    conda create -n cnapy-1.1.10 -c Gurobi -c IBMDecisionOptimization -c conda-forge -c cnapy cnapy=1.1.10 --yes
+    conda create -n cnapy-1.1.11 -c Gurobi -c IBMDecisionOptimization -c conda-forge -c cnapy cnapy=1.1.11 --yes
     ```
 
 2. Activate the cnapy conda environment
 
     ```sh
-    conda activate cnapy-1.1.10
+    conda activate cnapy-1.1.11
     ```
 
 3. Run CNApy within you activated conda environment
