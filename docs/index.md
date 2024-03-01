@@ -61,13 +61,13 @@ Everyone is welcome to contribute to CNApy's development. [See our contribution 
 3. Create a conda environment with all dependencies
 
     ```sh
-    conda create -n cnapy-1.1.10 -c conda-forge -c cnapy cnapy=1.1.10
+    conda create -n cnapy-1.1.11 -c conda-forge -c cnapy cnapy=1.1.11
     ```
 
 4. Activate the cnapy conda environment
 
     ```sh
-    conda activate cnapy-1.1.10
+    conda activate cnapy-1.1.11
     ```
 
 5. Run CNApy within you activated conda environment
