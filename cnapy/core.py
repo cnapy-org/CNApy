@@ -359,11 +359,14 @@ def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool
             continue
         old_id = entry.id
         for new_id in candidates:
+            if new_id == old_id:
+                print(old_id, "remains unchanged")
+                break
             try:
                 entry.id = new_id
                 entry.annotation['original ID'] = old_id
                 break
             except ValueError: # new_id already in use
                 pass
-        if len(candidates) > 0 and old_id == entry.id:
+        if len(candidates) > 0 and new_id != old_id and old_id == entry.id:
             print("Could not find a new ID for", entry.id, "in", candidates)
