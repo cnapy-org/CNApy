@@ -80,6 +80,10 @@ class ClipboardCalculator(QDialog):
         r_comp = {}
         if self.l1.isChecked():
             l_comp = self.appdata.project.comp_values
+
+            if appdata.scenario_in_clipboard:
+                for (key, value) in appdata.project.scen_values.items():
+                    l_comp[key] = value
         elif self.l2.isChecked():
             try:
                 l_comp = self.appdata.clipboard_comp_values
