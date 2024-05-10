@@ -13,6 +13,23 @@ from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.utils import QComplReceivLineEdit
 
+
+import json
+from typing import Any
+def json_write(path: str, json_data: Any) -> None:
+    """Writes a JSON file at the given path with the given dictionary as content.
+
+    Arguments
+    ----------
+    * path: str ~  The path of the JSON file that shall be written
+    * json_data: Any ~ The dictionary or list which shalll be the content of
+    the created JSON file
+    """
+    json_output = json.dumps(json_data, indent=4)
+    with open(path, "w+", encoding="utf-8") as f:
+        f.write(json_output)
+
+
 class ModeNavigator(QWidget):
     """A navigator widget"""
 
@@ -214,6 +231,17 @@ class ModeNavigator(QWidget):
             if self.selection[self.current]:
                 break
         self.display_mode()
+
+        for i in range (len(self.appdata.project.modes)):
+            values = self.appdata.project.modes[i]
+            print(values)
+        listx = []
+        for mode in self.appdata.project.modes:
+            mean = sum(abs(v) for v in mode.values())/len(values)
+            for r,v in mode.items():
+                mode[r] = v/mean
+            listx.append(mode)
+        json_write("x.json", listx)
 
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
