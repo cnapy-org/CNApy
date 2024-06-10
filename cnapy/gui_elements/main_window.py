@@ -1493,6 +1493,7 @@ class MainWindow(QMainWindow):
                 filename += ".cna"
             self.set_current_filename(filename)
             self.save_project()
+            self.update_recently_used_models(filename)
 
     # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
