@@ -230,11 +230,6 @@ class MainWindow(QMainWindow):
         self.clipboard_menu.addAction(save_fluxes_as_xlsx_action)
         save_fluxes_as_xlsx_action.triggered.connect(self.save_fluxes_as_xlsx)
 
-        self.scenario_in_clipboard_action = QAction("Include scenario in clipboard", self)
-        self.scenario_in_clipboard_action.triggered.connect(self.scenario_in_clipboard)
-        self.scenario_in_clipboard_action.setCheckable(True)
-        self.clipboard_menu.addAction(self.scenario_in_clipboard_action)
-
         self.map_menu = self.menu.addMenu("Map")
         self.cnapy_map_actions = QActionGroup(self)
         separator = QAction(" CNApy map", self)
@@ -1571,13 +1566,17 @@ class MainWindow(QMainWindow):
     def copy_to_clipboard(self):
         self.appdata.clipboard_comp_values = self.appdata.project.comp_values.copy()
 
-        if self.appdata.scenario_in_clipboard:
-            for (key, value) in self.appdata.project.scen_values.items():
-                self.appdata.clipboard_comp_values[key] = value
+        for (key, value) in self.appdata.project.scen_values.items():
+            self.appdata.clipboard_comp_values[key] = value
 
     def paste_clipboard(self):
         try:
             self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+
+            for key in self.appdata.project.scen_values.keys():
+                if key not in self.appdata.clipboard_comp_values.keys():
+                    continue
+                self.appdata.project.scen_values[key] = self.appdata.clipboard_comp_values[key]
         except AttributeError:
             QMessageBox.warning(
                 self,
@@ -1586,13 +1585,6 @@ class MainWindow(QMainWindow):
             )
             return
         self.centralWidget().update()
-
-
-    def scenario_in_clipboard(self):
-        if self.scenario_in_clipboard_action.isChecked():
-            self.appdata.scenario_in_clipboard = True
-        else:
-            self.appdata.scenario_in_clipboard = False
 
     @Slot()
     def clipboard_arithmetics(self):
