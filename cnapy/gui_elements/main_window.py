@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(open_project_action)
         open_project_action.triggered.connect(self.open_project_dialog)
 
-        self.recent_cna_menu = self.file_menu.addMenu("Open recent project")
+        self.recent_cna_menu = self.file_menu.addMenu("Open recent")
         self.recent_cna_actions: Dict[str, QAction] = {}
 
         self.save_project_action = QAction("&Save project", self)
@@ -709,8 +709,21 @@ class MainWindow(QMainWindow):
                 "The selected recently opened .cna file could not be found. Possible reasons: The file was deleted, moved or renamed."
             )
             return
-        if self.checked_unsaved():
-            self.open_project(filename=selected_last_project)
+        if selected_last_project.endswith(".cna"):
+            if self.checked_unsaved():
+                self.open_project(filename=selected_last_project)
+        else:
+            self.new_project_from_sbml(filename=selected_last_project) # calls self.checked_unsaved()
+
+    def update_recently_used_models(self, filename: str):
+        if filename in self.appdata.recent_cna_files:
+            filename_index = self.appdata.recent_cna_files.index(filename)
+            del(self.appdata.recent_cna_files[filename_index])
+        if len(self.appdata.recent_cna_files) > 19:  # Actually allows 20 shown recent .cna files
+            del(self.appdata.recent_cna_files[-1])
+        self.appdata.recent_cna_files.insert(0, filename)
+        self.appdata.save_cnapy_config()
+        self.build_recent_cna_menu()
 
     def build_recent_cna_menu(self):
         recent_cnas = list(self.recent_cna_actions.keys())
@@ -1221,11 +1234,12 @@ class MainWindow(QMainWindow):
         self.nounsaved_changes()
 
     @Slot()
-    def new_project_from_sbml(self):
+    def new_project_from_sbml(self, filename=''):
         if self.checked_unsaved():
-            dialog = QFileDialog(self)
-            filename: str = dialog.getOpenFileName(
-                directory=self.appdata.work_directory, filter=SBML_suffixes)[0]
+            if len(filename) == 0:
+                dialog = QFileDialog(self)
+                filename: str = dialog.getOpenFileName(
+                    directory=self.appdata.work_directory, filter=SBML_suffixes)[0]
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
 
@@ -1243,6 +1257,7 @@ class MainWindow(QMainWindow):
             self.recreate_maps()
             self.centralWidget().update(rebuild_all_tabs=True)
             self.update_scenario_file_name()
+            self.update_recently_used_models(filename)
 
             self.setCursor(Qt.ArrowCursor)
 
@@ -1316,15 +1331,9 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild_all_tabs=True)
+                self.update_scenario_file_name()
+                self.update_recently_used_models(filename)
 
-                if filename in self.appdata.recent_cna_files:
-                    filename_index = self.appdata.recent_cna_files.index(filename)
-                    del(self.appdata.recent_cna_files[filename_index])
-                if len(self.appdata.recent_cna_files) > 19:  # Actually allows 20 shown recent .cna files
-                    del(self.appdata.recent_cna_files[-1])
-                self.appdata.recent_cna_files.insert(0, filename)
-                self.appdata.save_cnapy_config()
-                self.build_recent_cna_menu()
         except FileNotFoundError:
             exstr = get_last_exception_string()
             QMessageBox.warning(self, 'Could not open project.', exstr)
@@ -1484,6 +1493,7 @@ class MainWindow(QMainWindow):
                 filename += ".cna"
             self.set_current_filename(filename)
             self.save_project()
+            self.update_recently_used_models(filename)
 
     # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
