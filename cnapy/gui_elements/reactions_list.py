@@ -444,6 +444,13 @@ class ReactionList(QWidget):
             minimize_action.triggered.connect(self.minimize_reaction)
             set_scen_value_action = menu.addAction("add computed value to scenario")
             set_scen_value_action.triggered.connect(self.set_scen_value_action)
+            # if isinstance(self.central_widget.map_tabs.currentWidget(), EscherMapView):
+            #     delete_reaction_action = menu.addAction("delete from current map")
+            #     delete_reaction_action.setVisible(False)
+            #     delete_reaction_action.triggered.connect(self.delete_reaction_action)
+            #     self.central_widget.map_tabs.currentWidget().page().runJavaScript(
+            #         "reactionOnMap('"+item.reaction.id.replace("'", r"\'")+"','X')",
+            #         lambda map_name: delete_reaction_action.setVisible(True) if len(map_name) > 0 else None)
             menu.exec_(self.reaction_list.mapToGlobal(position))
 
     @Slot(bool)
@@ -486,6 +493,12 @@ class ReactionList(QWidget):
     @Slot()
     def set_scen_value_action(self):
         self.central_widget.set_scen_value(self.reaction_list.currentItem().reaction.id)
+
+    @Slot()
+    def delete_reaction_action(self):
+        self.central_widget.map_tabs.currentWidget().delete_reaction(self.reaction_list.currentItem().reaction.id)
+        self.reaction_mask.update_state()
+        self.appdata.window.unsaved_changes()
 
     @Slot(QPoint)
     def header_context_menu(self, position):
@@ -959,12 +972,8 @@ class ReactionMask(QWidget):
         self.jump_list.clear()
         for name, mmap in self.parent.appdata.project.maps.items():
             if EscherMapView in mmap:
-                mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text().replace("'", r"\'")+
-                                                         "','"+name.replace("'", r"\'")+"')",
-                    lambda map_name: self.jump_list.add(map_name) if len(map_name) > 0 else print(map_name))
-                # below will not work correctly with multiple Escher maps because of asynchronous execution of the lambda function
-                # mmap[EscherMapView].page().runJavaScript("reactionOnMap('"+self.id.text()+"')",
-                #     lambda on_map: self.jump_list.add(name) if on_map else None)
+                # creates one button even if the reaction occurs multiple times on the map
+                mmap[EscherMapView].cnapy_bridge.addMapToJumpListIfReactionPresent.emit(self.id.text(), name)
             else: # CNApy map
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)

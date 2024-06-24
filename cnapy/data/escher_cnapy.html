@@ -19,6 +19,21 @@
                       builder.map.zoomContainer.goTo(JSON.parse(map_and_geometry[1]), JSON.parse(map_and_geometry[2]));
                     }
                     builder.passPropsSearchBar({display:true});
+                    cnapy_bridge.changeReactionId.connect(changeReacId)
+                    cnapy_bridge.zoomIn.connect(builder.zoom_container.zoom_in)
+                    cnapy_bridge.zoomOut.connect(builder.zoom_container.zoom_out)
+                    cnapy_bridge.changeMetId.connect(changeMetId)
+                    cnapy_bridge.highlightAndFocusReaction.connect(highlightAndFocusReaction)
+                    cnapy_bridge.highlightReaction.connect(highlightReaction)
+                    cnapy_bridge.deleteReaction.connect(deleteReaction)
+                    cnapy_bridge.updateReactionStoichiometry.connect(updateReactionStoichiometry)
+                    cnapy_bridge.addMapToJumpListIfReactionPresent.connect(addMapToJumpListIfReactionPresent)
+                    cnapy_bridge.hideSearchBar.connect(function() {search_container.style.display = 'none';})
+                    cnapy_bridge.displaySearchBarFor.connect(function(value) {
+                      search_container.style.display = '';
+                      search_field.value = value;
+                      search_field.dispatchEvent(new Event('input'));
+                    })
                     setTimeout(() => {cnapy_bridge.finish_setup();}, 50)
                   })
                 }
@@ -42,7 +57,7 @@
     const preact = escher.libs.preact;
     const h = preact.createElement;
 
-    var tooltipStyle = {
+    const tooltipStyle = {
       'min-width': '40px',
       'min-height': '10px',
       'border-radius': '2px',
@@ -54,6 +69,14 @@
       'font-family': 'sans-serif',
       'color': '#111',
       'box-shadow': '4px 6px 20px 0px rgba(0, 0, 0, 0.4)'
+    };
+
+    const buttonStyle = {
+      position: 'absolute',
+      top: '2px',
+      right: '2px',
+      color: 'red',
+      fontSize: '10px'
     };
 
     class CnapyTooltip extends preact.Component {
@@ -82,8 +105,10 @@
         var tip = h('div', {className: 'cnapy-tooltip', style: tooltipStyle},
           h('div', {className: 'id', onClick: (event) => this.handleClickOnID(event), style: "font-weight: bold;"}, this.props.biggId),
           h('div', {className: 'name'}, this.props.name))
-
-        if (this.props.type === 'reaction') {
+ 
+          if (this.props.type === 'reaction') {
+          tip.children.push(h('button', {style: buttonStyle, 'aria-label': 'Close',
+            'title': 'Remove from map', onClick: (event) => {deleteReaction(this.props.biggId)}}, '✖'))
           tip.children.push(h('input', {type: 'text',
             id: 'reaction-box-input',
             style: 'color: black',
@@ -108,7 +133,7 @@
       builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'),
         {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, scroll_behavior: 'zoom'})
 
-      function reactionOnMap(reacId, mapName) {
+/*       function reactionOnMap(reacId, mapName) {
         var records = builder.map.search_index.find(reacId);
         for (i=0; i<records.length; i++) {
           var record = records[i];
@@ -116,6 +141,15 @@
             return mapName;
         }
         return "";
+      }
+ */
+      function addMapToJumpListIfReactionPresent(reacId, mapName) {
+        var records = builder.map.search_index.find(reacId);
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId)
+            cnapy_bridge.add_map_to_jump_list(mapName);
+        }
       }
 
       function highlightAndFocusReaction(reacId) {
@@ -138,6 +172,112 @@
             builder.map.highlight_reaction(record.reaction_id);
           }
         }
+      }
+
+      function changeReacId(oldReacId, newReacId) {
+        var records = builder.map.search_index.find(oldReacId);
+        var reaction_ids = []
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "reaction")
+            var reaction = builder.map.reactions[record.reaction_id]
+            if (reaction.bigg_id == oldReacId) {
+              reaction.bigg_id = newReacId
+              builder.map.search_index.index["r"+record.reaction_id].name = newReacId
+              reaction_ids.push(record.reaction_id)
+          }
+        }
+        builder.map.draw_these_reactions(reaction_ids)
+      }
+
+      function changeMetId(oldMetId, newMetId) {
+        var records = builder.map.search_index.find(oldMetId);
+        var node_ids = []
+        for (i=0; i<records.length; i++) {
+          var record = records[i];
+          if (record.type == "metabolite")
+            var node = builder.map.nodes[record.node_id]
+            if (node.bigg_id == oldMetId) {
+              node.bigg_id = newMetId
+              builder.map.search_index.index["n"+record.node_id].name = newMetId
+              node_ids.push(record.node_id)
+          }
+        }
+        builder.map.draw_these_nodes(node_ids)
+        // need to go through all reactions and change metabolite ID if it occurs
+        Object.values(builder.map.reactions).forEach(reaction => {
+          reaction.metabolites.forEach(met => {if (met.bigg_id == oldMetId) {met.bigg_id = newMetId}})
+          })
+      }
+
+      // !! only updates stoichiomteric coefficients of already existing metabolites
+      // !! does not add new or delete removed metabolites
+      function updateReactionStoichiometry(reacId, newStoic, reversibility) {
+        var records = builder.map.search_index.find(reacId)
+        var reaction_ids = []
+        for (i=0; i<records.length; i++) {
+          var reaction = builder.map.reactions[records[i].reaction_id]
+          if (reaction.bigg_id == reacId) {
+            reaction_ids.push(records[i].reaction_id)
+            for (i=0; i<reaction.metabolites.length; i++) {
+              var met = reaction.metabolites[i];
+              var new_coeff = newStoic[met.bigg_id];
+              if (new_coeff)
+                met.coefficient = new_coeff
+            }
+            reaction.reversibility = reversibility
+            for (var segmentId in reaction.segments) { // from convert_map function of Map.js
+              const segment = reaction.segments[segmentId]
+
+              // propagate reversibility
+              segment.reversibility = reaction.reversibility
+
+              const from_node = builder.map.nodes[segment.from_node_id]
+              const to_node = builder.map.nodes[segment.to_node_id]
+
+              // propagate coefficients
+              reaction.metabolites.forEach(met => {
+                if (met.bigg_id === from_node.bigg_id) {
+                  segment.from_node_coefficient = met.coefficient
+                } else if (met.bigg_id === to_node.bigg_id) {
+                  segment.to_node_coefficient = met.coefficient
+                }
+              })
+            }
+          }
+        }
+        builder.map.draw_these_reactions(reaction_ids)
+      }
+
+      function deleteReaction(reacId) {
+        builder.map.deselect_nodes()
+        var records = builder.map.search_index.find(reacId);
+        var reaction_ids = new Set()
+        for (i=0; i<records.length; i++) { // multiple records for the same reaction can occur
+          var record = records[i];
+          if (record.type == "reaction" && builder.map.reactions[record.reaction_id].bigg_id == reacId)
+            reaction_ids.add(record.reaction_id)
+        }
+        for (rid of reaction_ids) {
+          reaction = builder.map.reactions[rid];
+          var node_ids = new Set()
+          for (let key in reaction.segments) {
+            seg = reaction.segments[key];
+            node_ids.add(reaction.segments[key].from_node_id);
+            node_ids.add(reaction.segments[key].to_node_id);
+          }
+          nodes = {}
+          for (let nid of node_ids) {
+            node = builder.map.nodes[nid]
+            if (node.node_type != 'metabolite')
+              nodes[nid] = node
+            else // do not delete metabolite nodes connected to other reactions
+              if (node.connected_segments.length == 1)
+                nodes[nid] = node
+          }
+          builder.map.delete_selectable(nodes, {}, true)
+        }
+        cnapy_bridge.unsaved_changes()
       }
 
     </script>
