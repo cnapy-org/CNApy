@@ -444,13 +444,6 @@ class ReactionList(QWidget):
             minimize_action.triggered.connect(self.minimize_reaction)
             set_scen_value_action = menu.addAction("add computed value to scenario")
             set_scen_value_action.triggered.connect(self.set_scen_value_action)
-            # if isinstance(self.central_widget.map_tabs.currentWidget(), EscherMapView):
-            #     delete_reaction_action = menu.addAction("delete from current map")
-            #     delete_reaction_action.setVisible(False)
-            #     delete_reaction_action.triggered.connect(self.delete_reaction_action)
-            #     self.central_widget.map_tabs.currentWidget().page().runJavaScript(
-            #         "reactionOnMap('"+item.reaction.id.replace("'", r"\'")+"','X')",
-            #         lambda map_name: delete_reaction_action.setVisible(True) if len(map_name) > 0 else None)
             menu.exec_(self.reaction_list.mapToGlobal(position))
 
     @Slot(bool)
