@@ -73,19 +73,19 @@ def make_model_irreversible(
 
         if create_forward:
             forward_reaction_id = cobra_reaction.id + forward_id
-            forward_reaction = copy.deepcopy(cobra_reaction)
-            forward_reaction.id = forward_reaction_id
+            forward_reaction = cobra.Reaction(id=forward_reaction_id, name=cobra_reaction.name)
+            forward_reaction.add_metabolites(cobra_reaction.metabolites)
             if cobra_reaction.lower_bound >= 0:
                 forward_reaction.lower_bound = cobra_reaction.lower_bound
             else:
-                forward_reaction.lower_bound = 0
+                forward_reaction.lower_bound = 0.0
+            forward_reaction.upper_bound = cobra_reaction.upper_bound
             cobra_model.add_reactions([forward_reaction])
 
         if create_reverse:
             reverse_reaction_id = cobra_reaction.id + reverse_id
-            reverse_reaction = copy.deepcopy(cobra_reaction)
-            reverse_reaction.id = reverse_reaction_id
-
+            reverse_reaction = cobra.Reaction(id=reverse_reaction_id, name=cobra_reaction.name)
+            reverse_reaction.add_metabolites(cobra_reaction.metabolites)
             metabolites_to_add = {}
             for metabolite in reverse_reaction.metabolites:
                 metabolites_to_add[metabolite] = (
@@ -103,7 +103,6 @@ def make_model_irreversible(
 
         if create_forward or create_reverse:
             cobra_model.remove_reactions([cobra_reaction])
-
     return cobra_model
 
 
@@ -506,7 +505,7 @@ class ThermodynamicDialog(QDialog):
             R = STANDARD_R
             T = STANDARD_T
             optmdfpathway_lp = create_optmdfpathway_milp(
-                cobra_model=model,
+                cobra_model=make_model_irreversible(model, forward_id=self.FWDID, reverse_id=self.REVID),
                 dG0_values=dG0_values,
                 concentration_values=concentration_values,
                 extra_constraints=extra_constraints,
@@ -601,15 +600,15 @@ class ThermodynamicDialog(QDialog):
             console_text += f"Reached objective value: {objective_value}"
             console_text += f"\\nReached MDF @ optimum of objective: {optmdf} kJ/mol"
         elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-            bottleneck_z_sum = combined_solution["bottleneck_z_sum"]
-            console_text += f"Number of deactivated bottlenecks to reach minimal MDF: {bottleneck_z_sum}"
-
+            combined_bottleneck_sum = 0
             for key in combined_solution.keys():
                 if key.startswith("bottleneck_z_"):
                     if key == "bottleneck_z_sum":
                         continue
                     if combined_solution[key] > 0.1:
                         console_text += f"\\n* {key.replace('bottleneck_z_', '')}"
+                        combined_bottleneck_sum += 1
+            console_text += f"\\n↳Total number of thermodynamically deactivated bottlenecks to reach minimal MDF: {combined_bottleneck_sum}"
         console_text += "')"
         self.central_widget.kernel_client.execute(console_text)
         self.central_widget.show_bottom_of_console()
