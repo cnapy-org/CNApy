@@ -1573,9 +1573,7 @@ class MainWindow(QMainWindow):
         try:
             self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
 
-            for key in self.appdata.project.scen_values.keys():
-                if key not in self.appdata.clipboard_comp_values.keys():
-                    continue
+            for key in (self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys()):
                 self.appdata.project.scen_values[key] = self.appdata.clipboard_comp_values[key]
         except AttributeError:
             QMessageBox.warning(
