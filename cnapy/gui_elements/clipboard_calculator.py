@@ -38,7 +38,7 @@ class ClipboardCalculator(QDialog):
         self.op.insertItem(1, "+")
         self.op.insertItem(2, "-")
         self.op.insertItem(3, "*")
-        self.op.insertItem(4, "\\")
+        self.op.insertItem(4, "/")
         op.addWidget(self.op)
         self.right = QVBoxLayout()
         self.r1 = QRadioButton("Current values")
@@ -80,6 +80,9 @@ class ClipboardCalculator(QDialog):
         r_comp = {}
         if self.l1.isChecked():
             l_comp = self.appdata.project.comp_values
+
+            for (key, value) in self.appdata.project.scen_values.items():
+                l_comp[key] = value
         elif self.l2.isChecked():
             try:
                 l_comp = self.appdata.clipboard_comp_values
@@ -93,6 +96,9 @@ class ClipboardCalculator(QDialog):
 
         if self.r1.isChecked():
             r_comp = self.appdata.project.comp_values
+
+            for (key, value) in self.appdata.project.scen_values.items():
+                r_comp[key] = value
         elif self.r2.isChecked():
             r_comp = self.appdata.clipboard_comp_values
 
@@ -109,6 +115,9 @@ class ClipboardCalculator(QDialog):
                 rv_comp = r_comp[key]
 
             res = self.combine(lv_comp, rv_comp)
+
+            if key in self.appdata.project.scen_values.keys():
+                self.appdata.project.scen_values[key] = res
             self.appdata.project.comp_values[key] = res
 
         self.appdata.project.comp_values_type = 0
@@ -123,5 +132,5 @@ class ClipboardCalculator(QDialog):
             return (llb-rlb, lub-rub)
         if self.op.currentText() == "*":
             return (llb*rlb, lub*rub)
-        if self.op.currentText() == "\\":
+        if self.op.currentText() == "/":
             return (llb/rlb, lub/rub)

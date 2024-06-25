@@ -1576,9 +1576,15 @@ class MainWindow(QMainWindow):
     def copy_to_clipboard(self):
         self.appdata.clipboard_comp_values = self.appdata.project.comp_values.copy()
 
+        for (key, value) in self.appdata.project.scen_values.items():
+            self.appdata.clipboard_comp_values[key] = value
+
     def paste_clipboard(self):
         try:
             self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
+
+            for key in (self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys()):
+                self.appdata.project.scen_values[key] = self.appdata.clipboard_comp_values[key]
         except AttributeError:
             QMessageBox.warning(
                 self,
