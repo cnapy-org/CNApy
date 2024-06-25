@@ -48,17 +48,6 @@ class EscherMapView(QWebEngineView):
         self.name: str = name # map name for self.appdata.project.maps
         self.editing_enabled = False
 
-    @Slot()
-    def initial_setup(self):
-        self.enable_editing(not self.set_map_data())
-        self.set_geometry()
-        self.show()
-        # set up the Escher search bar, its visibilty will be controlled by CNApy
-        self.page().runJavaScript(r"builder.passPropsSearchBar({display:true})",
-            lambda x: self.page().runJavaScript(
-                r"var search_container=document.getElementsByClassName('search-container')[0];var search_field=document.getElementsByClassName('search-field')[0];search_container.style.display='none';document.getElementsByClassName('search-bar-button')[2].hidden=true"))
-        # self.focusProxy().installEventFilter(self) # can be used for event tracking
-
     def finish_setup(self):
         print("finish_setup")
         self.page().runJavaScript(
@@ -81,48 +70,30 @@ class EscherMapView(QWebEngineView):
         +","+self.appdata.project.maps[self.name]["pos"]+")")
 
     def set_cobra_model(self):
-        self.page().runJavaScript("builder.load_model("+cobra.io.to_json(self.appdata.project.cobra_py_model)+")")
+        self.cnapy_bridge.setCobraModel.emit(cobra.io.to_json(self.appdata.project.cobra_py_model))
 
     def visualize_comp_values(self):
-        js_stack = []
-        def set_reaction_data_string(reaction_data):
-            return "builder.set_reaction_data("+reaction_data+")"
         if len(self.appdata.project.comp_values) == 0:
-            js_stack.append(set_reaction_data_string("null"))
+            self.cnapy_bridge.clearReactionData.emit()
         else:
             if self.appdata.project.comp_values_type == 0:
-                 js_stack.append(set_reaction_data_string("["+str({reac_id: val[0]
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
+                self.cnapy_bridge.visualizeCompValues.emit(
+                    {reac_id: val[0] for reac_id, val in self.appdata.project.comp_values.items()}, False)
             else: # FVA result, display flux range as text only
-                js_stack.append("let style=builder.map.settings.get('reaction_styles')")
-                js_stack.append("builder.map.settings.set('reaction_styles','text')")
-                js_stack.append(set_reaction_data_string("["+str({reac_id: self.appdata.format_flux_value(val[0])+
-                                        ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
-                js_stack.append("builder.settings._options.reaction_styles=style")
-        self.page().runJavaScript("{"+";".join(js_stack)+"}")
+                self.cnapy_bridge.visualizeCompValues.emit({reac_id: self.appdata.format_flux_value(val[0])+
+                        ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
+                        for reac_id, val in self.appdata.project.comp_values.items()}, True)
 
     def enable_editing(self, enable: bool):
-        enable_str = str(enable).lower()
-        not_enable_str = str(not enable).lower()
         if enable:
-            tooltip = "[]"
-            menu = "block"
             self.set_cobra_model()
-        else:
-            tooltip = "['object','label']"
-            menu = "none"
-        self.page().runJavaScript("builder.settings.set('enable_editing',"+enable_str+
-            ");builder.settings.set('enable_keys',"+enable_str+
-            ");builder.settings.set('enable_tooltips',"+tooltip+
-            ");document.getElementsByClassName('button-panel')[0].hidden="+not_enable_str+
-            ";document.getElementsByClassName('menu-bar')[0].style['display']='"+menu+"'")
+        self.cnapy_bridge.enableEditing.emit(enable)
         self.editing_enabled = enable
 
     def update(self):
         if self.initialized:
             if self.editing_enabled:
-                self.set_cobra_model()
+                self.set_cobra_model() # TODO: is this still required?
             # currently need to handle the checkbox myself
             self.central_widget.parent.escher_edit_mode_action.setChecked(self.editing_enabled)
             self.visualize_comp_values()
@@ -213,6 +184,10 @@ class CnapyBridge(QObject):
     addMapToJumpListIfReactionPresent = Signal(str, str)
     hideSearchBar = Signal()
     displaySearchBarFor = Signal(str)
+    setCobraModel = Signal(str) # cannot get passing the model dictionary as QVariantMap to work
+    enableEditing = Signal(bool)
+    visualizeCompValues = Signal('QVariantMap', bool)
+    clearReactionData = Signal()
 
     def __init__(self, escher_map: EscherMapView, central_widget):
         QObject.__init__(self)
@@ -255,10 +230,6 @@ class CnapyBridge(QObject):
             self.switchToReactionMask.emit(identifier)
         elif id_type == "metabolite" and identifier in self.appdata.project.cobra_py_model.metabolites:
             self.jumpToMetabolite.emit(identifier)
-
-    @Slot()
-    def begin_setup(self):
-        self.escher_map.initial_setup()
 
     @Slot()
     def finish_setup(self):
