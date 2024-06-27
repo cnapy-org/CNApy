@@ -16,7 +16,7 @@ import cobra
 from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from qtpy.QtCore import Qt, Signal, QObject
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QMessageBox
 
 # from straindesign.parse_constr import linexprdict2str # indirectly leads to a JVM restart exception?!?
@@ -41,8 +41,10 @@ class AppData(QObject):
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_warn = QColor(255, 200, 0)
         self.scen_color_bad = Qt.red
-
-        self.font_size = 9
+        
+        font = QFont()
+        font.setFamily(font.defaultFamily())
+        self.font_size = font.pointSize()
         self.box_width = 80
         self.box_height = 40
         self.comp_color = QColor(0, 170, 255)
