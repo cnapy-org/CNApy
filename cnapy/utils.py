@@ -139,8 +139,8 @@ class QComplReceivLineEdit(QLineEdit):
         self.setObjectName("EditField")
         self.check = check
         self.is_constr = is_constr
+        self.is_valid = not reject_empty_string
         self.reject_empty_string = reject_empty_string
-        self.is_valid = None
 
     def set_wordlist(self, wordlist, replace_completer_model=True):
         self.wordlist = wordlist
@@ -157,6 +157,7 @@ class QComplReceivLineEdit(QLineEdit):
         if prefix != '':
             self.completer.setCompletionPrefix(prefix)
             self.completer.complete()
+        self.setModified(True) # not sure why this is not already implicitly set to True
         self.check_text(False)
 
     def complete_text(self, text):
