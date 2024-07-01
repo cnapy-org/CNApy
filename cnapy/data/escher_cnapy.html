@@ -104,7 +104,6 @@
       position: 'absolute',
       top: '2px',
       right: '2px',
-      color: 'red',
       fontSize: '10px'
     };
 
@@ -137,7 +136,7 @@
  
           if (this.props.type === 'reaction') {
           tip.children.push(h('button', {style: buttonStyle, 'aria-label': 'Close',
-            'title': 'Remove from map', onClick: (event) => {deleteReaction(this.props.biggId)}}, '✖'))
+            'title': 'Delete reaction from map', onClick: (event) => {deleteReaction(this.props.biggId)}}, '🗑️'))
           tip.children.push(h('input', {type: 'text',
             id: 'reaction-box-input',
             style: 'color: black',
@@ -198,12 +197,13 @@
         var reaction_ids = []
         for (i=0; i<records.length; i++) {
           var record = records[i];
-          if (record.type == "reaction")
+          if (record.type == "reaction") {
             var reaction = builder.map.reactions[record.reaction_id]
             if (reaction.bigg_id == oldReacId) {
               reaction.bigg_id = newReacId
               builder.map.search_index.index["r"+record.reaction_id].name = newReacId
               reaction_ids.push(record.reaction_id)
+            }
           }
         }
         builder.map.draw_these_reactions(reaction_ids)
@@ -214,12 +214,13 @@
         var node_ids = []
         for (i=0; i<records.length; i++) {
           var record = records[i];
-          if (record.type == "metabolite")
+          if (record.type == "metabolite") {
             var node = builder.map.nodes[record.node_id]
             if (node.bigg_id == oldMetId) {
               node.bigg_id = newMetId
               builder.map.search_index.index["n"+record.node_id].name = newMetId
               node_ids.push(record.node_id)
+            }
           }
         }
         builder.map.draw_these_nodes(node_ids)
