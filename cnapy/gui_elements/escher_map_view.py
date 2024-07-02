@@ -2,31 +2,31 @@ from pkg_resources import resource_filename
 import os
 from math import isclose
 from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
-from qtpy.QtWidgets import QFileDialog
+from qtpy.QtWidgets import QFileDialog, QMessageBox
 from qtpy.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
 from qtpy.QtWebChannel import QWebChannel
 import cobra
 from cnapy.appdata import AppData
 from cnapy.gui_elements.map_view import validate_value
 
-# couldn't figure out how to use a static method as slot
-@Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
-def save_from_escher(download):
-    file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
-    (_, ext) = os.path.splitext(file_name)
-    file_name = QFileDialog.getSaveFileName(directory=EscherMapView.download_directory, filter="*"+ext)[0]
-    if file_name is None or len(file_name) == 0:
-        download.cancel()
-    else:
-        if not file_name.endswith(ext):
-            file_name += ext
-        EscherMapView.download_directory = os.path.dirname(file_name)
-        download.setPath(file_name)
-        download.accept()
-
 class EscherMapView(QWebEngineView):
     web_engine_profile: QWebEngineProfile = None #QWebEngineProfile()
     download_directory: str = ""
+
+    @staticmethod
+    @Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
+    def save_from_escher(download):
+        file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
+        (_, ext) = os.path.splitext(file_name)
+        file_name = QFileDialog.getSaveFileName(directory=EscherMapView.download_directory, filter="*"+ext)[0]
+        if file_name is None or len(file_name) == 0:
+            download.cancel()
+        else:
+            if not file_name.endswith(ext):
+                file_name += ext
+            EscherMapView.download_directory = os.path.dirname(file_name)
+            download.setPath(file_name)
+            download.accept()
 
     def __init__(self, central_widget, name: str):
         QWebEngineView.__init__(self)
@@ -34,7 +34,7 @@ class EscherMapView(QWebEngineView):
         if EscherMapView.web_engine_profile is None:
             EscherMapView.web_engine_profile = QWebEngineProfile()
             EscherMapView.download_directory = self.appdata.work_directory
-            EscherMapView.web_engine_profile.downloadRequested.connect(save_from_escher)
+            EscherMapView.web_engine_profile.downloadRequested.connect(EscherMapView.save_from_escher)
         page = QWebEnginePage(EscherMapView.web_engine_profile, self)
         self.setPage(page)
         self.setContextMenuPolicy(Qt.NoContextMenu)
@@ -47,17 +47,6 @@ class EscherMapView(QWebEngineView):
         self.load(QUrl.fromLocalFile(resource_filename("cnapy", r"data/escher_cnapy.html")))
         self.name: str = name # map name for self.appdata.project.maps
         self.editing_enabled = False
-
-    @Slot()
-    def initial_setup(self):
-        self.enable_editing(not self.set_map_data())
-        self.set_geometry()
-        self.show()
-        # set up the Escher search bar, its visibilty will be controlled by CNApy
-        self.page().runJavaScript(r"builder.passPropsSearchBar({display:true})",
-            lambda x: self.page().runJavaScript(
-                r"var search_container=document.getElementsByClassName('search-container')[0];var search_field=document.getElementsByClassName('search-field')[0];search_container.style.display='none';document.getElementsByClassName('search-bar-button')[2].hidden=true"))
-        # self.focusProxy().installEventFilter(self) # can be used for event tracking
 
     def finish_setup(self):
         print("finish_setup")
@@ -81,48 +70,30 @@ class EscherMapView(QWebEngineView):
         +","+self.appdata.project.maps[self.name]["pos"]+")")
 
     def set_cobra_model(self):
-        self.page().runJavaScript("builder.load_model("+cobra.io.to_json(self.appdata.project.cobra_py_model)+")")
+        self.cnapy_bridge.setCobraModel.emit(cobra.io.to_json(self.appdata.project.cobra_py_model))
 
     def visualize_comp_values(self):
-        js_stack = []
-        def set_reaction_data_string(reaction_data):
-            return "builder.set_reaction_data("+reaction_data+")"
         if len(self.appdata.project.comp_values) == 0:
-            js_stack.append(set_reaction_data_string("null"))
+            self.cnapy_bridge.clearReactionData.emit()
         else:
             if self.appdata.project.comp_values_type == 0:
-                 js_stack.append(set_reaction_data_string("["+str({reac_id: val[0]
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
+                self.cnapy_bridge.visualizeCompValues.emit(
+                    {reac_id: val[0] for reac_id, val in self.appdata.project.comp_values.items()}, False)
             else: # FVA result, display flux range as text only
-                js_stack.append("let style=builder.map.settings.get('reaction_styles')")
-                js_stack.append("builder.map.settings.set('reaction_styles','text')")
-                js_stack.append(set_reaction_data_string("["+str({reac_id: self.appdata.format_flux_value(val[0])+
-                                        ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
-                                         for reac_id, val in self.appdata.project.comp_values.items()})+"]"))
-                js_stack.append("builder.settings._options.reaction_styles=style")
-        self.page().runJavaScript("{"+";".join(js_stack)+"}")
+                self.cnapy_bridge.visualizeCompValues.emit({reac_id: self.appdata.format_flux_value(val[0])+
+                        ("" if isclose(val[0], val[1], abs_tol=self.appdata.abs_tol) else ", "+self.appdata.format_flux_value(val[1]))
+                        for reac_id, val in self.appdata.project.comp_values.items()}, True)
 
     def enable_editing(self, enable: bool):
-        enable_str = str(enable).lower()
-        not_enable_str = str(not enable).lower()
         if enable:
-            tooltip = "[]"
-            menu = "block"
             self.set_cobra_model()
-        else:
-            tooltip = "['object','label']"
-            menu = "none"
-        self.page().runJavaScript("builder.settings.set('enable_editing',"+enable_str+
-            ");builder.settings.set('enable_keys',"+enable_str+
-            ");builder.settings.set('enable_tooltips',"+tooltip+
-            ");document.getElementsByClassName('button-panel')[0].hidden="+not_enable_str+
-            ";document.getElementsByClassName('menu-bar')[0].style['display']='"+menu+"'")
+        self.cnapy_bridge.enableEditing.emit(enable)
         self.editing_enabled = enable
 
     def update(self):
         if self.initialized:
             if self.editing_enabled:
-                self.set_cobra_model()
+                self.set_cobra_model() # TODO: is this still required?
             # currently need to handle the checkbox myself
             self.central_widget.parent.escher_edit_mode_action.setChecked(self.editing_enabled)
             self.visualize_comp_values()
@@ -134,11 +105,11 @@ class EscherMapView(QWebEngineView):
 
     @Slot()
     def zoom_in(self):
-        self.page().runJavaScript("builder.zoom_container.zoom_in()")
+        self.cnapy_bridge.zoomIn.emit()
 
     @Slot()
     def zoom_out(self):
-        self.page().runJavaScript("builder.zoom_container.zoom_out()")
+        self.cnapy_bridge.zoomOut.emit()
 
     # should this be regularily called when the map is editable?
     def retrieve_map_data(self, semaphore = None): # semaphore is a list with one integer to emulate call by reference
@@ -164,18 +135,31 @@ class EscherMapView(QWebEngineView):
 
     def highlight_reaction(self, reac_id: str):
         # highlights and focuses on the first reatcion with reac_id
-        self.page().runJavaScript("highlightAndFocusReaction('"+reac_id+"')")
+        self.cnapy_bridge.highlightAndFocusReaction.emit(reac_id)
 
     def select_single_reaction(self, reac_id: str):
         # highlight all reactions with this reac_id
-        self.page().runJavaScript("highlightReaction('"+reac_id+"')")
+        self.cnapy_bridge.highlightReaction.emit(reac_id)
+
+    def change_reaction_id(self, old_reac_id: str, new_reac_id: str):
+        self.cnapy_bridge.changeReactionId.emit(old_reac_id, new_reac_id)
+
+    def change_metabolite_id(self, old_met_id: str, new_met_id: str):
+        self.cnapy_bridge.changeMetId.emit(old_met_id, new_met_id)
+
+    def delete_reaction(self, reac_id: str):
+        self.cnapy_bridge.deleteReaction.emit(reac_id)
+
+    def update_reaction_stoichiometry(self, reac_id: str):
+        reaction: cobra.Reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(reac_id)
+        self.cnapy_bridge.updateReactionStoichiometry.emit(reac_id,
+                {m.id: round(c, 4) for m,c in reaction.metabolites.items()}, reaction.reversibility)
 
     def update_selected(self, find):
         if len(find) == 0:
-            self.page().runJavaScript("search_container.style.display='none'")
+            self.cnapy_bridge.hideSearchBar.emit()
         else:
-            self.page().runJavaScript("search_container.style.display='';search_field.value='"+find+
-                                      "';search_field.dispatchEvent(new Event('input'))")
+            self.cnapy_bridge.displaySearchBarFor.emit(find)
 
     def dragEnterEvent(self, event):
         event.ignore()
@@ -186,9 +170,24 @@ class EscherMapView(QWebEngineView):
 
 
 class CnapyBridge(QObject):
+    zoomIn = Signal()
+    zoomOut = Signal()
     reactionValueChanged = Signal(str, str)
     switchToReactionMask = Signal(str)
+    highlightAndFocusReaction = Signal(str)
+    highlightReaction = Signal(str)
+    deleteReaction = Signal(str)
     jumpToMetabolite = Signal(str)
+    changeReactionId = Signal(str, str)
+    changeMetId = Signal(str, str)
+    updateReactionStoichiometry = Signal(str, 'QVariantMap', bool) # QVariantMap encapsulates a dict
+    addMapToJumpListIfReactionPresent = Signal(str, str)
+    hideSearchBar = Signal()
+    displaySearchBarFor = Signal(str)
+    setCobraModel = Signal(str) # cannot get passing the model dictionary as QVariantMap to work
+    enableEditing = Signal(bool)
+    visualizeCompValues = Signal('QVariantMap', bool)
+    clearReactionData = Signal()
 
     def __init__(self, escher_map: EscherMapView, central_widget):
         QObject.__init__(self)
@@ -199,27 +198,38 @@ class CnapyBridge(QObject):
 
     @Slot(str, str, bool)
     def value_changed(self, reac_id: str, value: str, accept_if_valid: bool):
-        if validate_value(value):
-            self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: black")')
-            if accept_if_valid and self.last_accepted_value != value: # avoid redundant calls
-                self.last_accepted_value = value
-                self.reactionValueChanged.emit(reac_id, value)
-                if self.appdata.auto_fba:
-                    self.central_widget.parent.fba()
+        if reac_id in self.appdata.project.cobra_py_model.reactions:
+            if validate_value(value):
+                self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: black")')
+                if accept_if_valid and self.last_accepted_value != value: # avoid redundant calls
+                    self.last_accepted_value = value
+                    self.reactionValueChanged.emit(reac_id, value)
+                    if self.appdata.auto_fba:
+                        self.central_widget.parent.fba()
+            else:
+                self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: red")')
         else:
-            self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: red")')
+            if value in self.appdata.project.cobra_py_model.reactions:
+                self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: black")')
+                if accept_if_valid and self.last_accepted_value != value: # avoid redundant calls
+                    self.last_accepted_value = value
+                    ret = QMessageBox.question(self.escher_map, f"Change reaction ID on map to {value}?",
+                            "This is only useful if this is the same reaction as in the model but with a different ID on the map because the metabolites displayed on the map will not change!",
+                            QMessageBox.Ok | QMessageBox.Cancel)
+                    if ret == QMessageBox.Ok:
+                        self.escher_map.change_reaction_id(reac_id, value)
+                        self.escher_map.update_reaction_stoichiometry(value)
+                        self.central_widget.unsaved_changes()
+            else:
+                self.escher_map.page().runJavaScript('document.getElementById("reaction-box-input").setAttribute("style", "color: red")')
+
 
     @Slot(str, str)
     def clicked_on_id(self, id_type: str, identifier: str):
-        # needed because the Javascript side apparently cannot emit signals
         if id_type == "reaction" and identifier in self.appdata.project.cobra_py_model.reactions:
             self.switchToReactionMask.emit(identifier)
         elif id_type == "metabolite" and identifier in self.appdata.project.cobra_py_model.metabolites:
             self.jumpToMetabolite.emit(identifier)
-
-    @Slot()
-    def begin_setup(self):
-        self.escher_map.initial_setup()
 
     @Slot()
     def finish_setup(self):
@@ -236,13 +246,23 @@ class CnapyBridge(QObject):
             self.last_accepted_value = attr_val
         else:
             if reac_id in self.appdata.project.cobra_py_model.reactions:
+                self.escher_map.page().runJavaScript(
+                    "document.getElementById('reaction-box-input').placeholder='enter scenario value'")
                 attr_val = "value=''" # to clear the input field
                 self.last_accepted_value = attr_val
             else:
-                attr_val = "remove()" # hidden=true or remove()?
+                attr_val = "placeholder='map to reaction ID...'"
         self.escher_map.page().runJavaScript("document.getElementById('reaction-box-input')."+attr_val)
 
     @Slot(result=list)
     def get_map_and_geometry(self) -> list: # list of strings
         return [self.appdata.project.maps[self.escher_map.name].get('escher_map_data', ""),
                 self.appdata.project.maps[self.escher_map.name]["zoom"], self.appdata.project.maps[self.escher_map.name]["pos"]]
+
+    @Slot(str)
+    def add_map_to_jump_list(self, map_name: str):
+        self.central_widget.reaction_list.reaction_mask.jump_list.add(map_name)
+
+    @Slot()
+    def unsaved_changes(self):
+        self.appdata.window.unsaved_changes()

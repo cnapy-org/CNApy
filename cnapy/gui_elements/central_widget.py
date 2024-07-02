@@ -179,13 +179,16 @@ class CentralWidget(QWidget):
     def handle_changed_reaction(self, previous_id: str, reaction: cobra.Reaction):
         self.parent.unsaved_changes()
         reaction_has_box = False
+        escher_map_present = False
         for mmap in self.appdata.project.maps:
             if previous_id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     previous_id)
                 reaction_has_box = True
-        if reaction_has_box:
-            self.update_reaction_on_maps(previous_id, reaction.id)
+            if self.appdata.project.maps[mmap]["view"] == "escher":
+                escher_map_present = True
+        if reaction_has_box or escher_map_present:
+            self.update_reaction_on_maps(previous_id, reaction.id, reaction_has_box, escher_map_present)
         self.update_item_in_history(previous_id, reaction.id, reaction.name, ModelItemType.Reaction)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
@@ -207,8 +210,12 @@ class CentralWidget(QWidget):
     @Slot(cobra.Metabolite, object, str)
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions, previous_id: str):
         self.parent.unsaved_changes()
-        for reaction in affected_reactions:
+        for reaction in affected_reactions: # only updates CNApy maps
             self.update_reaction_on_maps(reaction.id, reaction.id)
+        for idx in range(0, self.map_tabs.count()):
+            m = self.map_tabs.widget(idx)
+            if isinstance(m, EscherMapView):
+                m.change_metabolite_id(previous_id, metabolite.id)
         self.update_item_in_history(previous_id, metabolite.id, metabolite.name, ModelItemType.Metabolite)
 
     def handle_changed_gene(self, previous_id: str, gene: cobra.Gene):
@@ -546,18 +553,25 @@ class CentralWidget(QWidget):
             m.update()
         self.__recolor_map()
 
-    def update_reaction_on_maps(self, old_reaction_id: str, new_reaction_id: str):
+    def update_reaction_on_maps(self, old_reaction_id: str, new_reaction_id: str,
+                                update_cnapy_maps:bool=True, update_escher_maps:bool=False):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            if isinstance(m, MapView): # TODO: what should be done on Escher maps?
+            if update_cnapy_maps and isinstance(m, MapView):
                 m.update_reaction(old_reaction_id, new_reaction_id)
+            elif update_escher_maps and isinstance(m, EscherMapView):
+                if old_reaction_id != new_reaction_id:
+                    m.change_reaction_id(old_reaction_id, new_reaction_id)
+                else:
+                    m.update_reaction_stoichiometry(old_reaction_id)
 
     def delete_reaction_on_maps(self, reation_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
             if isinstance(m, MapView):
                 m.delete_box(reation_id)
-            #TODO: find out if a reaction can be programatically removed from Escher
+            else:
+                m.delete_reaction(reation_id)
 
     def update_maps(self):
         for idx in range(0, self.map_tabs.count()):
