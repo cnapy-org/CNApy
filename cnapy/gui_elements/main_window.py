@@ -376,24 +376,24 @@ class MainWindow(QMainWindow):
         load_modes_action.triggered.connect(self.load_modes)
 
         self.sd_menu = self.analysis_menu.addMenu("Computational Strain Design")
-        self.sd_action = QAction("Compute Minimal Cut Sets...", self)
-        self.sd_action.triggered.connect(self.mcs)
-        self.sd_menu.addAction(self.sd_action)
-        self.mcs_dialog = None
-
-        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
-        self.sd_menu.addAction(load_mcs_action)
-        load_mcs_action.triggered.connect(self.load_mcs)
-
-        self.sd_action = QAction("Compute Strain Designs...", self)
-        self.sd_action.triggered.connect(self.strain_design)
-        self.sd_menu.addAction(self.sd_action)
+        sd_action = QAction("Compute Strain Designs...", self)
+        sd_action.triggered.connect(self.strain_design)
+        self.sd_menu.addAction(sd_action)
         self.sd_dialog = None
         self.sd_sols = None
 
         load_sd_action = QAction("Load Strain Designs...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
+
+        sd_action = QAction("Compute Minimal Cut Sets (legacy)...", self)
+        sd_action.triggered.connect(self.mcs)
+        self.sd_menu.addAction(sd_action)
+        self.mcs_dialog = None
+
+        load_mcs_action = QAction("Load Minimal Cut Sets (legacy)...", self)
+        self.sd_menu.addAction(load_mcs_action)
+        load_mcs_action.triggered.connect(self.load_mcs)
 
         self.flux_optimization_action = QAction(
             "Flux optimization...", self)
@@ -747,7 +747,7 @@ class MainWindow(QMainWindow):
         self.show_strain_designs(solutions_with_setup, with_setup=True)
 
     @Slot(bytes)
-    def show_strain_designs(self,solutions, with_setup=False):
+    def show_strain_designs(self, solutions, with_setup=False):
         self.sd_sols = SDViewer(self.appdata, solutions, with_setup)
         self.sd_sols.show()
         self.centralWidget().update_mode()
@@ -785,6 +785,9 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+        if self.sd_dialog is not None:
+            dialog.optlang_solver_set.connect(self.sd_dialog.set_optlang_solver_text)
+            dialog.optlang_solver_set.connect(self.sd_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -1362,9 +1365,8 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        if self.sd_dialog:
-            if self.sd_dialog.__weakref__:
-                del self.sd_dialog
+        if self.sd_dialog is not None:
+            self.sd_dialog.close()
             self.sd_dialog = None
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
