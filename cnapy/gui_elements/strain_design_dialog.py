@@ -1353,14 +1353,14 @@ class SDDialog(QDialog):
         if self.solver_buttons['OPTLANG'].isChecked():
             if len(bilvl_modules) > 0:
                 QMessageBox.information(self, "Bilevel modules not supported",
-                                        "Mmodule types 'OptKnock', " +\
+                                        "Module types 'OptKnock', " +\
                                         "'RobustKnock' and 'OptCouple' are not supported " +\
-                                        "by optlang_enumerator.")
+                                        "by optlang_enumerator.\nChoose one of the StrainDesign solvers instead.")
                 return
             if sd_setup['gene_kos']:
                 QMessageBox.information(self, "Gene knock-outs not supported",
                                         "optlang_enumerator only calculates reaction " +\
-                                        "knock-outs.")
+                                        "knock-outs.\nChoose one of the StrainDesign solvers instead.")
                 return
             if len(sd_setup.get(REGCOST, [])) > 0:
                 if QMessageBox.information(self, "Regulatory interventions not supported",
