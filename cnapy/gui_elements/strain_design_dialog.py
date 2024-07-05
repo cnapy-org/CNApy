@@ -64,7 +64,7 @@ class SDDialog(QDialog):
         # self.setMaximumWidth(screen_geometry.width()-10)
         # self.setMaximumHeight(screen_geometry.height()-50)
 
-        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        self.reac_ids = appdata.window.centralWidget().scenario_tab.reaction_ids.id_list
 
         self.reac_wordlist = self.reac_ids
 
