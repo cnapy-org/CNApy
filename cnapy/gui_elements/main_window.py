@@ -688,12 +688,12 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
-        self.sd_viewer = SDComputationViewer(self.appdata, sd_setup)
+        self.sd_viewer = SDComputationViewer(self, self.appdata, sd_setup)
         self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.QueuedConnection)
         # connect signals to update progress
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
-        self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.QueuedConnection)
+        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.QueuedConnection)
         self.sd_viewer.cancel_computation.connect(self.terminate_strain_design_computation)
         # show dialog and launch process
         # self.sd_viewer.exec()
@@ -887,6 +887,7 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
+        self.appdata.project.update_reaction_id_lists()
 
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
@@ -1368,6 +1369,9 @@ class MainWindow(QMainWindow):
         if self.sd_dialog is not None:
             self.sd_dialog.close()
             self.sd_dialog = None
+        if self.sd_sols is not None:
+            self.sd_sols.close()
+            self.sd_sols = None
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
@@ -1678,7 +1682,6 @@ class MainWindow(QMainWindow):
             self.make_scenario_feasible_dialog = FluxFeasibilityDialog(self)
         else:
             self.make_scenario_feasible_dialog.modified_scenario = None
-            self.make_scenario_feasible_dialog.bm_reac_id_select.set_wordlist(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
         self.make_scenario_feasible_dialog.show()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):

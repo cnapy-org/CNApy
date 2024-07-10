@@ -83,7 +83,7 @@ class FluxFeasibilityDialog(QDialog):
         hbox = QHBoxLayout()
         self.bm_label = QLabel("Biomass reaction: ")
         hbox.addWidget(self.bm_label)
-        self.bm_reac_id_select = QComplReceivLineEdit(self, self.appdata.project.cobra_py_model.reactions.list_attr("id"))
+        self.bm_reac_id_select = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.bm_reac_id_select.setPlaceholderText("Choose a biomass reaction")
         self.bm_reac_id_select.textCorrect.connect(self.verify_biomass_reaction)
         hbox.addWidget(self.bm_reac_id_select)

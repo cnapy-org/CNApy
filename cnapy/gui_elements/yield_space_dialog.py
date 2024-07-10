@@ -21,7 +21,7 @@ class YieldSpaceDialog(QDialog):
         self.appdata = appdata
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
-        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        self.reac_ids = self.appdata.project.reaction_ids.id_list
         if numr > 2:
             r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
             r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
@@ -43,9 +43,9 @@ class YieldSpaceDialog(QDialog):
         # Define for horizontal axis
         x_groupbox = QGroupBox('x-axis')
         x_num_den_layout = QVBoxLayout()
-        self.x_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.x_numerator.setPlaceholderText('numerator (e.g. 1.0 '+r1+')')
-        self.x_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         x_num_den_layout.addWidget(self.x_numerator)
         sep = QHSeperationLine()
@@ -58,9 +58,9 @@ class YieldSpaceDialog(QDialog):
         # Define for vertical axis
         y_groupbox = QGroupBox('y-axis')
         y_num_den_layout = QVBoxLayout()
-        self.y_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.y_numerator.setPlaceholderText('numerator (e.g. '+r3+')')
-        self.y_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.y_denominator.setPlaceholderText('denominator (e.g. '+r4+')')
         y_num_den_layout.addWidget(self.y_numerator)
         sep = QHSeperationLine()

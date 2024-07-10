@@ -185,10 +185,12 @@ class CentralWidget(QWidget):
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     previous_id)
                 reaction_has_box = True
-            if self.appdata.project.maps[mmap]["view"] == "escher":
+            if self.appdata.project.maps[mmap].get('view', '') == "escher":
                 escher_map_present = True
         if reaction_has_box or escher_map_present:
             self.update_reaction_on_maps(previous_id, reaction.id, reaction_has_box, escher_map_present)
+        if reaction.id != previous_id:
+            self.appdata.project.reaction_ids.replace_entry(previous_id, reaction.id)
         self.update_item_in_history(previous_id, reaction.id, reaction.name, ModelItemType.Reaction)
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
@@ -203,6 +205,7 @@ class CentralWidget(QWidget):
             if reaction.id in self.appdata.project.maps[mmap]["boxes"].keys():
                 self.appdata.project.maps[mmap]["boxes"].pop(reaction.id)
         self.delete_reaction_on_maps(reaction.id)
+        self.appdata.project.update_reaction_id_lists()
 
         if self.appdata.auto_fba:
             self.parent.fba()
