@@ -60,12 +60,11 @@ class SDDialog(QDialog):
         self.out = io.StringIO()
         self.err = io.StringIO()
         self.setMinimumWidth(620)
-        screen_geometry = QApplication.desktop().screen().geometry()
+        # screen_geometry = QApplication.desktop().screen().geometry()
         # self.setMaximumWidth(screen_geometry.width()-10)
         # self.setMaximumHeight(screen_geometry.height()-50)
 
         self.reac_ids = appdata.window.centralWidget().scenario_tab.reaction_ids.id_list
-
         self.reac_wordlist = self.reac_ids
 
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
@@ -167,7 +166,7 @@ class SDDialog(QDialog):
         # Outer objective
         self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[OUTER_OBJECTIVE].setHidden(True)
         self.module_edit[OUTER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -177,7 +176,7 @@ class SDDialog(QDialog):
         # Inner objective
         self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[INNER_OBJECTIVE].setHidden(True)
         self.module_edit[INNER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -189,7 +188,7 @@ class SDDialog(QDialog):
         optcouple_layout_prod = QVBoxLayout()
         self.module_edit[PROD_ID+"_label"]  = QLabel("Product synth. reac_id")
         self.module_edit[PROD_ID+"_label"].setHidden(True)
-        self.module_edit[PROD_ID] = QComplReceivLineEdit(self,self.reac_wordlist)
+        self.module_edit[PROD_ID] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.module_edit[PROD_ID].setPlaceholderText(placeholder_rid)
         self.module_edit[PROD_ID].setHidden(True)
         self.module_edit[PROD_ID].textCorrect.connect(self.update_global_objective)
@@ -719,7 +718,7 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        constr_entry = QComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
+        constr_entry = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True, is_constr=True)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -822,7 +821,7 @@ class SDDialog(QDialog):
             for i,c in enumerate(mod[CONSTRAINTS]):
                 text = lineqlist2str(c)
                 self.module_edit[CONSTRAINTS].insertRow(i)
-                constr_entry[i] = QComplReceivLineEdit(self,self.reac_wordlist,check=True,is_constr=True)
+                constr_entry[i] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True, is_constr=True)
                 constr_entry[i].setText(text+' ')
                 constr_entry[i].check_text(True)
                 constr_entry[i].setPlaceholderText(self.placeholder_eq)
@@ -1066,7 +1065,10 @@ class SDDialog(QDialog):
 
     def knock_changed(self,id,gene_or_reac):
         if gene_or_reac == 'reac':
-            genes = [g.id for g in self.appdata.project.cobra_py_model.reactions.get_by_id(id).genes]
+            if id in self.appdata.project.cobra_py_model.reactions:
+                genes = [g.id for g in self.appdata.project.cobra_py_model.reactions.get_by_id(id).genes]
+            else: # in case it is a scenario reaction
+                genes = []
             r = self.reaction_itv[id]
             checked = r['button_group'].checkedId()
             if checked in [1,3]:
@@ -1117,21 +1119,29 @@ class SDDialog(QDialog):
                         r['button_group'].button(3).setEnabled(True)
 
     def set_deactivate_ex(self):
-        ex_reacs = [r.id for r in self.appdata.project.cobra_py_model.reactions \
-                        if not r.products or not r.reactants]
-        for r in ex_reacs:
-            self.reaction_itv[r]['button_group'].button(2).setChecked(True)
-            self.knock_changed(r,'reac')
+        with self.appdata.project.cobra_py_model as model:
+            if self.use_scenario.isChecked():  # integrate scenario into model bounds
+                    self.appdata.project.load_scenario_into_model(model)
+            ex_reacs = [r.id for r in model.reactions if not r.products or not r.reactants]
+            for r in ex_reacs:
+                self.reaction_itv[r]['button_group'].button(2).setChecked(True)
+                self.knock_changed(r,'reac')
 
     def set_all_r_koable(self):
-        for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
-            self.reaction_itv[r]['button_group'].button(1).setChecked(True)
-            self.knock_changed(r,'reac')
+        with self.appdata.project.cobra_py_model as model:
+            if self.use_scenario.isChecked():  # integrate scenario into model bounds
+                    self.appdata.project.load_scenario_into_model(model)
+            for r in model.reactions.list_attr("id"):
+                self.reaction_itv[r]['button_group'].button(1).setChecked(True)
+                self.knock_changed(r,'reac')
 
     def set_none_r_koable(self):
-        for r in self.appdata.project.cobra_py_model.reactions.list_attr("id"):
-            self.reaction_itv[r]['button_group'].button(2).setChecked(True)
-            self.knock_changed(r,'reac')
+        with self.appdata.project.cobra_py_model as model:
+            if self.use_scenario.isChecked():  # integrate scenario into model bounds
+                    self.appdata.project.load_scenario_into_model(model)
+            for r in model.reactions.list_attr("id"):
+                self.reaction_itv[r]['button_group'].button(2).setChecked(True)
+                self.knock_changed(r,'reac')
 
     def set_all_g_koable(self):
         for r in self.appdata.project.cobra_py_model.genes.list_attr("id"):
@@ -1329,7 +1339,8 @@ class SDDialog(QDialog):
         self.compute_sd_button.setFocus()
 
     def compute(self):
-        self.setCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
         valid = self.module_apply()
         if not valid:
             return
@@ -1375,7 +1386,7 @@ class SDDialog(QDialog):
                                         QMessageBox.Ok | QMessageBox.Cancel) == QMessageBox.Cancel:
                     return
 
-            self.compute_optlang(sd_setup)
+            close_sd_dialog = self.compute_optlang(sd_setup)
         else:
             if len(bilvl_modules) > 1:
                 QMessageBox.information(self, "Conflicting Modules",
@@ -1386,13 +1397,15 @@ class SDDialog(QDialog):
                 self.module_edit()
                 return
             self.launch_computation_signal.emit(json.dumps(sd_setup))
+            close_sd_dialog = True
 
-        self.setCursor(Qt.ArrowCursor)
-        self.appdata.window.sd_dialog = None
-        self.deleteLater()
-        self.accept()
+        QApplication.restoreOverrideCursor()
+        if close_sd_dialog:
+            self.appdata.window.sd_dialog = None
+            self.deleteLater()
+            self.accept()
 
-    def compute_optlang(self, sd_setup):
+    def compute_optlang(self, sd_setup) -> bool:
         max_mcs_num = float(sd_setup[MAX_SOLUTIONS])
         max_mcs_size = int(sd_setup[MAX_COST])
         timeout = float(sd_setup[TIME_LIMIT])
@@ -1458,12 +1471,12 @@ class SDDialog(QDialog):
                                 targets=targets, desired=desired, enum_method=enum_method,
                                 max_mcs_size=max_mcs_size, max_mcs_num=max_mcs_num, timeout=timeout,
                                 cuts=cuts, knock_in_idx=knock_in_idx, intervention_costs=iv_costs,
-                                include_model_bounds=True,
+                                include_model_bounds=True, use_kn_in_dual=True,
                                 results_cache_dir=self.appdata.results_cache_dir
                                 if self.appdata.use_results_cache else None)
             except mcs_computation.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
-                return
+                return False
             except Exception:
                 exstr = get_last_exception_string()
                 if has_community_error_substring(exstr):
@@ -1471,20 +1484,22 @@ class SDDialog(QDialog):
                 else:
                     print(exstr)
                     show_unknown_error_box(exstr)
-                return
+                return False
 
             if err_val == 1:
                 QMessageBox.warning(self, "Enumeration stopped abnormally",
                                     "Result is probably incomplete.\nCheck console output for more information.")
+                return False
             elif err_val == -1:
                 QMessageBox.warning(self, "Enumeration terminated permaturely",
                                     "Aborted due to excessive generation of candidates that are not cut sets.\n"
                                     "Modify the problem or try a different enumeration setup.")
+                return False
 
             if len(mcs) == 0:
                 QMessageBox.information(self, 'No cut sets',
                                             'Cut sets have not been calculated or do not exist.')
-                return
+                return False
 
             for i in range(len(mcs)):
                 mcs_dict = {}
@@ -1503,6 +1518,7 @@ class SDDialog(QDialog):
                 mcs[i] = mcs_dict
             solutions = SDSolutions(model, mcs, '', sd_setup)
             self.appdata.window.show_strain_designs(solutions)
+            return True
 
     def cancel(self):
         self.appdata.window.sd_dialog = None
@@ -1513,8 +1529,8 @@ class SDDialog(QDialog):
 
 class SDComputationViewer(QDialog):
     """A dialog that shows the status of an ongoing strain design computation"""
-    def __init__(self, appdata: AppData, sd_setup):
-        super().__init__()
+    def __init__(self, parent, appdata: AppData, sd_setup):
+        super().__init__(parent)
 
         self.sd_setup = sd_setup
         self.solutions = None
@@ -1655,6 +1671,8 @@ class SDViewer(QDialog):
                 self.close()
                 return
         self.setWindowTitle("Strain Design Solutions")
+        self.setWindowModality(Qt.NonModal)
+        self.setWindowFlags((self.windowFlags() | Qt.Window) & ~Qt.WindowStaysOnTopHint)
         self.setMinimumWidth(620)
         self.appdata = appdata
         appdata.project.sd_solutions = self.solutions
@@ -1679,13 +1697,13 @@ class SDViewer(QDialog):
         self.edit = QPushButton("Discard solutions and edit setup")
         self.edit.clicked.connect(self.open_strain_design_dialog)
         self.edit.setMaximumWidth(200)
-        self.close = QPushButton("Close")
-        self.close.clicked.connect(self.closediag)
-        self.close.setMaximumWidth(75)
+        self.close_button = QPushButton("Close")
+        self.close_button.clicked.connect(self.closediag)
+        self.close_button.setMaximumWidth(75)
         buttons_layout.addWidget(self.savesds)
         buttons_layout.addWidget(self.savetsv)
         buttons_layout.addWidget(self.edit)
-        buttons_layout.addWidget(self.close)
+        buttons_layout.addWidget(self.close_button)
         self.layout.addItem(buttons_layout)
 
         if self.solutions.is_gene_sd:
@@ -1787,6 +1805,7 @@ class SDViewer(QDialog):
         self.appdata.window.centralWidget().update_mode()
 
     def closediag(self):
+        self.appdata.window.centralWidget().sd_sols = None
         self.deleteLater()
         self.reject()
 
@@ -1821,5 +1840,6 @@ class SDViewer(QDialog):
     @Slot()
     def open_strain_design_dialog(self):
         self.appdata.window.strain_design_with_setup(json.dumps(self.sd_setup))
+        self.appdata.window.centralWidget().sd_sols = None
         self.deleteLater()
         self.accept()
