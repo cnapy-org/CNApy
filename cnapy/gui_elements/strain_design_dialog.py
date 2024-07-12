@@ -64,7 +64,7 @@ class SDDialog(QDialog):
         # self.setMaximumWidth(screen_geometry.width()-10)
         # self.setMaximumHeight(screen_geometry.height()-50)
 
-        self.reac_ids = appdata.window.centralWidget().scenario_tab.reaction_ids.id_list
+        self.reac_ids = appdata.project.reaction_ids.id_list
         self.reac_wordlist = self.reac_ids
 
         if not hasattr(self.appdata.project.cobra_py_model,'genes') or \
@@ -1805,7 +1805,7 @@ class SDViewer(QDialog):
         self.appdata.window.centralWidget().update_mode()
 
     def closediag(self):
-        self.appdata.window.centralWidget().sd_sols = None
+        self.appdata.window.sd_sols = None
         self.deleteLater()
         self.reject()
 
@@ -1840,6 +1840,6 @@ class SDViewer(QDialog):
     @Slot()
     def open_strain_design_dialog(self):
         self.appdata.window.strain_design_with_setup(json.dumps(self.sd_setup))
-        self.appdata.window.centralWidget().sd_sols = None
+        self.appdata.window.sd_sols = None
         self.deleteLater()
         self.accept()
