@@ -20,8 +20,8 @@ dependencies:
   - qtconsole=5.4
   - requests=2.28
   - psutil=5.9
-  - efmtool_link>=0.0.5
-  - optlang_enumerator>=0.0.10
+  - efmtool_link>=0.0.6
+  - optlang_enumerator>=0.0.11
   - straindesign>=1.11
   - nest-asyncio
   - gurobi
