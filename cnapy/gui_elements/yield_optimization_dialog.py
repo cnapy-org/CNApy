@@ -23,7 +23,7 @@ class YieldOptimizationDialog(QDialog):
         self.central_widget = central_widget
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
-        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        self.reac_ids = self.appdata.project.reaction_ids.id_list
         if numr > 2:
             r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
             r2 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
@@ -49,9 +49,9 @@ class YieldOptimizationDialog(QDialog):
         open_bracket.setFont(font)
         editor_layout.addWidget(open_bracket)
         num_den_layout = QVBoxLayout()
-        self.numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.numerator.setPlaceholderText('numerator (e.g. 1.0 '+r1+')')
-        self.denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         num_den_layout.addWidget(self.numerator)
         sep = QHSeperationLine()

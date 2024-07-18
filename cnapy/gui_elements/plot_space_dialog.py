@@ -1,11 +1,11 @@
 """The flux space plot dialog"""
 
 from random import randint
-from qtpy.QtCore import Qt, Signal, Slot, QTimer
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QMessageBox, QGroupBox, QComboBox, QLayout,
-                            QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit, QSizePolicy)
+                            QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit)
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
-from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers, plot_flux_space
+from straindesign import plot_flux_space
 from straindesign.names import *
 
 class PlotSpaceDialog(QDialog):
@@ -19,7 +19,6 @@ class PlotSpaceDialog(QDialog):
         self.appdata = appdata
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
-        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         self.r = ["" for _ in range(6)]
         if numr > 5:
             self.r = [self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id for _ in self.r]
@@ -59,9 +58,9 @@ class PlotSpaceDialog(QDialog):
         self.x_combobox.insertItem(1,'yield')
         self.x_combobox.currentTextChanged.connect(self.x_combo_changed)
         x_num_den_layout.addWidget(self.x_combobox)
-        self.x_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.x_numerator.setPlaceholderText('flux rate or expression (e.g. 1.0 '+self.r[0]+')')
-        self.x_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.x_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+self.r[1]+')')
         x_num_den_layout.addWidget(self.x_numerator)
         self.x_denominator.setHidden(True)
@@ -83,9 +82,9 @@ class PlotSpaceDialog(QDialog):
         self.y_combobox.insertItem(1,'yield')
         self.y_combobox.currentTextChanged.connect(self.y_combo_changed)
         y_num_den_layout.addWidget(self.y_combobox)
-        self.y_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.y_numerator.setPlaceholderText('flux rate or expression (e.g. '+self.r[2]+')')
-        self.y_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.y_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.y_denominator.setPlaceholderText('denominator (e.g. '+self.r[3]+')')
         y_num_den_layout.addWidget(self.y_numerator)
         self.y_denominator.setHidden(True)
@@ -107,9 +106,9 @@ class PlotSpaceDialog(QDialog):
         self.z_combobox.insertItem(1,'yield')
         self.z_combobox.currentTextChanged.connect(self.z_combo_changed)
         z_num_den_layout.addWidget(self.z_combobox)
-        self.z_numerator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.z_numerator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.z_numerator.setPlaceholderText('flux rate or expression (e.g. '+self.r[4]+')')
-        self.z_denominator = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.z_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.z_denominator.setPlaceholderText('denominator (e.g. '+self.r[5]+')')
         z_num_den_layout.addWidget(self.z_numerator)
         self.z_denominator.setHidden(True)

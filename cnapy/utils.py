@@ -2,6 +2,7 @@
 from qtpy.QtCore import QObject, Qt, Signal, Slot, QTimer, QStringListModel
 from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, \
     QCompleter, QApplication, QFrame, QSizePolicy
+from cnapy.appdata import IDList
 from straindesign import lineq2list, linexpr2dict, linexprdict2str
 import fnmatch
 import re
@@ -131,7 +132,10 @@ class QComplReceivLineEdit(QLineEdit):
         super().__init__("", parent)
         self.completer: QCompleter = QCompleter()
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
-        if len(wordlist) > 0:
+        if isinstance(wordlist, IDList):
+            self.wordlist: list = wordlist.id_list
+            self.completer.setModel(wordlist.ids_model)
+        else:
             self.set_wordlist(wordlist)
         self.completer.setWidget(self)
         self.textChanged.connect(self.text_changed)
@@ -142,13 +146,9 @@ class QComplReceivLineEdit(QLineEdit):
         self.is_valid = not reject_empty_string
         self.reject_empty_string = reject_empty_string
 
-    def set_wordlist(self, wordlist, replace_completer_model=True):
-        self.wordlist = wordlist
-        if replace_completer_model:
-            self.completer.setModel(QStringListModel(self.wordlist))
-
-    def set_completer_model(self, wordlist: QStringListModel):
-        self.completer.setModel(wordlist)
+    def set_wordlist(self, wordlist: list):
+        self.wordlist: list = wordlist
+        self.completer.setModel(QStringListModel(self.wordlist))
 
     def text_changed(self, text):
         all_text = text

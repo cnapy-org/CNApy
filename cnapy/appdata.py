@@ -15,7 +15,7 @@ from enum import IntEnum
 import cobra
 from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
-from qtpy.QtCore import Qt, Signal, QObject
+from qtpy.QtCore import Qt, Signal, QObject, QStringListModel
 from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QMessageBox
 
@@ -358,6 +358,39 @@ class Scenario(Dict[str, Tuple[float, float]]):
         super().clear()
         self.__init__()
 
+class IDList(object):
+    """
+    provides a list of identifiers (id_list) and a corresponding QStringListModel (ids_model)
+    the identifiers can be set with the set_ids method
+    the implementation guarantees that id() of the properties id_list and ids_model
+    is constant so that they can be used like const references
+    """
+    def __init__(self):
+        self._id_list: list = []
+        self._ids_model: QStringListModel = QStringListModel()
+
+    def set_ids(self, *id_lists: List[str]):
+        self._id_list.clear()
+        for id_list in id_lists:
+            self._id_list[len(self._id_list):] = id_list
+        self._ids_model.setStringList(self._id_list)
+
+    @property # getter only
+    def id_list(self) -> List[str]:
+        return self._id_list
+
+    @property # getter only
+    def ids_model(self) -> QStringListModel:
+        return self._ids_model
+
+    def replace_entry(self, old: str, new: str):
+        idx = self._id_list.index(old)
+        self._id_list[idx] = new
+        self._ids_model.setData(self._ids_model.index(idx), new)
+
+    def __len__(self) -> int:
+        return len(self._id_list)
+
 class ProjectData:
     ''' The cnapy project data '''
 
@@ -389,6 +422,7 @@ class ProjectData:
             msgBox.exec()
 
         self.cobra_py_model = CNApyModel()
+        self.reaction_ids: IDList = IDList() # reaction IDs of the cobra_py_model and scenario reactions
 
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
@@ -467,6 +501,9 @@ class ProjectData:
                 reactions.append(r.id)
                 values.append(parse_scenario(r.annotation['cnapy-default']))
         return reactions, values
+
+    def update_reaction_id_lists(self):
+        self.reaction_ids.set_ids(self.cobra_py_model.reactions.list_attr("id"), self.scen_values.reactions.keys())
 
     # currently unused
     # def scenario_hash_value(self):

@@ -1,8 +1,7 @@
 from enum import IntEnum
 from math import isnan
-from typing import List
 
-from qtpy.QtCore import Signal, Slot, QSignalBlocker, Qt, QStringListModel
+from qtpy.QtCore import Signal, Slot, QSignalBlocker, Qt
 from qtpy.QtGui import QBrush, QColor
 from qtpy.QtWidgets import (QLabel, QCheckBox, QComboBox, QVBoxLayout, QWidget, QTextEdit, QGroupBox,
                             QTableWidget, QTableWidgetItem, QHBoxLayout, QPushButton, QLineEdit,
@@ -28,31 +27,6 @@ class ScenarioAnnotationColumn(IntEnum):
     Key = 1
     Value = 2
 
-class IDList(object):
-    """
-    provides a list of identifiers (id_list) and a corresponding QStringListModel (ids_model)
-    the identifiers can be set with the set_ids method
-    the implementation guarantees that id() of the properties id_list and ids_model
-    is constant so that they can be used like const references
-    """
-    def __init__(self):
-        self._id_list = []
-        self._ids_model: QStringListModel = QStringListModel()
-
-    def set_ids(self, *id_lists: List[str]):
-        self._id_list.clear()
-        for id_list in id_lists:
-            self._id_list[len(self._id_list):] = id_list
-        self._ids_model.setStringList(self._id_list)
-
-    @property # getter only
-    def id_list(self) -> List[str]:
-        return self._id_list
-
-    @property # getter only
-    def ids_model(self) -> QStringListModel:
-        return self._ids_model
-
 red_brush = QBrush(QColor.fromRgb(0xff, 0x99, 0x99))
 white_brush = QBrush(QColor.fromRgb(0xff, 0xff, 0xff))
 
@@ -63,7 +37,6 @@ class ScenarioTab(QWidget):
         QWidget.__init__(self)
         self.appdata: AppData = central_widget.appdata
         self.central_widget = central_widget
-        self.reaction_ids: IDList = IDList()
 
         layout = QVBoxLayout()
         group = QGroupBox("Scenario objective")
@@ -72,9 +45,8 @@ class ScenarioTab(QWidget):
         self.use_scenario_objective.setEnabled(True)
         self.use_scenario_objective.stateChanged.connect(self.use_scenario_objective_changed)
         self.objective_group_layout.addWidget(self.use_scenario_objective)
-        self.scenario_objective = QComplReceivLineEdit(self, [], reject_empty_string=False)
-        self.scenario_objective.set_wordlist(self.reaction_ids.id_list, replace_completer_model=False)
-        self.scenario_objective.set_completer_model(self.reaction_ids.ids_model)
+        self.scenario_objective = QComplReceivLineEdit(self, self.appdata.project.reaction_ids,
+                                    reject_empty_string=False)
         self.objective_group_layout.addWidget(self.scenario_objective)
         self.optimization_direction_layout = QHBoxLayout()
         label = QLabel("Optimization direction:")
@@ -179,7 +151,7 @@ class ScenarioTab(QWidget):
         self.update()
 
     def update(self):
-        self.update_reaction_id_lists()
+        self.appdata.project.update_reaction_id_lists()
         if self.recreate_scenario_items_needed:
             self.recreate_scenario_items()
             self.recreate_scenario_items_needed = False
@@ -198,10 +170,6 @@ class ScenarioTab(QWidget):
             item = self.reactions.item(row, ScenarioReactionColumn.Flux)
             item.setText(flux_text)
             item.setBackground(QBrush(background_color))
-
-    def update_reaction_id_lists(self):
-        self.reaction_ids.set_ids(self.appdata.project.cobra_py_model.reactions.list_attr("id"),
-                                    self.appdata.project.scen_values.reactions.keys())
 
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid
@@ -250,7 +218,7 @@ class ScenarioTab(QWidget):
                     self.reactions.item(row, ScenarioReactionColumn.Id).setText(reac_id)
                     QMessageBox.information(self, 'Reaction ID already in use',
                                             'Choose a different reaction identifier.')
-            self.update_reaction_id_lists()
+            self.appdata.project.update_reaction_id_lists()
             self.check_constraints_and_objective()
             self.scenario_changed()
             if self.appdata.auto_fba:
@@ -382,7 +350,7 @@ class ScenarioTab(QWidget):
         while not self.verify_scenario_reaction_id(reac_id):
             reac_id += "_"
         self.appdata.project.scen_values.reactions[reac_id] = [{}, cobra.Configuration().lower_bound, cobra.Configuration().upper_bound]
-        self.update_reaction_id_lists()
+        self.appdata.project.update_reaction_id_lists()
         self.check_constraints_and_objective()
         with QSignalBlocker(self.reactions):
             self.new_reaction_row(row)
@@ -398,7 +366,7 @@ class ScenarioTab(QWidget):
             reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
             self.reactions.removeRow(row)
             del self.appdata.project.scen_values.reactions[reac_id]
-            self.update_reaction_id_lists()
+            self.appdata.project.update_reaction_id_lists()
             self.check_constraints_and_objective()
             self.reactions.setCurrentCell(self.reactions.currentRow(), 0) # to make the cell appear selected in the GUI
             self.scenario_changed()
@@ -423,7 +391,8 @@ class ScenarioTab(QWidget):
             self.scenario_changed()
 
     def new_annotation_row(self, row: int):
-        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id, QComplReceivLineEdit(self, self.reaction_ids.id_list))
+        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id,
+                                       QComplReceivLineEdit(self, self.appdata.project.reaction_ids))
         self.annotations.setItem(row, ScenarioAnnotationColumn.Key, QTableWidgetItem())
         self.annotations.setItem(row, ScenarioAnnotationColumn.Value, QTableWidgetItem())
         self.scenario_changed()
@@ -458,9 +427,7 @@ class ScenarioTab(QWidget):
     def add_constraint_row(self):
         row: int = self.constraints.rowCount()
         self.constraints.setRowCount(row + 1)
-        constraint_edit = QComplReceivLineEdit(self.constraints, [], is_constr=True)
-        constraint_edit.set_wordlist(self.reaction_ids.id_list, replace_completer_model=False)
-        constraint_edit.set_completer_model(self.reaction_ids.ids_model)
+        constraint_edit = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, is_constr=True)
         constraint_edit.textCorrect.connect(self.constraint_edited)
         constraint_edit.editingFinished.connect(self.constraint_editing_finished)
         self.constraints.setCellWidget(row, 0, constraint_edit)
@@ -493,7 +460,7 @@ class ScenarioTab(QWidget):
             constraint_edit: QComplReceivLineEdit = self.constraints.cellWidget(row, 0)
             if text_correct:
                 self.appdata.project.scen_values.constraints[row] = lineq2list([constraint_edit.text()],
-                    self.reaction_ids.id_list)[0]
+                    self.appdata.project.reaction_ids.id_list)[0]
             else:
                 self.appdata.project.scen_values.constraints[row] = Scenario.empty_constraint
             self.scenario_changed()
@@ -510,7 +477,7 @@ class ScenarioTab(QWidget):
         if self.scenario_objective.isModified():
             self.scenario_objective.setModified(False)
             if text_correct:
-                new_objective = linexpr2dict(self.scenario_objective.text(), self.reaction_ids.id_list)
+                new_objective = linexpr2dict(self.scenario_objective.text(), self.appdata.project.reaction_ids.id_list)
                 if new_objective != self.appdata.project.scen_values.objective_coefficients:
                     self.appdata.project.scen_values.objective_coefficients = new_objective
                     self.scenario_changed()
