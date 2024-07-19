@@ -1448,9 +1448,10 @@ class MainWindow(QMainWindow):
         svg_files = {}
         count = 1
         for name, m in self.appdata.project.maps.items():
-            arc_name = "map" + str(count) + ".svg"
-            svg_files[m["background"]] = arc_name
-            m["background"] = arc_name
+            if m.get('view', 'cnapy') == 'cnapy':
+                arc_name = "map" + str(count) + ".svg"
+                svg_files[m["background"]] = arc_name
+                m["background"] = arc_name
             count += 1
 
         # Save maps information
@@ -1473,7 +1474,6 @@ class MainWindow(QMainWindow):
 
         # put svgs into temporary directory and update references
         with ZipFile(filename, 'r') as zip_ref:
-            # TODO: currently saves default background for Escher maps, this is not needed
             zip_ref.extractall(self.appdata.temp_dir.name)
             count = 1
             for name, m in self.appdata.project.maps.items():
