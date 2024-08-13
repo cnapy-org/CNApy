@@ -133,11 +133,20 @@ class ModeNavigator(QWidget):
 
     def save_efm(self):
         dialog = QFileDialog(self)
-        filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.npz")[0]
+        filename, selected_filter = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter=("*.npz;;*.json")
+        )
         if not filename or len(filename) == 0:
             return
-        self.appdata.project.modes.save(filename)
+        if "json" not in selected_filter:
+            self.appdata.project.modes.save(filename)
+        else:
+            modelist = []
+            for mode in self.appdata.project.modes:
+                for r, v in mode.items():
+                    mode[r] = v
+                modelist.append(mode)
+            json_write(filename, modelist)
 
     def save_sd(self):
         dialog = QFileDialog(self)
@@ -235,13 +244,6 @@ class ModeNavigator(QWidget):
         for i in range (len(self.appdata.project.modes)):
             values = self.appdata.project.modes[i]
             print(values)
-        listx = []
-        for mode in self.appdata.project.modes:
-            mean = sum(abs(v) for v in mode.values())/len(values)
-            for r,v in mode.items():
-                mode[r] = v/mean
-            listx.append(mode)
-        json_write("x.json", listx)
 
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
