@@ -376,24 +376,24 @@ class MainWindow(QMainWindow):
         load_modes_action.triggered.connect(self.load_modes)
 
         self.sd_menu = self.analysis_menu.addMenu("Computational Strain Design")
-        self.sd_action = QAction("Compute Minimal Cut Sets...", self)
-        self.sd_action.triggered.connect(self.mcs)
-        self.sd_menu.addAction(self.sd_action)
-        self.mcs_dialog = None
-
-        load_mcs_action = QAction("Load Minimal Cut Sets...", self)
-        self.sd_menu.addAction(load_mcs_action)
-        load_mcs_action.triggered.connect(self.load_mcs)
-
-        self.sd_action = QAction("Compute Strain Designs...", self)
-        self.sd_action.triggered.connect(self.strain_design)
-        self.sd_menu.addAction(self.sd_action)
+        sd_action = QAction("Compute Strain Designs...", self)
+        sd_action.triggered.connect(self.strain_design)
+        self.sd_menu.addAction(sd_action)
         self.sd_dialog = None
         self.sd_sols = None
 
         load_sd_action = QAction("Load Strain Designs...", self)
         self.sd_menu.addAction(load_sd_action)
         load_sd_action.triggered.connect(self.load_strain_designs)
+
+        sd_action = QAction("Compute Minimal Cut Sets (legacy)...", self)
+        sd_action.triggered.connect(self.mcs)
+        self.sd_menu.addAction(sd_action)
+        self.mcs_dialog = None
+
+        load_mcs_action = QAction("Load Minimal Cut Sets (legacy)...", self)
+        self.sd_menu.addAction(load_mcs_action)
+        load_mcs_action.triggered.connect(self.load_mcs)
 
         self.flux_optimization_action = QAction(
             "Flux optimization...", self)
@@ -688,12 +688,12 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
-        self.sd_viewer = SDComputationViewer(self.appdata, sd_setup)
+        self.sd_viewer = SDComputationViewer(self, self.appdata, sd_setup)
         self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.QueuedConnection)
         # connect signals to update progress
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
-        self.sd_computation.output_connector.connect(     self.sd_viewer.receive_progress_text,Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect( self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.QueuedConnection)
+        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.QueuedConnection)
         self.sd_viewer.cancel_computation.connect(self.terminate_strain_design_computation)
         # show dialog and launch process
         # self.sd_viewer.exec()
@@ -747,7 +747,7 @@ class MainWindow(QMainWindow):
         self.show_strain_designs(solutions_with_setup, with_setup=True)
 
     @Slot(bytes)
-    def show_strain_designs(self,solutions, with_setup=False):
+    def show_strain_designs(self, solutions, with_setup=False):
         self.sd_sols = SDViewer(self.appdata, solutions, with_setup)
         self.sd_sols.show()
         self.centralWidget().update_mode()
@@ -785,6 +785,9 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             dialog.optlang_solver_set.connect(self.mcs_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
+        if self.sd_dialog is not None:
+            dialog.optlang_solver_set.connect(self.sd_dialog.set_optlang_solver_text)
+            dialog.optlang_solver_set.connect(self.sd_dialog.configure_solver_options)
         dialog.exec_()
 
     @Slot()
@@ -884,6 +887,7 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
+        self.appdata.project.update_reaction_id_lists()
 
         if len(missing_reactions) > 0 :
             QMessageBox.warning(self, 'Unknown reactions in scenario',
@@ -1362,10 +1366,12 @@ class MainWindow(QMainWindow):
         if self.mcs_dialog is not None:
             self.mcs_dialog.close()
             self.mcs_dialog = None
-        if self.sd_dialog:
-            if self.sd_dialog.__weakref__:
-                del self.sd_dialog
+        if self.sd_dialog is not None:
+            self.sd_dialog.close()
             self.sd_dialog = None
+        if self.sd_sols is not None:
+            self.sd_sols.close()
+            self.sd_sols = None
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
@@ -1676,7 +1682,6 @@ class MainWindow(QMainWindow):
             self.make_scenario_feasible_dialog = FluxFeasibilityDialog(self)
         else:
             self.make_scenario_feasible_dialog.modified_scenario = None
-            self.make_scenario_feasible_dialog.bm_reac_id_select.set_wordlist(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
         self.make_scenario_feasible_dialog.show()
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):

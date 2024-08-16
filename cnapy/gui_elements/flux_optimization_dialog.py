@@ -1,14 +1,14 @@
 """The cnapy flux optimization dialog"""
 from random import randint
-from numpy import isnan, isinf
+from numpy import isinf
 import re
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
-                            QMessageBox, QPushButton, QVBoxLayout, QFrame)
+                            QMessageBox, QPushButton, QVBoxLayout)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
-from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
+from cnapy.utils import QComplReceivLineEdit
 from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
 from straindesign.names import *
 
@@ -23,7 +23,7 @@ class FluxOptimizationDialog(QDialog):
         self.central_widget = central_widget
 
         numr = len(self.appdata.project.cobra_py_model.reactions)
-        self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
+        self.reac_ids = self.appdata.project.reaction_ids.id_list
         if numr > 1:
             r1 = self.appdata.project.cobra_py_model.reactions[randint(0,numr-1)].id
         else:
@@ -45,7 +45,7 @@ class FluxOptimizationDialog(QDialog):
         open_bracket.setFont(font)
         editor_layout.addWidget(open_bracket)
         flux_expr_layout = QVBoxLayout()
-        self.expr = QComplReceivLineEdit(self,self.reac_ids,check=True)
+        self.expr = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True)
         self.expr.setPlaceholderText('flux expression (e.g. 1.0 '+r1+')')
         flux_expr_layout.addWidget(self.expr)
         editor_layout.addItem(flux_expr_layout)

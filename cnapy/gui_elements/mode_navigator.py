@@ -409,8 +409,8 @@ class NormalizationDialog(QDialog):
         self.appdata = appdata
         self.parent = parent
 
-        self.reac_ids = list(self.appdata.project.comp_values.keys()) #self.appdata.project.cobra_py_model.reactions.list_attr("id")
-        numr = len(self.reac_ids) # len(self.appdata.project.cobra_py_model.reactions)
+        self.reac_ids = list(self.appdata.project.comp_values.keys())
+        numr = len(self.reac_ids)
         if numr > 1:
             r1 = self.reac_ids[randint(0, numr-1)]
         else:

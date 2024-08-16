@@ -61,6 +61,14 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
         r'(https://github.com/scipopt/PySCIPOpt')
     solver_buttons_layout.addWidget(solver_buttons[SCIP])
     solver_buttons["group"].addButton(solver_buttons[SCIP])
+    # optlang_enumerator
+    solver_buttons['OPTLANG'] = QRadioButton()
+    solver_buttons['OPTLANG'].setProperty('name','OPTLANG')
+    solver_buttons['OPTLANG'].setToolTip('optlang_enumerator supports calculation of reaction MCS only.\n'+\
+        'Reaction knock-ins and setting of intervention costs are possible.\n'+\
+        'The solver can be changed via COBRApy settings.')
+    solver_buttons_layout.addWidget(solver_buttons['OPTLANG'])
+    solver_buttons["group"].addButton(solver_buttons['OPTLANG'])
     # check best available solver
     if avail_solvers:
         # Set cobrapy default solver if available
