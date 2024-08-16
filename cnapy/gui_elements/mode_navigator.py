@@ -12,6 +12,27 @@ from qtpy.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel, QPushButt
 from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.utils import QComplReceivLineEdit
+import zipfile
+import os
+from io import BytesIO
+
+import json
+from typing import Any
+
+
+def json_zip_write(
+    zip_path: str,
+    zipped_file_name: str,
+    json_data: Any,
+    zip_method: int = zipfile.ZIP_LZMA,
+) -> None:
+    data = json.dumps(json_data, indent=4)
+
+    json_bytes = BytesIO(data.encode('utf-8'))
+
+    with zipfile.ZipFile(zip_path, 'w', zip_method) as zipf:
+        zipf.writestr(zipped_file_name, json_bytes.getvalue())
+
 
 class ModeNavigator(QWidget):
     """A navigator widget"""
@@ -116,11 +137,20 @@ class ModeNavigator(QWidget):
 
     def save_efm(self):
         dialog = QFileDialog(self)
-        filename: str = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter="*.npz")[0]
+        filename, selected_filter = dialog.getSaveFileName(
+            directory=self.appdata.work_directory, filter=("*.npz;;*.json.zip")
+        )
         if not filename or len(filename) == 0:
             return
-        self.appdata.project.modes.save(filename)
+        if "json" not in selected_filter:
+            self.appdata.project.modes.save(filename)
+        else:
+            modelist = []
+            for mode in self.appdata.project.modes:
+                for r, v in mode.items():
+                    mode[r] = v
+                modelist.append(mode)
+            json_zip_write(filename, "efms.json", modelist)
 
     def save_sd(self):
         dialog = QFileDialog(self)
@@ -214,6 +244,10 @@ class ModeNavigator(QWidget):
             if self.selection[self.current]:
                 break
         self.display_mode()
+
+        for i in range (len(self.appdata.project.modes)):
+            values = self.appdata.project.modes[i]
+            print(values)
 
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
