@@ -12,22 +12,26 @@ from qtpy.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel, QPushButt
 from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.utils import QComplReceivLineEdit
-
+import zipfile
+import os
+from io import BytesIO
 
 import json
 from typing import Any
-def json_write(path: str, json_data: Any) -> None:
-    """Writes a JSON file at the given path with the given dictionary as content.
 
-    Arguments
-    ----------
-    * path: str ~  The path of the JSON file that shall be written
-    * json_data: Any ~ The dictionary or list which shalll be the content of
-    the created JSON file
-    """
-    json_output = json.dumps(json_data, indent=4)
-    with open(path, "w+", encoding="utf-8") as f:
-        f.write(json_output)
+
+def json_zip_write(
+    zip_path: str,
+    zipped_file_name: str,
+    json_data: Any,
+    zip_method: int = zipfile.ZIP_LZMA,
+) -> None:
+    data = json.dumps(json_data, indent=4)
+
+    json_bytes = BytesIO(data.encode('utf-8'))
+
+    with zipfile.ZipFile(zip_path, 'w', zip_method) as zipf:
+        zipf.writestr(zipped_file_name, json_bytes.getvalue())
 
 
 class ModeNavigator(QWidget):
@@ -134,7 +138,7 @@ class ModeNavigator(QWidget):
     def save_efm(self):
         dialog = QFileDialog(self)
         filename, selected_filter = dialog.getSaveFileName(
-            directory=self.appdata.work_directory, filter=("*.npz;;*.json")
+            directory=self.appdata.work_directory, filter=("*.npz;;*.json.zip")
         )
         if not filename or len(filename) == 0:
             return
@@ -146,7 +150,7 @@ class ModeNavigator(QWidget):
                 for r, v in mode.items():
                     mode[r] = v
                 modelist.append(mode)
-            json_write(filename, modelist)
+            json_zip_write(filename, "efms.json", modelist)
 
     def save_sd(self):
         dialog = QFileDialog(self)
