@@ -31,7 +31,7 @@ class AppData(QObject):
 
     def __init__(self):
         QObject.__init__(self)
-        self.version = "cnapy-1.1.11"
+        self.version = "cnapy-1.2.1"
         self.format_version = 2
         self.unsaved = False
         self.project = ProjectData()
@@ -41,7 +41,7 @@ class AppData(QObject):
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_warn = QColor(255, 200, 0)
         self.scen_color_bad = Qt.red
-        
+
         font = QFont()
         font.setFamily(font.defaultFamily())
         self.font_size = font.pointSize()
