@@ -9,7 +9,7 @@ authors = [
 ]
 description = "An integrated environment for metabolic network analysis."
 readme = "README.md"
-requires-python = "==3.10"
+requires-python = "==3.10.*"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
