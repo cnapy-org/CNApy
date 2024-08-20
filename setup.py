@@ -24,10 +24,5 @@ setup(
     packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': [
-        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']},
-    # entry_points={'console_scripts': [
-    #     'cnapy = cnapy.__main__:main_cnapy']},
+        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']}
 )
-
-# console script on Windows is missing, but can call
-# python -m cnapy
