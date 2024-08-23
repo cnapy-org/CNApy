@@ -12,6 +12,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: environment.yml
+          miniforge-version: latest
           activate-environment: cnapy
       - name: Test CNApy
         run: |
@@ -30,6 +31,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: environment.yml
+          miniforge-version: latest
           activate-environment: cnapy
       - name: Test CNApy
         run: |
