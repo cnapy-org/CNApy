@@ -18,18 +18,11 @@ from setuptools import setup
 
 setup(
     name='cnapy',
-    version='1.2.1',
-    url='https://github.com/cnapy-org/CNApy/',
-    license='GPLv3+',
     description='An integrated environment for metabolic network analysis.',
     long_description=open('README.md', encoding="utf8").read(),
     long_description_content_type="text/asciidoc",
-    author='Sven Thiele',
-    author_email='sthiele78@gmail.com',
     packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': [
-        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']},
-    entry_points={'console_scripts': [
-        'cnapy = cnapy.__main__:main_cnapy']},
+        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']}
 )

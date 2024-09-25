@@ -49,9 +49,10 @@ Aside of performing calculations on metabolic models, CNApy can also be used to 
 There are 4 alternative ways to install CNApy:
 
 1. If you use Windows, the easiest way is to use our Windows installer, see section [Using the Windows installer](#using-the-windows-installer).
-2. If you already have installed [Anaconda](https://www.anaconda.com/), [Miniconda](https://docs.anaconda.com/free/miniconda/index.html) or [Miniforge](https://github.com/conda-forge/miniforge) on your computer, you can directly install CNApy as a conda package as described in section [Install CNApy as conda package](#install-cnapy-as-conda-package). *Note*: If you're on MacOS and want to use CPLEX as solver, you have to use the x86 version of Anaconda as the Apple Silicon one is not supported by CPLEX yet.
-3. If you use Linux or Apple MacOS X, the easiest installation producure is our assisted installation protocol, see [Assisted installation under Linux and MacOS X](#assisted-installation-under-linux-and-macos-x).
-4. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
+2. If you have Python 3.10 on your computer you can directly install CNApy from PyPI with: ```pip install cnapy```.
+3. If you have installed [Anaconda](https://www.anaconda.com/), [Miniconda](https://docs.anaconda.com/free/miniconda/index.html) or [Miniforge](https://github.com/conda-forge/miniforge) on your computer, you can directly install CNApy as a conda package as described in section [Install CNApy as conda package](#install-cnapy-as-conda-package). *Note*: If you're on MacOS and want to use CPLEX as solver, you have to use the x86 version of Anaconda as the Apple Silicon one is not supported by CPLEX yet.
+4. If you use Linux or Apple MacOS X, the easiest installation producure is our assisted installation protocol, see [Assisted installation under Linux and MacOS X](#assisted-installation-under-linux-and-macos-x).
+5. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
 
 ## Contribute to the CNApy development
 
