@@ -38,11 +38,12 @@ Aside of performing calculations on metabolic models, CNApy can also be used to 
 
 ## Installation Options
 
-There are 3 alternative ways to install CNApy:
+There are 4 alternative ways to install CNApy:
 
-1. The easiest way to install CNApy is by downloading its installer, which is provided for Windows, Linux and MacOS, see [Using CNApy installer](#using-cnapy-installer) for more.
+1. The easiest way for any user to install CNApy is by downloading its installer, which is provided for Windows, Linux and MacOS, see [Using CNApy installer](#using-cnapy-installer) for more.
 2. If you already have installed Python 3.10 (no other version) on your system, you can install CNApy simply through ```pip install cnapy``` in your console. Afterwards, you can start CNApy's GUI by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy``` where "python" must call your Python 3.10 installation.
-3. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
+3. If you already use conda or mamba (for mamba, just change the "conda" command to "mamba"), you can create a CNApy environment named ```cnapy-1.2.2``` as follows: 1) Run ```conda create --name cnapy-1.2.2 python=3.10 pip```, 2) run ```conda activate cnapy-1.2.2```, 3) run ```pip install cnapy```. Then, you can start CNApy in the cnapy-1.2.2 conda environment by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy```.
+4. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
 
 ## Documentation and Tutorials
 
@@ -53,7 +54,7 @@ There are 3 alternative ways to install CNApy:
 
 ## Using CNApy installer
 
-This installer lets you create a local and portable installation of CNApy under Windows, Linux or MacOS by following these instructions:
+This installer lets you create a local installation of CNApy under Windows, Linux or MacOS by following these instructions:
 
 *If you use Windows:*
 * Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.ps1)
@@ -74,11 +75,11 @@ Technical side note: CNApy's installer is utilizing [micomamba](https://mamba.re
 
 Everyone is welcome to contribute to CNApy's development. [See our contribution file for general instructions](https://github.com/cnapy-org/CNApy/blob/master/CONTRIBUTING.md).
 
-Programatically, we use uv [[GitHub]](https://github.com/astral-sh/uv) to install all dependencies and manage our installed Python versions (alternatives, such as using conda or mamba are also possible if uv doesn't work for you).
+Programatically, we use uv [[GitHub]](https://github.com/astral-sh/uv) to install all dependencies and manage our installed Python versions (alternatives, such as using conda or mamba are also possible if uv doesn't work for you although you would have to install all CNApy dependencies manually).
 
-You can use uv through the following steps:
+You can use uv for CNApy as follows:
 
-1. Make sure that you have installed uv (uv can be installed under any Python version as uv will manage our Python version later):
+1. Make sure that you have installed uv (*Note*: uv can be installed under any Python version as uv will manage the needed Python version later):
 
 ```sh
 pip install uv
