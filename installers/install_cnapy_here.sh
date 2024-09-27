@@ -51,12 +51,13 @@ else
 fi
 chmod +x "${BIN_FOLDER}/micromamba"
 
-./cnapy-${CNAPY_VERSION}/micromamba create -y -p ./cnapy-${CNAPY_VERSION}/cnapy-environment python=3.10 pip -r ./cnapy-${CNAPY_VERSION}/
+./cnapy-${CNAPY_VERSION}/micromamba create -y -p ./cnapy-${CNAPY_VERSION}/cnapy-environment python=3.10 pip openjdk -r ./cnapy-${CNAPY_VERSION}/ -c conda-forge
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ pip install --no-cache-dir uv
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ uv --no-cache pip install --no-cache-dir cnapy
 
 cat << 'EOF' > run_cnapy.sh
 #!/bin/bash
+CNAPY_VERSION=1.2.1.1
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ cnapy
 EOF
 
