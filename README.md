@@ -9,7 +9,7 @@
 
 ## Introduction
 
-CNApy [[Paper]](https://doi.org/10.1093/bioinformatics/btab828) is a Python-based graphical user interface for a) many common methods of Constraint-Based Reconstruction and Analysis (COBRA) with stoichiometric metabolic models, b) the visualization of COBRA calculation results as *interactive and editable* metabolic maps (including Escher maps [[GitHub]](https://escher.github.io/#/)[[Paper]](https://doi.org/10.1371/journal.pcbi.1004321)) and c) the creation and editing of metabolic models.
+CNApy [[Paper]](https://doi.org/10.1093/bioinformatics/btab828) is a Python-based graphical user interface for a) many common methods of Constraint-Based Reconstruction and Analysis (COBRA) with stoichiometric metabolic models, b) the visualization of COBRA calculation results as *interactive and editable* metabolic maps (including Escher maps [[GitHub]][https://escher.github.io/#/]([Paper)](<https://doi.org/10.1371/journal.pcbi.1004321>)) and c) the creation and editing of metabolic models, including its reactions, metabolites and genes. For model loading and export, CNApy supports the widely used SBML standard format [[Site]][https://sbml.org/]([Paper)](<https://www.embopress.org/doi/abs/10.15252/msb.20199110>).
 
 Supported COBRA methods (partly provided by cobrapy [[GitHub]](https://github.com/opencobra/cobrapy)[[Paper]](https://doi.org/10.1186/1752-0509-7-74)) include:
 
@@ -21,8 +21,6 @@ Supported COBRA methods (partly provided by cobrapy [[GitHub]](https://github.co
 - Elementary Flux Modes (EFM) [[Review]](https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/full/10.1002/biot.201200269)
 - Thermodynamic methods based on OptMDFpathway [[Paper]](https://doi.org/10.1371/journal.pcbi.1006492)
 - Many advanced strain design algorithms such as OptKnock [[Paper]](https://doi.org/10.1002/bit.10803), RobustKnock [[Paper]](https://doi.org/10.1093/bioinformatics/btp704), OptCouple [[Paper]](https://doi.org/10.1016/j.mec.2019.e00087) and advanced Minimal Cut Sets [[Paper]](https://doi.org/10.1371/journal.pcbi.1008110) through its StrainDesign [[GitHub]](https://github.com/klamt-lab/straindesign)[[Paper]](https://doi.org/10.1093/bioinformatics/btac632) integration
-
-Aside of performing calculations on metabolic models, CNApy can also be used to create and/or edit metabolic models. This includes all important aspects of the model's reactions, metabolites and genes. For model loading and export, CNApy supports the widely used SBML standard format [[Site]](https://sbml.org/)[[Paper]](https://www.embopress.org/doi/abs/10.15252/msb.20199110).
 
 **→ For information about how to install CNApy, see section [Installation Options](#installation-options)**
 
@@ -57,19 +55,21 @@ There are 4 alternative ways to install CNApy:
 This installer lets you create a local installation of CNApy under Windows, Linux or MacOS by following these instructions:
 
 *If you use Windows:*
-* Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.ps1)
-* Put this file into a folder where you want CNApy to be installed.
-* Double click on the file and let the CNApy installation run
-* Afterwards, you can run CNApy by either double-clicking on the newly created CNApy desktop icon, or by double-clicking "RUN_CNApy.bat" in the newly created cnapy-1.2.2 subfolder.
+
+- Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.bat)
+- Put this file into a folder where you want CNApy to be installed.
+- Double click on the file and let the CNApy installation run
+- Afterwards, you can run CNApy by either double-clicking on the newly created CNApy desktop icon, or by double-clicking "RUN_CNApy.bat" in the newly created cnapy-1.2.2 subfolder.
 
 *If you use Linux or MacOS*:
-* Download the Linux & MacOS installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.sh).
-* Put this file into a folder where you want CNApy to be installed.
-* Make the script executable by opening your console in the folder and run ```chmod u+x ./install_cnapy_here.sh```.
-* Now, either run ```./install_cnapy_here.sh``` in your console or double-click on install_cnapy_here.sh.
-* Finally, you can run CNApy by double-clicking "run_cnapy.sh" in the newly created cnapy-1.2.2 subfolder or by calling run_cnapy.sh in your console (for the latter, your console must point to the folder where run_cnapy.sh is located).
 
-Technical side note: CNApy's installer is utilizing [micomamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+- Download the Linux & MacOS installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.sh).
+- Put this file into a folder where you want CNApy to be installed.
+- Make the script executable by opening your console in the folder and run ```chmod u+x ./install_cnapy_here.sh```. Alternatively, if supported on your system, right-click on the file, go the file's settings and mark it as executable.
+- Now, either run ```./install_cnapy_here.sh``` in your console or, if supported on your system, double-click on install_cnapy_here.sh.
+- Finally, you can run CNApy by double-clicking "run_cnapy.sh" in the newly created cnapy-1.2.2 subfolder or by calling run_cnapy.sh in your console (for the latter, your console must point to the folder where run_cnapy.sh is located).
+
+Technical side note: CNApy's installer is utilizing [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
 
 ## Setup the CNApy development environment
 

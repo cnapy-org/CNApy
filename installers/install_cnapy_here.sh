@@ -4,7 +4,7 @@
 set -eu
 
 # CNApy version
-CNAPY_VERSION="1.2.1.1"
+CNAPY_VERSION="1.2.2"
 
 # Folders
 BIN_FOLDER="${BIN_FOLDER:-./cnapy-${CNAPY_VERSION}}"
@@ -57,7 +57,7 @@ chmod +x "${BIN_FOLDER}/micromamba"
 
 cat << 'EOF' > ./cnapy-${CNAPY_VERSION}/run_cnapy.sh
 #!/bin/bash
-CNAPY_VERSION=1.2.1.1
+CNAPY_VERSION=1.2.2
 ./micromamba run -p ./cnapy-environment -r ./cnapy
 EOF
 
