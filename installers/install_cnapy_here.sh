@@ -55,11 +55,15 @@ chmod +x "${BIN_FOLDER}/micromamba"
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ pip install --no-cache-dir uv
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ uv --no-cache pip install --no-cache-dir cnapy
 
-cat << 'EOF' > run_cnapy.sh
+cat << 'EOF' > ./cnapy-${CNAPY_VERSION}/run_cnapy.sh
 #!/bin/bash
 CNAPY_VERSION=1.2.1.1
-./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ cnapy
+./micromamba run -p ./cnapy-environment -r ./cnapy
 EOF
 
 # Make the shell script executable
-chmod +x run_cnapy.sh
+chmod +x ./cnapy-${CNAPY_VERSION}/run_cnapy.sh
+
+echo CNApy was succesfully installed!
+echo You can now run CNApy by executing run_cnapy.sh in the newly created cnapy-${CNAPY_VERSION} subfolder.
+echo To deinstall CNApy later, simply delete the cnapy-${CNAPY_VERSION} subfolder.
