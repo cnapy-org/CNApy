@@ -57,8 +57,11 @@ chmod +x "${BIN_FOLDER}/micromamba"
 
 cat << 'EOF' > ./cnapy-${CNAPY_VERSION}/run_cnapy.sh
 #!/bin/bash
-CNAPY_VERSION=1.2.2
-./micromamba run -p ./cnapy-environment -r ./cnapy
+
+# Add CPLEX variable here, e.g.
+# export PYTHONPATH=/path_to_cplex/cplex/python/3.10/x86-64_linux
+
+./micromamba run -p ./cnapy-environment cnapy
 EOF
 
 # Make the shell script executable
