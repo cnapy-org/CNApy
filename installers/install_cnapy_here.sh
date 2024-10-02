@@ -61,6 +61,8 @@ cat << 'EOF' > ./cnapy-${CNAPY_VERSION}/run_cnapy.sh
 # Add CPLEX variable here, e.g.
 # export PYTHONPATH=/path_to_cplex/cplex/python/3.10/x86-64_linux
 
+export LD_LIBRARY_PATH="./cnapy-environment/lib/" # For Linux
+export DYLD_LIBRARY_PATH="./cnapy-environment/lib/" # For MacOS
 ./micromamba run -p ./cnapy-environment cnapy
 EOF
 
