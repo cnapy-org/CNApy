@@ -29,16 +29,14 @@ class GurobiConfigurationDialog(QDialog):
             " i) Close this session of CNApy\n"
             " ii) Find out your operating system by looking at the next line:\n"
             f" {platform.system()}\n"
-            " iii) Depending on your operating system, do the following:\n"
-            "     >Only if you use Windows: If you used CNApy's exe installer: Right click on cnapy.exe or the CNApy desktop icon\n"
+            " iii) Depending on your operating system:\n"
+            "     >Only if you use Windows: If you used CNApy's bat installer: Right click on RUN_CNApy.bat or the CNApy desktop icon\n"
             "       or the CNApy entry in the start menu's program list and select 'Run as adminstrator'.\n"
-            "       If you didn't use CNApy's .exe installer: Search for 'cmd.exe', right-click on its symbol and\n"
-            "       select 'Run as administrator'. Then, move to CNApy's folder with the cd command, activate CNApy's\n"
-            "       Anaconda environment with 'conda activate cnapy-dev' and run 'python cnapy.py'.\n"
-            "     >Only if you use Linux or MacOS (MacOS is also called Darwin): The most common way is by using the 'sudo' command. To do this, \n"
-            "       open your system's terminal, move to CNApy's folder with the cd command, activate CNApy's Anaconda\n"
-            "       environment with 'conda activate cnapy-dev' and run 'sudo python cnapy.py'. For the last part, you may need to enter an adminstrator\n"
-            "       password.\n"
+            "       If you didn't use CNApy's .bat installer but Python or conda/mamba, start your Windows console or Powershell with administrator rights\n"
+            "       and startup CNApy."
+            "     >Only if you use Linux or MacOS (MacOS may be called Darwin): The most common way is by using the 'sudo' command. If you used the\n"
+            "      CNApy sh installer, you can start CNApy with administrator rights through 'sudo run_cnapy.sh'. If you didn't use CNApy's .bat installer\n"
+            "      but Python or conda/mamba, run your usual CNApy command with 'sudo' in front of it.\n"
             " NOTE: It may be possible that you're not allowed to get administrator rights on your computer. If this is the case, contact your system's administrator to resolve the problem.\n"
             "2. (if not already done) Obtain an Gurobi license and download Gurobi itself onto your computer.\n"
             "    NOTE: CNApy only works with recent Gurobi versions (not older than version 20.1.0)!\n"
@@ -51,7 +49,7 @@ class GurobiConfigurationDialog(QDialog):
 
         self.gurobi_directory = QPushButton()
         self.gurobi_directory.setText(
-            "NOT SET YET! PLEASE SET THE PATH TO GUROBI (see steps 1 to 3 above)."
+            "NOT SET YET! PLEASE SET THE PATH TO THE GUROBI MAIN FOLDER (see steps 1 to 3 above)."
         )
         self.layout.addWidget(self.gurobi_directory)
 
