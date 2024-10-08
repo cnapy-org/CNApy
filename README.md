@@ -9,34 +9,39 @@
 
 ## Introduction
 
-**If you have questions, suggestions or bug reports regarding CNApy, you can use either of the [CNApy GitHub issues](https://github.com/cnapy-org/CNApy/issues), the [CNApy GitHub discussions](https://github.com/cnapy-org/CNApy/discussions) or the [CNApy Gitter chat room](https://gitter.im/cnapy-org/community).**
+CNApy [[Paper]](https://doi.org/10.1093/bioinformatics/btab828) is a Python-based graphical user interface for a) many common methods of Constraint-Based Reconstruction and Analysis (COBRA) with stoichiometric metabolic models, b) the visualization of COBRA calculation results as *interactive and editable* metabolic maps (including Escher maps [[GitHub]](https://escher.github.io/#/)[[Paper]](<https://doi.org/10.1371/journal.pcbi.1004321>)) and c) the creation and editing of metabolic models, including its reactions, metabolites and genes. For model loading and export, CNApy supports the widely used SBML standard format [[Site]](https://sbml.org/)[[Paper]](https://www.embopress.org/doi/abs/10.15252/msb.20199110).
 
-CNApy is a Python-based graphical user interface for a) many common methods of Constraint-Based Reconstruction and Analysis (COBRA) with stoichiometric metabolic models, b) the visualization of COBRA calculation results and c) the creation and editing of metabolic models.
+Supported COBRA methods (partly provided by cobrapy [[GitHub]](https://github.com/opencobra/cobrapy)[[Paper]](https://doi.org/10.1186/1752-0509-7-74)) include:
 
-Supported COBRA methods (partly provided by [cobrapy](https://opencobra.github.io/cobrapy/)) include:
+- Flux Balance Analysis (FBA) [[Review]](https://doi.org/10.1038/nbt.1614)
+- Flux Variability Analysis (FVA) [[Paper]](https://doi.org/10.1016/j.ymben.2003.09.002)
+- Yield optimization (based on linear-fractional programming) [[Paper]](https://doi.org/10.1016/j.ymben.2018.02.001)
+- Phase plane analyses (can include flux and/or yield optimizations)
+- Making measured *in vivo* flux scenarios stoichiometrically feasible, optionally also by altering a biomass reaction [[Paper]](https://academic.oup.com/bioinformatics/article/39/10/btad600/7284109)
+- Elementary Flux Modes (EFM) [[Review]](https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/full/10.1002/biot.201200269)
+- Thermodynamic methods based on OptMDFpathway [[Paper]](https://doi.org/10.1371/journal.pcbi.1006492)
+- Many advanced strain design algorithms such as OptKnock [[Paper]](https://doi.org/10.1002/bit.10803), RobustKnock [[Paper]](https://doi.org/10.1093/bioinformatics/btp704), OptCouple [[Paper]](https://doi.org/10.1016/j.mec.2019.e00087) and advanced Minimal Cut Sets [[Paper]](https://doi.org/10.1371/journal.pcbi.1008110) through its StrainDesign [[GitHub]](https://github.com/klamt-lab/straindesign)[[Paper]](https://doi.org/10.1093/bioinformatics/btac632) integration
 
-- Flux Balance Analysis (FBA)
-- Flux Variability Analysis (FVA)
-- Making measured flux scenarios stoichiometrically feasible
-- Elementary Flux Modes (EFM)
-- Thermodynamic methods based on [OptMDFpathway](https://doi.org/10.1371/journal.pcbi.1006492)
-- Many advanced strain design algorithms such as [OptKnock](https://doi.org/10.1002/bit.10803), [RobustKnock](https://doi.org/10.1093/bioinformatics/btp704), [OptCouple](https://doi.org/10.1016/j.mec.2019.e00087) and [advanced Minimal Cut Sets](https://doi.org/10.1371/journal.pcbi.1008110) through its integration of the [StrainDesign](https://github.com/klamt-lab/straindesign) package
-- Yield optimization (based on linear-fractional programming)
-- Phase plane analysis
+**→ For information about how to install CNApy, see section [Installation Options](#installation-options)**
 
-All calculation results can be visualized in CNApy's interactive and editable metabolic maps. These maps can also use vector-based (SVG) backgrounds. [Escher maps](https://escher.github.io/#/) are also natively supported and can be created and edited inside CNApy.
+**→ For more details on CNApy's many features, see section [Documentation and Tutorials](#documentation-and-tutorials)**
 
-Aside of performing calculations on metabolic models, CNApy can also be used to create and/or edit metabolic models. This includes all important aspects of the model's reactions, metabolites and genes. For model loading and export, CNApy supports the widely used [SBML standard format](https://sbml.org/).
+**→ If you have questions, suggestions or bug reports regarding CNApy, you can use either of the [CNApy GitHub issues](https://github.com/cnapy-org/CNApy/issues), the [CNApy GitHub discussions](https://github.com/cnapy-org/CNApy/discussions) or the [CNApy Gitter chat room](https://gitter.im/cnapy-org/community)**
 
-**For more details on CNApy's many more features, see section [Documentation and Tutorials](#documentation-and-tutorials).**
+**→ If you want to cite CNApy, see section [How to cite CNApy](#how-to-cite-cnapy)**
 
-**For information about how to install CNApy, see section [Installation Options](#installation-options).**
-
-**For information about how to contribute to CNApy as a developer, see section [Contribute to the CNApy development](#contribute-to-the-cnapy-development).**
-
-**If you want to cite CNApy, see section [How to cite CNApy](#how-to-cite-cnapy).**
+**→ For information about how to contribute to CNApy as a developer, see section [Contribute to the CNApy development](#contribute-to-the-cnapy-development)**
 
 *Associated project note*: If you want to use the well-known MATLAB-based *CellNetAnalyzer* (CNA), *which is not compatible with CNApy*, you can download it from [CNA's website](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html).
+
+## Installation Options
+
+There are 4 alternative ways to install CNApy:
+
+1. The easiest way for any user to install CNApy is by downloading its installer, which is provided for Windows, Linux and MacOS, see [Using CNApy installer](#using-cnapy-installer) for more.
+2. If you already have installed Python 3.10 (no other version) on your system, you can install CNApy simply through ```pip install cnapy``` in your console. Afterwards, you can start CNApy's GUI by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy``` where "python" must call your Python 3.10 installation.
+3. If you already use conda or mamba (for mamba, just change the "conda" command to "mamba"), you can create a CNApy environment named ```cnapy-1.2.2``` as follows: 1) Run ```conda create --name cnapy-1.2.2 python=3.10 pip openjdk -c conda-forge```, 2) run ```conda activate cnapy-1.2.2```, 3) run ```pip install cnapy```. Then, you can start CNApy in the cnapy-1.2.2 conda environment by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy```. Note that the [cnapy conda package](https://anaconda.org/cnapy/cnapy) is currently *not* being updated due to licensing uncertainties.
+4. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
 
 ## Documentation and Tutorials
 
@@ -44,144 +49,63 @@ Aside of performing calculations on metabolic models, CNApy can also be used to 
 - Our [CNApy YouTube channel](https://www.youtube.com/channel/UCRIXSdzs5WnBE3_uukuNMlg) provides some videos of working with CNApy.
 - We also provide directly usable [CNApy example projects](https://github.com/cnapy-org/CNApy-projects/releases/latest) which include some of the most common *E. coli* models. These projects can also be downloaded within CNApy at its first start-up or via CNApy's File menu.
 
-## Installation Options
 
-There are 4 alternative ways to install CNApy:
+## Using CNApy installer
 
-1. If you use Windows, the easiest way is to use our Windows installer, see section [Using the Windows installer](#using-the-windows-installer).
-2. If you have Python 3.10 on your computer you can directly install CNApy from PyPI with: ```pip install cnapy```.
-3. If you have installed [Anaconda](https://www.anaconda.com/), [Miniconda](https://docs.anaconda.com/free/miniconda/index.html) or [Miniforge](https://github.com/conda-forge/miniforge) on your computer, you can directly install CNApy as a conda package as described in section [Install CNApy as conda package](#install-cnapy-as-conda-package). *Note*: If you're on MacOS and want to use CPLEX as solver, you have to use the x86 version of Anaconda as the Apple Silicon one is not supported by CPLEX yet.
-4. If you use Linux or Apple MacOS X, the easiest installation producure is our assisted installation protocol, see [Assisted installation under Linux and MacOS X](#assisted-installation-under-linux-and-macos-x).
-5. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
+This installer lets you create a local installation of CNApy under Windows, Linux or MacOS by following these instructions:
 
-## Contribute to the CNApy development
+*If you use Windows:*
 
-Everyone is welcome to contribute to CNApy's development. [See our contribution file for more detailed instructions](https://github.com/cnapy-org/CNApy/blob/master/CONTRIBUTING.md).
+- Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.bat)
+- Put this file into a folder where you want CNApy to be installed.
+- Double click on the file and let the CNApy installation run
+- Afterwards, you can run CNApy by either double-clicking on the newly created CNApy desktop icon, or by double-clicking "RUN_CNApy.bat" in the newly created cnapy-1.2.2 subfolder.
 
-## Using the Windows installer
+*If you use Linux or MacOS*:
 
-1. Download the zipped CNApy Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.1/cnapy-windows-installer.zip).
-2. Unzip the file into your desired location. You can do this by right-clicking on the file and selecting the option to extract the files.
-3. In the location where you unzipped the file, click on "INSTALL_CNAPY.bat"; This installation procedure only works with an active internet conncection. As soon as the installation is finished, the appearing window closes and you can start CNApy either by double-clicking on the newly created CNApy shortcut on your desktop (which also shows CNApy's logo) or the newly created RUN_CNAPY.bat in the folder where INSTALL_CNAPY.bat lies. If CNApy is not starting, this might have been caused by an internet connection problem; Running "INSTALL_CNAPY.bat" again might solve the problem. To uninstall CNApy, double-click on the UNINSTALL_CNAPY.bat in the same folder.
+- Download the Linux & MacOS installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.2/install_cnapy_here.sh).
+- Put this file into a folder where you want CNApy to be installed.
+- Make the script executable by opening your console in the folder and run ```chmod u+x ./install_cnapy_here.sh```. Alternatively, if supported on your system, right-click on the file, go the file's settings and mark it as executable.
+- Now, either run ```./install_cnapy_here.sh``` in your console or, if supported on your system, double-click on install_cnapy_here.sh.
+- Finally, you can run CNApy by calling ```./run_cnapy.sh``` in your console (for this without another path beforehand, your console must point to the folder where run_cnapy.sh is located, e.g. if you are in the folder where install_cnapy_here.sh is located, through ```cd cnapy-1.2.2```). Alternatively, if supported by your system, double-click on "run_cnapy.sh" in the newly created cnapy-1.2.2 subfolder.
 
-## Assisted installation under Linux and MacOS X
-
-Click on the operating system you use:
-
-- [Linux](#assisted-linux-installation)
-- [Apple MacOS X](#assisted-macos-x-installation)
-
-### Assisted Linux installation
-
-1. Download Miniforge [from here](https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh).
-2. Install Miniforge by double-clicking the downloaded file. If the script does not run, right-click on the file, open its settings and select the option to make it executable (alternative: run 'chmod u+x ./Miniconda3-latest-Linux-x86_64.sh' in your terminal). Follow the appearing installation instructions and remember in which folder you install Miniconda. *Note*: If you already have installed Anaconda on your computer before (for which we also directly provide a conda CNApy package, [see here](#install-cnapy-as-conda-package)), deactivate all installation options which put Miniconda to your console or system PATH to avoid possible problems.
-3. Using your file manager, go to the folder where you installed Miniforge. Then, open the appearing sub-folder "condabin".
-4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.1/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
-5. In the file manager, double-click on the newly downloaded installation assistant script which is called "cnapy-assistant-script.sh". If the script does not run, right-click on the file, open its settings and select the option to make it executable or, alternatively, run 'chmod u+x ./cnapy-assistant-script.sh' in your terminal in the mentioned "condabin" folder. Wait until CNApy is downloaded and installed.
-6. You can now run CNApy by executing the following two terminal instructions in the mentioned "condabin" folder:
-
-```sh
-./conda activate cnapy-1.2.1
-cnapy
-```
-
-If you installed Miniforge system-wide, it's also possible to run these commands in any other terminal folder.
-
-### Assisted MacOS X installation
-
-*Note*: Currently, if you want to use the CPLEX solver within CNApy, you have to install the Intel processor version of Miniconda regardless of your Mac's processor. This is caused by the lack of a CPLEX ARM Python package ([see also this issue for more details](https://github.com/cnapy-org/CNApy/issues/491)).
-
-1. If you have a (new) Mac with an ARM processor, such as the M1, M2 or M3, download Miniconda [from here](https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.pkg). If you have an (older) Mac with an Intel processor, download Miniconda [from here](https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.pkg). If you are unsure which processor your Mac has, click on the Apple menu in the upper-left of your screen and choose "About This Mac".
-2. Install Miniconda by double-clicking the downloaded file. Follow the appearing installation instructions and remember in which folder you install Miniconda. *Note*: If you already use Anaconda on your computer (for which we directly provide a conda CNApy package, [see here](#install-cnapy-as-conda-package)), deactivate all installation options which put Miniconda to your console or system PATH to avoid possible problems
-3. Using Finder, go to the folder where you installed Miniconda. Then, open the appearing sub-folder "condabin".
-4. Download the CNApy installation assistant script [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.1/cnapy-assistant-script.sh) into the mentioned "condabin" folder.
-5. In the file manager, double-click on the newly downloaded installation assistant script which is called "cnapy-installation-script.sh". If the script does not run, right-click on the file, open its settings and select the option to make it executable (alternative: run 'chmod u+x ./cnapy-assistant-script.sh' in your terminal). Wait until CNApy is downloaded and installed.
-6. Open the terminal in the mentioned "condabin" folder. You can now run CNApy by executing the following two terminal instructions:
-
-```sh
-./conda activate cnapy-1.2.1
-cnapy
-```
-
-## Install CNApy as conda package
-
-*Note for Mac users (does not affect Windows or Linux users)*: Currently, if you want to use the CPLEX solver within CNApy, you have to install the Intel processor version of Anaconda/Miniconda/Miniforge regardless of your Mac's processor. This is caused by the lack of a CPLEX ARM Python package ([see also this issue for more details](https://github.com/cnapy-org/CNApy/issues/491)).
-
-*Note for all users*: If you've installed mamba on your system (e.g., with [Miniforge](https://github.com/conda-forge/miniforge)), it is the recommended way to install CNApy as it is much faster than conda. To use mamba, just replace the "conda" command in the following steps with "mamba".
-
-1. Create a conda environment with all dependencies
-
-    ```sh
-    conda create -n cnapy-1.2.1 -c Gurobi -c IBMDecisionOptimization -c conda-forge -c cnapy cnapy=1.2.1 --yes
-    ```
-
-2. Activate the cnapy conda environment
-
-    ```sh
-    conda activate cnapy-1.2.1
-    ```
-
-3. Run CNApy within you activated conda environment
-
-    ```sh
-    cnapy
-    ```
-
-Furthermore, you can also perform the following optional steps:
-
-4. (optional and only possible if you have already installed CNApy by using conda) If you already have a cnapy environment, e.g., cnapy-1.X.X, you can delete it with the command
-
-    ```sh
-    # Here, the Xs stand for the last CNApy version you've installed by using conda
-    conda env remove -n cnapy-1.X.X
-    ```
-
-5. (optional, but recommended if you also use other Python distributions or Anaconda environments) In order to solve potential package version problems, set a systems variable called "PYTHONNOUSERSITE" to the value "True".
-
-   Under Linux systems, you can do this with the following command:
-
-   ```sh
-   export PYTHONNOUSERSITE=True
-   ```
-
-   Under Windows systems, you can do this by searching for your system's "environmental variables" and adding
-   the variable PYTHONNOUSERSITE with the value True using Window's environmental variables setting window.
+Technical side note: CNApy's installer is utilizing [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
 
 ## Setup the CNApy development environment
 
-We use conda as package manager to install all dependencies. You can use [miniconda](https://docs.conda.io/en/latest/miniconda.html).
-If you have conda installed you can:
+*Note:* The following instructions only have to be followed if you want to contribute to CNApy as a programmer. If this is not the case, follow other steps of the [Installation Options](#installation-options).
 
-1. Create a conda development environment with all dependencies
+Everyone is welcome to contribute to CNApy's development. [See our contribution file for general instructions](https://github.com/cnapy-org/CNApy/blob/master/CONTRIBUTING.md). Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.
 
-    ```sh
-    conda env create -n cnapy-dev -f environment.yml
-    ```
+Programatically, we recommend to use uv [[GitHub]](https://github.com/astral-sh/uv) to install all dependencies and manage installed Python versions. Alternatively, one can also use conda/mamba for the same tasks, although you would have to install CNApy's dependencies manually.
 
-2. Activate the development environment
+### uv usage
+You can use uv for CNApy as follows:
 
-    ```sh
-    conda activate cnapy-dev
-    ```
+1. Make sure that you have installed uv (*Note*: uv can be installed under any Python version as uv will manage the needed Python version later):
 
-3. Checkout the latest cnapy development version using git
+```sh
+pip install uv
+```
 
-    ```sh
-    git clone https://github.com/cnapy-org/CNApy.git
-    ```
+2. Checkout the latest cnapy development version using git
 
-4. Change into the source directory and run CNApy
+```sh
+git clone https://github.com/cnapy-org/CNApy.git
+```
 
-    ```sh
-    cd CNApy
-    python cnapy.py
-    ```
+3. Change into the source directory and run CNApy
 
-Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.
+```sh
+cd CNApy
+uv run cnapy.py
+```
+
+uv will automatically install the correct Python version (by reading ./.python-version) and CNApy dependencies (by reading ./pyproject.toml). If you get a Java/JDK/JVM/jpype error when running CNApy, consider installing OpenJDK [[Site]](https://openjdk.org/install/) on your system to fix this problem.
 
 ## How to cite CNApy
 
-If you use CNApy in your scientific work, please consider to cite CNApy's publication:
+If you use CNApy in your scientific work, please cite CNApy's publication:
 
 Thiele et al. (2022). CNApy: a CellNetAnalyzer GUI in Python for analyzing and designing metabolic networks.
 *Bioinformatics* 38, 1467-1469, [doi.org/10.1093/bioinformatics/btab828](https://doi.org/10.1093/bioinformatics/btab828).
