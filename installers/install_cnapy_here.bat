@@ -7,7 +7,7 @@ set "psFile=install_cnapy.ps1"
 :: Write the PowerShell script to a file
 echo # Adapted from https://raw.githubusercontent.com/mamba-org/micromamba-releases/main/install.ps1 > "%psFile%"
 echo. >> "%psFile%"
-echo $CNAPY_VERSION = "1.2.2"  ^# Replace with the actual version if needed >> "%psFile%"
+echo $CNAPY_VERSION = "1.2.3"  ^# Replace with the actual version if needed >> "%psFile%"
 echo $RELEASE_URL="https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-win-64" >> "%psFile%"
 echo. >> "%psFile%"
 echo Write-Output "Downloading micromamba from $RELEASE_URL" >> "%psFile%"
@@ -26,7 +26,7 @@ echo Move-Item -Force micromamba.exe $MAMBA_INSTALL_PATH ^| out-null >> "%psFile
 echo. >> "%psFile%"
 echo ^# Use ^& to execute the micromamba commands stored in the variable >> "%psFile%"
 echo ^& $MAMBA_INSTALL_PATH create -y -p "./cnapy-$CNAPY_VERSION/cnapy-environment" python=3.10 pip openjdk -r "./cnapy-$CNAPY_VERSION/" -c conda-forge >> "%psFile%"
-echo Copy-Item -Path "cnapy-1.2.2/condabin/mamba.bat" -Destination "cnapy-1.2.2/condabin/micromamba.bat" >> "%psFile%"
+echo Copy-Item -Path "cnapy-1.2.3/condabin/mamba.bat" -Destination "cnapy-1.2.3/condabin/micromamba.bat" >> "%psFile%"
 echo ^& $MAMBA_INSTALL_PATH run -p "./cnapy-$CNAPY_VERSION/cnapy-environment" -r "./cnapy-$CNAPY_VERSION/" pip install --no-cache-dir uv >> "%psFile%"
 echo ^& $MAMBA_INSTALL_PATH run -p "./cnapy-$CNAPY_VERSION/cnapy-environment" -r "./cnapy-$CNAPY_VERSION/" uv --no-cache pip install --no-cache-dir cnapy >> "%psFile%"
 echo. >> "%psFile%"
@@ -68,9 +68,9 @@ if exist "%psFile%" (
 
     :: Congratulate the user
     echo Congratulations! CNApy was successfully installed!
-    echo To run CNApy, double-click on the newly created CNApy-1.2.2 desktop icon or,
-    echo alternatively, double-click on the RUN_CNApy.bat file in the newly created cnapy-1.2.2 subfolder.
-    echo To deinstall CNApy later, simply delete the newly created cnapy-1.2.2 subfolder.
+    echo To run CNApy, double-click on the newly created CNApy-1.2.3 desktop icon or,
+    echo alternatively, double-click on the RUN_CNApy.bat file in the newly created cnapy-1.2.3 subfolder.
+    echo To deinstall CNApy later, simply delete the newly created cnapy-1.2.3 subfolder.
     pause
 ) else (
     echo PowerShell script file not found: %psFile%
