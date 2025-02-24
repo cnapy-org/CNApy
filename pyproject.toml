@@ -31,7 +31,8 @@ dependencies = [
     "numpy==1.23",
     "scipy==1.12",
     "openpyxl",
-    "jpype1==1.5.0"
+    "jpype1==1.5.0",
+    "setuptools",
 ]
 
 [project.scripts]

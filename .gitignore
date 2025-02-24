@@ -97,3 +97,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 cnapy-config.txt
+
+# uv files
+uv.lock

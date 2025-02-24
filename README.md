@@ -82,10 +82,12 @@ Programatically, we recommend to use uv [[GitHub]](https://github.com/astral-sh/
 ### uv usage
 You can use uv for CNApy as follows:
 
-1. Make sure that you have installed uv (*Note*: uv can be installed under any Python version as uv will manage the needed Python version later):
+1. Make sure that you have installed uv, e.g. through pip, pipx or another package manger (```apt```, ```brew```, ```nix``` ...) of your choice:
 
 ```sh
-pip install uv
+# E.g., you can install uv through
+pip install uv # or
+pipx install uv
 ```
 
 2. Checkout the latest cnapy development version using git
@@ -101,7 +103,7 @@ cd CNApy
 uv run cnapy.py
 ```
 
-uv will automatically install the correct Python version (by reading ./.python-version) and CNApy dependencies (by reading ./pyproject.toml). If you get a Java/JDK/JVM/jpype error when running CNApy, consider installing OpenJDK [[Site]](https://openjdk.org/install/) on your system to fix this problem.
+uv will automatically install the correct Python version and CNApy dependencies (all done by reading CNApy's pyproject.toml file). If you get a Java/JDK/JVM/jpype error when running CNApy, consider installing OpenJDK [[Site]](https://openjdk.org/install/) on your system to fix this problem.
 
 ## How to cite CNApy
 
