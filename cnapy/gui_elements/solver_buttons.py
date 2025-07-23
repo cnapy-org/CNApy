@@ -24,6 +24,7 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
     # CPLEX
     solver_buttons[CPLEX] = QRadioButton("IBM CPLEX")
     solver_buttons[CPLEX].setProperty('name', CPLEX)
+    solver_buttons[CPLEX].setProperty('cobrak_name', "cplex_direct")
     if CPLEX not in avail_solvers:
         solver_buttons[CPLEX].setEnabled(False)
         solver_buttons[CPLEX].setToolTip('CPLEX is not set up with your python environment. '+\
@@ -34,6 +35,7 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
     # Gurobi
     solver_buttons[GUROBI] = QRadioButton("Gurobi")
     solver_buttons[GUROBI].setProperty('name',GUROBI)
+    solver_buttons[GUROBI].setProperty('cobrak_name', "gurobi_direct")
     if GUROBI not in avail_solvers:
         solver_buttons[GUROBI].setEnabled(False)
         solver_buttons[GUROBI].setToolTip('Gurobi is not set up with your python environment. '+\
@@ -44,6 +46,7 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
     # GLPK
     solver_buttons[GLPK] = QRadioButton("GLPK")
     solver_buttons[GLPK].setProperty('name',GLPK)
+    solver_buttons[GLPK].setProperty('cobrak_name', "glpk")
     if GLPK not in avail_solvers:
         solver_buttons[GLPK].setEnabled(False)
         solver_buttons[GLPK].setToolTip('GLPK is not set up with your python environment. '+\
@@ -54,6 +57,7 @@ def get_solver_buttons(appdata) -> Tuple[QVBoxLayout, QButtonGroup]:
     # SCIP
     solver_buttons[SCIP] = QRadioButton("SCIP")
     solver_buttons[SCIP].setProperty('name',SCIP)
+    solver_buttons[SCIP].setProperty('cobrak_name', "scip")
     if SCIP not in avail_solvers:
         solver_buttons[SCIP].setEnabled(False)
         solver_buttons[SCIP].setToolTip('SCIP is not set up with your python environment. '+\

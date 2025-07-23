@@ -33,6 +33,7 @@ dependencies = [
     "openpyxl",
     "jpype1==1.5.0",
     "setuptools",
+    "cobrak==0.0.2",
 ]
 
 [project.scripts]
