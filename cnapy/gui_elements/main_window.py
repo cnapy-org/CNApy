@@ -53,7 +53,7 @@ SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
 class MainWindow(QMainWindow):
     """The cnapy main window"""
 
-    def __init__(self, appdata: AppData):
+    def __init__(self, appdata: AppData, project_path: str | None, scenario_path: str | None):
         QMainWindow.__init__(self)
         self.setWindowTitle("cnapy")
         self.appdata = appdata
@@ -589,6 +589,11 @@ class MainWindow(QMainWindow):
 
         self.update_scenario_file_name()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
+
+        if project_path is not None:
+            self.open_project(project_path)
+        if scenario_path is not None:
+            self.load_scenario_file(scenario_path)
 
     def closeEvent(self, event):
         if self.checked_unsaved():
