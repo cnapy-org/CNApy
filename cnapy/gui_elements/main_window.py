@@ -870,6 +870,7 @@ class MainWindow(QMainWindow):
     def load_scenario_file(self, filename, merge=False):
         self.appdata.scenario_past.clear()
         self.appdata.scenario_future.clear()
+        self.appdata.project.comp_values.clear()
         try:
             missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
                 self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
@@ -884,7 +885,6 @@ class MainWindow(QMainWindow):
 
         self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.pinned_reactions)
 
-        self.appdata.project.comp_values.clear()
         self.appdata.project.fva_values.clear()
         self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items()
         self.appdata.project.update_reaction_id_lists()
