@@ -30,8 +30,14 @@ except (JVMNotFoundException, JVMNotSupportedException):
 
 from cnapy.application import Application
 
-def main_cnapy():
-    Application()
+def main_cnapy(
+    project_path: None | str,
+    scenario_path: None | str,
+):
+    Application(
+        project_path=project_path,
+        scenario_path=scenario_path,
+    )
 
 if __name__ == "__main__":
     main_cnapy()

@@ -64,7 +64,11 @@ sys.excepthook = excepthook
 class Application:
     '''The Application class'''
 
-    def __init__(self):
+    def __init__(
+        self,
+        project_path: None | str,
+        scenario_path: None | str,
+    ):
         QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
         self.appdata = AppData()
@@ -73,7 +77,7 @@ class Application:
         font = self.qapp.font()
         font.setPointSizeF(self.appdata.font_size)
         self.qapp.setFont(font)
-        self.window = MainWindow(self.appdata)
+        self.window = MainWindow(self.appdata, project_path, scenario_path)
         self.appdata.window = self.window
         self.appdata.unsavedScenarioChanges.connect(self.window.update_scenario_file_name)
         self.window.recreate_maps()
@@ -94,7 +98,8 @@ class Application:
 
         # Execute application
         self.qapp.aboutToQuit.connect(
-            self.window.centralWidget().shutdown_kernel)
+            self.window.centralWidget().shutdown_kernel
+        )
         sys.exit(self.qapp.exec_())
 
     def first_start_up_message(self):
