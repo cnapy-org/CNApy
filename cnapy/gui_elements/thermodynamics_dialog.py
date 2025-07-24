@@ -18,7 +18,7 @@ from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from enum import Enum
-from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME
+from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME, TERMINATION_CONDITION_KEY
 from cobrak.dataclasses import ExtraLinearConstraint, Solver
 from cobrak.lps import perform_lp_optimization, perform_lp_thermodynamic_bottleneck_analysis
 from cobrak.io import load_annotated_cobrapy_model_as_cobrak_model
@@ -134,11 +134,43 @@ class ThermodynamicDialog(QDialog):
 
     def get_solution_from_thread(self, solution: dict[str, float]) -> None:
         if not solution[ALL_OK_KEY]:
-            QMessageBox.warning(
-                self,
-                "Computational error",
-                "Something went wrong. The computation could not run.",
-            )
+            if TERMINATION_CONDITION_KEY in solution:
+                match solution[TERMINATION_CONDITION_KEY]:
+                    case 1:
+                        warning_title = "Time limit"
+                        warning_text = "Solver's time limit hit. Please change solver or problem complexity."
+                    case 2:
+                        warning_title = "Iterations limit"
+                        warning_text = "Solver's iterations limit hit. Please change solver or problem complexity."
+                    case 7:
+                        warning_title = "Problem unbounded"
+                        warning_text = "The problem appears to be unbounded, i.e. there is no constraint limiting the objective values."
+                    case 8:
+                        warning_title = "Problem infeasible"
+                        warning_text = "The problem appears to be infeasible, i.e. the constraints make a solution impossible."
+                    case 10:
+                        warning_title = "Solver failure"
+                        warning_text = "Your solver seems to have crashed. Try another solver."
+                    case 11:
+                        warning_title = "Internal solver failure"
+                        warning_text = "Your solver seems to have crashed. Try another solver."
+                    case 15:
+                        warning_title = "License problem"
+                        warning_text = "License problem with the solver! Check out CNApy's documentation for more about how to solve it for CPLEX and Gurobi, or try another solver."
+                    case _:
+                        warning_title = "Solver problem"
+                        warning_text = "The solution process or the solution failed somehow."
+                QMessageBox.warning(
+                    self,
+                    warning_title,
+                    warning_text,
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Computational error",
+                    "Something went wrong (CNApy could not identify the type of error). The computation could not run. Check your problem's constraints or try a different solver.",
+                )
         else:
             self.set_boxes(solution=solution)
 
@@ -221,6 +253,16 @@ class ThermodynamicDialog(QDialog):
                     reac_lb_ub_cap=1_000.0,
                 )
             )
+
+            if all(cobrak_model.reactions[reac_id].dG0 is None for reac_id in cobrak_model.reactions):
+                QMessageBox.warning(
+                    self,
+                    "No ΔG'° set",
+                    "To run a thermodynamic calculation, your model needs at least one reaction with a ΔG'° (annotation 'dG0')."
+                    "Check out CNApy's documentation for more",
+                )
+                self.setCursor(Qt.ArrowCursor)
+                return
             if self.analysis_type in (ThermodynamicAnalysisTypes.OPTMDFPATHWAY, ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
                 solution = perform_lp_optimization(
                     cobrak_model=cobrak_model,
