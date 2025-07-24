@@ -328,6 +328,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
             if found_reac_id:
                 reactions.append(reac_id)
                 scen_values.append(val)
+                appdata.project.comp_values[reac_id] = (val[0], val[1])
             else:
                 unknown_ids.append(reac_id)
         appdata.scen_values_set_multiple(reactions, scen_values)
