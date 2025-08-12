@@ -85,6 +85,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
         qp_terms = [] # list of terms for the quadratic objective
     with cobra_model as model:
         model.objective = model.problem.Objective(Zero, direction='min')
+        scen_values.add_scenario_reactions_to_model(model)
         if flux_weight_scale > 0:
             for reaction_id, scen_val in scen_values.items():
                 if reaction_id == bm_reac_id:
