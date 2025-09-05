@@ -4,84 +4,70 @@
   <script type="text/javascript" src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script type="text/javascript">
     var cnapy_bridge = null;
-    window.onload = function()
+    function initializeCNApyBridge(builder)
     {
         new QWebChannel(qt.webChannelTransport, function(channel) {
             cnapy_bridge = channel.objects.cnapy_bridge;
-            var wait_count = 0;
-            function wait_for_map() {
-              if (builder.map != null) { // take this as proxy that Escher is now operational
-                try {
-                  cnapy_bridge.get_map_and_geometry(map_and_geometry => {
-                    if (map_and_geometry[0].length > 0) {
-                      console.warn("Loading map");
-                      builder.load_map(JSON.parse(map_and_geometry[0]));
-                      builder.map.zoomContainer.goTo(JSON.parse(map_and_geometry[1]), JSON.parse(map_and_geometry[2]));
-                    }
-                    cnapy_bridge.changeReactionId.connect(changeReacId)
-                    cnapy_bridge.zoomIn.connect(builder.zoom_container.zoom_in)
-                    cnapy_bridge.zoomOut.connect(builder.zoom_container.zoom_out)
-                    cnapy_bridge.changeMetId.connect(changeMetId)
-                    cnapy_bridge.highlightAndFocusReaction.connect(highlightAndFocusReaction)
-                    cnapy_bridge.highlightReaction.connect(highlightReaction)
-                    cnapy_bridge.deleteReaction.connect(deleteReaction)
-                    cnapy_bridge.updateReactionStoichiometry.connect(updateReactionStoichiometry)
-                    cnapy_bridge.addMapToJumpListIfReactionPresent.connect(addMapToJumpListIfReactionPresent)
-                    cnapy_bridge.hideSearchBar.connect(function() {search_container.style.display = 'none';})
-                    cnapy_bridge.displaySearchBarFor.connect(function(value) {
-                      search_container.style.display = '';
-                      search_field.value = value;
-                      search_field.dispatchEvent(new Event('input'));
-                    })
-                    cnapy_bridge.setCobraModel.connect(function (model_data) {
-                      builder.load_model(JSON.parse(model_data))
-                    })
-                    cnapy_bridge.enableEditing.connect(function (enable) {
-                      if (enable) {
-                        tooltip = "[]"
-                        menu = "block"
-                      }
-                      else {
-                        tooltip = "['object','label']"
-                        menu = "none"
-                      }
-                      builder.settings.set('enable_editing', enable);
-                      builder.settings.set('enable_keys', enable);
-                      builder.settings.set('enable_tooltips', tooltip);
-                      document.getElementsByClassName('button-panel')[0].hidden = !enable;
-                      document.getElementsByClassName('menu-bar')[0].style['display'] = menu
-                    })
-                    cnapy_bridge.visualizeCompValues.connect(function (reaction_data, text_only) {
-                      var styles
-                      if (text_only) {
-                        styles = builder.map.settings.get('reaction_styles')
-                        builder.map.settings.set('reaction_styles', 'text')
-                      }
-                      builder.set_reaction_data([reaction_data])
-                      if (text_only)
-                        builder.settings._options.reaction_styles=styles
-                    })
-                    cnapy_bridge.clearReactionData.connect(function() {builder.set_reaction_data(null)})
-                    builder.passPropsSearchBar({display:true}); // create here, will be hidden in finish_setup
-                    setTimeout(() => {cnapy_bridge.finish_setup();}, 50)
-                  })
+            try {
+              cnapy_bridge.get_map_and_geometry(map_and_geometry => {
+                if (map_and_geometry[0].length > 0) {
+                  console.warn("Loading map");
+                  builder.load_map(JSON.parse(map_and_geometry[0]));
+                  builder.map.zoomContainer.goTo(JSON.parse(map_and_geometry[1]), JSON.parse(map_and_geometry[2]));
                 }
-                catch (error) {
-                  alert(error);
-                }
-              }
-              else
-                if (wait_count < 50) {
-                  wait_count += 1
-                  console.warn(wait_count)
-                  setTimeout(wait_for_map, 100)
-                }
-                else
-                  alert("Escher appears inoperational, cannot display map.") 
+                cnapy_bridge.changeReactionId.connect(changeReacId)
+                cnapy_bridge.zoomIn.connect(builder.zoom_container.zoom_in)
+                cnapy_bridge.zoomOut.connect(builder.zoom_container.zoom_out)
+                cnapy_bridge.changeMetId.connect(changeMetId)
+                cnapy_bridge.highlightAndFocusReaction.connect(highlightAndFocusReaction)
+                cnapy_bridge.highlightReaction.connect(highlightReaction)
+                cnapy_bridge.deleteReaction.connect(deleteReaction)
+                cnapy_bridge.updateReactionStoichiometry.connect(updateReactionStoichiometry)
+                cnapy_bridge.addMapToJumpListIfReactionPresent.connect(addMapToJumpListIfReactionPresent)
+                cnapy_bridge.hideSearchBar.connect(function() {search_container.style.display = 'none';})
+                cnapy_bridge.displaySearchBarFor.connect(function(value) {
+                  search_container.style.display = '';
+                  search_field.value = value;
+                  search_field.dispatchEvent(new Event('input'));
+                })
+                cnapy_bridge.setCobraModel.connect(function (model_data) {
+                  builder.load_model(JSON.parse(model_data))
+                })
+                cnapy_bridge.enableEditing.connect(function (enable) {
+                  if (enable) {
+                    tooltip = "[]"
+                    menu = "block"
+                  }
+                  else {
+                    tooltip = "['object','label']"
+                    menu = "none"
+                  }
+                  builder.settings.set('enable_editing', enable);
+                  builder.settings.set('enable_keys', enable);
+                  builder.settings.set('enable_tooltips', tooltip);
+                  document.getElementsByClassName('button-panel')[0].hidden = !enable;
+                  document.getElementsByClassName('menu-bar')[0].style['display'] = menu
+                })
+                cnapy_bridge.visualizeCompValues.connect(function (reaction_data, text_only) {
+                  var styles
+                  if (text_only) {
+                    styles = builder.map.settings.get('reaction_styles')
+                    builder.map.settings.set('reaction_styles', 'text')
+                  }
+                  builder.set_reaction_data([reaction_data])
+                  if (text_only)
+                    builder.settings._options.reaction_styles=styles
+                })
+                cnapy_bridge.clearReactionData.connect(function() {builder.set_reaction_data(null)})
+                builder.passPropsSearchBar({display:true}); // create here, will be hidden in finish_setup
+                setTimeout(() => {cnapy_bridge.finish_setup();}, 50)
+              })
             }
-            setTimeout(wait_for_map, 100)
+            catch (error) {
+              alert(error);
+            }
         });
-    }
+    };
 
     const preact = escher.libs.preact;
     const h = preact.createElement;
@@ -159,7 +145,8 @@
 
     <script type="text/javascript">
       builder = escher.Builder(null, null, null, escher.libs.d3_select('#map_container'),
-        {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, scroll_behavior: 'zoom'})
+        {menu: 'all', fill_screen: true, never_ask_before_quit: true, tooltip_component: CnapyTooltip, scroll_behavior: 'zoom',
+         first_load_callback: initializeCNApyBridge})
 
       function addMapToJumpListIfReactionPresent(reacId, mapName) {
         var records = builder.map.search_index.find(reacId);
