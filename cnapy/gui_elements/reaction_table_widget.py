@@ -1,6 +1,6 @@
 from enum import Enum
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QPlainTextEdit
+from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QPlainTextEdit, QFrame
 from qtpy.QtGui import QMouseEvent, QTextCursor
 
 
@@ -16,6 +16,7 @@ class ReactionString(QPlainTextEdit):
         self.setPlainText(reaction_string)
         self.text_width = self.fontMetrics().horizontalAdvance(reaction_string)
         self.setReadOnly(True)
+        self.setFrameStyle(QFrame.NoFrame)
         self.model = reaction.model
         self.metabolite_list = metabolite_list
 
@@ -75,21 +76,24 @@ class ReactionTableWidget(QTableWidget):
                 reaction_string_widget.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
                 self.setCellWidget(i, 1, reaction_string_widget)
             self.setSortingEnabled(True)
+        self.section_resized(1, self.horizontalHeader().sectionSize(1), self.horizontalHeader().sectionSize(1))
         QApplication.restoreOverrideCursor()
 
     @Slot(int, int, int)
     def section_resized(self, index: int, old_size: int, new_size: int):
-        if index == 1 and old_size != new_size:
+        if index == 1:
             for row in range(self.rowCount()):
                 reaction_string_widget: ReactionString = self.cellWidget(row, index)
-                base_height = reaction_string_widget.fontMetrics().height()
-                # TODO: determined 12 empirically, but how programmatically?
-                if reaction_string_widget.text_width + 12 > new_size:
+                font_metrics= reaction_string_widget.fontMetrics()
+                base_height = font_metrics.lineSpacing()
+                margins = reaction_string_widget.contentsMargins()
+                height_margin = 12
+                if reaction_string_widget.text_width + margins.left() + margins.right() > new_size:
                     reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-                    self.setRowHeight(row, base_height*2 + 12)
+                    self.setRowHeight(row, base_height*2 + font_metrics.leading() + height_margin) # font_metrics.leading(): space between two lines
                 else:
                     reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-                    self.setRowHeight(row, base_height + 12)
+                    self.setRowHeight(row, base_height + height_margin)
 
     jumpToMetabolite = Signal(str)
     def emit_jump_to_metabolite(self, metabolite):

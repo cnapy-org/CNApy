@@ -85,6 +85,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
         qp_terms = [] # list of terms for the quadratic objective
     with cobra_model as model:
         model.objective = model.problem.Objective(Zero, direction='min')
+        scen_values.add_scenario_reactions_to_model(model)
         if flux_weight_scale > 0:
             for reaction_id, scen_val in scen_values.items():
                 if reaction_id == bm_reac_id:
@@ -97,6 +98,10 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                 # reactions set to 0 are still considered off
                 if scen_val[0] == scen_val[1] and scen_val[0] != 0:
                     reactions_in_objective.append(reaction_id)
+                    if scen_val[0] < reaction.lower_bound:
+                        reaction.lower_bound = cobra.Configuration().lower_bound
+                    if scen_val[0] > reaction.upper_bound:
+                        reaction.upper_bound = cobra.Configuration().upper_bound
                     if abs_flux_weights:
                         weight = abs(scen_val[0]) * flux_weight_scale # for scaling relative to biomass adjustment
                     else:
