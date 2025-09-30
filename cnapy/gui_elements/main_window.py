@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QS
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, ProjectData, Scenario
+from cnapy.appdata import AppData
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -914,7 +914,8 @@ class MainWindow(QMainWindow):
             self.clear_status_bar()
         self.appdata.last_scen_directory = os.path.dirname(filename)
         self.appdata.project.scen_values.has_unsaved_changes = False
-        self.update_scenario_file_name()
+        if not merge:
+            self.update_scenario_file_name()
 
     @Slot()
     def load_modes(self):
@@ -1209,6 +1210,7 @@ class MainWindow(QMainWindow):
         self.appdata.project.fva_values.clear()
         self.appdata.project.scen_values.clear()
         self.update_scenario_file_name()
+        self.central_widget.tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
         (reactions, values) = self.appdata.project.collect_default_scenario_values()
         if len(reactions) == 0:
             self.appdata.scen_values_clear()
@@ -1227,7 +1229,6 @@ class MainWindow(QMainWindow):
             self.recreate_maps()
 
     def new_project_unchecked(self):
-        self.appdata.project = ProjectData()
         self.delete_maps()
 
         self.centralWidget().mode_navigator.clear()
@@ -1262,6 +1263,7 @@ class MainWindow(QMainWindow):
                 return
             self.new_project_unchecked()
             self.appdata.project.cobra_py_model = cobra_py_model
+            self.set_current_filename(filename)
 
             self.recreate_maps()
             self.centralWidget().update(rebuild_all_tabs=True)
@@ -1340,7 +1342,6 @@ class MainWindow(QMainWindow):
                     self.centralWidget().fit_mapview()
 
                 self.centralWidget().update(rebuild_all_tabs=True)
-                self.update_scenario_file_name()
                 self.update_recently_used_models(filename)
 
         except FileNotFoundError:
