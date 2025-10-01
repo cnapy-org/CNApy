@@ -348,6 +348,9 @@ class SDDialog(QDialog):
         self.solution_buttons['CONT_SEARCH'].setProperty('name','CONT_SEARCH')
         self.solution_buttons["group"].addButton(self.solution_buttons['CONT_SEARCH'])
         solution_buttons_layout.addWidget(self.solution_buttons['CONT_SEARCH'])
+        self.enforce_bigm = QCheckBox("Enforce Big M formulation\n(often faster)")
+        self.enforce_bigm.setChecked(False)
+        solution_buttons_layout.addWidget(self.enforce_bigm)
         solver_and_solution_layout.addItem(solution_buttons_layout)
 
         solver_and_solution_group.setLayout(solver_and_solution_layout)
@@ -1172,6 +1175,8 @@ class SDDialog(QDialog):
             self.solver_buttons['group'].checkedButton().property('name')})
         sd_setup.update({SOLUTION_APPROACH : \
             self.solution_buttons["group"].checkedButton().property('name')})
+        sd_setup.update({'M' : 1_000 if self.enforce_bigm.isChecked() else None})
+
         # only save knockouts and knockins if advanced is selected
         if sd_setup['advanced']:
             koCost = {}
@@ -1280,6 +1285,7 @@ class SDDialog(QDialog):
         self.max_cost.setText(sd_setup[MAX_COST])
         self.time_limit.setText(sd_setup[TIME_LIMIT])
         self.advanced.setChecked(sd_setup['advanced'])
+        self.enforce_bigm.setChecked(bool(sd_setup['M']) if 'M' in sd_setup else False)
         if sd_setup[SOLVER] == 'OPTLANG':
             solver = 'OPTLANG'
         else:
@@ -1473,7 +1479,8 @@ class SDDialog(QDialog):
                                 cuts=cuts, knock_in_idx=knock_in_idx, intervention_costs=iv_costs,
                                 include_model_bounds=True, use_kn_in_dual=True,
                                 results_cache_dir=self.appdata.results_cache_dir
-                                if self.appdata.use_results_cache else None)
+                                if self.appdata.use_results_cache else None,
+                                bigM = 1_000 if sd_setup["M"] else 0)
             except mcs_computation.InfeasibleRegion as e:
                 QMessageBox.warning(self, 'Cannot calculate MCS', str(e))
                 return False
@@ -1623,7 +1630,11 @@ class SDComputationThread(QThread):
                     logger.setLevel('INFO')
                     if self.sd_setup.pop('use_scenario'):
                         self.appdata.project.load_scenario_into_model(model)
-                    sd_solutions = compute_strain_designs(model, **self.sd_setup)
+                    
+                    sd_solutions = compute_strain_designs(
+                        model,
+                        **self.sd_setup,
+                    )
                     self.finished_computation.emit(pickle.dumps(sd_solutions))
             except Exception as e:
                 tb_str = ''.join(traceback.format_exception(None, e, e.__traceback__))
