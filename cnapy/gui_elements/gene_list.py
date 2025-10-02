@@ -114,7 +114,7 @@ class GeneList(QWidget):
             self.gene_mask.changed = False
             self.gene_mask.annotation_widget.update_annotations(gene.annotation)
 
-            turn_white(self.gene_mask.name)
+            turn_white(self.gene_mask.name, self.appdata.is_in_dark_mode)
             self.gene_mask.is_valid = True
             self.gene_mask.reactions.update_state(self.gene_mask.id.text(), self.gene_mask.gene_list)
             self.central_widget.add_model_item_to_history(gene.id, gene.name, ModelItemType.Gene)
@@ -263,7 +263,7 @@ class GenesMask(QWidget):
             turn_red(self.name)
             return False
         else:
-            turn_white(self.name)
+            turn_white(self.name, self.appdata.is_in_dark_mode)
             return True
 
     def validate_mask(self):

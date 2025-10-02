@@ -190,7 +190,7 @@ class ScenarioTab(QWidget):
         with QSignalBlocker(self.equation):
             self.equation.clear()
             self.equation.setEnabled(False)
-            turn_white(self.equation)
+            turn_white(self.equation, self.appdata.is_in_dark_mode)
 
         self.constraints.clearContents()
         self.constraints.setRowCount(0)
@@ -288,7 +288,7 @@ class ScenarioTab(QWidget):
                 if (self.appdata.project.scen_values.reactions[reac_id][2] < 0 and reaction.upper_bound >= 0) or \
                     (self.appdata.project.scen_values.reactions[reac_id][2] > 0 and reaction.upper_bound <= 0):
                     self.appdata.project.scen_values.reactions[reac_id][2] = reaction.upper_bound
-                turn_white(self.equation)
+                turn_white(self.equation, self.appdata.is_in_dark_mode)
                 with QSignalBlocker(self.reactions):
                     self.update_reaction_row(row, reac_id)
                 equation_valid = True
@@ -320,7 +320,7 @@ class ScenarioTab(QWidget):
             self.equation.setEnabled(True)
             if row != previous_row:
                 self.update_reaction_equation(self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole))
-                turn_white(self.equation)
+                turn_white(self.equation, self.appdata.is_in_dark_mode)
 
     def update_reaction_equation(self, reac_id: str):
         metabolites, lb, ub = self.appdata.project.scen_values.reactions[reac_id]

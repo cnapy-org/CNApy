@@ -82,13 +82,11 @@ def turn_red(item):
     item.setStyleSheet("background: #ff9999")
 
 
-def turn_white(item):
-    palette = item.palette()
-    role = item.foregroundRole()
-    palette.setColor(role, Qt.black)
-    item.setPalette(palette)
-
-    item.setStyleSheet("background: white")
+def turn_white(item, is_in_dark_mode: bool=False):
+    if is_in_dark_mode:
+        item.setStyleSheet("background-color: rgb(35, 35, 35); color: white;")
+    else:
+        item.setStyleSheet("background: white; color: black")
 
 
 class SignalThrottler(QObject):
@@ -128,7 +126,7 @@ class SignalThrottler(QObject):
 class QComplReceivLineEdit(QLineEdit):
     '''# does new completion after SPACE'''
 
-    def __init__(self, parent, wordlist, check=True, is_constr=False, reject_empty_string=True):
+    def __init__(self, parent, wordlist, is_in_dark_mode: bool = False, check=True, is_constr=False, reject_empty_string=True):
         super().__init__("", parent)
         self.completer: QCompleter = QCompleter()
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
@@ -145,6 +143,7 @@ class QComplReceivLineEdit(QLineEdit):
         self.is_constr = is_constr
         self.is_valid = not reject_empty_string
         self.reject_empty_string = reject_empty_string
+        self.is_in_dark_mode = is_in_dark_mode
 
     def set_wordlist(self, wordlist: list):
         self.wordlist: list = wordlist
@@ -195,21 +194,27 @@ class QComplReceivLineEdit(QLineEdit):
                     else:
                         linexpr2dict(self.text(), self.wordlist)
                     if final:
-                        self.setStyleSheet(BACKGROUND_COLOR(
-                            "#ffffff", self.objectName()))
+                        if self.is_in_dark_mode:
+                            self.setStyleSheet("""background-color: rgb(53, 53, 53); color: rgb(255, 255, 255);""")
+                        else:
+                            self.setStyleSheet("""background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);""")
                     else:
-                        self.setStyleSheet(BACKGROUND_COLOR(
-                            "#f0fff1", self.objectName()))
+                        if self.is_in_dark_mode:
+                            self.setStyleSheet("""background-color: rgb(53, 53, 53); color: rgb(255, 255, 255);""")
+                        else:
+                            self.setStyleSheet("""background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);""")
                     self.is_valid = True
                     self.textCorrect.emit(True)
                     return True
-                except:
+                except Exception:
                     if final:
                         self.setStyleSheet(BACKGROUND_COLOR(
                             "#ffb0b0", self.objectName()))
                     else:
-                        self.setStyleSheet(BACKGROUND_COLOR(
-                            "#ffffff", self.objectName()))
+                        if self.is_in_dark_mode:
+                            self.setStyleSheet("""background-color: rgb(53, 53, 53); color: rgb(255, 255, 255);""")
+                        else:
+                            self.setStyleSheet("""background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);""")
                     self.is_valid = False
                     self.textCorrect.emit(False)
                     return False

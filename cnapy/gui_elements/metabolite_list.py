@@ -165,11 +165,11 @@ class MetaboliteList(QWidget):
             self.update_annotations(metabolite.annotation)
             self.metabolite_mask.changed = False
 
-            turn_white(self.metabolite_mask.id)
-            turn_white(self.metabolite_mask.name)
-            turn_white(self.metabolite_mask.formula)
-            turn_white(self.metabolite_mask.charge)
-            turn_white(self.metabolite_mask.compartment)
+            turn_white(self.metabolite_mask.id, self.appdata.is_in_dark_mode)
+            turn_white(self.metabolite_mask.name, self.appdata.is_in_dark_mode)
+            turn_white(self.metabolite_mask.formula, self.appdata.is_in_dark_mode)
+            turn_white(self.metabolite_mask.charge, self.appdata.is_in_dark_mode)
+            turn_white(self.metabolite_mask.compartment, self.appdata.is_in_dark_mode)
             self.metabolite_mask.is_valid = True
             self.metabolite_mask.reactions.update_state(self.metabolite_mask.id.text(), self.metabolite_mask.metabolite_list)
             self.central_widget.add_model_item_to_history(metabolite.id, metabolite.name, ModelItemType.Metabolite)
@@ -388,7 +388,7 @@ class MetabolitesMask(QWidget):
                 turn_red(self.id)
                 return False
             else:
-                turn_white(self.id)
+                turn_white(self.id, self.appdata.is_in_dark_mode)
                 return True
 
     def validate_name(self):
@@ -397,10 +397,10 @@ class MetabolitesMask(QWidget):
                 m = cobra.Metabolite(id="test_id", name=self.name.text())
                 model.add_metabolites([m])
             except ValueError:
-                turn_red(self.name)
+                turn_red(self.name, self.appdata.is_in_dark_mode)
                 return False
             else:
-                turn_white(self.name)
+                turn_white(self.name, self.appdata.is_in_dark_mode)
                 return True
 
     def validate_formula(self):
@@ -414,7 +414,7 @@ class MetabolitesMask(QWidget):
             turn_red(self.charge)
             return False
         else:
-            turn_white(self.charge)
+            turn_white(self.charge, self.appdata.is_in_dark_mode)
             return True
 
     def validate_compartment(self):
@@ -430,7 +430,7 @@ class MetabolitesMask(QWidget):
             turn_red(self.compartment)
             return False
         else:
-            turn_white(self.compartment)
+            turn_white(self.compartment, self.appdata.is_in_dark_mode)
             if self.compartment.text() != "" and self.compartment.text() not in self.appdata.project.cobra_py_model.compartments:
                 # block signals triggered by appearance of message_box
                 self.compartment.blockSignals(True)

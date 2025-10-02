@@ -166,7 +166,7 @@ class SDDialog(QDialog):
         # Outer objective
         self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
+        self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode)
         self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[OUTER_OBJECTIVE].setHidden(True)
         self.module_edit[OUTER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -176,7 +176,7 @@ class SDDialog(QDialog):
         # Inner objective
         self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
-        self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
+        self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode)
         self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[INNER_OBJECTIVE].setHidden(True)
         self.module_edit[INNER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
@@ -188,7 +188,7 @@ class SDDialog(QDialog):
         optcouple_layout_prod = QVBoxLayout()
         self.module_edit[PROD_ID+"_label"]  = QLabel("Product synth. reac_id")
         self.module_edit[PROD_ID+"_label"].setHidden(True)
-        self.module_edit[PROD_ID] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
+        self.module_edit[PROD_ID] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode)
         self.module_edit[PROD_ID].setPlaceholderText(placeholder_rid)
         self.module_edit[PROD_ID].setHidden(True)
         self.module_edit[PROD_ID].textCorrect.connect(self.update_global_objective)
@@ -429,7 +429,7 @@ class SDDialog(QDialog):
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
         l = QLabel("Filter: ")
-        self.ko_ki_filter = QComplReceivLineEdit(self,self.gene_wordlist,check=False)
+        self.ko_ki_filter = QComplReceivLineEdit(self, self.gene_wordlist, self.appdata.is_in_dark_mode, check=False)
         self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
         ko_ki_filter_layout.addWidget(l)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
@@ -721,7 +721,7 @@ class SDDialog(QDialog):
     def add_constr(self):
         i = self.module_edit[CONSTRAINTS].rowCount()
         self.module_edit[CONSTRAINTS].insertRow(i)
-        constr_entry = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True, is_constr=True)
+        constr_entry = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode, check=True, is_constr=True)
         constr_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = constr_entry
         self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry)
@@ -738,7 +738,7 @@ class SDDialog(QDialog):
     def add_reg(self):
         i = self.regulatory_itv_list.rowCount()
         self.regulatory_itv_list.insertRow(i)
-        reg_entry = QComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+        reg_entry = QComplReceivLineEdit(self, self.gene_wordlist, self.appdata.is_in_dark_mode, check=True, is_constr=True)
         reg_entry.setPlaceholderText(self.placeholder_eq)
         self.active_receiver = reg_entry
         self.regulatory_itv_list.setCellWidget(i, 0, reg_entry)
@@ -824,7 +824,7 @@ class SDDialog(QDialog):
             for i,c in enumerate(mod[CONSTRAINTS]):
                 text = lineqlist2str(c)
                 self.module_edit[CONSTRAINTS].insertRow(i)
-                constr_entry[i] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, check=True, is_constr=True)
+                constr_entry[i] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode, check=True, is_constr=True)
                 constr_entry[i].setText(text+' ')
                 constr_entry[i].check_text(True)
                 constr_entry[i].setPlaceholderText(self.placeholder_eq)
@@ -1305,7 +1305,7 @@ class SDDialog(QDialog):
                 reg_entry = [None for _ in range(len(sd_setup[REGCOST]))]
                 for i, (k, v) in enumerate(sd_setup[REGCOST].items()):
                     self.regulatory_itv_list.insertRow(i)
-                    reg_entry[i] = QComplReceivLineEdit(self,self.gene_wordlist,check=True,is_constr=True)
+                    reg_entry[i] = QComplReceivLineEdit(self, self.gene_wordlist, self.appdata.is_in_dark_mode, check=True, is_constr=True)
                     reg_entry[i].setText(k+' ')
                     reg_entry[i].check_text(True)
                     reg_entry[i].setPlaceholderText(self.placeholder_eq)

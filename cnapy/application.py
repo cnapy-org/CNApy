@@ -24,7 +24,7 @@ from pathlib import Path
 
 import cobra
 from qtpy.QtCore import Qt, QLocale
-from qtpy.QtGui import QColor, QFont
+from qtpy.QtGui import QColor, QPalette
 from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
 
@@ -60,7 +60,6 @@ def excepthook(cls, exception, tb):
 excepthook2 = sys.excepthook
 sys.excepthook = excepthook
 
-
 class Application:
     '''The Application class'''
 
@@ -72,7 +71,44 @@ class Application:
         QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
         self.appdata = AppData()
+        palette = QPalette()
+        if not self.appdata.is_in_dark_mode:
+            # "Light mode"
+            palette.setColor(QPalette.Window, QColor(240, 240, 240))
+            palette.setColor(QPalette.WindowText, Qt.black)
+            palette.setColor(QPalette.Base, Qt.white)               # e.g. QLineEdit background
+            palette.setColor(QPalette.AlternateBase, QColor(225, 225, 225))
+            palette.setColor(QPalette.ToolTipBase, Qt.white)
+            palette.setColor(QPalette.ToolTipText, Qt.black)
+            palette.setColor(QPalette.Text, Qt.black)               # generic text colour
+            palette.setColor(QPalette.Button, QColor(240, 240, 240))
+            palette.setColor(QPalette.ButtonText, Qt.black)
+            palette.setColor(QPalette.BrightText, Qt.red)
+            palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
+            palette.setColor(QPalette.HighlightedText, Qt.white)
+        else:
+            # "Dark mode"
+            palette.setColor(QPalette.Window, QColor(53, 53, 53)) # Main window background
+            palette.setColor(QPalette.WindowText, Qt.white) # Text
+            palette.setColor(QPalette.Base, QColor(75, 75, 75)) # Map etc. backgrounds
+            palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53)) # Alternate backgrounds in lists/tables
+            palette.setColor(QPalette.ToolTipBase, QColor(35, 35, 35)) # Tooltip background
+            palette.setColor(QPalette.ToolTipText, Qt.white) # Tooltip text
+            palette.setColor(QPalette.Text, Qt.white) # Text color in widgets
+            palette.setColor(QPalette.Button, QColor(53, 53, 53)) # Button background
+            palette.setColor(QPalette.ButtonText, Qt.white) # Button text
+            palette.setColor(QPalette.BrightText, Qt.red) # Highlighted error text
+            # Highlights
+            palette.setColor(QPalette.Highlight, QColor(142, 45, 197)) # Selection background
+            palette.setColor(QPalette.HighlightedText, Qt.white) # Selection text color
+            # Disabled state
+            palette.setColor(QPalette.Disabled, QPalette.Text, QColor(164, 164, 164))
+            palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(164, 164, 164))
+            palette.setColor(QPalette.Disabled, QPalette.WindowText, QColor(164, 164, 164))
+            palette.setColor(QPalette.Disabled, QPalette.Highlight, QColor(80, 80, 80))
+            palette.setColor(QPalette.Disabled, QPalette.HighlightedText, QColor(164, 164, 164))
         self.qapp.setStyle("fusion")
+        self.qapp.setPalette(palette)
         config_file_version = self.read_config()
         font = self.qapp.font()
         font.setPointSizeF(self.appdata.font_size)
@@ -206,6 +242,16 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find recent_cna_files in cnapy-config.txt")
                 self.appdata.recent_cna_files = []
+            
+            try:
+                is_in_dark_mode = config_parser.get(
+                    'cnapy-config', 'is_in_dark_mode')
+                if is_in_dark_mode == "False":
+                    self.appdata.is_in_dark_mode = False
+                else:
+                    self.appdata.is_in_dark_mode = True
+            except (KeyError, NoOptionError):
+                print("Could not find is_in_dark_mode in cnapy-config.txt")
 
             self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
                     'use_results_cache', fallback=self.appdata.use_results_cache)
