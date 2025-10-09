@@ -4,7 +4,7 @@
 set -eu
 
 # CNApy version
-CNAPY_VERSION="1.2.4"
+CNAPY_VERSION="1.2.5"
 
 # Folders
 BIN_FOLDER="${BIN_FOLDER:-./cnapy-${CNAPY_VERSION}}"

@@ -40,7 +40,7 @@ There are 4 alternative ways to install CNApy:
 
 1. The easiest way for any user to install CNApy is by downloading its installer, which is provided for Windows, Linux and MacOS, see [Using CNApy installer](#using-cnapy-installer) for more.
 2. If you already have installed Python 3.10 (no other version) on your system, you can install CNApy simply through ```pip install cnapy``` in your console. Afterwards, you can start CNApy's GUI by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy``` where "python" must call your Python 3.10 installation.
-3. If you already use conda or mamba (for mamba, just change the "conda" command to "mamba"), you can create a CNApy environment named ```cnapy-1.2.4``` as follows: 1) Run ```conda create --name cnapy-1.2.4 python=3.10 pip openjdk -c conda-forge```, 2) run ```conda activate cnapy-1.2.4```, 3) run ```pip install cnapy```. Then, you can start CNApy in the cnapy-1.2.4 conda environment by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy```. Note that the [cnapy conda package](https://anaconda.org/cnapy/cnapy) is currently *not* being updated due to licensing uncertainties.
+3. If you already use conda or mamba (for mamba, just change the "conda" command to "mamba"), you can create a CNApy environment named ```cnapy-1.2.5``` as follows: 1) Run ```conda create --name cnapy-1.2.5 python=3.10 pip openjdk -c conda-forge```, 2) run ```conda activate cnapy-1.2.5```, 3) run ```pip install cnapy```. Then, you can start CNApy in the cnapy-1.2.5 conda environment by running either ```cnapy``` or, if this doesn't work, ```python -m cnapy```. Note that the [cnapy conda package](https://anaconda.org/cnapy/cnapy) is currently *not* being updated due to licensing uncertainties.
 4. If you want to develop CNApy, follow the instruction for the cloning and setup of the CNApy repository using git and conda or mamba in section [Setup the CNApy development environment](#setup-the-cnapy-development-environment).
 
 ## Documentation and Tutorials
@@ -56,18 +56,18 @@ This installer lets you create a local installation of CNApy under Windows, Linu
 
 *If you use Windows:*
 
-- Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.4/install_cnapy_here.bat)
+- Download the Windows installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.5/install_cnapy_here.bat)
 - Put this file into a folder where you want CNApy to be installed.
 - Double click on the file and let the CNApy installation run
-- Afterwards, you can run CNApy by either double-clicking on the newly created CNApy desktop icon, or by double-clicking "RUN_CNApy.bat" in the newly created cnapy-1.2.4 subfolder.
+- Afterwards, you can run CNApy by either double-clicking on the newly created CNApy desktop icon, or by double-clicking "RUN_CNApy.bat" in the newly created cnapy-1.2.5 subfolder.
 
 *If you use Linux or MacOS*:
 
-- Download the Linux & MacOS installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.4/install_cnapy_here.sh).
+- Download the Linux & MacOS installer [from here](https://github.com/cnapy-org/CNApy/releases/download/v1.2.5/install_cnapy_here.sh).
 - Put this file into a folder where you want CNApy to be installed.
 - Make the script executable by opening your console in the folder and run ```chmod u+x ./install_cnapy_here.sh```. Alternatively, if supported on your system, right-click on the file, go the file's settings and mark it as executable.
 - Now, either run ```./install_cnapy_here.sh``` in your console or, if supported on your system, double-click on install_cnapy_here.sh.
-- Finally, you can run CNApy by calling ```./run_cnapy.sh``` in your console (for this without another path beforehand, your console must point to the folder where run_cnapy.sh is located, e.g. if you are in the folder where install_cnapy_here.sh is located, through ```cd cnapy-1.2.4```). Alternatively, if supported by your system, double-click on "run_cnapy.sh" in the newly created cnapy-1.2.4 subfolder.
+- Finally, you can run CNApy by calling ```./run_cnapy.sh``` in your console (for this without another path beforehand, your console must point to the folder where run_cnapy.sh is located, e.g. if you are in the folder where install_cnapy_here.sh is located, through ```cd cnapy-1.2.5```). Alternatively, if supported by your system, double-click on "run_cnapy.sh" in the newly created cnapy-1.2.5 subfolder.
 
 Technical side note: CNApy's installer is utilizing [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
 

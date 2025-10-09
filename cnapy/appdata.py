@@ -31,7 +31,7 @@ class AppData(QObject):
 
     def __init__(self):
         QObject.__init__(self)
-        self.version = "cnapy-1.2.4"
+        self.version = "cnapy-1.2.5"
         self.format_version = 2
         self.unsaved = False
         self.project = ProjectData()
