@@ -6,7 +6,7 @@ import pkg_resources
 from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
-from qtpy.QtGui import QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
+from qtpy.QtGui import QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent, QTreeWidget,
@@ -28,6 +28,10 @@ class MapView(QGraphicsView):
         QGraphicsView.__init__(self, self.scene)
         self.background: QGraphicsSvgItem = None
         palette = self.palette()
+        if appdata.is_in_dark_mode:
+            palette.setColor(QPalette.Base, QColor(90, 90, 90)) # Map etc. backgrounds
+        else:
+            palette.setColor(QPalette.Base, QColor(250, 250, 250)) # Map etc. backgrounds
         self.setPalette(palette)
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
