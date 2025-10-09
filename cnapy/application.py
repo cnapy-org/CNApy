@@ -60,6 +60,83 @@ def excepthook(cls, exception, tb):
 excepthook2 = sys.excepthook
 sys.excepthook = excepthook
 
+
+def make_dark_palette() -> QPalette:
+    """
+    Return a QPalette that is explicitly dark.
+
+    The colour choices follow the “Windows‑10 dark” look
+    (dark gray backgrounds, light gray text, blue highlight).
+    Feel free to tweak the numbers to match your own branding.
+    """
+    palette = QPalette()
+
+    # ---- Base colours (backgrounds) ----
+    # Window background (main window, dialogs, etc.)
+    palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))          # very dark gray
+
+    # General widget background (e.g. QLineEdit, QTextEdit)
+    palette.setColor(QPalette.ColorRole.Base, QColor(42, 42, 42))            # slightly darker than Window
+
+    # Button background
+    palette.setColor(QPalette.ColorRole.Button, QColor(66, 66, 66))          # medium‑dark gray
+
+    # ---- Text colours ----
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.white)               # normal text
+    palette.setColor(QPalette.ColorRole.ButtonText, Qt.white)               # button labels
+    palette.setColor(QPalette.ColorRole.Text, Qt.white)                     # line‑edit / plain‑text
+    palette.setColor(QPalette.ColorRole.PlaceholderText,
+                     QColor(150, 150, 150))                                 # a softer gray for placeholders
+
+    # ---- Highlight (selection) colours ----
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
+    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.black)         # black text on the blue highlight
+
+    # ---- Disabled state (optional) ----
+    disabled = QColor(120, 120, 120)   # lighter than the normal text gray so it is still visible
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled)
+
+    # ---- Other states ----
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
+    palette.setColor(QPalette.ColorRole.ToolTipText, Qt.black)
+
+    palette.setColor(QPalette.ColorRole.Link, QColor(86, 156, 214))          # a light‑blue link colour
+    palette.setColor(QPalette.ColorRole.LinkVisited, QColor(150, 150, 255))
+
+    return palette
+
+
+def make_light_palette():
+    """Return a QPalette that is explicitly light."""
+    palette = QPalette()
+
+    # ---- Base colours (backgrounds) ----
+    # Window background (main window, dialogs, etc.)
+    palette.setColor(QPalette.Window, QColor(240, 240, 240))          # light gray
+    # General widget background (e.g. QLineEdit, QTextEdit)
+    palette.setColor(QPalette.Base, QColor(255, 255, 255))           # white
+    # Button background
+    palette.setColor(QPalette.Button, QColor(230, 230, 230))
+
+    # ---- Text colours ----
+    palette.setColor(QPalette.WindowText, Qt.black)
+    palette.setColor(QPalette.ButtonText, Qt.black)
+    palette.setColor(QPalette.Text, Qt.black)
+    palette.setColor(QPalette.PlaceholderText, QColor(120, 120, 120))
+
+    # ---- Highlight (selection) colours ----
+    palette.setColor(QPalette.Highlight, QColor(0, 120, 215))        # classic Windows blue
+    palette.setColor(QPalette.HighlightedText, Qt.white)
+
+    # ---- Disabled state (optional) ----
+    disabled = QColor(150, 150, 150)
+    palette.setColor(QPalette.Disabled, QPalette.Text, disabled)
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled)
+
+    return palette
+
+
 class Application:
     '''The Application class'''
 
@@ -70,46 +147,15 @@ class Application:
     ):
         QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
+        self.qapp.setStyle("fusion")
         self.appdata = AppData()
-        palette = QPalette()
+        config_file_version = self.read_config()
         if not self.appdata.is_in_dark_mode:
             # "Light mode"
-            palette.setColor(QPalette.Window, QColor(240, 240, 240))
-            palette.setColor(QPalette.WindowText, Qt.black)
-            palette.setColor(QPalette.Base, Qt.white)               # e.g. QLineEdit background
-            palette.setColor(QPalette.AlternateBase, QColor(225, 225, 225))
-            palette.setColor(QPalette.ToolTipBase, Qt.white)
-            palette.setColor(QPalette.ToolTipText, Qt.black)
-            palette.setColor(QPalette.Text, Qt.black)               # generic text colour
-            palette.setColor(QPalette.Button, QColor(240, 240, 240))
-            palette.setColor(QPalette.ButtonText, Qt.black)
-            palette.setColor(QPalette.BrightText, Qt.red)
-            palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
-            palette.setColor(QPalette.HighlightedText, Qt.white)
+            self.qapp.setPalette(make_light_palette())
         else:
             # "Dark mode"
-            palette.setColor(QPalette.Window, QColor(53, 53, 53)) # Main window background
-            palette.setColor(QPalette.WindowText, Qt.white) # Text
-            palette.setColor(QPalette.Base, QColor(75, 75, 75)) # Map etc. backgrounds
-            palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53)) # Alternate backgrounds in lists/tables
-            palette.setColor(QPalette.ToolTipBase, QColor(35, 35, 35)) # Tooltip background
-            palette.setColor(QPalette.ToolTipText, Qt.white) # Tooltip text
-            palette.setColor(QPalette.Text, Qt.white) # Text color in widgets
-            palette.setColor(QPalette.Button, QColor(53, 53, 53)) # Button background
-            palette.setColor(QPalette.ButtonText, Qt.white) # Button text
-            palette.setColor(QPalette.BrightText, Qt.red) # Highlighted error text
-            # Highlights
-            palette.setColor(QPalette.Highlight, QColor(142, 45, 197)) # Selection background
-            palette.setColor(QPalette.HighlightedText, Qt.white) # Selection text color
-            # Disabled state
-            palette.setColor(QPalette.Disabled, QPalette.Text, QColor(164, 164, 164))
-            palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(164, 164, 164))
-            palette.setColor(QPalette.Disabled, QPalette.WindowText, QColor(164, 164, 164))
-            palette.setColor(QPalette.Disabled, QPalette.Highlight, QColor(80, 80, 80))
-            palette.setColor(QPalette.Disabled, QPalette.HighlightedText, QColor(164, 164, 164))
-        self.qapp.setStyle("fusion")
-        self.qapp.setPalette(palette)
-        config_file_version = self.read_config()
+            self.qapp.setPalette(make_dark_palette())
         font = self.qapp.font()
         font.setPointSizeF(self.appdata.font_size)
         self.qapp.setFont(font)

@@ -69,7 +69,7 @@ class AppData(QObject):
         self.scenario_future = []
         self.recent_cna_files = []
         self.auto_fba = False
-        self.is_in_dark_mode = True
+        self.is_in_dark_mode = False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
