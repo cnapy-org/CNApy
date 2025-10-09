@@ -8,6 +8,7 @@ from typing import Dict
 import pickle
 import traceback
 import numpy as np
+from qtpy.QtGui import QPalette
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
                                     linexpr2dict, select_solver
 from straindesign.names import *
@@ -1694,6 +1695,9 @@ class SDViewer(QDialog):
             self.sd_table = QTableCopyable(0, 3)
         else:
             self.sd_table = QTableCopyable(0, 2)
+        palette = QPalette()
+        palette.setColor(QPalette.Text, Qt.black) # Text color in widgets
+        self.sd_table.setPalette(palette)
         self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.sd_table.verticalHeader().setVisible(False)
         self.layout.addWidget(self.sd_table)
