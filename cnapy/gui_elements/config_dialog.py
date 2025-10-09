@@ -140,6 +140,10 @@ class ConfigDialog(QDialog):
         h.addWidget(self.results_cache_directory)
         self.layout.addItem(h)
 
+        self.dark_mode = QCheckBox("Dark mode (restart to fully apply changes)")
+        self.dark_mode.setChecked(self.appdata.is_in_dark_mode)
+        self.layout.addWidget(self.dark_mode)
+
         l2 = QHBoxLayout()
         self.button = QPushButton("Apply Changes")
         l2.addWidget(self.button)
@@ -268,6 +272,8 @@ class ConfigDialog(QDialog):
         if not self.appdata.results_cache_dir.exists():
             self.use_results_cache.setChecked(False)
         self.appdata.use_results_cache = self.use_results_cache.isChecked()
+
+        self.appdata.is_in_dark_mode = self.dark_mode.isChecked()
 
         self.appdata.save_cnapy_config()
 

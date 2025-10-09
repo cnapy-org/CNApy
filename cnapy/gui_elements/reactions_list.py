@@ -205,8 +205,9 @@ class ReactionList(QWidget):
             if vl != vu:
                 scen_text = scen_text+", "+self.appdata.format_flux_value(vu)
         else:
-            scen_background_color = Qt.white
+            scen_background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
             scen_text = ""
+            item.setForeground(ReactionListColumn.Scenario, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
         item.setBackground(ReactionListColumn.Scenario, scen_background_color)
         item.setText(ReactionListColumn.Scenario, scen_text)
         if item.reaction.id in self.appdata.project.df_values.keys():
@@ -221,7 +222,8 @@ class ReactionList(QWidget):
             item.set_flux_data(flux_text, vl if as_one else (vl, vu))
         else:
             item.reset_flux_data()
-            background_color = Qt.white
+            background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+            item.setForeground(ReactionListColumn.Flux, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
         item.setBackground(ReactionListColumn.Flux, background_color)
         item.setForeground(ReactionListColumn.Flux, Qt.black)
 
@@ -249,8 +251,10 @@ class ReactionList(QWidget):
         else:
             vl = item.reaction.lower_bound
             vu = item.reaction.upper_bound
-            background_color = Qt.white
-        item.setBackground(ReactionListColumn.LB, background_color)
+            background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+            item.setForeground(ReactionListColumn.LB, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
+            item.setForeground(ReactionListColumn.UB, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
+        item.setBackground(ReactionListColumn.LB, background_color)  #ZZZ
         item.lb_val = vl
         item.setText(ReactionListColumn.LB, self.appdata.format_flux_value(vl))
         item.setBackground(ReactionListColumn.UB, background_color)
@@ -301,14 +305,14 @@ class ReactionList(QWidget):
                 str(reaction.gene_reaction_rule))
             self.update_annotations(reaction.annotation)
 
-            turn_white(self.reaction_mask.id)
-            turn_white(self.reaction_mask.name)
-            turn_white(self.reaction_mask.name)
-            turn_white(self.reaction_mask.equation)
-            turn_white(self.reaction_mask.lower_bound)
-            turn_white(self.reaction_mask.upper_bound)
-            turn_white(self.reaction_mask.coefficent)
-            turn_white(self.reaction_mask.gene_reaction_rule)
+            turn_white(self.reaction_mask.id, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.name, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.name, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.equation, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.lower_bound, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.upper_bound, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.coefficent, self.appdata.is_in_dark_mode)
+            turn_white(self.reaction_mask.gene_reaction_rule, self.appdata.is_in_dark_mode)
             self.reaction_mask.is_valid = True
 
             (_, r) = self.splitter.getRange(1)
@@ -847,7 +851,7 @@ class ReactionMask(QWidget):
                     self, 'Invalid id', 'Please change identifier ' +
                     self.id.text() + ' because it is already in use.')
                 return False
-        turn_white(self.id)
+        turn_white(self.id, self.parent.appdata.is_in_dark_mode)
         return True
 
     def validate_name(self):
@@ -859,7 +863,7 @@ class ReactionMask(QWidget):
                 turn_red(self.name)
                 return False
             else:
-                turn_white(self.name)
+                turn_white(self.name, self.parent.appdata.is_in_dark_mode)
                 return True
 
     def validate_equation(self):
@@ -878,7 +882,7 @@ class ReactionMask(QWidget):
                     turn_red(self.equation)
                 else:
                     test_reaction.build_reaction_from_string(eqtxt)
-                    turn_white(self.equation)
+                    turn_white(self.equation, self.appdata.is_in_dark_mode)
                     ok = True
             except ValueError:
                 turn_red(self.equation)
@@ -921,7 +925,7 @@ class ReactionMask(QWidget):
             turn_red(self.lower_bound)
             return False
         else:
-            turn_white(self.lower_bound)
+            turn_white(self.lower_bound, self.appdata.is_in_dark_mode)
             return True
 
     def validate_upperbound(self):
@@ -931,7 +935,7 @@ class ReactionMask(QWidget):
             turn_red(self.upper_bound)
             return False
         else:
-            turn_white(self.upper_bound)
+            turn_white(self.upper_bound, self.appdata.is_in_dark_mode)
             return True
 
     def validate_coefficient(self):
@@ -941,7 +945,7 @@ class ReactionMask(QWidget):
             turn_red(self.coefficent)
             return False
         else:
-            turn_white(self.coefficent)
+            turn_white(self.coefficent, self.appdata.is_in_dark_mode)
             return True
 
     def validate_mask(self):

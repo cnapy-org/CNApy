@@ -106,6 +106,11 @@ class CentralWidget(QWidget):
         self.kernel_client.execute(
             "%config InlineBackend.figure_format = 'svg'", store_history=False)
         self.console = RichJupyterWidget()
+        
+        if parent.appdata.is_in_dark_mode:
+            self.console.set_default_style("linux")  # A more 'classic' dark theme :3
+        else:
+            self.console.set_default_style("lightbg")
         self.console.kernel_manager = kernel_manager
         self.console.kernel_client = self.kernel_client
 

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import cobra
 from qtpy.QtCore import Qt, QLocale
-from qtpy.QtGui import QColor, QFont
+from qtpy.QtGui import QColor, QPalette
 from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
 
@@ -61,6 +61,82 @@ excepthook2 = sys.excepthook
 sys.excepthook = excepthook
 
 
+def make_dark_palette() -> QPalette:
+    """
+    Return a QPalette that is explicitly dark.
+
+    The colour choices follow the “Windows‑10 dark” look
+    (dark gray backgrounds, light gray text, blue highlight).
+    Feel free to tweak the numbers to match your own branding.
+    """
+    palette = QPalette()
+
+    # ---- Base colours (backgrounds) ----
+    # Window background (main window, dialogs, etc.)
+    palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))          # very dark gray
+
+    # General widget background (e.g. QLineEdit, QTextEdit)
+    palette.setColor(QPalette.ColorRole.Base, QColor(42, 42, 42))            # slightly darker than Window
+
+    # Button background
+    palette.setColor(QPalette.ColorRole.Button, QColor(66, 66, 66))          # medium‑dark gray
+
+    # ---- Text colours ----
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.white)               # normal text
+    palette.setColor(QPalette.ColorRole.ButtonText, Qt.white)               # button labels
+    palette.setColor(QPalette.ColorRole.Text, Qt.white)                     # line‑edit / plain‑text
+    palette.setColor(QPalette.ColorRole.PlaceholderText,
+                     QColor(150, 150, 150))                                 # a softer gray for placeholders
+
+    # ---- Highlight (selection) colours ----
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
+    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.black)         # black text on the blue highlight
+
+    # ---- Disabled state (optional) ----
+    disabled = QColor(120, 120, 120)   # lighter than the normal text gray so it is still visible
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled)
+
+    # ---- Other states ----
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
+    palette.setColor(QPalette.ColorRole.ToolTipText, Qt.black)
+
+    palette.setColor(QPalette.ColorRole.Link, QColor(86, 156, 214))          # a light‑blue link colour
+    palette.setColor(QPalette.ColorRole.LinkVisited, QColor(150, 150, 255))
+
+    return palette
+
+
+def make_light_palette():
+    """Return a QPalette that is explicitly light."""
+    palette = QPalette()
+
+    # ---- Base colours (backgrounds) ----
+    # Window background (main window, dialogs, etc.)
+    palette.setColor(QPalette.Window, QColor(240, 240, 240))          # light gray
+    # General widget background (e.g. QLineEdit, QTextEdit)
+    palette.setColor(QPalette.Base, QColor(255, 255, 255))           # white
+    # Button background
+    palette.setColor(QPalette.Button, QColor(230, 230, 230))
+
+    # ---- Text colours ----
+    palette.setColor(QPalette.WindowText, Qt.black)
+    palette.setColor(QPalette.ButtonText, Qt.black)
+    palette.setColor(QPalette.Text, Qt.black)
+    palette.setColor(QPalette.PlaceholderText, QColor(120, 120, 120))
+
+    # ---- Highlight (selection) colours ----
+    palette.setColor(QPalette.Highlight, QColor(0, 120, 215))        # classic Windows blue
+    palette.setColor(QPalette.HighlightedText, Qt.white)
+
+    # ---- Disabled state (optional) ----
+    disabled = QColor(150, 150, 150)
+    palette.setColor(QPalette.Disabled, QPalette.Text, disabled)
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled)
+
+    return palette
+
+
 class Application:
     '''The Application class'''
 
@@ -71,9 +147,15 @@ class Application:
     ):
         QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
-        self.appdata = AppData()
         self.qapp.setStyle("fusion")
+        self.appdata = AppData()
         config_file_version = self.read_config()
+        if not self.appdata.is_in_dark_mode:
+            # "Light mode"
+            self.qapp.setPalette(make_light_palette())
+        else:
+            # "Dark mode"
+            self.qapp.setPalette(make_dark_palette())
         font = self.qapp.font()
         font.setPointSizeF(self.appdata.font_size)
         self.qapp.setFont(font)
@@ -206,6 +288,16 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find recent_cna_files in cnapy-config.txt")
                 self.appdata.recent_cna_files = []
+            
+            try:
+                is_in_dark_mode = config_parser.get(
+                    'cnapy-config', 'is_in_dark_mode')
+                if is_in_dark_mode == "False":
+                    self.appdata.is_in_dark_mode = False
+                else:
+                    self.appdata.is_in_dark_mode = True
+            except (KeyError, NoOptionError):
+                print("Could not find is_in_dark_mode in cnapy-config.txt")
 
             self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
                     'use_results_cache', fallback=self.appdata.use_results_cache)

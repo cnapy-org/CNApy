@@ -92,6 +92,10 @@ class EscherMapView(QWebEngineView):
 
     def update(self):
         if self.initialized:
+            if self.appdata.is_in_dark_mode:
+                self.page().runJavaScript("""
+                document.documentElement.style.filter = "invert(1) hue-rotate(180deg)";
+                """)
             if self.editing_enabled:
                 self.set_cobra_model() # TODO: is this still required?
             # currently need to handle the checkbox myself

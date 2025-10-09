@@ -69,6 +69,7 @@ class AppData(QObject):
         self.scenario_future = []
         self.recent_cna_files = []
         self.auto_fba = False
+        self.is_in_dark_mode = False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
@@ -167,6 +168,7 @@ class AppData(QObject):
         parser.set('cnapy-config', 'use_results_cache', str(self.use_results_cache))
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
         parser.set('cnapy-config', 'recent_cna_files', str(self.recent_cna_files))
+        parser.set('cnapy-config', 'is_in_dark_mode', str(self.is_in_dark_mode))
         parser.write(fp)
         fp.close()
 
@@ -242,7 +244,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
         self.annotations = [] # List of dicts with: { "id": $reac_id, "key": $key_value, "value": $value_at_key }
         self.file_name: str = ""
         self.has_unsaved_changes = False
-        self.version: int = 3
+        self.version: int = 4
 
     def save(self, filename: str):
         json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
