@@ -27,7 +27,7 @@ dependencies = [
     "pyqtwebengine>=5.15",
     "qtconsole==5.4",
     "gurobipy==11.*",
-    "cplex==22.1.1.2", # We use this specific version as it's the only one with support for ARM Macs
+    "cplex==22.1.2.0", # We use this specific version as it's currently the last one with support for ARM CPUs
     "numpy==1.23",
     "scipy==1.12",
     "openpyxl",
