@@ -4,7 +4,7 @@ import json
 import gurobipy
 from configparser import ConfigParser
 import pathlib
-import pkg_resources
+import importlib.resources as resources
 from tempfile import TemporaryDirectory
 from typing import List, Set, Dict, Tuple
 from ast import literal_eval as make_tuple
@@ -513,8 +513,9 @@ class ProjectData:
     #     return hashlib.md5(pickle.dumps(sorted(self.scen_values.items()))).digest()
 
 def CnaMap(name):
-    background_svg = pkg_resources.resource_filename(
-        'cnapy', 'data/default-bg.svg')
+    background_svg_path: str = resources.files("cnapy") / "data" / "default-bg.svg"
+    with resources.as_file(background_svg_path) as svg_file_path:
+        background_svg = str(svg_file_path)
     return {"name": name,
             "background": background_svg,
             "bg-size": 1,
