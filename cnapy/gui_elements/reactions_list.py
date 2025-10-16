@@ -882,7 +882,7 @@ class ReactionMask(QWidget):
                     turn_red(self.equation)
                 else:
                     test_reaction.build_reaction_from_string(eqtxt)
-                    turn_white(self.equation, self.appdata.is_in_dark_mode)
+                    turn_white(self.equation, self.parent.appdata.is_in_dark_mode)
                     ok = True
             except ValueError:
                 turn_red(self.equation)
@@ -925,7 +925,7 @@ class ReactionMask(QWidget):
             turn_red(self.lower_bound)
             return False
         else:
-            turn_white(self.lower_bound, self.appdata.is_in_dark_mode)
+            turn_white(self.lower_bound, self.parent.appdata.is_in_dark_mode)
             return True
 
     def validate_upperbound(self):
@@ -935,7 +935,7 @@ class ReactionMask(QWidget):
             turn_red(self.upper_bound)
             return False
         else:
-            turn_white(self.upper_bound, self.appdata.is_in_dark_mode)
+            turn_white(self.upper_bound, self.parent.appdata.is_in_dark_mode)
             return True
 
     def validate_coefficient(self):
@@ -945,7 +945,7 @@ class ReactionMask(QWidget):
             turn_red(self.coefficent)
             return False
         else:
-            turn_white(self.coefficent, self.appdata.is_in_dark_mode)
+            turn_white(self.coefficent, self.parent.appdata.is_in_dark_mode)
             return True
 
     def validate_mask(self):

@@ -16,6 +16,7 @@
 import os
 import site
 from jpype._jvmfinder import getDefaultJVMPath, JVMNotFoundException, JVMNotSupportedException
+
 try:
     getDefaultJVMPath()
 except (JVMNotFoundException, JVMNotSupportedException):
@@ -31,8 +32,8 @@ except (JVMNotFoundException, JVMNotSupportedException):
 from cnapy.application import Application
 
 def main_cnapy(
-    project_path: None | str,
-    scenario_path: None | str,
+    project_path: None | str = None,
+    scenario_path: None | str = None,
 ):
     Application(
         project_path=project_path,

@@ -1,4 +1,4 @@
-from pkg_resources import resource_filename
+import importlib.resources as resources
 import os
 from math import isclose
 from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
@@ -44,7 +44,8 @@ class EscherMapView(QWebEngineView):
         self.channel = QWebChannel() # reference to channel necessary on Python side for correct operation
         self.page().setWebChannel(self.channel)
         self.channel.registerObject("cnapy_bridge", self.cnapy_bridge)
-        self.load(QUrl.fromLocalFile(resource_filename("cnapy", r"data/escher_cnapy.html")))
+        html_path = resources.files("cnapy") / "data" / "escher_cnapy.html"
+        self.load(QUrl.fromLocalFile(str(html_path)))
         self.name: str = name # map name for self.appdata.project.maps
         self.editing_enabled = False
 

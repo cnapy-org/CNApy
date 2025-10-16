@@ -16,7 +16,6 @@
 from cnapy.__main__ import main_cnapy
 from sys import argv
 
-print(argv)
 main_cnapy(
     project_path=None if len(argv) < 2 else argv[1],
     scenario_path=None if len(argv) < 3 else argv[2],
