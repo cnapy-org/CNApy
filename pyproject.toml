@@ -1,6 +1,6 @@
 [project]
 name = "cnapy"
-version = "1.2.6"
+version = "1.2.7"
 authors = [
   { name="Sven Thiele" },
   { name="Axel von Kamp" },
