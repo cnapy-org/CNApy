@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QS
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData
+from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -1265,6 +1265,8 @@ class MainWindow(QMainWindow):
             self.appdata.project.cobra_py_model = cobra_py_model
             self.set_current_filename(filename)
 
+            default_map = CnaMap("Map")
+            self.appdata.project.maps = {"Map": default_map}
             self.recreate_maps()
             self.centralWidget().update(rebuild_all_tabs=True)
             self.update_scenario_file_name()
