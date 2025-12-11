@@ -1,7 +1,6 @@
 """The reactions list"""
 from math import isclose
 from enum import IntEnum
-from typing_extensions import Annotated
 
 import cobra
 import copy
@@ -15,7 +14,7 @@ from qtpy.QtWidgets import (QHBoxLayout, QTreeWidget, QLabel, QLineEdit,
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
-from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_identifiers_org
+from cnapy.utils_for_cnapy_api import check_in_identifiers_org
 from cnapy.gui_elements.map_view import validate_value
 from cnapy.gui_elements.escher_map_view import EscherMapView
 
@@ -150,14 +149,14 @@ class ReactionList(QWidget):
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        l = QHBoxLayout()
-        l.setAlignment(Qt.AlignRight)
-        l.addWidget(self.add_button)
+        small_layout = QHBoxLayout()
+        small_layout.setAlignment(Qt.AlignRight)
+        small_layout.addWidget(self.add_button)
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.reaction_list)
         self.splitter.addWidget(self.reaction_mask)
-        self.layout.addItem(l)
+        self.layout.addItem(small_layout)
         self.layout.addWidget(self.splitter)
         self.setLayout(self.layout)
 
@@ -601,57 +600,57 @@ class ReactionMask(QWidget):
 
         layout = QVBoxLayout()
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.id)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.id)
 
         self.delete_button = QPushButton("Delete reaction")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
-        l.addWidget(self.delete_button)
-        layout.addItem(l)
+        small_layout.addWidget(self.delete_button)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Name:")
         self.name = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.name)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.name)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Equation:")
         self.equation = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.equation)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.equation)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Rate min:")
         self.lower_bound = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.lower_bound)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.lower_bound)
 
         label = QLabel(" Rate max:")
         self.upper_bound = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.upper_bound)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.upper_bound)
 
         label = QLabel(" Objective coefficient:")
         self.coefficent = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.coefficent)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.coefficent)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Gene reaction rule:")
         self.gene_reaction_rule = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.gene_reaction_rule)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.gene_reaction_rule)
+        layout.addItem(small_layout)
 
         self.throttler = SignalThrottler(500)
         self.throttler.triggered.connect(self.reaction_data_changed)
@@ -659,18 +658,18 @@ class ReactionMask(QWidget):
         self.annotation_widget = AnnotationWidget(self)
         layout.addItem(self.annotation_widget)
 
-        l = QVBoxLayout()
+        small_layout = QVBoxLayout()
         label = QLabel("Metabolites involved in this reaction:")
-        l.addWidget(label)
+        small_layout.addWidget(label)
         l2 = QHBoxLayout()
         self.metabolites = QTreeWidget()
         self.metabolites.setHeaderLabels(["Id"])
         self.metabolites.setSortingEnabled(True)
         l2.addWidget(self.metabolites)
-        l.addItem(l2)
+        small_layout.addItem(l2)
         self.metabolites.itemDoubleClicked.connect(
             self.emit_jump_to_metabolite)
-        layout.addItem(l)
+        layout.addItem(small_layout)
 
         self.jump_list = JumpList(self)
         layout.addWidget(self.jump_list)

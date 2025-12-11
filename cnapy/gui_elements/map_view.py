@@ -3,9 +3,8 @@ import math
 from ast import literal_eval as make_tuple
 from math import isclose
 import importlib.resources as resources
-from typing import Dict, Tuple
 
-from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
+from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
 from qtpy.QtGui import QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
@@ -40,7 +39,7 @@ class MapView(QGraphicsView):
         self.name: str = name
         self.setAcceptDrops(True)
         self.drag_map = False
-        self.reaction_boxes: Dict[str, ReactionBox] = {}
+        self.reaction_boxes: dict[str, ReactionBox] = {}
         self._zoom = 0
         self.previous_point = None
         self.select = False
@@ -579,7 +578,7 @@ class ReactionBox(QGraphicsItem):
         self.set_color(self.map.appdata.scen_color)
         self.set_font_style(QFont.StyleNormal)
 
-    def set_value(self, value: Tuple[float, float]):
+    def set_value(self, value: tuple[float, float]):
         ''' Sets the text of and reaction box according to the given value'''
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):

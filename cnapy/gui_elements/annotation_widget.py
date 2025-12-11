@@ -1,7 +1,7 @@
 import ast
 import webbrowser
 
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableWidget,
                             QTableWidgetItem, QVBoxLayout, QMessageBox)
@@ -68,7 +68,7 @@ class AnnotationWidget(QVBoxLayout):
                 if value.startswith("["):
                     try:
                         value = ast.literal_eval(value)
-                    except: # if parsing as list does not work keep the raw text
+                    except Exception: # if parsing as list does not work keep the raw text
                         pass
 
             model_element.annotation[key] = value

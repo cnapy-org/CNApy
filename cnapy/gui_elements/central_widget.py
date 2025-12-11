@@ -8,7 +8,7 @@ from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame)
+                            QTabWidget, QVBoxLayout, QWidget, QApplication, QComboBox, QFrame)
 
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
@@ -507,7 +507,7 @@ class CentralWidget(QWidget):
             reacs = self.appdata.project.cobra_py_model.reactions.list_attr('id')
             abund = [0 for _ in reacs]
             for i,r in enumerate(reacs):
-                for s in [self.appdata.project.modes[l] for l,t in enumerate(self.mode_navigator.selection) if t]:
+                for s in [self.appdata.project.modes[mode_i] for mode_i,t in enumerate(self.mode_navigator.selection) if t]:
                     if r in s:
                         if not numpy.any(numpy.isnan(s[r])) or numpy.all((s[r] == 0)):
                             abund[i] += 1

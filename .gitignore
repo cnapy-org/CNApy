@@ -100,3 +100,9 @@ cnapy-config.txt
 
 # uv files
 uv.lock
+
+# DS files
+.DS_Store
+
+# Internal development file
+cnapy/cnapy_server.py

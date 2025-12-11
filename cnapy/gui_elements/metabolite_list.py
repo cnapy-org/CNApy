@@ -2,16 +2,15 @@
 
 import cobra
 from qtpy.QtCore import Qt, QPoint, Signal, Slot
-from qtpy.QtGui import QColor, QGuiApplication, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
+from qtpy.QtGui import QGuiApplication, QIcon
+from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
-                            QSplitter, QTableWidget, QTableWidgetItem,
+                            QSplitter, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
-from cnapy.utils_for_cnapy_api import check_identifiers_org_entry
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 from enum import IntEnum
 
@@ -255,11 +254,11 @@ class MetabolitesMask(QWidget):
 
         layout = QVBoxLayout()
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.id)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.id)
 
         self.delete_button = QPushButton("Delete metabolite")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
@@ -268,34 +267,34 @@ class MetabolitesMask(QWidget):
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
-        l.addWidget(self.delete_button)
-        layout.addItem(l)
+        small_layout.addWidget(self.delete_button)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Name:")
         self.name = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.name)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.name)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Formula:")
         self.formula = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.formula)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.formula)
+        layout.addItem(small_layout)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Compartment:")
         self.compartment = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.compartment)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.compartment)
 
         label = QLabel(" Charge:")
         self.charge = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.charge)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.charge)
+        layout.addItem(small_layout)
 
         self.throttler = SignalThrottler(500)
         self.throttler.triggered.connect(self.metabolites_data_changed)
@@ -304,15 +303,15 @@ class MetabolitesMask(QWidget):
 
         layout.addItem(self.annotation_widget)
 
-        l = QVBoxLayout()
+        small_layout = QVBoxLayout()
         label = QLabel("Reactions using this metabolite:")
-        l.addWidget(label)
+        small_layout.addWidget(label)
         l2 = QHBoxLayout()
         self.reactions = ReactionTableWidget (self.appdata, ModelElementType.METABOLITE)
         l2.addWidget(self.reactions)
-        l.addItem(l2)
+        small_layout.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
-        layout.addItem(l)
+        layout.addItem(small_layout)
 
         self.setLayout(layout)
 

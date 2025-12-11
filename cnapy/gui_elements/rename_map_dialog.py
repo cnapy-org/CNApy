@@ -38,7 +38,7 @@ class RenameMapDialog(QDialog):
 
     def apply(self):
         new_name = self.name_field.text()
-        if not new_name in self.appdata.project.maps.keys():
+        if new_name not in self.appdata.project.maps.keys():
             self.appdata.project.maps[new_name] = self.appdata.project.maps.pop(
                 self.old_name)
             self.central_widget.map_tabs.setTabText(self.idx, new_name)

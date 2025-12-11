@@ -3,13 +3,13 @@
 import matplotlib.pyplot as plt
 from random import randint
 import re
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QGroupBox,
                             QPushButton, QVBoxLayout, QFrame)
 import numpy
-from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
-from straindesign import linexpr2dict, linexprdict2str, yopt, avail_solvers
-from straindesign.names import *
+from cnapy.utils import QComplReceivLineEdit, QHSeparationLine
+from straindesign import linexpr2dict, yopt, avail_solvers
+from straindesign.names import UNBOUNDED
 
 class YieldSpaceDialog(QDialog):
     """A dialog to create yield space plots"""
@@ -48,7 +48,7 @@ class YieldSpaceDialog(QDialog):
         self.x_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode, check=True)
         self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         x_num_den_layout.addWidget(self.x_numerator)
-        sep = QHSeperationLine()
+        sep = QHSeparationLine()
         sep.setFrameShadow(QFrame.Plain)
         sep.setLineWidth(3)
         x_num_den_layout.addWidget(sep)
@@ -63,7 +63,7 @@ class YieldSpaceDialog(QDialog):
         self.y_denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode, check=True)
         self.y_denominator.setPlaceholderText('denominator (e.g. '+r4+')')
         y_num_den_layout.addWidget(self.y_numerator)
-        sep = QHSeperationLine()
+        sep = QHSeparationLine()
         sep.setFrameShadow(QFrame.Plain)
         sep.setLineWidth(3)
         y_num_den_layout.addWidget(sep)

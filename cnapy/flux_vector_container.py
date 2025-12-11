@@ -7,8 +7,8 @@ class FluxVectorContainer:
     def __init__(self, matORfname, reac_id=None, irreversible=None, unbounded=None):
         if type(matORfname) is str:
             try:
-                l = numpy.load(matORfname, allow_pickle=True)  # allow_pickle to read back sparse matrices saved as fv_mat
-                self.fv_mat = l['fv_mat']
+                temp_mat = numpy.load(matORfname, allow_pickle=True)  # allow_pickle to read back sparse matrices saved as fv_mat
+                self.fv_mat = temp_mat['fv_mat']
             except Exception:
                 QMessageBox.critical(
                     None,
@@ -19,9 +19,9 @@ class FluxVectorContainer:
                 return
             if self.fv_mat.dtype == numpy.object: # in this case assume fv_mat is scipy.sparse
                 self.fv_mat = self.fv_mat.tolist() # not sure why this works...
-            self.reac_id = l['reac_id'].tolist()
-            self.irreversible = l['irreversible']
-            self.unbounded = l['unbounded']
+            self.reac_id = temp_mat['reac_id'].tolist()
+            self.irreversible = temp_mat['irreversible']
+            self.unbounded = temp_mat['unbounded']
         else:
             if reac_id is None:
                 raise TypeError('reac_id must be provided')

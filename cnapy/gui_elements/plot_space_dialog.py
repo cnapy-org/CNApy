@@ -4,9 +4,8 @@ from random import randint
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QMessageBox, QGroupBox, QComboBox, QLayout,
                             QPushButton, QVBoxLayout, QFrame, QCheckBox,QLineEdit)
-from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
+from cnapy.utils import QComplReceivLineEdit, QHSeparationLine
 from straindesign import plot_flux_space
-from straindesign.names import *
 
 class PlotSpaceDialog(QDialog):
     """A dialog to create Flux space plots"""
@@ -64,7 +63,7 @@ class PlotSpaceDialog(QDialog):
         self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+self.r[1]+')')
         x_num_den_layout.addWidget(self.x_numerator)
         self.x_denominator.setHidden(True)
-        self.x_sep = QHSeperationLine()
+        self.x_sep = QHSeparationLine()
         self.x_sep.setFrameShadow(QFrame.Plain)
         self.x_sep.setLineWidth(2)
         self.x_sep.setHidden(True)
@@ -88,7 +87,7 @@ class PlotSpaceDialog(QDialog):
         self.y_denominator.setPlaceholderText('denominator (e.g. '+self.r[3]+')')
         y_num_den_layout.addWidget(self.y_numerator)
         self.y_denominator.setHidden(True)
-        self.y_sep = QHSeperationLine()
+        self.y_sep = QHSeparationLine()
         self.y_sep.setFrameShadow(QFrame.Plain)
         self.y_sep.setLineWidth(2)
         self.y_sep.setHidden(True)
@@ -112,7 +111,7 @@ class PlotSpaceDialog(QDialog):
         self.z_denominator.setPlaceholderText('denominator (e.g. '+self.r[5]+')')
         z_num_den_layout.addWidget(self.z_numerator)
         self.z_denominator.setHidden(True)
-        self.z_sep = QHSeperationLine()
+        self.z_sep = QHSeparationLine()
         self.z_sep.setFrameShadow(QFrame.Plain)
         self.z_sep.setLineWidth(2)
         self.z_sep.setHidden(True)

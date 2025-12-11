@@ -4,14 +4,13 @@ from contextlib import redirect_stdout, redirect_stderr
 import io
 import json
 import os
-from typing import Dict
 import pickle
 import traceback
 import numpy as np
 from qtpy.QtGui import QPalette
 from straindesign import SDModule, lineqlist2str, linexprdict2str, compute_strain_designs, \
                                     linexpr2dict, select_solver
-from straindesign.names import *
+from straindesign.names import INNER_OBJECTIVE, OUTER_OBJECTIVE, PROD_ID, MIN_GCP, CONSTRAINTS, ANY, BEST, POPULATE, CPLEX, GUROBI, PROTECT, MAXIMIZE, SUPPRESS, OPTCOUPLE, OPTKNOCK, ROBUSTKNOCK, MODEL_ID, MODULES, MAX_SOLUTIONS, MAX_COST, TIME_LIMIT, SOLVER, SOLUTION_APPROACH, REGCOST, KOCOST, KICOST, GKOCOST, GKICOST, MODULE_TYPE, ERROR
 from straindesign.strainDesignSolutions import SDSolutions
 from random import randint
 from qtpy.QtCore import Qt, Slot, Signal, QThread
@@ -53,7 +52,7 @@ def FONT_COLOR(HEX): # string that defines style sheet for changing the color of
 class SDDialog(QDialog):
     """A dialog to perform strain design computations"""
 
-    def __init__(self, appdata: AppData, sd_setup: Dict = {}):
+    def __init__(self, appdata: AppData, sd_setup: dict = {}):
         QDialog.__init__(self)
         self.setWindowTitle("Strain Design Computation")
 
@@ -292,27 +291,27 @@ class SDDialog(QDialog):
         checkboxes_layout.addWidget(self.use_scenario)
 
         max_solutions_layout = QHBoxLayout()
-        l = QLabel(" Max. Solutions")
+        label = QLabel(" Max. Solutions")
         self.max_solutions = QLineEdit("3")
         self.max_solutions.setMaximumWidth(50)
         max_solutions_layout.addWidget(self.max_solutions)
-        max_solutions_layout.addWidget(l)
+        max_solutions_layout.addWidget(label)
         checkboxes_layout.addItem(max_solutions_layout)
 
         max_cost_layout = QHBoxLayout()
-        l = QLabel(" Max. Σ intervention costs")
+        label = QLabel(" Max. Σ intervention costs")
         self.max_cost = QLineEdit("7")
         self.max_cost.setMaximumWidth(50)
         max_cost_layout.addWidget(self.max_cost)
-        max_cost_layout.addWidget(l)
+        max_cost_layout.addWidget(label)
         checkboxes_layout.addItem(max_cost_layout)
 
         time_limit_layout = QHBoxLayout()
-        l = QLabel(" Time Limit [sec]")
+        label = QLabel(" Time Limit [sec]")
         self.time_limit = QLineEdit("inf")
         self.time_limit.setMaximumWidth(50)
         time_limit_layout.addWidget(self.time_limit)
-        time_limit_layout.addWidget(l)
+        time_limit_layout.addWidget(label)
         checkboxes_layout.addItem(time_limit_layout)
 
         # add all edit and checkbox-items to dialog
@@ -429,10 +428,10 @@ class SDDialog(QDialog):
 
         # Filter bar
         ko_ki_filter_layout = QHBoxLayout()
-        l = QLabel("Filter: ")
+        label = QLabel("Filter: ")
         self.ko_ki_filter = QComplReceivLineEdit(self, self.gene_wordlist, self.appdata.is_in_dark_mode, check=False)
         self.ko_ki_filter.textEdited.connect(self.ko_ki_filter_text_changed)
-        ko_ki_filter_layout.addWidget(l)
+        ko_ki_filter_layout.addWidget(label)
         ko_ki_filter_layout.addWidget(self.ko_ki_filter)
         ko_ki_layout.addItem(ko_ki_filter_layout)
 
@@ -463,9 +462,9 @@ class SDDialog(QDialog):
         self.reaction_itv = {}
         for i,r in enumerate(self.reac_ids):
             self.reaction_itv_list.insertRow(i)
-            l = QTableItem(r)
-            l.setToolTip(r)
-            l.setEditable(False)
+            label = QTableItem(r)
+            label.setToolTip(r)
+            label.setEditable(False)
             # l.setMaximumWidth(100)
             self.reaction_itv.update({r:{'cost': QTableItem("1.0"),
                                          'button_group': QButtonGroup()}})
@@ -489,7 +488,7 @@ class SDDialog(QDialog):
             r_ko_ki_button_layout.addWidget(r_na_button)
             r_ko_ki_button_layout.addWidget(r_ki_button)
             r_ko_ki_button_widget.setLayout(r_ko_ki_button_layout)
-            self.reaction_itv_list.setItem(i, 0, l)
+            self.reaction_itv_list.setItem(i, 0, label)
             dummy_item = QTableItem()
             dummy_item.setEnabled(False)
             dummy_item.setSelectable(False)
@@ -538,11 +537,11 @@ class SDDialog(QDialog):
         for i,g in enumerate(self.gene_ids):
             self.gene_itv_list.insertRow(i)
             if self.gene_names[i] != '':
-                l = QTableItem(self.gene_names[i])
-                l.setToolTip(g)
+                label = QTableItem(self.gene_names[i])
+                label.setToolTip(g)
             else:
-                l = QTableItem(g)
-            l.setEditable(False)
+                label = QTableItem(g)
+            label.setEditable(False)
             # l.setMaximumWidth(80)
             self.gene_itv.update({g:\
                                         {'cost': QTableItem("1.0"),
@@ -562,7 +561,7 @@ class SDDialog(QDialog):
             g_ko_ki_button_layout.addWidget(g_na_button)
             g_ko_ki_button_layout.addWidget(g_ki_button)
             g_ko_ki_button_widget.setLayout(g_ko_ki_button_layout)
-            self.gene_itv_list.setItem(i, 0, l)
+            self.gene_itv_list.setItem(i, 0, label)
             dummy_item = QTableItem()
             dummy_item.setEnabled(False)
             dummy_item.setSelectable(False)
@@ -614,11 +613,11 @@ class SDDialog(QDialog):
         try:
             self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
             self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
-        except:
+        except Exception:
             print('Signals to main window could not be connected.')
 
         # load strain design setup if passed to constructor
-        if sd_setup != {} and sd_setup != False:
+        if sd_setup != {} and sd_setup != False: #noqa: E712
             self.load(sd_setup)
 
     @Slot(str)
@@ -1017,7 +1016,7 @@ class SDDialog(QDialog):
                             return
                         else:
                             raise Exception()
-                except:
+                except Exception:
                     self.global_objective.setStyleSheet(FONT_COLOR('#000000'))
                     self.global_objective.setText("Editing module ... (module "+#
                                                     str(main_module[1]+1)+": "+main_module[2]+")")
@@ -1231,7 +1230,7 @@ class SDDialog(QDialog):
             json.dump(sd_setup, fp)
 
     def load(self, sd_setup = {}):
-        if sd_setup == {} or sd_setup == False:
+        if sd_setup == {} or sd_setup == False: #noqa: E712
             # open file dialog
             dialog = QFileDialog(self)
             filename: str = dialog.getOpenFileName(
@@ -1250,7 +1249,7 @@ class SDDialog(QDialog):
                         "Maybe the file got the .sdc ending for other reasons than being a StrainDesign setup or the file is corrupted."
                     )
                     return
-        elif type(sd_setup) == str:
+        elif type(sd_setup) is str:
             sd_setup = json.loads(sd_setup)
         # warn if strain design setup was constructed for another model
         if sd_setup[MODEL_ID] != self.appdata.project.cobra_py_model.id:

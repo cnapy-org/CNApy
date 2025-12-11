@@ -6,7 +6,6 @@ from configparser import ConfigParser
 import pathlib
 import importlib.resources as resources
 from tempfile import TemporaryDirectory
-from typing import List, Set, Dict, Tuple
 from ast import literal_eval as make_tuple
 from math import isclose
 import appdirs
@@ -71,14 +70,14 @@ class AppData(QObject):
         self.auto_fba = False
         self.is_in_dark_mode = False
 
-    def scen_values_set(self, reaction: str, values: Tuple[float, float]):
+    def scen_values_set(self, reaction: str, values: tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
             self.project.scen_values[reaction] = values
             self.scenario_past.append(("set", reaction, values))
             self.scenario_future.clear()
             self.unsaved_scenario_changes()
 
-    def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
+    def scen_values_set_multiple(self, reactions: list[str], values: list[tuple[float, float]]):
         for r, v in zip(reactions, values):
             self.project.scen_values[r] = v
         self.scenario_past.append(("set", reactions, values))
@@ -172,7 +171,7 @@ class AppData(QObject):
         parser.write(fp)
         fp.close()
 
-    def compute_color_onoff(self, value: Tuple[float, float]):
+    def compute_color_onoff(self, value: tuple[float, float]):
         (vl, vh) = value
         vl = round(vl, self.rounding)
         vh = round(vh, self.rounding)
@@ -183,7 +182,7 @@ class AppData(QObject):
         else:
             return QColor.fromRgb(255, 0, 0)
 
-    def compute_color_heat(self, value: Tuple[float, float], low, high):
+    def compute_color_heat(self, value: tuple[float, float], low, high):
         (vl, vh) = value
         vl = round(vl, self.rounding)
         vh = round(vh, self.rounding)
@@ -201,7 +200,7 @@ class AppData(QObject):
                 h = round(mean * 255 / low)
             return QColor.fromRgbF(255, 255 - h, 255 - h)
 
-    def low_and_high(self) -> Tuple[int, int]:
+    def low_and_high(self) -> tuple[int, int]:
         low = 0
         high = 0
         for value in self.project.scen_values.values():
@@ -224,7 +223,7 @@ class AppData(QObject):
 
     unsavedScenarioChanges = Signal()
 
-class Scenario(Dict[str, Tuple[float, float]]):
+class Scenario(dict[str, tuple[float, float]]):
     empty_constraint = (None, "", "")
 
     # cannot do this because of the import problem
@@ -234,14 +233,14 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
     def __init__(self):
         super().__init__() # this dictionary contains the flux values
-        self.objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
+        self.objective_coefficients: dict[str, float] = {} # reaction ID, coefficient
         self.objective_direction: str = "max"
         self.use_scenario_objective: bool = False
-        self.pinned_reactions: Set[str] = set()
+        self.pinned_reactions: set[str] = set()
         self.description: str = ""
-        self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
+        self.constraints: list[list[dict, str, float]] = [] # [reaction_id: coefficient dictionary, type, rhs]
         self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
-        self.annotations = [] # List of dicts with: { "id": $reac_id, "key": $key_value, "value": $value_at_key }
+        self.annotations = [] # list of dicts with: { "id": $reac_id, "key": $key_value, "value": $value_at_key }
         self.file_name: str = ""
         self.has_unsaved_changes = False
         self.version: int = 4
@@ -255,8 +254,8 @@ class Scenario(Dict[str, Tuple[float, float]]):
             json.dump(json_dict, fp)
         self.has_unsaved_changes = False
 
-    def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List, List]:
-        unknown_ids: List(str)= []
+    def load(self, filename: str, appdata: AppData, merge=False) -> tuple[list[str], list, list]:
+        unknown_ids: list[str] = []
         incompatible_constraints = []
         skipped_scenario_reactions = []
         if not merge:
@@ -363,7 +362,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
 class IDList(object):
     """
-    provides a list of identifiers (id_list) and a corresponding QStringListModel (ids_model)
+    provides a list of identifiers (id_list) and a corresponding QStringlistModel (ids_model)
     the identifiers can be set with the set_ids method
     the implementation guarantees that id() of the properties id_list and ids_model
     is constant so that they can be used like const references
@@ -372,14 +371,14 @@ class IDList(object):
         self._id_list: list = []
         self._ids_model: QStringListModel = QStringListModel()
 
-    def set_ids(self, *id_lists: List[str]):
+    def set_ids(self, *id_lists: list[str]):
         self._id_list.clear()
         for id_list in id_lists:
             self._id_list[len(self._id_list):] = id_list
         self._ids_model.setStringList(self._id_list)
 
     @property # getter only
-    def id_list(self) -> List[str]:
+    def id_list(self) -> list[str]:
         return self._id_list
 
     @property # getter only
@@ -430,13 +429,13 @@ class ProjectData:
         default_map = CnaMap("Map")
         self.maps = {"Map": default_map}
         self.scen_values: Scenario = Scenario()
-        self.clipboard: Dict[str, Tuple[float, float]] = {}
+        self.clipboard: dict[str, tuple[float, float]] = {}
         self.solution: cobra.Solution = None
-        self.comp_values: Dict[str, Tuple[float, float]] = {}
+        self.comp_values: dict[str, tuple[float, float]] = {}
         self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
-        self.fva_values: Dict[str, Tuple[float, float]] = {} # store FVA results persistently
-        self.conc_values: Dict[str, float] = {} # Metabolite concentrations
-        self.df_values: Dict[str, float] = {} # Driving forces
+        self.fva_values: dict[str, tuple[float, float]] = {} # store FVA results persistently
+        self.conc_values: dict[str, float] = {} # Metabolite concentrations
+        self.df_values: dict[str, float] = {} # Driving forces
         self.modes = []
         self.meta_data = {}
 
@@ -496,7 +495,7 @@ class ProjectData:
             reaction: cobra.Reaction = model.reactions.get_by_id(annotation["reaction_id"])
             reaction.annotation[annotation["key"]] = annotation["value"]
 
-    def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
+    def collect_default_scenario_values(self) -> tuple[list[str], list[tuple[float, float]]]:
         reactions = []
         values = []
         for r in self.cobra_py_model.reactions:
@@ -527,7 +526,7 @@ def CnaMap(name):
             "escher_map_data": "" # JSON string
             }
 
-def parse_scenario(text: str) -> Tuple[float, float]:
+def parse_scenario(text: str) -> tuple[float, float]:
     """parse a string that describes a valid scenario value"""
     try:
         x = float(text)

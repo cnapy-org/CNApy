@@ -2,15 +2,15 @@
 from random import randint
 from numpy import isnan, isinf
 import re
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
                             QMessageBox, QPushButton, QVBoxLayout, QFrame)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
-from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
+from cnapy.utils import QComplReceivLineEdit, QHSeparationLine
 from straindesign import yopt, linexpr2dict, linexprdict2str, avail_solvers
-from straindesign.names import *
+from straindesign.names import OPTIMAL, UNBOUNDED
 
 class YieldOptimizationDialog(QDialog):
     """A dialog to perform yield optimization"""
@@ -32,12 +32,12 @@ class YieldOptimizationDialog(QDialog):
             r2 = 'r_substrate'
 
         self.layout = QVBoxLayout()
-        l = QLabel("Maximize (or minimize) a yield function. \n"+ \
+        label = QLabel("Maximize (or minimize) a yield function. \n"+ \
                    "Numerator and denominator are specified as linear expressions \n"+ \
                    "with reaction identifiers and (optionally) coefficients.\n"+\
                    "Keep in mind that exchange reactions are often defined in the direction of export.\n"+
                    "Consider changing signs.")
-        self.layout.addWidget(l)
+        self.layout.addWidget(label)
         editor_layout = QHBoxLayout()
         self.sense_combo = QComboBox()
         self.sense_combo.insertItems(0,['maximize', 'minimize'])
@@ -54,7 +54,7 @@ class YieldOptimizationDialog(QDialog):
         self.denominator = QComplReceivLineEdit(self, self.appdata.project.reaction_ids, self.appdata.is_in_dark_mode, check=True)
         self.denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         num_den_layout.addWidget(self.numerator)
-        sep = QHSeperationLine()
+        sep = QHSeparationLine()
         sep.setFrameShadow(QFrame.Plain)
         sep.setLineWidth(2)
         num_den_layout.addWidget(sep)

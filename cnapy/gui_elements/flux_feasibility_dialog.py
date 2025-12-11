@@ -457,7 +457,7 @@ class FluxFeasibilityDialog(QDialog):
         clipboard = QGuiApplication.clipboard()
         clipboard.setText('\r'.join(table))
 
-    def get_gam_removal_parameters(self, bm_reac: cobra.Reaction()):
+    def get_gam_removal_parameters(self, bm_reac: cobra.Reaction):
         valid, gam_mets = self.validate_gam_mets([met.id for met in bm_reac.metabolites])
         if valid:
             valid, gam_base = self.validate_gam_remove(gam_mets)
@@ -493,7 +493,7 @@ class FluxFeasibilityDialog(QDialog):
             gam_base = float(self.remove_gam_via.text())
         except ValueError:
             gam_base = self.remove_gam_via.text().strip()
-            if not gam_base in gam_mets:
+            if gam_base not in gam_mets:
                 QMessageBox.critical(self, "GAM removal from biomass equation incorret",
                     "Specify either a metabolite of the ATP hydrolysis reaction or a number.")
                 gam_base = 0

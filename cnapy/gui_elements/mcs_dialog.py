@@ -109,12 +109,12 @@ class MCSDialog(QDialog):
             "Exclude boundary\nreactions as cuts")
         sg1 = QHBoxLayout()
         s31 = QVBoxLayout()
-        l = QLabel("Max. Solutions")
-        s31.addWidget(l)
-        l = QLabel("Max. Size")
-        s31.addWidget(l)
-        l = QLabel("Time Limit [sec]")
-        s31.addWidget(l)
+        label = QLabel("Max. Solutions")
+        s31.addWidget(label)
+        label = QLabel("Max. Size")
+        s31.addWidget(label)
+        label = QLabel("Time Limit [sec]")
+        s31.addWidget(label)
 
         sg1.addItem(s31)
 

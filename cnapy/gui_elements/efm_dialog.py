@@ -187,7 +187,7 @@ class EFMDialog(QDialog):
             a = self.eng.eval("iso_flag = 0;",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        # default we have no macromolecules and display is et to ALL
+        # default we have no macromolecules and display is set to ALL
         a = self.eng.eval("c_macro=[]; display= 'ALL';",
                           nargout=0, stdout=self.out, stderr=self.err)
 

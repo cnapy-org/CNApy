@@ -3,8 +3,8 @@
 import cobra
 import cobra.manipulation
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
-                            QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
+from qtpy.QtWidgets import (QHBoxLayout, QLabel,
+                            QLineEdit, QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData, ModelItemType
@@ -165,12 +165,12 @@ class GenesMask(QWidget):
         self.setAcceptDrops(False)
 
         layout = QVBoxLayout()
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLabel("")
-        l.addWidget(label)
-        l.addWidget(self.id)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.id)
+        layout.addItem(small_layout)
 
         self.delete_button = QPushButton("Delete gene")
         self.delete_button.setToolTip(
@@ -179,14 +179,14 @@ class GenesMask(QWidget):
         policy = QSizePolicy()
         policy.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
-        l.addWidget(self.delete_button)
+        small_layout.addWidget(self.delete_button)
 
-        l = QHBoxLayout()
+        small_layout = QHBoxLayout()
         label = QLabel("Name:")
         self.name = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.name)
-        layout.addItem(l)
+        small_layout.addWidget(label)
+        small_layout.addWidget(self.name)
+        layout.addItem(small_layout)
 
         self.throttler = SignalThrottler(500)
         self.throttler.triggered.connect(self.genes_data_changed)
@@ -194,16 +194,16 @@ class GenesMask(QWidget):
         self.annotation_widget = AnnotationWidget(self)
         layout.addItem(self.annotation_widget)
 
-        l = QVBoxLayout()
+        small_layout = QVBoxLayout()
         label = QLabel("Reactions using this gene:")
-        l.addWidget(label)
+        small_layout.addWidget(label)
         l2 = QHBoxLayout()
         self.reactions = ReactionTableWidget (self.appdata, ModelElementType.GENE)
         l2.addWidget(self.reactions)
-        l.addItem(l2)
+        small_layout.addItem(l2)
         self.reactions.itemDoubleClicked.connect(self.emit_jump_to_reaction)
         self.reactions.jumpToMetabolite.connect(self.emit_jump_to_metabolite)
-        layout.addItem(l)
+        layout.addItem(small_layout)
 
         self.setLayout(layout)
 

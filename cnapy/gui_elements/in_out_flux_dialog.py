@@ -19,12 +19,12 @@ class InOutFluxDialog(QDialog):
         self.layout.addWidget(t1)
         self.metabolite_chooser = QComboBox()
         self.layout.addWidget(self.metabolite_chooser)
-        l = QHBoxLayout()
+        label = QHBoxLayout()
         self.button = QPushButton("Plot")
         self.cancel = QPushButton("Close")
-        l.addWidget(self.button)
-        l.addWidget(self.cancel)
-        self.layout.addItem(l)
+        label.addWidget(self.button)
+        label.addWidget(self.cancel)
+        self.layout.addItem(label)
         self.setLayout(self.layout)
 
         # Connecting the signal

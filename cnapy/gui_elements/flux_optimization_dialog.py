@@ -10,7 +10,7 @@ from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.utils import QComplReceivLineEdit
 from straindesign import fba, linexpr2dict, linexprdict2str, avail_solvers
-from straindesign.names import *
+from straindesign.names import OPTIMAL, UNBOUNDED
 
 class FluxOptimizationDialog(QDialog):
     """A dialog to perform flux optimization"""
@@ -30,10 +30,10 @@ class FluxOptimizationDialog(QDialog):
             r1 = 'r_product'
 
         self.layout = QVBoxLayout()
-        l = QLabel("Maximize (or minimize) a linear flux expression with reaction identifiers and \n"+ \
+        label = QLabel("Maximize (or minimize) a linear flux expression with reaction identifiers and \n"+ \
                    "(optionally) coefficients. Keep in mind that exchange reactions are often defined \n"+\
                    "in the direction of export. Consider changing coefficient signs.")
-        self.layout.addWidget(l)
+        self.layout.addWidget(label)
         editor_layout = QHBoxLayout()
         self.sense_combo = QComboBox()
         self.sense_combo.insertItems(0,['maximize', 'minimize'])

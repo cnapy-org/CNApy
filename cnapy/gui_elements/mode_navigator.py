@@ -1,6 +1,5 @@
 import numpy
 from random import randint
-from copy import deepcopy
 import matplotlib.pyplot as plt
 
 from qtpy.QtCore import Qt, Signal, Slot, QStringListModel
@@ -13,7 +12,6 @@ from cnapy.appdata import AppData
 from cnapy.flux_vector_container import FluxVectorContainer
 from cnapy.utils import QComplReceivLineEdit
 import zipfile
-import os
 from io import BytesIO
 
 import json

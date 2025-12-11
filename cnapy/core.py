@@ -2,7 +2,6 @@
 
 import itertools
 from collections import defaultdict
-from typing import Dict, Tuple, List
 from collections import Counter
 import numpy
 import cobra
@@ -18,7 +17,7 @@ from cnapy.appdata import Scenario
 organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
 
 
-def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool,
+def efm_computation(model: cobra.Model, scen_values: dict[str, tuple[float, float]], constraints: bool,
                     print_progress_function=print, abort_callback=None):
     stdf = create_stoichiometric_matrix(
         model, array_type='DataFrame')
@@ -51,7 +50,7 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
                                containing_temp_dir=work_dir)
         del work_dir  # lose this reference to the temporary directory to facilitate garbage collection
         is_irrev_efm = numpy.any(ems.fv_mat[:, reversible == 0], axis=1)
-        rev_emfs_idx = numpy.nonzero(is_irrev_efm == False)[0]
+        rev_emfs_idx = numpy.nonzero(not is_irrev_efm)[0]
         # reversible modes come in forward/backward pairs; delete one from each pair
         if len(rev_emfs_idx) > 0:
             del_idx = rev_emfs_idx[numpy.unique(
@@ -70,11 +69,11 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
 class QPnotSupportedException(Exception):
     pass
 
-def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], use_QP: bool = False,
+def make_scenario_feasible(cobra_model: cobra.Model, scen_values: dict[str, tuple[float, float]], use_QP: bool = False,
                               flux_weight_scale: float = 1.0, abs_flux_weights: bool = False, weights_key: str = None,
-                              bm_reac_id: str = "", variable_constituents: List[cobra.Metabolite] = None,
+                              bm_reac_id: str = "", variable_constituents: list[cobra.Metabolite] = None,
                               max_coeff_change: float = 0.9, min_rel_changes: bool = True, bm_change_in_gram: bool = False,
-                              gam_mets_param: Tuple[List[cobra.Metabolite], float, float, float] = ([], 0.0, 0.0, 0.0)):
+                              gam_mets_param: tuple[list[cobra.Metabolite], float, float, float] = ([], 0.0, 0.0, 0.0)):
     # if flux_weight_scale == 0 only biomass equation is adjusted
     # if bm_reac_id == "" only fluxes will be adjusted
     reactions_in_objective = []
@@ -261,13 +260,13 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
 
         return solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust
 
-def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boundary_reactions: List[str],
+def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boundary_reactions: list[str],
                              organic_elements_only=False, print_func=print):
     influx = defaultdict(int)
     efflux = defaultdict(int)
     with model as model:
         scen_values.add_scenario_reactions_to_model(model)
-        reaction_fluxes: List[Tuple(cobra.Reaction, float)] = []
+        reaction_fluxes: list[tuple[cobra.Reaction, float]] = []
         for reac_id in non_boundary_reactions:
             reaction: cobra.Reaction = model.reactions.get_by_id(reac_id)
             val = scen_values.get(reac_id, None)

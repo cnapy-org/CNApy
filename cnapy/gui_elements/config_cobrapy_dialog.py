@@ -108,7 +108,7 @@ class ConfigCobrapyDialog(QDialog):
                 cobra.Configuration().tolerance = val
             else:
                 raise ValueError
-        except:
+        except Exception:
             QMessageBox.critical(self, "Cannot set default tolerance",
                                  "Choose a value between 0.1 and 1e-9 as default tolerance.")
             return

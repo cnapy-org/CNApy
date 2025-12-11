@@ -1,7 +1,5 @@
-import io
 import json
 import os
-import traceback
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 import pickle
@@ -13,16 +11,15 @@ from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
-import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
+import cnapy.resources  # noqa: F401 - This import provides the menu icons
 import matplotlib.pyplot as plt
-from typing import Any, Dict
+from typing import Any
 import openpyxl
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
-from qtpy.QtGui import QColor, QIcon, QKeySequence
+from qtpy.QtGui import QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
-from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.about_dialog import AboutDialog
@@ -39,7 +36,6 @@ from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
 from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
-from cnapy.gui_elements.reactions_list import ReactionListColumn
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
@@ -90,7 +86,7 @@ class MainWindow(QMainWindow):
         open_project_action.triggered.connect(self.open_project_dialog)
 
         self.recent_cna_menu = self.file_menu.addMenu("Open recent")
-        self.recent_cna_actions: Dict[str, QAction] = {}
+        self.recent_cna_actions: dict[str, QAction] = {}
 
         self.save_project_action = QAction("&Save project", self)
         self.save_project_action.setShortcut("Ctrl+S")
@@ -1058,7 +1054,7 @@ class MainWindow(QMainWindow):
                                 if bigg_id in reaction_bigg_ids:
                                     (label_x, label_y) =  get_translate_coordinates(child.attrib['transform'])
                                     self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [label_x - offset_x, label_y - offset_y]
-        except:
+        except Exception:
             QMessageBox.critical(self, "Failed to parse "+file_name+" as Escher SVG file",
                                  file_name+" does not appear to have been exported from Escher. "
                                  "Automatic mapping of reaction boxes not possible.")
@@ -2182,7 +2178,7 @@ class MainWindow(QMainWindow):
         )
         self.bottleneck_dialog.exec_()
 
-    def _load_json(self) -> Dict[Any, Any]:
+    def _load_json(self) -> dict[Any, Any]:
         dialog = QFileDialog(self)
         filename: str = dialog.getOpenFileName(
             directory=self.appdata.last_scen_directory, filter="*.json")[0]
@@ -2273,7 +2269,7 @@ class MainWindow(QMainWindow):
         cmin_column = 2
         cmax_column = 3
 
-        concentrations: Dict[str, Dict[str, float]] = {}
+        concentrations: dict[str, dict[str, float]] = {}
         warnings = ""
         for row in range(2, ws.max_row+1):
             metabolite_id = ws.cell(row=row, column=metabolite_id_column).value
@@ -2345,7 +2341,7 @@ class MainWindow(QMainWindow):
         dG0_column = 2
         uncertainty_column = 3
 
-        dG0s: Dict[str, Dict[str, float]] = {}
+        dG0s: dict[str, dict[str, float]] = {}
         warnings = ""
         for row in range(2, ws.max_row+1):
             reac_id = ws.cell(row=row, column=reac_id_column).value

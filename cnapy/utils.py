@@ -4,7 +4,6 @@ from qtpy.QtWidgets import QMessageBox, QLineEdit, QTableWidget, QTableWidgetIte
     QCompleter, QApplication, QFrame, QSizePolicy
 from cnapy.appdata import IDList
 from straindesign import lineq2list, linexpr2dict, linexprdict2str
-import fnmatch
 import re
 
 def format_scenario_constraint(constraint):
@@ -268,7 +267,7 @@ class QTableItem(QTableWidgetItem):
             self.setFlags(f & ~Qt.ItemIsEnabled)
 
 
-class QHSeperationLine(QFrame):
+class QHSeparationLine(QFrame):
     '''
     a horizontal seperation line\n
     '''
@@ -283,7 +282,7 @@ class QHSeperationLine(QFrame):
         return
 
 
-class QVSeperationLine(QFrame):
+class QVSeparationLine(QFrame):
     '''
     a vertical seperation line\n
     '''
