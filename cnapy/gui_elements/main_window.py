@@ -11,6 +11,7 @@ from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
+from cnapy.gui_elements.lp_analysis_dialog import LpAnalysisDialog
 import cnapy.resources  # noqa: F401 - This import provides the menu icons
 import matplotlib.pyplot as plt
 from typing import Any
@@ -38,7 +39,6 @@ from cnapy.gui_elements.plot_space_dialog import PlotSpaceDialog
 from cnapy.gui_elements.in_out_flux_dialog import InOutFluxDialog
 from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
-from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
@@ -391,10 +391,9 @@ class MainWindow(QMainWindow):
         self.sd_menu.addAction(load_mcs_action)
         load_mcs_action.triggered.connect(self.load_mcs)
 
-        self.flux_optimization_action = QAction(
-            "Flux optimization...", self)
-        self.flux_optimization_action.triggered.connect(self.optimize_flux)
-        self.analysis_menu.addAction(self.flux_optimization_action)
+        lp_analysis_action = QAction("Perform LP analysis...", self)
+        lp_analysis_action.triggered.connect(self.lp_analysis)
+        self.analysis_menu.addAction(lp_analysis_action)
 
         self.yield_optimization_action = QAction(
             "Yield optimization...", self)
@@ -770,8 +769,8 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     @Slot()
-    def optimize_flux(self):
-        dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
+    def lp_analysis(self):
+        dialog = LpAnalysisDialog(self.appdata, self.centralWidget())
         dialog.exec_()
 
     @Slot()

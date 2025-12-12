@@ -96,6 +96,7 @@ def make_dark_palette() -> QPalette:
     disabled = QColor(120, 120, 120)   # lighter than the normal text gray so it is still visible
     palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled)
     palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled)
+    palette.setColor(QPalette.Disabled, QPalette.WindowText, disabled)
 
     # ---- Other states ----
     palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
@@ -133,6 +134,7 @@ def make_light_palette():
     disabled = QColor(150, 150, 150)
     palette.setColor(QPalette.Disabled, QPalette.Text, disabled)
     palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled)
+    palette.setColor(QPalette.Disabled, QPalette.WindowText, disabled)
 
     return palette
 

@@ -439,7 +439,7 @@ class ProjectData:
         self.modes = []
         self.meta_data = {}
 
-    def load_scenario_into_model(self, model: cobra.Model):
+    def load_scenario_into_model(self, model: cobra.Model):  # TODO: Remove this
         for x in self.scen_values:
             try:
                 y = model.reactions.get_by_id(x)

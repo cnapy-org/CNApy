@@ -286,9 +286,6 @@ class ThermodynamicDialog(QDialog):
                 if solution != {}:
                     solution[ALL_OK_KEY] = True
             self.get_solution_from_thread(solution)
-        # except Exception:
-        #    self.send_solution.emit(pickle.dumps("ERROR"))
-        #    self.finished_computation.emit()
 
     def set_boxes(self, solution: dict[str, float]):
         # Combine FWD and REV flux solutions

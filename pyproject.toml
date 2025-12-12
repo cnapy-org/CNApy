@@ -25,15 +25,15 @@ dependencies = [
     "straindesign>=1.12",
     "qtpy>=2.3",
     "pyqtwebengine>=5.15",
-    "qtconsole==5.4",
+    "qtconsole==5.7",
     "gurobipy>=12.0",
     "cplex==22.1.2.0", # We use this specific version as it's currently the last one with support for ARM CPUs
     "numpy==1.23",
     "scipy==1.12",
     "openpyxl",
-    "jpype1==1.5.0",
+    "jpype1==1.6.0",
     "setuptools",
-    "cobrak==0.0.2",
+    "cobrak==0.0.7",
     "pydantic",
     "ruff",
 ]
