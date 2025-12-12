@@ -1,5 +1,6 @@
 """The CNApy LP analysis dialog"""
 from cobrak.constants import OBJECTIVE_VAR_NAME
+from cobrak.printing import print_dict
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -13,6 +14,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QGroupBox,
     QWidget,
+    QMessageBox,
 )
 from straindesign import linexpr2dict
 
@@ -38,6 +40,70 @@ class LpAnalysisDialog(QDialog):
         self.model_reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
 
         layout = QVBoxLayout()
+
+        analysis_radioboxes = QGroupBox("Analysis form:") # This is the parent container
+        self.lp_optimization = QRadioButton("LP optimization")
+        self.lp_optimization.toggled.connect(self.handle_analysis_lp_optimization)
+        self.lp_variability = QRadioButton("LP variability")
+        self.lp_variability.toggled.connect(self.handle_analysis_lp_variability)
+        self.lp_bottleneck_analysis = QRadioButton("LP bottleneck analysis")
+        self.lp_bottleneck_analysis.toggled.connect(self.handle_analysis_lp_bottleneck)
+        self.lp_bottleneck_analysis.setEnabled(False)
+        layout_analysis_radioboxes = QHBoxLayout()
+        layout_analysis_radioboxes.addWidget(self.lp_optimization)
+        layout_analysis_radioboxes.addWidget(self.lp_variability)
+        layout_analysis_radioboxes.addWidget(self.lp_bottleneck_analysis)
+        analysis_radioboxes.setLayout(layout_analysis_radioboxes) # All buttons in this box form Group 1
+        layout.addWidget(analysis_radioboxes)
+
+
+        self.objective_radioboxes = QGroupBox("Objective:")
+        self.objective_stack = QStackedWidget()
+
+        radio_container = QWidget()
+        radio_container.setContentsMargins(0, 0, 0, 0)
+        vertical_layout = QVBoxLayout(radio_container)
+        vertical_layout.setContentsMargins(0, 0, 0, 0)
+        radio_layout = QHBoxLayout()
+        radio_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.set_model_objective = QRadioButton("Set objective:")
+        self.set_objective = QComplReceivLineEdit(
+            self,
+            self.model_reac_ids,
+            is_in_dark_mode=self.appdata.is_in_dark_mode,
+        )
+        self.set_objective.setText(self.central_widget.model_info.global_objective.text())
+        self.set_objective.textCorrect.connect(self.validate_set_objective)
+        self.set_mdf_objective = QRadioButton("MDF")
+        self.set_mdf_objective.setEnabled(False)
+        radio_layout.addWidget(self.set_model_objective)
+        radio_layout.addWidget(self.set_objective)
+        radio_layout.addWidget(self.set_mdf_objective)
+        vertical_layout.addLayout(radio_layout)
+        direction_layout = QHBoxLayout()
+        direction_layout.setContentsMargins(0, 0, 0, 0)
+        opt_direction_text = QLabel("Direction:")
+        self.opt_direction: QComboBox = get_opt_direction_combo_box(
+            set_start_value=OptimizationDirection[self.appdata.project.cobra_py_model.objective_direction].value,
+        )
+        direction_layout.addWidget(opt_direction_text)
+        direction_layout.addWidget(self.opt_direction)
+        vertical_layout.addLayout(direction_layout)
+        self.objective_stack.addWidget(radio_container) # Stack Index 0
+
+        label_container = QWidget()
+        label_layout = QHBoxLayout(label_container)
+        label_layout.setContentsMargins(0, 0, 0, 0)
+        self.no_objective_applicable = QLabel("(not applicable with selected analysis form)")
+        label_layout.addWidget(self.no_objective_applicable)
+        self.objective_stack.addWidget(label_container) # Stack index 1
+
+        objective_group_layout = QVBoxLayout()
+        objective_group_layout.addWidget(self.objective_stack)
+        self.objective_radioboxes.setLayout(objective_group_layout)
+        layout.addWidget(self.objective_radioboxes)
+
 
         constraints_group = QGroupBox("Extra constraints:")
         constraints_layout = QVBoxLayout()
@@ -90,89 +156,37 @@ class LpAnalysisDialog(QDialog):
         constraints_group.setLayout(constraints_layout)
         layout.addWidget(constraints_group)
 
-        analysis_radioboxes = QGroupBox("Analysis form:") # This is the parent container
-        self.lp_optimization = QRadioButton("LP optimization")
-        self.lp_optimization.toggled.connect(self.handle_analysis_lp_optimization)
-        self.lp_variability = QRadioButton("LP variability")
-        self.lp_variability.toggled.connect(self.handle_analysis_lp_variability)
-        self.lp_bottleneck_analysis = QRadioButton("LP bottleneck analysis")
-        self.lp_bottleneck_analysis.toggled.connect(self.handle_analysis_lp_bottleneck)
-        self.lp_bottleneck_analysis.setEnabled(False)
-        layout_analysis_radioboxes = QHBoxLayout()
-        layout_analysis_radioboxes.addWidget(self.lp_optimization)
-        layout_analysis_radioboxes.addWidget(self.lp_variability)
-        layout_analysis_radioboxes.addWidget(self.lp_bottleneck_analysis)
-        analysis_radioboxes.setLayout(layout_analysis_radioboxes) # All buttons in this box form Group 1
-        layout.addWidget(analysis_radioboxes)
-
-
-        self.objective_radioboxes = QGroupBox("Objective:")
-        self.objective_stack = QStackedWidget()
-
-        radio_container = QWidget()
-        radio_container.setContentsMargins(0, 0, 0, 0)
-        vertical_layout = QVBoxLayout(radio_container)
-        vertical_layout.setContentsMargins(0, 0, 0, 0)
-        radio_layout = QHBoxLayout()
-        radio_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.set_model_objective = QRadioButton("Set objective:")
-        self.set_objective = QComplReceivLineEdit(
-            self,
-            self.model_reac_ids,
-            is_in_dark_mode=self.appdata.is_in_dark_mode,
-        )
-        self.set_objective.setText(self.central_widget.model_info.global_objective.text())
-        self.set_mdf_objective = QRadioButton("MDF")
-        self.set_mdf_objective.setEnabled(False)
-        radio_layout.addWidget(self.set_model_objective)
-        radio_layout.addWidget(self.set_objective)
-        radio_layout.addWidget(self.set_mdf_objective)
-        vertical_layout.addLayout(radio_layout)
-        direction_layout = QHBoxLayout()
-        direction_layout.setContentsMargins(0, 0, 0, 0)
-        opt_direction_text = QLabel("Direction:")
-        self.opt_direction: QComboBox = get_opt_direction_combo_box(
-            set_start_value=OptimizationDirection[self.appdata.project.cobra_py_model.objective_direction].value,
-        )
-        direction_layout.addWidget(opt_direction_text)
-        direction_layout.addWidget(self.opt_direction)
-        vertical_layout.addLayout(direction_layout)
-        self.objective_stack.addWidget(radio_container) # Stack Index 0
-
-        label_container = QWidget()
-        label_layout = QHBoxLayout(label_container)
-        label_layout.setContentsMargins(0, 0, 0, 0)
-        self.no_objective_applicable = QLabel("(not applicable with selected analysis form)")
-        label_layout.addWidget(self.no_objective_applicable)
-        self.objective_stack.addWidget(label_container) # Stack index 1
-
-        objective_group_layout = QVBoxLayout()
-        objective_group_layout.addWidget(self.objective_stack)
-        self.objective_radioboxes.setLayout(objective_group_layout)
-        layout.addWidget(self.objective_radioboxes)
         
-        self.lp_optimization.setChecked(True)
-        self.set_model_objective.setChecked(True)
-
         solver_group = QGroupBox("Solver:")
         solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata, is_vertical=False, for_straindesign=False)
         solver_group.setLayout(solver_buttons_layout)
         layout.addWidget(solver_group)
 
-        run_analysis = QPushButton("Run analysis")
-        run_analysis.clicked.connect(self.handle_run_analysis)
-        layout.addWidget(run_analysis)
+        self.run_analysis = QPushButton("Run analysis")
+        self.run_analysis.clicked.connect(self.handle_run_analysis)
+        self.validate_set_objective()
+        layout.addWidget(self.run_analysis)
+
+        self.lp_optimization.setChecked(True)
+        self.set_model_objective.setChecked(True)
 
         self.setLayout(layout)
     
     def _hide_objective_radioboxes(self, to_hide: bool) -> None:
-        if to_hide:
-            # Show the "not applicable" label (Index 1)
-            self.objective_stack.setCurrentIndex(1)
+        # Show the "not applicable" label (index 1) or radio buttons (0)
+        self.objective_stack.setCurrentIndex(int(to_hide))
+        self.validate_set_objective()
+    
+    def validate_set_objective(self) -> None:
+        if self.lp_optimization.isChecked():
+            self.run_analysis.setEnabled(self.set_objective.is_valid)
+            self.run_analysis.setText(
+                "Run analysis" if self.set_objective.is_valid else
+                "(cannot run analysis: set objective is invalid, check expression)"
+            )
         else:
-            # Show the radio buttons (Index 0)
-            self.objective_stack.setCurrentIndex(0)
+            self.run_analysis.setEnabled(True)
+            self.run_analysis.setText("Run analysis")
 
     def handle_thermodynamic_constraints(self, is_checked: bool) -> None:
         self.default_concs_layout_container.setEnabled(is_checked)
@@ -216,7 +230,19 @@ class LpAnalysisDialog(QDialog):
                 objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids),
                 direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 else +1,
             )
-            print(opt_result[1][OBJECTIVE_VAR_NAME])
+            error_message, opt_solution = opt_result
+            if error_message:
+                QMessageBox(
+                    "LP optimization error",
+                    error_message,
+                )
+                return
+            for reac_id in self.model_reac_ids:
+                self.appdata.project.comp_values[reac_id] = (
+                    opt_solution[reac_id], opt_solution[reac_id],
+                )
+            self.appdata.project.comp_values_type = 0
+            self.central_widget.update()
         elif self.lp_variability.isChecked():
             var_result = run_lp_variability_analysis(
                 cobrapy_model=self.appdata.project.cobra_py_model,

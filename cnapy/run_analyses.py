@@ -1,6 +1,6 @@
 import cobra
 from cobrak.dataclasses import ExtraLinearConstraint, Solver, Model
-from cobrak.constants import ALL_OK_KEY, LNCONC_VAR_PREFIX, TERMINATION_CONDITION_KEY
+from cobrak.constants import ALL_OK_KEY, LNCONC_VAR_PREFIX, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
 from cobrak.io import get_base_id, load_annotated_cobrapy_model_as_cobrak_model
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 from cobrak.lps import (
@@ -179,17 +179,9 @@ def _get_combined_opt_solution(
     # Combine FWD and REV flux solutions
     combined_solution: dict[str, float] = {}
     for var_id in solution.keys():
-        if var_id.endswith(CNAPY_FWD_SUFFIX):
-            base_key = var_id.replace(CNAPY_FWD_SUFFIX, "")
-            key = base_key if base_key in original_model.reactions else var_id
-            multiplier = 1.0
-        elif var_id.endswith(CNAPY_REV_SUFFIX):
-            base_key = var_id.replace(CNAPY_REV_SUFFIX, "")
-            key = base_key if base_key in original_model.reactions else var_id
-            multiplier = -1.0
-        else:
-            key = var_id
-            multiplier = 1.0
+        base_key = get_base_id(var_id, fwd_suffix=CNAPY_FWD_SUFFIX, rev_suffix=CNAPY_REV_SUFFIX, reac_enz_separator=REAC_ENZ_SEPARATOR)
+        key = base_key if base_key in original_model.reactions else var_id
+        multiplier = -1.0 if var_id.endswith(CNAPY_REV_SUFFIX) else 1.0
         if key not in combined_solution.keys():
             combined_solution[key] = 0.0
         combined_solution[key] += multiplier * solution[var_id]
