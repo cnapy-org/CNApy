@@ -157,7 +157,8 @@ def _get_cobrak_model(
                 cobrak_kinetic_ignored_metabolites=[],
                 cobrak_no_extra_versions=True,
                 reac_lb_ub_cap=1_000.0,
-            )
+            ),
+            deactivate_mw_warning=True,
         )
 
     return cobrak_model

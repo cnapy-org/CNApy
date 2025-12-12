@@ -2,6 +2,7 @@
 from cobrak.constants import OBJECTIVE_VAR_NAME
 from qtpy.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -13,11 +14,15 @@ from qtpy.QtWidgets import (
     QGroupBox,
     QWidget,
 )
+from straindesign import linexpr2dict
 
 from cnapy.appdata import AppData
+from cnapy.core_gui import get_opt_direction_combo_box
 from cnapy.gui_elements.central_widget import CentralWidget
+from cnapy.gui_elements.model_info import OptimizationDirection
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from cnapy.run_analyses import run_lp_optimization, run_lp_variability_analysis, run_lp_bottleneck_analysis
+from cnapy.utils import QComplReceivLineEdit
 
 
 class LpAnalysisDialog(QDialog):
@@ -30,6 +35,7 @@ class LpAnalysisDialog(QDialog):
 
         self.appdata = appdata
         self.central_widget = central_widget
+        self.model_reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
 
         layout = QVBoxLayout()
 
@@ -105,14 +111,33 @@ class LpAnalysisDialog(QDialog):
 
         radio_container = QWidget()
         radio_container.setContentsMargins(0, 0, 0, 0)
-        radio_layout = QHBoxLayout(radio_container)
+        vertical_layout = QVBoxLayout(radio_container)
+        vertical_layout.setContentsMargins(0, 0, 0, 0)
+        radio_layout = QHBoxLayout()
         radio_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.set_model_objective = QRadioButton("Set model reaction objective")
-        self.set_mdf_objective = QRadioButton("Max-min driving force (MDF)")
+        self.set_model_objective = QRadioButton("Set objective:")
+        self.set_objective = QComplReceivLineEdit(
+            self,
+            self.model_reac_ids,
+            is_in_dark_mode=self.appdata.is_in_dark_mode,
+        )
+        self.set_objective.setText(self.central_widget.model_info.global_objective.text())
+        self.set_mdf_objective = QRadioButton("MDF")
         self.set_mdf_objective.setEnabled(False)
         radio_layout.addWidget(self.set_model_objective)
+        radio_layout.addWidget(self.set_objective)
         radio_layout.addWidget(self.set_mdf_objective)
+        vertical_layout.addLayout(radio_layout)
+        direction_layout = QHBoxLayout()
+        direction_layout.setContentsMargins(0, 0, 0, 0)
+        opt_direction_text = QLabel("Direction:")
+        self.opt_direction: QComboBox = get_opt_direction_combo_box(
+            set_start_value=OptimizationDirection[self.appdata.project.cobra_py_model.objective_direction].value,
+        )
+        direction_layout.addWidget(opt_direction_text)
+        direction_layout.addWidget(self.opt_direction)
+        vertical_layout.addLayout(direction_layout)
         self.objective_stack.addWidget(radio_container) # Stack Index 0
 
         label_container = QWidget()
@@ -179,7 +204,7 @@ class LpAnalysisDialog(QDialog):
     
     def handle_run_analysis(self) -> None:
         if self.lp_optimization.isChecked():
-            opt_result = run_lp_optimization(
+            opt_result: tuple[str, dict[str, float]] = run_lp_optimization(
                 cobrapy_model=self.appdata.project.cobra_py_model,
                 scen_values=self.appdata.project.scen_values,
                 solver_name=self.solver_buttons["group"].checkedButton().property("cobrak_name"),
@@ -188,6 +213,8 @@ class LpAnalysisDialog(QDialog):
                 min_mdf=float(self.min_mdf.text()),
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
+                objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids),
+                direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 else +1,
             )
             print(opt_result[1][OBJECTIVE_VAR_NAME])
         elif self.lp_variability.isChecked():

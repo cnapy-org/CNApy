@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QLabel, QCheckBox, QComboBox, QVBoxLayout, QWidget, 
 
 import cobra
 from cnapy.appdata import AppData, Scenario
+from cnapy.core_gui import get_opt_direction_combo_box
 from cnapy.utils import QComplReceivLineEdit, format_scenario_constraint, turn_red, turn_white, BACKGROUND_COLOR
 from straindesign.parse_constr import linexpr2dict, linexprdict2str, lineq2list
 
@@ -51,8 +52,7 @@ class ScenarioTab(QWidget):
         self.optimization_direction_layout = QHBoxLayout()
         label = QLabel("Optimization direction:")
         self.optimization_direction_layout.addWidget(label)
-        self.scenario_opt_direction = QComboBox()
-        self.scenario_opt_direction.insertItems(0, ["minimize", "maximize"])
+        self.scenario_opt_direction: QComboBox = get_opt_direction_combo_box()
         self.optimization_direction_layout.addWidget(self.scenario_opt_direction)
         self.objective_group_layout.addLayout(self.optimization_direction_layout)
         group.setLayout(self.objective_group_layout)

@@ -5,6 +5,7 @@ from qtpy.QtWidgets import (QLabel, QTextEdit, QVBoxLayout, QWidget, QComboBox, 
 
 from straindesign.parse_constr import linexpr2dict
 from cnapy.appdata import AppData
+from cnapy.core_gui import get_opt_direction_combo_box
 from cnapy.gui_elements.scenario_tab import OptimizationDirection
 from cnapy.utils import QComplReceivLineEdit
 
@@ -22,8 +23,7 @@ class ModelInfo(QWidget):
         self.objective_group_layout.addWidget(self.global_objective)
         label = QLabel("Optimization direction")
         self.objective_group_layout.addWidget(label)
-        self.opt_direction = QComboBox()
-        self.opt_direction.insertItems(0, ["minimize", "maximize"])
+        self.opt_direction: QComboBox = get_opt_direction_combo_box()
         self.objective_group_layout.addWidget(self.opt_direction)
         group.setLayout(self.objective_group_layout)
         layout.addWidget(group)
