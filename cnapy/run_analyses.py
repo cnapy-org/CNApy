@@ -1,6 +1,6 @@
 import cobra
 from cobrak.dataclasses import ExtraLinearConstraint, Solver, Model
-from cobrak.constants import ALL_OK_KEY, LNCONC_VAR_PREFIX, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
+from cobrak.constants import ALL_OK_KEY, FLUX_SUM_VAR_ID, LNCONC_VAR_PREFIX, OBJECTIVE_VAR_NAME, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
 from cobrak.io import get_base_id, load_annotated_cobrapy_model_as_cobrak_model
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 from cobrak.lps import (
@@ -242,6 +242,7 @@ def run_lp_optimization(
     min_mdf: float = -float("inf"),
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
+    parsimonious: bool = False,
 ) -> tuple[str, dict[str, float]]:
     if not objective_overwrite:
         objective = {}
@@ -282,7 +283,30 @@ def run_lp_optimization(
         min_mdf=min_mdf,
         solver=Solver(name=solver_name),
         verbose=False,
+        with_flux_sum_var=parsimonious,
     )
+
+    if parsimonious:
+        with cobrak_model as min_flux_sum_model:
+            min_flux_sum_model.extra_linear_constraints.append(
+                ExtraLinearConstraint(
+                    stoichiometries=objective,
+                    lower_value=lp_opt_solution[OBJECTIVE_VAR_NAME] - 1e-8,
+                    upper_value=lp_opt_solution[OBJECTIVE_VAR_NAME] + 1e-8,
+                )
+            )
+            lp_opt_solution = perform_lp_optimization(
+                cobrak_model=min_flux_sum_model,
+                objective_target=FLUX_SUM_VAR_ID,
+                objective_sense=-1,
+                with_enzyme_constraints=with_enzyme_constraints,
+                with_thermodynamic_constraints=with_thermodynamic_constraints,
+                with_loop_constraints=False,
+                min_mdf=min_mdf,
+                solver=Solver(name=solver_name),
+                verbose=False,
+                with_flux_sum_var=True,
+            )
 
     return (
         _get_error_message(lp_opt_solution),

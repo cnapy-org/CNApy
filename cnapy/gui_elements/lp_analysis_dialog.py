@@ -1,6 +1,4 @@
 """The CNApy LP analysis dialog"""
-from cobrak.constants import OBJECTIVE_VAR_NAME
-from cobrak.printing import print_dict
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -89,6 +87,9 @@ class LpAnalysisDialog(QDialog):
         )
         direction_layout.addWidget(opt_direction_text)
         direction_layout.addWidget(self.opt_direction)
+        self.is_parsimonious = QCheckBox("Parsimonious (for reaction fluxes)?")
+        self.is_parsimonious.setChecked(False)
+        direction_layout.addWidget(self.is_parsimonious)
         vertical_layout.addLayout(direction_layout)
         self.objective_stack.addWidget(radio_container) # Stack Index 0
 
@@ -229,6 +230,7 @@ class LpAnalysisDialog(QDialog):
                 max_default_conc=float(self.max_default_conc.text()),
                 objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids),
                 direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 else +1,
+                parsimonious=self.is_parsimonious.isChecked(),
             )
             error_message, opt_solution = opt_result
             if error_message:
