@@ -219,7 +219,7 @@ class LpAnalysisDialog(QDialog):
     
     def handle_run_analysis(self) -> None:
         if self.lp_optimization.isChecked():
-            opt_result: tuple[str, dict[str, float]] = run_lp_optimization(
+            error_message, opt_solution, = run_lp_optimization(
                 cobrapy_model=self.appdata.project.cobra_py_model,
                 scen_values=self.appdata.project.scen_values,
                 solver_name=self.solver_buttons["group"].checkedButton().property("cobrak_name"),
@@ -232,13 +232,13 @@ class LpAnalysisDialog(QDialog):
                 direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 else +1,
                 parsimonious=self.is_parsimonious.isChecked(),
             )
-            error_message, opt_solution = opt_result
             if error_message:
                 QMessageBox(
                     "LP optimization error",
                     error_message,
                 )
                 return
+            
             for reac_id in self.model_reac_ids:
                 self.appdata.project.comp_values[reac_id] = (
                     opt_solution[reac_id], opt_solution[reac_id],
@@ -258,7 +258,13 @@ class LpAnalysisDialog(QDialog):
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
             )
-            print(var_result)
+            # self.appdata.results_cache_dir if self.appdata.use_results_cache else None
+            for reaction in self.appdata.project.cobra_py_model.reactions:
+                reac_id = reaction.id
+                self.appdata.project.comp_values[reac_id] = (var_result[reac_id][0], var_result[reac_id][1])
+            self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+            self.appdata.project.comp_values_type = 1
+            self.central_widget.update()
         elif self.lp_bottleneck_analysis.isChecked():
             bottleneck_result = run_lp_bottleneck_analysis(
                 cobrapy_model=self.appdata.project.cobra_py_model,
@@ -270,3 +276,4 @@ class LpAnalysisDialog(QDialog):
                 max_default_conc=float(self.max_default_conc.text()),
             )
             print(bottleneck_result)
+        self.accept()

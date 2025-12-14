@@ -1,7 +1,7 @@
 import cobra
 from cobrak.dataclasses import ExtraLinearConstraint, Solver, Model
 from cobrak.constants import ALL_OK_KEY, FLUX_SUM_VAR_ID, LNCONC_VAR_PREFIX, OBJECTIVE_VAR_NAME, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
-from cobrak.io import get_base_id, load_annotated_cobrapy_model_as_cobrak_model
+from cobrak.io import get_base_id, json_write, load_annotated_cobrapy_model_as_cobrak_model
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 from cobrak.lps import (
     perform_lp_optimization,
@@ -191,14 +191,16 @@ def _get_combined_opt_solution(
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
 def _get_combined_var_solution(
     original_cobrapy_model: cobra.Model,
-    cobrak_model: Model,
+    cobrak_model: Model, # Assuming this is your cobrak.core.model.Model class
     variability_dict: dict[str, tuple[float, float]],
 ) -> dict[str, tuple[float, float]]:
-    combined_solution: dict[str, list[tuple[float, float]]] = {}
+    # Use a dict for combining the intermediate results
+    var_solution: dict[str, tuple[float, float]] = {}
 
     for reac_id in cobrak_model.reactions:
         if reac_id not in variability_dict:
             continue
+            
         temp_base_id = get_base_id(
             reac_id,
             cobrak_model.fwd_suffix,
@@ -211,24 +213,41 @@ def _get_combined_var_solution(
             else reac_id
         )
 
-        multiplier = -1 if reac_id.endswith(cobrak_model.rev_suffix) else 1
-        min_flux = variability_dict[reac_id][0]
-        max_flux = variability_dict[reac_id][1]
+        min_flux_split = variability_dict[reac_id][0]
+        max_flux_split = variability_dict[reac_id][1]
 
-        if base_id not in combined_solution:
-            combined_solution[base_id] = [0.0, 0.0]
+        # Initialize the combined solution for the base reaction if not present
+        if base_id not in var_solution:
+            # Initialize with (0.0, 0.0). This represents the starting point for 
+            # calculating the range: min(R_fwd) - max(R_rev) and max(R_fwd) - min(R_rev)
+            var_solution[base_id] = (0.0, 0.0) 
 
-        combined_solution[base_id][0] += multiplier * min_flux
-        combined_solution[base_id][1] += multiplier * max_flux
+        current_min, current_max = var_solution[base_id]
 
+        # Apply the correct combination logic based on the split reaction type
+        if reac_id.endswith(cobrak_model.fwd_suffix):
+            # The net MIN flux is based on min(R_fwd)
+            new_min = min(current_min, min_flux_split)
+            # The net MAX flux is based on max(R_fwd)
+            new_max = max(current_max, max_flux_split)
+            var_solution[base_id] = (new_min, new_max)
+        elif reac_id.endswith(cobrak_model.rev_suffix):
+            # To get the net MIN flux (a - d), subtract max(R_rev)
+            new_min = current_min - max_flux_split 
+            # To get the net MAX flux (b - c), subtract min(R_rev)
+            new_max = current_max - min_flux_split 
+            var_solution[base_id] = (new_min, new_max)
+        else:
+             # Handle non-split irreversible reactions directly
+             var_solution[base_id] = variability_dict[reac_id]
+
+    # Handle metabolite variables
     for met_id in cobrak_model.metabolites:
         met_var_id = f"{LNCONC_VAR_PREFIX}{met_id}"
         if met_var_id in variability_dict:
-            combined_solution[met_id][0] = variability_dict[met_var_id][0]
-            combined_solution[met_id][1] = variability_dict[met_var_id][1]
+            var_solution[met_id] = variability_dict[met_var_id]
 
-    return combined_solution
-
+    return var_solution
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
 def run_lp_optimization(
@@ -243,7 +262,7 @@ def run_lp_optimization(
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
     parsimonious: bool = False,
-) -> tuple[str, dict[str, float]]:
+) -> tuple[str, dict[str, float | None]]:
     if not objective_overwrite:
         objective = {}
         for (
@@ -359,7 +378,7 @@ def run_lp_variability_analysis(
     min_mdf: float = -float("inf"),
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
-) -> dict[str, tuple[float, float]]:
+) -> dict[str, tuple[float | None, float | None]]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
@@ -373,18 +392,21 @@ def run_lp_variability_analysis(
             "at least one reaction with a ΔG'° (annotation key 'dG0').",
             {},
         )
+    
+    var_result = perform_lp_variability_analysis(
+        cobrak_model=cobrak_model,
+        with_enzyme_constraints=with_enzyme_constraints,
+        with_thermodynamic_constraints=with_thermodynamic_constraints,
+        solver=Solver(name=solver_name),
+        min_mdf=min_mdf,
+        calculate_reacs=calculate_reacs,
+        calculate_concs=calculate_concs,
+        calculate_rest=False,
+    )
+    json_write("xxx.json", var_result)
 
     return _get_combined_var_solution(
         cobrapy_model,
         cobrak_model,
-        perform_lp_variability_analysis(
-            cobrak_model=cobrak_model,
-            with_enzyme_constraints=with_enzyme_constraints,
-            with_thermodynamic_constraints=with_thermodynamic_constraints,
-            solver=Solver(name=solver_name),
-            min_mdf=min_mdf,
-            calculate_reacs=calculate_reacs,
-            calculate_concs=calculate_concs,
-            calculate_rest=False,
-        ),
+        var_result,
     )
