@@ -1,4 +1,5 @@
 """The CNApy LP analysis dialog"""
+from cobrak.constants import MDF_VAR_ID, OBJECTIVE_VAR_NAME
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -218,6 +219,7 @@ class LpAnalysisDialog(QDialog):
         self._hide_objective_radioboxes(True)
     
     def handle_run_analysis(self) -> None:
+        console_text = ""
         if self.lp_optimization.isChecked():
             error_message, opt_solution, = run_lp_optimization(
                 cobrapy_model=self.appdata.project.cobra_py_model,
@@ -228,8 +230,8 @@ class LpAnalysisDialog(QDialog):
                 min_mdf=float(self.min_mdf.text()),
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
-                objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids),
-                direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 else +1,
+                objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids) if not self.set_mdf_objective.isChecked() else {MDF_VAR_ID: +1},
+                direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 and not self.set_mdf_objective.isChecked() else +1,
                 parsimonious=self.is_parsimonious.isChecked(),
             )
             if error_message:
@@ -244,6 +246,8 @@ class LpAnalysisDialog(QDialog):
                     opt_solution[reac_id], opt_solution[reac_id],
                 )
             self.appdata.project.comp_values_type = 0
+            if self.set_mdf_objective.isChecked():
+                console_text += f"print('\\nOptMDF: {opt_solution[MDF_VAR_ID]} kJ/mol')"
             self.central_widget.update()
         elif self.lp_variability.isChecked():
             var_result = run_lp_variability_analysis(
@@ -266,7 +270,7 @@ class LpAnalysisDialog(QDialog):
             self.appdata.project.comp_values_type = 1
             self.central_widget.update()
         elif self.lp_bottleneck_analysis.isChecked():
-            bottleneck_result = run_lp_bottleneck_analysis(
+            bottlenecks = run_lp_bottleneck_analysis(
                 cobrapy_model=self.appdata.project.cobra_py_model,
                 scen_values=self.appdata.project.scen_values,
                 solver_name=self.solver_buttons["group"].checkedButton().property("cobrak_name"),
@@ -275,5 +279,9 @@ class LpAnalysisDialog(QDialog):
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
             )
-            print(bottleneck_result)
+            bottlenecks_string = "; ".join(bottlenecks)
+            console_text += f"print('\\n{len(bottlenecks)} bottleneck reactions found: {bottlenecks_string}')"        
+        if console_text:
+            self.central_widget.kernel_client.execute(console_text)
+            self.central_widget.show_bottom_of_console()
         self.accept()

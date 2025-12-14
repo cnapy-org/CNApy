@@ -342,7 +342,7 @@ def run_lp_bottleneck_analysis(
     min_mdf: float = -float("inf"),
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
-) -> tuple[str, list[str]]:
+) -> list[str]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
@@ -356,14 +356,24 @@ def run_lp_bottleneck_analysis(
             [],
         )
 
-    bottlenecks = perform_lp_thermodynamic_bottleneck_analysis(
+    bottlenecks, _ = perform_lp_thermodynamic_bottleneck_analysis(
         cobrak_model=cobrak_model,
         with_enzyme_constraints=with_enzyme_constraints,
         min_mdf=min_mdf,
         solver=Solver(name=solver_name),
+        verbose=True,
     )
+    bottleneck_base_ids = [
+        get_base_id(
+            reac_id,
+            fwd_suffix=CNAPY_FWD_SUFFIX,
+            rev_suffix=CNAPY_REV_SUFFIX,
+            reac_enz_separator=REAC_ENZ_SEPARATOR
+        )
+        for reac_id in bottlenecks
+    ]
 
-    return ("", bottlenecks)
+    return [(bottleneck_base_ids[i] if bottleneck_base_ids[i] in cobrapy_model.reactions else bottlenecks[i]) for i in range(len(bottlenecks))]
 
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
@@ -403,7 +413,6 @@ def run_lp_variability_analysis(
         calculate_concs=calculate_concs,
         calculate_rest=False,
     )
-    json_write("xxx.json", var_result)
 
     return _get_combined_var_solution(
         cobrapy_model,
