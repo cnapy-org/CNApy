@@ -429,7 +429,6 @@ def run_lp_variability_analysis(
             calculate_rest=False,
         )
     if use_results_cache:
-        print(results_cache_dir)
         json_zip_write(f"{results_cache_dir}fvacache_{full_hash}", var_result)
     return _get_combined_var_solution(
         cobrapy_model,
