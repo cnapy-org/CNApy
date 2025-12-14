@@ -106,3 +106,4 @@ uv.lock
 
 # Internal development file
 cnapy/cnapy_server.py
+fvacache_*

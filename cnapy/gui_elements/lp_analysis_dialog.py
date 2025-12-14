@@ -261,8 +261,9 @@ class LpAnalysisDialog(QDialog):
                 min_mdf=float(self.min_mdf.text()),
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
+                use_results_cache=self.appdata.use_results_cache,
+                results_cache_dir=str(self.appdata.results_cache_dir),
             )
-            # self.appdata.results_cache_dir if self.appdata.use_results_cache else None
             for reaction in self.appdata.project.cobra_py_model.reactions:
                 reac_id = reaction.id
                 self.appdata.project.comp_values[reac_id] = (var_result[reac_id][0], var_result[reac_id][1])

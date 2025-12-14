@@ -1,7 +1,10 @@
+from dataclasses import asdict
+import hashlib
+import json
 import cobra
 from cobrak.dataclasses import ExtraLinearConstraint, Solver, Model
 from cobrak.constants import ALL_OK_KEY, FLUX_SUM_VAR_ID, LNCONC_VAR_PREFIX, OBJECTIVE_VAR_NAME, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
-from cobrak.io import get_base_id, json_write, load_annotated_cobrapy_model_as_cobrak_model
+from cobrak.io import get_base_id, get_files, json_load, json_write, json_zip_load, json_zip_write, load_annotated_cobrapy_model_as_cobrak_model, standardize_folder
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 from cobrak.lps import (
     perform_lp_optimization,
@@ -388,6 +391,8 @@ def run_lp_variability_analysis(
     min_mdf: float = -float("inf"),
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
+    use_results_cache: bool=False,
+    results_cache_dir: str="",
 ) -> dict[str, tuple[float | None, float | None]]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
@@ -403,17 +408,29 @@ def run_lp_variability_analysis(
             {},
         )
     
-    var_result = perform_lp_variability_analysis(
-        cobrak_model=cobrak_model,
-        with_enzyme_constraints=with_enzyme_constraints,
-        with_thermodynamic_constraints=with_thermodynamic_constraints,
-        solver=Solver(name=solver_name),
-        min_mdf=min_mdf,
-        calculate_reacs=calculate_reacs,
-        calculate_concs=calculate_concs,
-        calculate_rest=False,
-    )
-
+    var_result: dict[str, tuple[float, float]] = {}
+    if use_results_cache:
+        results_cache_dir = standardize_folder(results_cache_dir)
+        data_dict = asdict(cobrak_model)
+        data_str = json.dumps(data_dict, sort_keys=True)
+        data_bytes = data_str.encode('utf-8')
+        full_hash = hashlib.md5(data_bytes).hexdigest()
+        if f"fvacache_{full_hash}.zip" in get_files(results_cache_dir):
+            var_result = json_zip_load(f"fvacache_{full_hash}")
+    if not var_result:
+        var_result = perform_lp_variability_analysis(
+            cobrak_model=cobrak_model,
+            with_enzyme_constraints=with_enzyme_constraints,
+            with_thermodynamic_constraints=with_thermodynamic_constraints,
+            solver=Solver(name=solver_name),
+            min_mdf=min_mdf,
+            calculate_reacs=calculate_reacs,
+            calculate_concs=calculate_concs,
+            calculate_rest=False,
+        )
+    if use_results_cache:
+        print(results_cache_dir)
+        json_zip_write(f"{results_cache_dir}fvacache_{full_hash}", var_result)
     return _get_combined_var_solution(
         cobrapy_model,
         cobrak_model,
