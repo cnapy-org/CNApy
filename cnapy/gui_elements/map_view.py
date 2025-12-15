@@ -19,6 +19,38 @@ INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1/INCREASE_FACTOR
 
 
+class ArrowItem(QGraphicsLineItem):
+    def __init__(self, start: QPointF, end: QPointF, map_view: QGraphicsView):
+        super().__init__(start.x(), start.y(), end.x(), end.y())
+        self.map_view = map_view
+        self.setPen(QPen(QColor("blue"), 3))
+        self.setFlags(QGraphicsItem.ItemIsSelectable)
+        self.setAcceptHoverEvents(True)
+
+    def hoverEnterEvent(self, event):
+        if self.map_view.arrow_drawing_mode:
+            self.map_view.viewport().setCursor(Qt.PointingHandCursor)
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        if self.map_view.arrow_drawing_mode:
+            self.map_view.viewport().setCursor(Qt.CrossCursor)
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if self.map_view.arrow_drawing_mode and event.button() == Qt.RightButton:
+            # Remove from scene
+            self.map_view.scene.removeItem(self)
+            # Remove from stored map arrows list
+            coords = ((self.line().x1(), self.line().y1()),
+                      (self.line().x2(), self.line().y2()))
+            if coords in self.map_view.appdata.project.maps[self.map_view.name]["arrows"]:
+                self.map_view.appdata.project.maps[self.map_view.name]["arrows"].remove(coords)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
 
@@ -259,16 +291,11 @@ class MapView(QGraphicsView):
         event.accept()
 
     def draw_final_arrow(self, start: QPointF, end: QPointF):
-        """Draws the final arrow on the scene."""
-        # Example of drawing a final line
-        line = QGraphicsLineItem(start.x(), start.y(), end.x(), end.y())
-        pen = QPen(QColor("blue"))
-        pen.setWidth(3)
-        line.setPen(pen)
-        self.scene.addItem(line)
+        arrow = ArrowItem(start, end, self)
+        self.scene.addItem(arrow)
+        print(f"Arrow drawn from ({arrow.x():.1f}, {arrow.y():.1f}) to ({arrow.x():.1f}, {arrow.y():.1f})")
+        return arrow
         
-        print(f"Arrow drawn from ({start.x():.1f}, {start.y():.1f}) to ({end.x():.1f}, {end.y():.1f})")
-
     def focusOutEvent(self, event):
         super(MapView, self).focusOutEvent(event)
         # Only reset cursor if not in arrow drawing mode
@@ -362,9 +389,8 @@ class MapView(QGraphicsView):
         map_data = self.appdata.project.maps[self.name]
         if "arrows" in map_data:
             for start_coords, end_coords in map_data["arrows"]:
-                print(start_coords, end_coords)
-                start_point = QPointF(start_coords[0], start_coords[1])
-                end_point = QPointF(end_coords[0], end_coords[1])
+                start_point = QPointF(*start_coords)
+                end_point = QPointF(*end_coords)
                 self.draw_final_arrow(start_point, end_point)
 
     def delete_box(self, reaction_id: str) -> bool:
