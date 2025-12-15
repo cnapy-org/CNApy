@@ -20,12 +20,15 @@ DECREASE_FACTOR = 1/INCREASE_FACTOR
 
 
 class ArrowItem(QGraphicsLineItem):
-    def __init__(self, start: QPointF, end: QPointF, map_view: QGraphicsView):
+    def __init__(self, start: QPointF, end: QPointF, map_view: QGraphicsView, arrow_list_index: int):
         super().__init__(start.x(), start.y(), end.x(), end.y())
         self.map_view = map_view
         self.setPen(QPen(QColor("blue"), 3))
-        self.setFlags(QGraphicsItem.ItemIsSelectable)
+        self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
+        self._dragging = False
+        self._last_mouse_scene_pos = None
+        self.arrow_list_index = arrow_list_index
 
     def hoverEnterEvent(self, event):
         if self.map_view.arrow_drawing_mode:
@@ -38,18 +41,59 @@ class ArrowItem(QGraphicsLineItem):
         super().hoverLeaveEvent(event)
 
     def mousePressEvent(self, event):
-        if self.map_view.arrow_drawing_mode and event.button() == Qt.RightButton:
-            # Remove from scene
-            self.map_view.scene.removeItem(self)
-            # Remove from stored map arrows list
-            coords = ((self.line().x1(), self.line().y1()),
-                      (self.line().x2(), self.line().y2()))
-            if coords in self.map_view.appdata.project.maps[self.map_view.name]["arrows"]:
-                self.map_view.appdata.project.maps[self.map_view.name]["arrows"].remove(coords)
-            event.accept()
-        else:
-            super().mousePressEvent(event)
+        if self.map_view.arrow_drawing_mode:
+            if event.button() == Qt.RightButton:
+                # Remove arrow
+                self.map_view.scene.removeItem(self)
+                del self.map_view.appdata.project.maps[self.map_view.name]["arrows"][self.arrow_list_index]
+                del self.map_view.arrows[self.arrow_list_index]
+                for i, arrow in enumerate(self.map_view.arrows):
+                    arrow.arrow_list_index = i
+                event.accept()
+                return
+            elif event.button() == Qt.MiddleButton:
+                # Start moving arrow
+                self._dragging = True
+                self._last_mouse_scene_pos = event.scenePos()
+                event.accept()
+                return
+        super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event):
+        if self.map_view.arrow_drawing_mode and self._dragging:
+            current_scene_pos = event.scenePos()
+            dx = current_scene_pos.x() - self._last_mouse_scene_pos.x()
+            dy = current_scene_pos.y() - self._last_mouse_scene_pos.y()
+            self._last_mouse_scene_pos = current_scene_pos
+
+            # Move both endpoints
+            line = self.line()
+            new_start = QPointF(line.x1() + dx, line.y1() + dy)
+            new_end = QPointF(line.x2() + dx, line.y2() + dy)
+            self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
+            self.map_view.appdata.project.maps[self.map_view.name]["arrows"][self.arrow_list_index] = ((new_start.x(), new_start.y()), (new_end.y(), new_end.y()))
+
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.map_view.arrow_drawing_mode and self._dragging and event.button() == Qt.MiddleButton:
+            self._dragging = False
+            new_coords = ((self.line().x1(), self.line().y1()),
+                          (self.line().x2(), self.line().y2()))
+            arrows_list = self.map_view.appdata.project.maps[self.map_view.name]["arrows"]
+
+            # Update stored coords
+            for i, coords in enumerate(arrows_list):
+                if coords == ((self.line().x1(), self.line().y1()),
+                              (self.line().x2(), self.line().y2())):
+                    arrows_list[i] = new_coords
+                    break
+
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
@@ -80,6 +124,7 @@ class MapView(QGraphicsView):
         self.arrow_drawing_mode = False
         self.arrow_start_point: QPointF = None
         self.temp_arrow_line: QGraphicsLineItem = None
+        self.arrows: list[ArrowItem] = []
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -291,7 +336,8 @@ class MapView(QGraphicsView):
         event.accept()
 
     def draw_final_arrow(self, start: QPointF, end: QPointF):
-        arrow = ArrowItem(start, end, self)
+        arrow = ArrowItem(start, end, self, len(self.arrows))
+        self.arrows.append(arrow)
         self.scene.addItem(arrow)
         print(f"Arrow drawn from ({arrow.x():.1f}, {arrow.y():.1f}) to ({arrow.x():.1f}, {arrow.y():.1f})")
         return arrow
@@ -388,6 +434,7 @@ class MapView(QGraphicsView):
             
         map_data = self.appdata.project.maps[self.name]
         if "arrows" in map_data:
+            self.arrows = []
             for start_coords, end_coords in map_data["arrows"]:
                 start_point = QPointF(*start_coords)
                 end_point = QPointF(*end_coords)
