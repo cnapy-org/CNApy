@@ -4,10 +4,10 @@ from ast import literal_eval as make_tuple
 from math import isclose
 import importlib.resources as resources
 
-from qtpy.QtCore import QMimeData, QRectF, Qt, Signal
+from qtpy.QtCore import QMimeData, QPointF, QRectF, Qt, Signal
 from qtpy.QtGui import QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
+from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsLineItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent, QTreeWidget,
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
@@ -44,6 +44,10 @@ class MapView(QGraphicsView):
         self.previous_point = None
         self.select = False
         self.select_start = None
+
+        self.arrow_drawing_mode = False
+        self.arrow_start_point: QPointF = None
+        self.temp_arrow_line: QGraphicsLineItem = None
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -142,6 +146,20 @@ class MapView(QGraphicsView):
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def keyPressEvent(self, event: QKeyEvent):
+        # Handle Arrow Drawing Mode Toggle (ALT+A)
+        if event.modifiers() == Qt.AltModifier and event.key() == Qt.Key_A:
+            self.arrow_drawing_mode = not self.arrow_drawing_mode
+            if self.arrow_drawing_mode:
+                self.setDragMode(QGraphicsView.NoDrag)
+                self.viewport().setCursor(Qt.CrossCursor)
+                print("Entered Arrow Drawing Mode")
+            else:
+                self.setDragMode(QGraphicsView.ScrollHandDrag)
+                self.viewport().setCursor(Qt.OpenHandCursor)
+                print("Exited Arrow Drawing Mode")
+            event.accept()
+            return
+
         if not self.drag_map and event.key() in (Qt.Key_Control, Qt.Key_Shift):
             self.viewport().setCursor(Qt.ArrowCursor)
             self.select = True
@@ -157,6 +175,21 @@ class MapView(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent):
         if self.hasFocus():
+            # Handle Arrow Drawing Mode Press
+            if self.arrow_drawing_mode and event.button() == Qt.LeftButton:
+                self.arrow_start_point = self.mapToScene(event.pos())
+                
+                # Start drawing a temporary line
+                pen = QPen(Qt.black)
+                pen.setWidth(2)
+                # Create a temporary line item (0 length for now)
+                self.temp_arrow_line = QGraphicsLineItem(self.arrow_start_point.x(), self.arrow_start_point.y(), self.arrow_start_point.x(), self.arrow_start_point.y())
+                self.temp_arrow_line.setPen(pen)
+                self.scene.addItem(self.temp_arrow_line)
+
+                event.accept()
+                return # Don't call super() to prevent default drag behavior
+            
             if self.select: # select multiple boxes
                 self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
                 self.select_start = self.mapToScene(event.pos())
@@ -165,8 +198,41 @@ class MapView(QGraphicsView):
                 self.setDragMode(QGraphicsView.ScrollHandDrag)
                 self.drag_map = True
             super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
+            
+    def mouseMoveEvent(self, event: QMouseEvent):
+        # Handle Arrow Drawing Mode Move
+        if self.arrow_drawing_mode and self.arrow_start_point and self.temp_arrow_line:
+            current_point = self.mapToScene(event.pos())
+            
+            # Update the temporary line end point
+            self.temp_arrow_line.setLine(self.arrow_start_point.x(), self.arrow_start_point.y(), current_point.x(), current_point.y())
+
+            event.accept()
+            return
+        
+        super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
+        # Handle Arrow Drawing Mode Release
+        if self.arrow_drawing_mode and self.arrow_start_point and event.button() == Qt.LeftButton:
+            end_point = self.mapToScene(event.pos())
+            
+            # Remove temporary line
+            if self.temp_arrow_line:
+                self.scene.removeItem(self.temp_arrow_line)
+                self.temp_arrow_line = None
+
+            # Check if arrow is long enough to draw a final one
+            if (end_point - self.arrow_start_point).manhattanLength() > 5: # minimum 5 pixels
+                self.draw_final_arrow(self.arrow_start_point, end_point)
+                self.appdata.project.maps[self.name]["arrows"].append(
+                    ((self.arrow_start_point.x(), self.arrow_start_point.y()), (end_point.x(), end_point.y()))
+                )
+
+            self.arrow_start_point = None
+            event.accept()
+            return # Don't call super() to prevent default release behavior
+        
         if self.drag_map:
             self.viewport().setCursor(Qt.OpenHandCursor)
             self.drag_map = False
@@ -192,9 +258,22 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
         event.accept()
 
+    def draw_final_arrow(self, start: QPointF, end: QPointF):
+        """Draws the final arrow on the scene."""
+        # Example of drawing a final line
+        line = QGraphicsLineItem(start.x(), start.y(), end.x(), end.y())
+        pen = QPen(QColor("blue"))
+        pen.setWidth(3)
+        line.setPen(pen)
+        self.scene.addItem(line)
+        
+        print(f"Arrow drawn from ({start.x():.1f}, {start.y():.1f}) to ({end.x():.1f}, {end.y():.1f})")
+
     def focusOutEvent(self, event):
         super(MapView, self).focusOutEvent(event)
-        self.viewport().setCursor(Qt.OpenHandCursor)
+        # Only reset cursor if not in arrow drawing mode
+        if not self.arrow_drawing_mode:
+            self.viewport().setCursor(Qt.OpenHandCursor)
         self.select = False
 
     def enterEvent(self, event) -> None:
@@ -206,7 +285,7 @@ class MapView(QGraphicsView):
                 self.scene.selectedItems()[0].item.setFocus()
             else:
                 self.scene.setFocus() # to capture Shift/Ctrl keys
-
+    
     def leaveEvent(self, event) -> None:
         super().leaveEvent(event)
         self.scene.clearFocus() # finishes editing of potentially active ReactionBox
@@ -279,6 +358,14 @@ class MapView(QGraphicsView):
                 self.reaction_boxes[r_id] = box
             except KeyError:
                 print("failed to add reaction box for", r_id)
+            
+        map_data = self.appdata.project.maps[self.name]
+        if "arrows" in map_data:
+            for start_coords, end_coords in map_data["arrows"]:
+                print(start_coords, end_coords)
+                start_point = QPointF(start_coords[0], start_coords[1])
+                end_point = QPointF(end_coords[0], end_coords[1])
+                self.draw_final_arrow(start_point, end_point)
 
     def delete_box(self, reaction_id: str) -> bool:
         box = self.reaction_boxes.get(reaction_id, None)

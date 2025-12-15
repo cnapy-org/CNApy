@@ -1287,7 +1287,10 @@ class MainWindow(QMainWindow):
                     for _name, m in maps.items():
                         m["background"] = temp_dir.name + \
                             "/map" + str(count) + ".svg"
+                        if "arrows" not in m:
+                            m["arrows"] = []
                         count += 1
+
                 # load meta_data
                 with open(temp_dir.name+"/meta.json", 'r') as fp:
                     meta_data = json.load(fp)
