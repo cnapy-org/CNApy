@@ -6,7 +6,7 @@ import cobra
 import copy
 from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication, QKeyEvent
-from qtpy.QtWidgets import (QHBoxLayout, QTreeWidget, QLabel, QLineEdit,
+from qtpy.QtWidgets import (QHBoxLayout, QScrollArea, QTreeWidget, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTreeWidgetItem, QVBoxLayout, QWidget, QMenu,
                             QAbstractItemView)
@@ -17,6 +17,8 @@ from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
 from cnapy.utils_for_cnapy_api import check_in_identifiers_org
 from cnapy.gui_elements.map_view import validate_value
 from cnapy.gui_elements.escher_map_view import EscherMapView
+import re
+import html
 
 class ReactionListColumn(IntEnum):
     Id = 0
@@ -592,6 +594,7 @@ class ReactionMask(QWidget):
 
         layout = QVBoxLayout()
 
+        # --- ID field ---
         small_layout = QHBoxLayout()
         label = QLabel("Id:")
         self.id = QLineEdit()
@@ -606,6 +609,7 @@ class ReactionMask(QWidget):
         small_layout.addWidget(self.delete_button)
         layout.addItem(small_layout)
 
+        # --- Name field ---
         small_layout = QHBoxLayout()
         label = QLabel("Name:")
         self.name = QLineEdit()
@@ -613,13 +617,46 @@ class ReactionMask(QWidget):
         small_layout.addWidget(self.name)
         layout.addItem(small_layout)
 
-        small_layout = QHBoxLayout()
-        label = QLabel("Equation:")
-        self.equation = QLineEdit()
-        small_layout.addWidget(label)
+        # --- Equation clickable display + editable field ---
+        small_layout = QVBoxLayout()
+        lbl = QLabel("Equation:")
+
+        self.equation = QLineEdit()  # still keep editable equation
+        small_layout.addWidget(lbl)
         small_layout.addWidget(self.equation)
+
+        self.equation_display = QLabel()
+        self.equation_display.setTextFormat(Qt.RichText)
+        self.equation_display.setOpenExternalLinks(False)
+        self.equation_display.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.LinksAccessibleByMouse)
+        self.equation_display.linkActivated.connect(self.handle_metabolite_link_clicked)
+        self.equation_display.setWordWrap(False)  # don't break chemical equation
+        self.equation_display.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.equation_display)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setMaximumHeight(self.equation_display.sizeHint().height() + 10)
+        scroll_area.setStyleSheet("""
+            QScrollBar:horizontal {
+                height: 8px;  /* thin bar */
+            }
+            QScrollBar::handle:horizontal {
+                background: #ccc;
+                min-width: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px; /* remove arrows */
+            }
+        """)
+
+        small_layout.addWidget(scroll_area)
         layout.addItem(small_layout)
 
+        # --- Bounds, coefficient ---
         small_layout = QHBoxLayout()
         label = QLabel("Rate min:")
         self.lower_bound = QLineEdit()
@@ -637,6 +674,7 @@ class ReactionMask(QWidget):
         small_layout.addWidget(self.coefficent)
         layout.addItem(small_layout)
 
+        # --- Gene reaction rule ---
         small_layout = QHBoxLayout()
         label = QLabel("Gene reaction rule:")
         self.gene_reaction_rule = QLineEdit()
@@ -650,19 +688,6 @@ class ReactionMask(QWidget):
         self.annotation_widget = AnnotationWidget(self)
         layout.addItem(self.annotation_widget)
 
-        small_layout = QVBoxLayout()
-        label = QLabel("Metabolites involved in this reaction:")
-        small_layout.addWidget(label)
-        l2 = QHBoxLayout()
-        self.metabolites = QTreeWidget()
-        self.metabolites.setHeaderLabels(["Id"])
-        self.metabolites.setSortingEnabled(True)
-        l2.addWidget(self.metabolites)
-        small_layout.addItem(l2)
-        self.metabolites.itemDoubleClicked.connect(
-            self.emit_jump_to_metabolite)
-        layout.addItem(small_layout)
-
         self.jump_list = JumpList(self)
         layout.addWidget(self.jump_list)
 
@@ -670,7 +695,7 @@ class ReactionMask(QWidget):
 
         self.delete_button.clicked.connect(self.delete_reaction)
 
-
+        # --- connect edits ---
         self.id.textEdited.connect(self.throttler.throttle)
         self.name.textEdited.connect(self.throttler.throttle)
         self.equation.editingFinished.connect(self.reaction_data_changed)
@@ -692,9 +717,31 @@ class ReactionMask(QWidget):
         reaction.add_metabolites({metabolite: -1})
         self.grp_test_model.add_reactions([reaction])
 
-        self.annotation_widget.deleteAnnotation.connect(
-            self.delete_selected_annotation
-        )
+        self.annotation_widget.deleteAnnotation.connect(self.delete_selected_annotation)
+
+    def make_equation_html(self, reaction):
+        eq_str = reaction.build_reaction_string()
+        escaped_eq_str = html.escape(eq_str)
+        metabolite_ids = sorted([m.id for m in reaction.metabolites], key=len, reverse=True)
+
+        link_style = "text-decoration: underline; color: #3399FF;"
+        for metab_id in metabolite_ids:
+            escaped_metab_id = html.escape(metab_id)
+            pattern = r'(?<![A-Za-z0-9])' + re.escape(escaped_metab_id) + r'(?![A-Za-z0-9])'
+            link_html = f'<a href="{metab_id}" style="{link_style}">{escaped_metab_id}</a>'
+            escaped_eq_str = re.sub(pattern, link_html, escaped_eq_str)
+
+        # Wrap in an HTML container with scroll
+        scrollable_html = f"""
+        <div style="max-width: 100%; overflow-x: auto; white-space: nowrap;">
+            {escaped_eq_str}
+        </div>
+        """
+        return scrollable_html
+
+    def handle_metabolite_link_clicked(self, metab_id):
+        """Click on metabolite link will jump to metabolite."""
+        self.jumpToMetabolite.emit(metab_id)
 
     def apply(self):
         bounds = self.reaction.bounds
@@ -958,26 +1005,22 @@ class ReactionMask(QWidget):
             self.update_state()
 
     def update_state(self):
+        # --- update jump list ---
         self.jump_list.clear()
         for name, mmap in self.parent.appdata.project.maps.items():
             if EscherMapView in mmap:
-                # creates one button even if the reaction occurs multiple times on the map
                 mmap[EscherMapView].cnapy_bridge.addMapToJumpListIfReactionPresent.emit(self.id.text(), name)
-            else: # CNApy map
+            else:  # CNApy map
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)
 
-        self.metabolites.clear()
+        # --- update metabolites list ---
         if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
-            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
-                self.id.text())
-            for m in reaction.metabolites:
-                item = QTreeWidgetItem(self.metabolites)
-                item.setText(0, m.id)
-                item.setText(1, m.name)
-                item.setData(2, 0, m)
-                text = "Id: " + m.id + "\nName: " + m.name
-                item.setToolTip(1, text)
+            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(self.id.text())
+
+            # update the clickable equation view
+            self.equation_display.setText(self.make_equation_html(reaction))
+            self.equation.setText(reaction.build_reaction_string())
 
     def emit_jump_to_map(self, name):
         self.jumpToMap.emit(name, self.id.text())
