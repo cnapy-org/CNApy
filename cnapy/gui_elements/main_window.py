@@ -536,8 +536,13 @@ class MainWindow(QMainWindow):
         zoom_out_action.setIcon(QIcon(":/icons/zoom-out.png"))
         zoom_out_action.triggered.connect(self.zoom_out)
 
+        self.arrow_action = QAction("Enter/Leave arrow mode", self)
+        self.arrow_action.setIcon(QIcon(":/icons/arrow.png"))
+        self.arrow_action.triggered.connect(self.toggle_arrow_mode)
+
         self.set_current_filename("Untitled project")
 
+        self.arrow_action.setCheckable(True)
         self.heaton_action.setCheckable(True)
         self.onoff_action.setCheckable(True)
         update_action.setCheckable(True)
@@ -570,6 +575,7 @@ class MainWindow(QMainWindow):
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(zoom_in_action)
         self.tool_bar.addAction(zoom_out_action)
+        self.tool_bar.addAction(self.arrow_action)
         self.addToolBar(self.tool_bar)
 
         self.focus_search_action = QShortcut(
@@ -583,6 +589,9 @@ class MainWindow(QMainWindow):
             self.open_project(project_path)
         if scenario_path is not None:
             self.load_scenario_file(scenario_path)
+    
+    def toggle_arrow_mode(self, _):
+        self.centralWidget().toggle_arrow_mode()
 
     def closeEvent(self, event):
         if self.checked_unsaved():
