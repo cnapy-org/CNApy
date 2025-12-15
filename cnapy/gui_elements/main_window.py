@@ -576,12 +576,6 @@ class MainWindow(QMainWindow):
             QKeySequence('Ctrl+f'), self)
         self.focus_search_action.activated.connect(self.focus_search_box)
 
-        status_bar: QStatusBar = self.statusBar()
-        self.solver_status_display = QLabel()
-        status_bar.addPermanentWidget(self.solver_status_display)
-        self.solver_status_symbol = QLabel()
-        status_bar.addPermanentWidget(self.solver_status_symbol)
-
         self.update_scenario_file_name()
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
@@ -906,7 +900,6 @@ class MainWindow(QMainWindow):
             self.fba()
         else:
             self.centralWidget().update()
-            self.clear_status_bar()
         self.appdata.last_scen_directory = os.path.dirname(filename)
         self.appdata.project.scen_values.has_unsaved_changes = False
         if not merge:
@@ -1198,7 +1191,6 @@ class MainWindow(QMainWindow):
         self.appdata.project.high = 0
         self.appdata.project.low = 0
         self.centralWidget().update()
-        self.clear_status_bar()
 
     def load_default_scenario(self):
         self.appdata.project.comp_values.clear()
@@ -1215,7 +1207,6 @@ class MainWindow(QMainWindow):
             self.fba()
         else:
             self.centralWidget().update()
-            self.clear_status_bar()
 
     @Slot()
     def new_project(self):
@@ -1325,7 +1316,6 @@ class MainWindow(QMainWindow):
                 self.appdata.project.fva_values.clear()
                 self.appdata.scenario_past.clear()
                 self.appdata.scenario_future.clear()
-                self.clear_status_bar()
                 self.update_scenario_file_name()
                 (reactions, values) = self.appdata.project.collect_default_scenario_values()
                 if len(reactions) > 0:
@@ -1660,22 +1650,18 @@ class MainWindow(QMainWindow):
             if hasattr(self.appdata.project.solution, "status"):
                 general_solution_error = False
                 if self.appdata.project.solution.status == 'optimal':
-                    display_text = "Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
-                    self.set_status_optimal()
+                    display_text = "✅ Optimal solution with objective value "+self.appdata.format_flux_value(self.appdata.project.solution.objective_value)
                     for r, v in self.appdata.project.solution.fluxes.items():
                         self.appdata.project.comp_values[r] = (v, v)
                 elif self.appdata.project.solution.status == 'infeasible':
-                    display_text = "No solution, the current scenario is infeasible"
-                    self.set_status_infeasible()
+                    display_text = "❌ No solution, the current scenario is infeasible"
                     self.appdata.project.comp_values.clear()
                 else:
-                    display_text = "No optimal solution, solver status is "+self.appdata.project.solution.status
-                    self.set_status_unknown()
+                    display_text = "❌ No optimal solution, solver status is "+self.appdata.project.solution.status
                     self.appdata.project.comp_values.clear()
 
         if not general_solution_error:
             self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
-            self.solver_status_display.setText(display_text)
             self.appdata.project.comp_values_type = 0
         if update:
             self.centralWidget().update()
@@ -1733,7 +1719,6 @@ class MainWindow(QMainWindow):
                     self.appdata.project.comp_values.clear()
             finally:
                 self.centralWidget().console._append_plain_text("\n"+display_text, before_prompt=True)
-                self.solver_status_display.setText(display_text)
                 self.appdata.project.comp_values_type = 0
                 self.centralWidget().update()
 
@@ -2130,22 +2115,6 @@ class MainWindow(QMainWindow):
     def show_model_view(self):
         (_, r) = self.centralWidget().splitter.getRange(1)
         self.centralWidget().splitter.moveSplitter(round(r*0.5), 1)
-
-    def clear_status_bar(self):
-        self.solver_status_display.setText("")
-        self.solver_status_symbol.setText("")
-
-    def set_status_optimal(self):
-        self.solver_status_symbol.setStyleSheet("color: green; font-weight: bold")
-        self.solver_status_symbol.setText("\u2713")
-
-    def set_status_infeasible(self):
-        self.solver_status_symbol.setStyleSheet("color: red; font-weight: bold")
-        self.solver_status_symbol.setText("\u2717")
-
-    def set_status_unknown(self):
-        self.solver_status_symbol.setStyleSheet("color: black")
-        self.solver_status_symbol.setText("?")
 
     @Slot()
     def perform_optmdfpathway(self):
