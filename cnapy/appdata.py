@@ -525,6 +525,7 @@ def CnaMap(name):
             "view": "cnapy", # either "cnapy" or "escher"
             "escher_map_data": "", # JSON string
             "arrows": [],
+            "labels": [],
             }
 
 def parse_scenario(text: str) -> tuple[float, float]:

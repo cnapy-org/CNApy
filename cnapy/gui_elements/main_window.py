@@ -1298,6 +1298,8 @@ class MainWindow(QMainWindow):
                             "/map" + str(count) + ".svg"
                         if "arrows" not in m:
                             m["arrows"] = []
+                        if "labels" not in m:
+                            m["labels"] = []
                         count += 1
 
                 # load meta_data

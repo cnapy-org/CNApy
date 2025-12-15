@@ -7,6 +7,7 @@ import importlib.resources as resources
 
 from qtpy.QtCore import QMimeData, QPointF, QRectF, Qt, Signal
 from qtpy.QtGui import (
+    QCursor,
     QPalette,
     QPen,
     QColor,
@@ -24,6 +25,8 @@ from qtpy.QtWidgets import (
     QGraphicsLineItem,
     QGraphicsScene,
     QGraphicsSceneDragDropEvent,
+    QGraphicsTextItem,
+    QInputDialog,
     QTreeWidget,
     QGraphicsSceneMouseEvent,
     QGraphicsView,
@@ -41,7 +44,13 @@ DECREASE_FACTOR = 1 / INCREASE_FACTOR
 
 
 class ArrowItem(QGraphicsLineItem):
-    def __init__(self, start: QPointF, end: QPointF, map_view: QGraphicsView, arrow_list_index: int):
+    def __init__(
+        self,
+        start: QPointF,
+        end: QPointF,
+        map_view: QGraphicsView,
+        arrow_list_index: int,
+    ):
         super().__init__(start.x(), start.y(), end.x(), end.y())
         self.map_view = map_view
         self.setPen(QPen(QColor("black"), 3))
@@ -129,7 +138,7 @@ class ArrowItem(QGraphicsLineItem):
             event.accept()
             return
         super().mouseReleaseEvent(event)
-    
+
     def paint(self, painter: QPainter, option, widget=None):
         # Draw the main line
         painter.setPen(self.pen())
@@ -143,11 +152,11 @@ class ArrowItem(QGraphicsLineItem):
         # Two points making the triangle arrowhead
         p1 = QPointF(
             line.x2() - arrow_size * math.cos(angle - math.pi / 6),
-            line.y2() - arrow_size * math.sin(angle - math.pi / 6)
+            line.y2() - arrow_size * math.sin(angle - math.pi / 6),
         )
         p2 = QPointF(
             line.x2() - arrow_size * math.cos(angle + math.pi / 6),
-            line.y2() - arrow_size * math.sin(angle + math.pi / 6)
+            line.y2() - arrow_size * math.sin(angle + math.pi / 6),
         )
 
         # Draw filled triangle
@@ -302,6 +311,20 @@ class MapView(QGraphicsView):
         # Handle Arrow Drawing Mode Toggle (ALT+A)
         if event.modifiers() == Qt.AltModifier and event.key() == Qt.Key_A:
             self.enter_arrow_drawing_mode()
+            event.accept()
+            return
+
+        if event.modifiers() == Qt.AltModifier and event.key() == Qt.Key_T:
+            self.add_text_at_mouse()
+            event.accept()
+            return
+
+        if (
+            (event.modifiers() & Qt.AltModifier)
+            and (event.modifiers() & Qt.ShiftModifier)
+            and event.key() == Qt.Key_T
+        ):
+            self.remove_nearest_text_at_mouse()
             event.accept()
             return
 
@@ -553,6 +576,20 @@ class MapView(QGraphicsView):
                 start_point = QPointF(*start_coords)
                 end_point = QPointF(*end_coords)
                 self.draw_final_arrow(start_point, end_point)
+        else:
+            map_data["arrows"] = []
+
+        if "labels" in self.appdata.project.maps[self.name]:
+            for label_text, x, y in self.appdata.project.maps[self.name]["labels"]:
+                ti = QGraphicsTextItem(label_text)
+                ti.setFont(QFont("Arial", 12))
+                ti.setPos(QPointF(x, y))
+                ti.setFlags(
+                    QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
+                )
+                self.scene.addItem(ti)
+            else:
+                map_data["labels"] = []
 
     def delete_box(self, reaction_id: str) -> bool:
         box = self.reaction_boxes.get(reaction_id, None)
@@ -645,6 +682,62 @@ class MapView(QGraphicsView):
     def value_changed(self, reaction: str, value: str):
         self.reactionValueChanged.emit(reaction, value)
         self.reaction_boxes[reaction].recolor()
+
+    def add_text_at_mouse(self):
+        # Prompt for text
+        text, ok = QInputDialog.getText(self, "Add Text", "Enter text to display:")
+        if ok and text.strip():
+            # Get mouse position in scene coordinates
+            mouse_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
+
+            # Create and format text item
+            text_item = QGraphicsTextItem(text)
+            text_item.setFont(QFont("Arial", 12))
+            text_item.setPos(mouse_pos)
+            text_item.setFlags(
+                QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
+            )
+
+            # Add to scene
+            self.scene.addItem(text_item)
+
+            # Optional: store in project data for future reload
+            if "labels" not in self.appdata.project.maps[self.name]:
+                self.appdata.project.maps[self.name]["labels"] = []
+            self.appdata.project.maps[self.name]["labels"].append(
+                (text, mouse_pos.x(), mouse_pos.y())
+            )
+
+    def remove_nearest_text_at_mouse(self):
+        mouse_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
+
+        # Find nearest QGraphicsTextItem
+        nearest_item = None
+        nearest_dist = float("inf")
+        for item in self.scene.items():
+            if isinstance(item, QGraphicsTextItem):
+                dist = (item.pos() - mouse_pos).manhattanLength()
+                if dist < nearest_dist:
+                    nearest_dist = dist
+                    nearest_item = item
+
+        # Remove it if found
+        if nearest_item:
+            self.scene.removeItem(nearest_item)
+            # Also remove from project data if stored
+            if "labels" in self.appdata.project.maps[self.name]:
+                self.appdata.project.maps[self.name]["labels"] = [
+                    (t, x, y)
+                    for (t, x, y) in self.appdata.project.maps[self.name]["labels"]
+                    if not (
+                        t == nearest_item.toPlainText()
+                        and x == nearest_item.x()
+                        and y == nearest_item.y()
+                    )
+                ]
+            print(f"Deleted label: '{nearest_item.toPlainText()}'")
+        else:
+            print("No label found near mouse.")
 
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
