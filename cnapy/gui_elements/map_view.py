@@ -41,16 +41,10 @@ DECREASE_FACTOR = 1 / INCREASE_FACTOR
 
 
 class ArrowItem(QGraphicsLineItem):
-    def __init__(
-        self,
-        start: QPointF,
-        end: QPointF,
-        map_view: QGraphicsView,
-        arrow_list_index: int,
-    ):
+    def __init__(self, start: QPointF, end: QPointF, map_view: QGraphicsView, arrow_list_index: int):
         super().__init__(start.x(), start.y(), end.x(), end.y())
         self.map_view = map_view
-        self.setPen(QPen(QColor("blue"), 3))
+        self.setPen(QPen(QColor("black"), 3))
         self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
         self._dragging = False
@@ -135,6 +129,31 @@ class ArrowItem(QGraphicsLineItem):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+    
+    def paint(self, painter: QPainter, option, widget=None):
+        # Draw the main line
+        painter.setPen(self.pen())
+        line = self.line()
+        painter.drawLine(line)
+
+        # Draw arrowhead
+        arrow_size = 12.0  # length of arrowhead edges
+        angle = math.atan2(line.dy(), line.dx())
+
+        # Two points making the triangle arrowhead
+        p1 = QPointF(
+            line.x2() - arrow_size * math.cos(angle - math.pi / 6),
+            line.y2() - arrow_size * math.sin(angle - math.pi / 6)
+        )
+        p2 = QPointF(
+            line.x2() - arrow_size * math.cos(angle + math.pi / 6),
+            line.y2() - arrow_size * math.sin(angle + math.pi / 6)
+        )
+
+        # Draw filled triangle
+        arrow_head = [QPointF(line.x2(), line.y2()), p1, p2]
+        painter.setBrush(self.pen().color())
+        painter.drawPolygon(*arrow_head)
 
 
 class MapView(QGraphicsView):
@@ -323,7 +342,7 @@ class MapView(QGraphicsView):
                 self.arrow_start_point = self.mapToScene(event.pos())
 
                 # Start drawing a temporary line
-                pen = QPen(Qt.black)
+                pen = QPen(Qt.blue)
                 pen.setWidth(2)
                 # Create a temporary line item (0 length for now)
                 self.temp_arrow_line = QGraphicsLineItem(
