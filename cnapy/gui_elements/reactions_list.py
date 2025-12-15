@@ -112,13 +112,6 @@ class ReactionList(QWidget):
         self.appdata: AppData = central_widget.appdata
         self.central_widget = central_widget
         self.last_selected = None
-        self.reaction_counter = 1
-
-        self.add_button = QPushButton("Add new reaction")
-        self.add_button.setIcon(QIcon.fromTheme("list-add"))
-        policy = QSizePolicy()
-        policy.ShrinkFlag = True
-        self.add_button.setSizePolicy(policy)
 
         self.reaction_list: DragableTreeWidget = DragableTreeWidget()
         self.reaction_list.setDragEnabled(True)
@@ -151,7 +144,6 @@ class ReactionList(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         small_layout = QHBoxLayout()
         small_layout.setAlignment(Qt.AlignRight)
-        small_layout.addWidget(self.add_button)
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Vertical)
         self.splitter.addWidget(self.reaction_list)
@@ -173,7 +165,6 @@ class ReactionList(QWidget):
         self.reaction_mask.jumpToMetabolite.connect(
             self.emit_jump_to_metabolite)
 
-        self.add_button.clicked.connect(self.add_new_reaction)
         self.reaction_list.setColumnHidden(ReactionListColumn.DF, True)
         self.visible_column[ReactionListColumn.DF] = False
 
@@ -261,6 +252,7 @@ class ReactionList(QWidget):
         item.setText(ReactionListColumn.UB, self.appdata.format_flux_value(vu))
 
     def add_new_reaction(self):
+        """Called by the '+' button in the tab view"""
         self.reaction_mask.show()
         while True:
             name = "rxn_"+str(self.reaction_counter)

@@ -80,6 +80,17 @@ class CentralWidget(QWidget):
         self.tabs.addTab(self.scenario_tab, "Scenario")
         self.tabs.addTab(self.model_info, "Model")
 
+        self.add_reaction_button = QPushButton("+")
+        self.add_reaction_button.setFixedSize(24, 24)
+        self.add_reaction_button.clicked.connect(self.reaction_list.add_new_reaction) 
+        self.add_reaction_button.setToolTip("Add new reaction")
+        corner_layout = QHBoxLayout()
+        corner_layout.setContentsMargins(0, 0, 0, 0)
+        corner_layout.addWidget(self.add_reaction_button)
+        corner_widget_container = QWidget()
+        corner_widget_container.setLayout(corner_layout)
+        self.tabs.setCornerWidget(corner_widget_container, Qt.Corner.TopLeftCorner)
+        
         self.map_tabs = QTabWidget()
         self.map_tabs.setTabsClosable(True)
         self.map_tabs.setMovable(True)
