@@ -67,7 +67,6 @@ class ArrowItem(QGraphicsPathItem):
 
         self.map_view = map_view
         self.setPen(QPen(QColor("black"), 3))
-        self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
 
         self.start_point = QPointF(start)
@@ -166,8 +165,8 @@ class ArrowItem(QGraphicsPathItem):
         if self.map_view.arrow_drawing_mode:
             scene_pos = event.scenePos()
 
-            # Right button: delete
-            if event.button() == Qt.RightButton:
+            # Left button and ALT: delete
+            if event.button() == Qt.LeftButton and (event.modifiers() & Qt.AltModifier):
                 self.map_view.scene.removeItem(self)
                 del self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
                     self.arrow_list_index
@@ -178,7 +177,7 @@ class ArrowItem(QGraphicsPathItem):
                 event.accept()
                 return
 
-            # Left button: endpoints or middle
+            # Left button and no ALT/SHIFT: endpoints or middle
             if event.button() == Qt.LeftButton:
                 r2 = self.dragpoint_click_radius ** 2
                 if self._dist2(scene_pos, self.start_point) <= r2:
@@ -494,7 +493,9 @@ class MapView(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent):
         if self.hasFocus():
-            if self.arrow_drawing_mode and event.button() == Qt.LeftButton:
+            if (self.arrow_drawing_mode
+            and event.button() == Qt.LeftButton
+            and (event.modifiers() & Qt.ShiftModifier)):
                 scene_pos = self.mapToScene(event.pos())
                 items = self.scene.items(scene_pos)
 
@@ -712,9 +713,6 @@ class MapView(QGraphicsView):
                 ti = QGraphicsTextItem(label_text)
                 ti.setFont(QFont("Arial", 12))
                 ti.setPos(QPointF(x, y))
-                ti.setFlags(
-                    QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
-                )
                 self.scene.addItem(ti)
         else:
             map_data["labels"] = []
