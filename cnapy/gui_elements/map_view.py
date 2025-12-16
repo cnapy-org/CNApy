@@ -1,4 +1,4 @@
-"""The PyNetAnalyzer map view"""
+"""The CellNetAnalyzer map view"""
 
 import math
 from ast import literal_eval as make_tuple
@@ -78,11 +78,11 @@ class ArrowItem(QGraphicsPathItem):
         # drag state
         self._dragging = False
         self._last_mouse_scene_pos = None
-        self.endpoint_radius = 8.0
+        self.dragpoint_draw_radius = 8.0
+        self.dragpoint_click_radius = 32.0
         self.dragging_start = False
         self.dragging_end = False
         self.dragging_middle = False
-        self.middle_radius = 10.0
 
         self.update_path()
 
@@ -147,6 +147,9 @@ class ArrowItem(QGraphicsPathItem):
             (self.end_point.x(), self.end_point.y()),
             float(self.bending),
         )
+    
+    def _handle_points(self):
+        return self.start_point, self.end_point, self._bezier_midpoint()
 
     # Mouse events
     def hoverEnterEvent(self, event):
@@ -177,7 +180,7 @@ class ArrowItem(QGraphicsPathItem):
 
             # Left button: endpoints or middle
             if event.button() == Qt.LeftButton:
-                r2 = self.endpoint_radius * self.endpoint_radius
+                r2 = self.dragpoint_click_radius ** 2
                 if self._dist2(scene_pos, self.start_point) <= r2:
                     self.dragging_start = True
                     event.accept()
@@ -188,7 +191,7 @@ class ArrowItem(QGraphicsPathItem):
                     return
 
                 mid = self._bezier_midpoint()
-                if self._dist2(scene_pos, mid) <= self.middle_radius**2:
+                if self._dist2(scene_pos, mid) <= self.dragpoint_click_radius ** 2:
                     self.dragging_middle = True
                     event.accept()
                     return
@@ -284,6 +287,21 @@ class ArrowItem(QGraphicsPathItem):
 
         painter.setBrush(self.pen().color())
         painter.drawPolygon(self.end_point, p1, p2)
+
+        if self.map_view.arrow_drawing_mode:
+            start, end, mid = self.start_point, self.end_point, self._bezier_midpoint()
+
+            painter.save()
+            painter.setPen(QPen(QColor("white"), 2))
+            painter.setBrush(QColor(0, 120, 255, 200))  # simple blue fill
+
+            r = self.dragpoint_draw_radius
+            painter.drawEllipse(start, r, r)
+            painter.drawEllipse(end, r, r)
+
+            painter.setBrush(QColor(255, 170, 0, 220))  # middle handle different color
+            painter.drawEllipse(mid, r, r)
+            painter.restore()
 
 
 class MapView(QGraphicsView):
@@ -450,6 +468,8 @@ class MapView(QGraphicsView):
 
     def enterArrowDrawingMode(self) -> bool:
         self.arrow_drawing_mode = not self.arrow_drawing_mode
+        for arrow in self.arrows:
+            arrow.update()
         if self.arrow_drawing_mode:
             self.setDragMode(QGraphicsView.NoDrag)
             self.viewport().setCursor(Qt.CrossCursor)

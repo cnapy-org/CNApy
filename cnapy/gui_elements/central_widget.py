@@ -29,7 +29,7 @@ class ModelTabIndex(IntEnum):
     Model = 4
 
 class CentralWidget(QWidget):
-    """The PyNetAnalyzer central widget"""
+    """The CellNetAnalyzer central widget"""
 
     def __init__(self, parent):
         QWidget.__init__(self)
