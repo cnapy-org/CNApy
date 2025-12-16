@@ -42,7 +42,6 @@ from cnapy.gui_elements.box_position_dialog import BoxPositionDialog
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1 / INCREASE_FACTOR
 
-
 class ArrowItem(QGraphicsLineItem):
     def __init__(
         self,
@@ -56,9 +55,17 @@ class ArrowItem(QGraphicsLineItem):
         self.setPen(QPen(QColor("black"), 3))
         self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
+
+        # middle-button whole-arrow drag
         self._dragging = False
         self._last_mouse_scene_pos = None
+
         self.arrow_list_index = arrow_list_index
+
+        # NEW: endpoint dragging state
+        self.endpoint_radius = 8.0
+        self.dragging_start = False
+        self.dragging_end = False
 
     def hoverEnterEvent(self, event):
         if self.map_view.arrow_drawing_mode:
@@ -72,8 +79,8 @@ class ArrowItem(QGraphicsLineItem):
 
     def mousePressEvent(self, event):
         if self.map_view.arrow_drawing_mode:
+            # Right button: delete arrow
             if event.button() == Qt.RightButton:
-                # Remove arrow
                 self.map_view.scene.removeItem(self)
                 del self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
                     self.arrow_list_index
@@ -83,60 +90,98 @@ class ArrowItem(QGraphicsLineItem):
                     arrow.arrow_list_index = i
                 event.accept()
                 return
-            elif event.button() == Qt.MiddleButton:
-                # Start moving arrow
+
+            # Left button: detect endpoint grab
+            if event.button() == Qt.LeftButton:
+                scene_pos = event.scenePos()
+                line = self.line()
+                start_point = QPointF(line.x1(), line.y1())
+                end_point = QPointF(line.x2(), line.y2())
+
+                def dist2(p1: QPointF, p2: QPointF) -> float:
+                    dx = p1.x() - p2.x()
+                    dy = p1.y() - p2.y()
+                    return dx * dx + dy * dy
+
+                r2 = self.endpoint_radius * self.endpoint_radius
+                if dist2(scene_pos, start_point) <= r2:
+                    self.dragging_start = True
+                    event.accept()
+                    return
+                elif dist2(scene_pos, end_point) <= r2:
+                    self.dragging_end = True
+                    event.accept()
+                    return
+                # If not near endpoints, fall through to normal item selection
+
+            # Middle button: drag whole arrow
+            if event.button() == Qt.MiddleButton:
                 self._dragging = True
                 self._last_mouse_scene_pos = event.scenePos()
                 event.accept()
                 return
+
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self.map_view.arrow_drawing_mode and self._dragging:
-            current_scene_pos = event.scenePos()
-            dx = current_scene_pos.x() - self._last_mouse_scene_pos.x()
-            dy = current_scene_pos.y() - self._last_mouse_scene_pos.y()
-            self._last_mouse_scene_pos = current_scene_pos
+        if self.map_view.arrow_drawing_mode:
+            # Drag only one endpoint
+            if self.dragging_start or self.dragging_end:
+                line = self.line()
+                new_pos = event.scenePos()
 
-            # Move both endpoints
-            line = self.line()
-            new_start = QPointF(line.x1() + dx, line.y1() + dy)
-            new_end = QPointF(line.x2() + dx, line.y2() + dy)
-            self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
-            self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
-                self.arrow_list_index
-            ] = ((new_start.x(), new_start.y()), (new_end.x(), new_end.y()))
+                if self.dragging_start:
+                    new_start = new_pos
+                    new_end = QPointF(line.x2(), line.y2())
+                else:  # dragging_end
+                    new_start = QPointF(line.x1(), line.y1())
+                    new_end = new_pos
 
-            event.accept()
-            return
+                self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
+
+                # update stored coordinates
+                self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
+                    self.arrow_list_index
+                ] = ((new_start.x(), new_start.y()), (new_end.x(), new_end.y()))
+
+                event.accept()
+                return
+
+            # Drag whole arrow with middle button
+            if self._dragging:
+                current_scene_pos = event.scenePos()
+                dx = current_scene_pos.x() - self._last_mouse_scene_pos.x()
+                dy = current_scene_pos.y() - self._last_mouse_scene_pos.y()
+                self._last_mouse_scene_pos = current_scene_pos
+
+                line = self.line()
+                new_start = QPointF(line.x1() + dx, line.y1() + dy)
+                new_end = QPointF(line.x2() + dx, line.y2() + dy)
+                self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
+                self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
+                    self.arrow_list_index
+                ] = ((new_start.x(), new_start.y()), (new_end.x(), new_end.y()))
+
+                event.accept()
+                return
+
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if (
-            self.map_view.arrow_drawing_mode
-            and self._dragging
-            and event.button() == Qt.MiddleButton
-        ):
-            self._dragging = False
-            new_coords = (
-                (self.line().x1(), self.line().y1()),
-                (self.line().x2(), self.line().y2()),
-            )
-            arrows_list = self.map_view.appdata.project.maps[self.map_view.name][
-                "arrows"
-            ]
+        if self.map_view.arrow_drawing_mode:
+            # Stop endpoint dragging
+            if event.button() == Qt.LeftButton and (self.dragging_start or self.dragging_end):
+                self.dragging_start = False
+                self.dragging_end = False
+                event.accept()
+                return
 
-            # Update stored coords
-            for i, coords in enumerate(arrows_list):
-                if coords == (
-                    (self.line().x1(), self.line().y1()),
-                    (self.line().x2(), self.line().y2()),
-                ):
-                    arrows_list[i] = new_coords
-                    break
+            # Stop whole-arrow dragging
+            if self._dragging and event.button() == Qt.MiddleButton:
+                self._dragging = False
+                event.accept()
+                return
 
-            event.accept()
-            return
         super().mouseReleaseEvent(event)
 
     def paint(self, painter: QPainter, option, widget=None):
@@ -163,7 +208,6 @@ class ArrowItem(QGraphicsLineItem):
         arrow_head = [QPointF(line.x2(), line.y2()), p1, p2]
         painter.setBrush(self.pen().color())
         painter.drawPolygon(*arrow_head)
-
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
@@ -362,12 +406,21 @@ class MapView(QGraphicsView):
         if self.hasFocus():
             # Handle Arrow Drawing Mode Press
             if self.arrow_drawing_mode and event.button() == Qt.LeftButton:
-                self.arrow_start_point = self.mapToScene(event.pos())
+                scene_pos = self.mapToScene(event.pos())
+                items = self.scene.items(scene_pos)
 
-                # Start drawing a temporary line
+                # If we clicked on an existing arrow, let the arrow handle it
+                for it in items:
+                    if isinstance(it, ArrowItem):
+                        # Forward event to the item and don't create new arrow
+                        QGraphicsView.mousePressEvent(self, event)
+                        return
+
+                # Otherwise: start drawing a new arrow
+                self.arrow_start_point = scene_pos
+
                 pen = QPen(Qt.blue)
                 pen.setWidth(2)
-                # Create a temporary line item (0 length for now)
                 self.temp_arrow_line = QGraphicsLineItem(
                     self.arrow_start_point.x(),
                     self.arrow_start_point.y(),
@@ -378,20 +431,17 @@ class MapView(QGraphicsView):
                 self.scene.addItem(self.temp_arrow_line)
 
                 event.accept()
-                return  # Don't call super() to prevent default drag behavior
+                return  # Don't call super() further
 
             if self.select:  # select multiple boxes
-                self.setDragMode(
-                    QGraphicsView.RubberBandDrag
-                )  # switches to ArrowCursor
+                self.setDragMode(QGraphicsView.RubberBandDrag)
                 self.select_start = self.mapToScene(event.pos())
             else:  # drag entire map
                 self.viewport().setCursor(Qt.ClosedHandCursor)
                 self.setDragMode(QGraphicsView.ScrollHandDrag)
                 self.drag_map = True
-            super(MapView, self).mousePressEvent(
-                event
-            )  # generates events for the graphics scene items
+
+            super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
         # Handle Arrow Drawing Mode Move
