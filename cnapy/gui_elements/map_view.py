@@ -22,6 +22,9 @@ from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (
     QApplication,
     QAction,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QGraphicsItem,
     QGraphicsLineItem,
     QGraphicsPathItem,
@@ -29,6 +32,8 @@ from qtpy.QtWidgets import (
     QGraphicsSceneDragDropEvent,
     QGraphicsTextItem,
     QInputDialog,
+    QLabel,
+    QSpinBox,
     QTreeWidget,
     QGraphicsSceneMouseEvent,
     QGraphicsView,
@@ -141,6 +146,55 @@ class LabelItem(QGraphicsTextItem):
         for item in self.map_view.scene.items():
             if isinstance(item, LabelItem) and item.label_index > idx:
                 item.label_index -= 1
+    
+    def mouseDoubleClickEvent(self, event):
+            if not self.map_view.arrow_drawing_mode:
+                return super().mouseDoubleClickEvent(event)
+
+            dlg = LabelEditDialog(self)
+            if dlg.exec():
+                dlg.apply()
+
+            event.accept()
+
+
+class LabelEditDialog(QDialog):
+    def __init__(self, label: "LabelItem"):
+        super().__init__(label.map_view)
+        self.label = label
+        self.setWindowTitle("Edit Label")
+
+        self.text_edit = QLineEdit(label.toPlainText())
+        self.font_size_edit = QSpinBox()
+        self.font_size_edit.setRange(1, 100)
+        self.font_size_edit.setValue(label.font_size)
+
+        self.color_edit = QLineEdit(label.color.name())
+
+        layout = QFormLayout(self)
+        layout.addRow("Text", self.text_edit)
+        layout.addRow("Font size", self.font_size_edit)
+        layout.addRow("Color (hex)", self.color_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def apply(self):
+        self.label.setPlainText(self.text_edit.text())
+
+        self.label.font_size = self.font_size_edit.value()
+        font = self.label.font()
+        font.setPointSize(self.label.font_size)
+        self.label.setFont(font)
+
+        self.label.color = QColor(self.color_edit.text())
+        self.label.setDefaultTextColor(self.label.color)
+
+        self.label._store_geometry()
 
 
 class ArrowItem(QGraphicsPathItem):
@@ -406,6 +460,62 @@ class ArrowItem(QGraphicsPathItem):
             painter.setBrush(QColor(255, 170, 0, 220))  # middle handle different color
             painter.drawEllipse(mid, r, r)
             painter.restore()
+    
+    def mouseDoubleClickEvent(self, event):
+        if not self.map_view.arrow_drawing_mode:
+            return super().mouseDoubleClickEvent(event)
+
+        dlg = ArrowEditDialog(self)
+        if dlg.exec():
+            dlg.apply()
+
+        event.accept()
+
+
+class ArrowEditDialog(QDialog):
+    def __init__(self, arrow: "ArrowItem"):
+        super().__init__(arrow.map_view)
+        self.arrow = arrow
+        self.setWindowTitle("Edit Arrow")
+
+        self.sx = QLineEdit(str(arrow.start_point.x()))
+        self.sy = QLineEdit(str(arrow.start_point.y()))
+        self.ex = QLineEdit(str(arrow.end_point.x()))
+        self.ey = QLineEdit(str(arrow.end_point.y()))
+
+        self.bending = QLineEdit(str(arrow.bending))
+        self.width = QLineEdit(str(arrow.width))
+        self.color = QLineEdit(arrow.color.name())
+
+        layout = QFormLayout(self)
+        layout.addRow("Start X", self.sx)
+        layout.addRow("Start Y", self.sy)
+        layout.addRow("End X", self.ex)
+        layout.addRow("End Y", self.ey)
+        layout.addRow("Bending", self.bending)
+        layout.addRow("Width", self.width)
+        layout.addRow("Color (hex)", self.color)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+    
+    def apply(self):
+        arrow = self.arrow
+
+        arrow.start_point = QPointF(float(self.sx.text()), float(self.sy.text()))
+        arrow.end_point = QPointF(float(self.ex.text()), float(self.ey.text()))
+        arrow.bending = float(self.bending.text())
+
+        arrow.width = float(self.width.text())
+        arrow.color = QColor(self.color.text())
+        arrow.setPen(QPen(arrow.color, arrow.width))
+
+        arrow.update_path()
+        arrow._store_geometry()
 
 
 class MapView(QGraphicsView):
@@ -712,8 +822,8 @@ class MapView(QGraphicsView):
             idx = label.label_index
             labels = self.appdata.project.maps[self.name]["labels"]
 
-            text, _, _ = labels[idx]
-            labels[idx] = (text, label.x(), label.y())
+            text, _, _, font_size, color = labels[idx]
+            labels[idx] = (text, label.x(), label.y(), font_size, color)
 
             event.accept()
             return
@@ -1007,7 +1117,13 @@ class MapView(QGraphicsView):
 
             labels = self.appdata.project.maps[self.name].setdefault("labels", [])
             label_index = len(labels)
-            labels.append((text, mouse_pos.x(), mouse_pos.y()))
+            labels.append((
+                text,
+                mouse_pos.x(),
+                mouse_pos.y(),
+                12,
+                "#000000",
+            ))
 
             label_item = LabelItem(text, mouse_pos, self, label_index)
             self.scene.addItem(label_item)
