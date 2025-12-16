@@ -491,6 +491,22 @@ class ArrowItem(QGraphicsPathItem):
             dlg.apply()
 
         event.accept()
+    
+    def boundingRect(self) -> QRectF:
+        # Start with the path bounding rect
+        rect = self.path().boundingRect()
+
+        # Maximum visual extension:
+        # - pen width
+        # - arrowhead size
+        # - drag handles
+        margin = max(
+            self.width * 2.5,
+            20.0, # arrowhead size
+            self.dragpoint_draw_radius * 2,
+        )
+
+        return rect.adjusted(-margin, -margin, margin, margin)
 
 
 class ArrowEditDialog(QDialog):
