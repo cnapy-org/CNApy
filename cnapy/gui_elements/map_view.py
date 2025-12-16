@@ -53,12 +53,26 @@ class LabelItem(QGraphicsTextItem):
     - Persistence in appdata maps["labels"]
     """
 
-    def __init__(self, text: str, pos: QPointF, map_view: "MapView", label_index: int):
+    def __init__(
+        self,
+        text: str,
+        pos: QPointF,
+        map_view: "MapView",
+        label_index: int,
+        font_size: int = 12,
+        color: QColor | str = QColor("black"),
+    ):
         super().__init__(text)
 
         self.map_view = map_view
         self.label_index = label_index
-        self.setFont(QFont("Arial", 12))
+
+        self.font_size = int(font_size)
+        self.color = QColor(color)
+
+        font = QFont("Arial", self.font_size)
+        self.setFont(font)
+        self.setDefaultTextColor(self.color)
         self.setPos(pos)
 
         self.setAcceptHoverEvents(True)
@@ -108,9 +122,14 @@ class LabelItem(QGraphicsTextItem):
 
     def _store_geometry(self):
         labels = self.map_view.appdata.project.maps[self.map_view.name]["labels"]
-        text = self.toPlainText()
-        labels[self.label_index] = (text, self.x(), self.y())
-
+        labels[self.label_index] = (
+            self.toPlainText(),
+            self.x(),
+            self.y(),
+            self.font_size,
+            self.color.name(),
+        )
+    
     def delete(self):
         labels = self.map_view.appdata.project.maps[self.map_view.name]["labels"]
         idx = self.label_index
@@ -141,17 +160,23 @@ class ArrowItem(QGraphicsPathItem):
         map_view: QGraphicsView,
         arrow_list_index: int,
         bending: float = 0.0,
+        width: float = 3.0,
+        color: QColor | str = QColor("black"),
     ):
         super().__init__()
 
         self.map_view = map_view
-        self.setPen(QPen(QColor("black"), 3))
-        self.setAcceptHoverEvents(True)
+        self.arrow_list_index = arrow_list_index
 
         self.start_point = QPointF(start)
         self.end_point = QPointF(end)
         self.bending = float(bending)
-        self.arrow_list_index = arrow_list_index
+
+        self.width = float(width)
+        self.color = QColor(color)
+
+        self.setPen(QPen(self.color, self.width))
+        self.setAcceptHoverEvents(True)
 
         # drag state
         self._dragging = False
@@ -217,13 +242,14 @@ class ArrowItem(QGraphicsPathItem):
         )
 
     def _store_geometry(self):
-        """Store (start, end, bending) in appdata map state."""
         self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
             self.arrow_list_index
         ] = (
             (self.start_point.x(), self.start_point.y()),
             (self.end_point.x(), self.end_point.y()),
             float(self.bending),
+            float(self.width),
+            self.color.name(),
         )
     
     def _handle_points(self):
@@ -338,7 +364,7 @@ class ArrowItem(QGraphicsPathItem):
         super().mouseReleaseEvent(event)
 
     def paint(self, painter: QPainter, option, widget=None):
-        painter.setPen(self.pen())
+        painter.setPen(QPen(self.color, self.width))
         painter.drawPath(self.path())
 
         # arrowhead aligned with tangent at end of Bézier
@@ -711,6 +737,8 @@ class MapView(QGraphicsView):
                         (self.arrow_start_point.x(), self.arrow_start_point.y()),
                         (end_point.x(), end_point.y()),
                         float(bending),
+                        3.0,
+                        "#000000",
                     )
                 )
 
@@ -744,8 +772,16 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
         event.accept()
 
-    def draw_final_arrow(self, start: QPointF, end: QPointF, bending: float = 0.0):
-        arrow = ArrowItem(start, end, self, len(self.arrows), bending)
+    def draw_final_arrow(self, start, end, bending=0.0, width=3.0, color="black"):
+        arrow = ArrowItem(
+            start,
+            end,
+            self,
+            len(self.arrows),
+            bending=bending,
+            width=width,
+            color=color,
+        )
         self.arrows.append(arrow)
         self.scene.addItem(arrow)
         return arrow
@@ -847,22 +883,30 @@ class MapView(QGraphicsView):
         map_data = self.appdata.project.maps[self.name]
         if "arrows" in map_data:
             self.arrows = []
-            for start_coords, end_coords, bending in map_data["arrows"]:
-                start_point = QPointF(*start_coords)
-                end_point = QPointF(*end_coords)
-                self.draw_final_arrow(start_point, end_point, float(bending))
+            for data in map_data["arrows"]:
+                (sx, sy), (ex, ey), bending, width, color = data
+
+                self.draw_final_arrow(
+                    QPointF(sx, sy),
+                    QPointF(ex, ey),
+                    bending=bending,
+                    width=width,
+                    color=color,
+                )
         else:
             map_data["arrows"] = []
 
         if "labels" in self.appdata.project.maps[self.name]:
-            for i, (label_text, x, y) in enumerate(
-                self.appdata.project.maps[self.name]["labels"]
-            ):
+            for i, data in enumerate(self.appdata.project.maps[self.name]["labels"]):
+                text, x, y, font_size, color = data
+
                 li = LabelItem(
-                    label_text,
+                    text,
                     QPointF(x, y),
                     self,
                     i,
+                    font_size=font_size,
+                    color=color,
                 )
                 self.scene.addItem(li)
         else:
