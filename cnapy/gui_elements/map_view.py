@@ -335,6 +335,9 @@ class MapView(QGraphicsView):
         self.temp_arrow_line: QGraphicsLineItem = None
         self.arrows: list[ArrowItem] = []
 
+        self.dragged_label: QGraphicsTextItem | None = None
+        self.label_drag_offset = QPointF()
+
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
         if self._zoom > 0:
@@ -487,75 +490,93 @@ class MapView(QGraphicsView):
             super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
-        if self.hasFocus():
-            if (
-                self.arrow_drawing_mode
-                and event.button() == Qt.LeftButton
-                and (event.modifiers() & Qt.AltModifier)
-            ):
-                scene_pos = self.mapToScene(event.pos())
-                items = self.scene.items(scene_pos)
-
-                for item in items:
-                    if isinstance(item, QGraphicsTextItem):
-                        self.scene.removeItem(item)
-
-                        # Remove from project data
-                        labels = self.appdata.project.maps[self.name].get("labels", [])
-                        self.appdata.project.maps[self.name]["labels"] = [
-                            (t, x, y)
-                            for (t, x, y) in labels
-                            if not (
-                                t == item.toPlainText()
-                                and x == item.x()
-                                and y == item.y()
-                            )
-                        ]
-
-                        print(f"Deleted label: '{item.toPlainText()}'")
-                        event.accept()
-                        return
-
-                # ALT+click did not hit a label → do nothing
-                event.accept()
-                return
-
-            if (self.arrow_drawing_mode
+        if not self.hasFocus():
+            return
+        if (
+            self.arrow_drawing_mode
             and event.button() == Qt.LeftButton
-            and (event.modifiers() & Qt.ShiftModifier)):
-                scene_pos = self.mapToScene(event.pos())
-                items = self.scene.items(scene_pos)
+            and not (event.modifiers() & Qt.AltModifier)
+        ):
+            scene_pos = self.mapToScene(event.pos())
+            items = self.scene.items(scene_pos)
 
-                for it in items:
-                    if isinstance(it, ArrowItem):
-                        QGraphicsView.mousePressEvent(self, event)
-                        return
+            for item in items:
+                if isinstance(item, QGraphicsTextItem):
+                    self.dragged_label = item
+                    self.label_drag_offset = scene_pos - item.pos()
+                    self.viewport().setCursor(Qt.ClosedHandCursor)
+                    event.accept()
+                    return
 
-                self.arrow_start_point = scene_pos
+        if (
+            self.arrow_drawing_mode
+            and event.button() == Qt.LeftButton
+            and (event.modifiers() & Qt.AltModifier)
+        ):
+            scene_pos = self.mapToScene(event.pos())
+            items = self.scene.items(scene_pos)
 
-                pen = QPen(Qt.blue)
-                pen.setWidth(2)
-                self.temp_arrow_line = QGraphicsLineItem(
-                    self.arrow_start_point.x(),
-                    self.arrow_start_point.y(),
-                    self.arrow_start_point.x(),
-                    self.arrow_start_point.y(),
-                )
-                self.temp_arrow_line.setPen(pen)
-                self.scene.addItem(self.temp_arrow_line)
+            for item in items:
+                if isinstance(item, QGraphicsTextItem):
+                    idx = item.label_index
 
-                event.accept()
-                return
+                    # remove graphics item
+                    self.scene.removeItem(item)
 
-            if self.select:  # select multiple boxes
-                self.setDragMode(QGraphicsView.RubberBandDrag)
-                self.select_start = self.mapToScene(event.pos())
-            else:  # drag entire map
-                self.viewport().setCursor(Qt.ClosedHandCursor)
-                self.setDragMode(QGraphicsView.ScrollHandDrag)
-                self.drag_map = True
+                    # remove from stored labels
+                    labels = self.appdata.project.maps[self.name]["labels"]
+                    del labels[idx]
 
-            super(MapView, self).mousePressEvent(event)
+                    # reindex remaining label items
+                    for it in self.scene.items():
+                        if isinstance(it, QGraphicsTextItem) and hasattr(it, "label_index"):
+                            if it.label_index > idx:
+                                it.label_index -= 1
+
+                    print(f"Deleted label: '{item.toPlainText()}'")
+                    event.accept()
+                    return
+
+            # ALT+click did not hit a label → do nothing
+            event.accept()
+            return
+
+        if (self.arrow_drawing_mode
+        and event.button() == Qt.LeftButton
+        and (event.modifiers() & Qt.ShiftModifier)):
+            scene_pos = self.mapToScene(event.pos())
+            items = self.scene.items(scene_pos)
+
+            for it in items:
+                if isinstance(it, ArrowItem):
+                    QGraphicsView.mousePressEvent(self, event)
+                    return
+
+            self.arrow_start_point = scene_pos
+
+            pen = QPen(Qt.blue)
+            pen.setWidth(2)
+            self.temp_arrow_line = QGraphicsLineItem(
+                self.arrow_start_point.x(),
+                self.arrow_start_point.y(),
+                self.arrow_start_point.x(),
+                self.arrow_start_point.y(),
+            )
+            self.temp_arrow_line.setPen(pen)
+            self.scene.addItem(self.temp_arrow_line)
+
+            event.accept()
+            return
+
+        if self.select:  # select multiple boxes
+            self.setDragMode(QGraphicsView.RubberBandDrag)
+            self.select_start = self.mapToScene(event.pos())
+        else:  # drag entire map
+            self.viewport().setCursor(Qt.ClosedHandCursor)
+            self.setDragMode(QGraphicsView.ScrollHandDrag)
+            self.drag_map = True
+
+        super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if self.arrow_drawing_mode and self.arrow_start_point and self.temp_arrow_line:
@@ -568,10 +589,29 @@ class MapView(QGraphicsView):
             )
             event.accept()
             return
+        
+        if self.arrow_drawing_mode and self.dragged_label:
+            scene_pos = self.mapToScene(event.pos())
+            self.dragged_label.setPos(scene_pos - self.label_drag_offset)
+            event.accept()
+            return
 
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
+        if self.arrow_drawing_mode and self.dragged_label and event.button() == Qt.LeftButton:
+            label = self.dragged_label
+            self.dragged_label = None
+            self.viewport().setCursor(Qt.CrossCursor)
+
+            idx = label.label_index
+            labels = self.appdata.project.maps[self.name]["labels"]
+
+            text, _, _ = labels[idx]
+            labels[idx] = (text, label.x(), label.y())
+
+            event.accept()
+            return
         if (
             self.arrow_drawing_mode
             and self.arrow_start_point
@@ -736,10 +776,14 @@ class MapView(QGraphicsView):
             map_data["arrows"] = []
 
         if "labels" in self.appdata.project.maps[self.name]:
-            for label_text, x, y in self.appdata.project.maps[self.name]["labels"]:
+            for i, (label_text, x, y) in enumerate(
+                self.appdata.project.maps[self.name]["labels"]
+            ):
                 ti = QGraphicsTextItem(label_text)
                 ti.setFont(QFont("Arial", 12))
                 ti.setPos(QPointF(x, y))
+
+                ti.label_index = i
                 self.scene.addItem(ti)
         else:
             map_data["labels"] = []
@@ -843,9 +887,10 @@ class MapView(QGraphicsView):
 
             if "labels" not in self.appdata.project.maps[self.name]:
                 self.appdata.project.maps[self.name]["labels"] = []
-            self.appdata.project.maps[self.name]["labels"].append(
-                (text, mouse_pos.x(), mouse_pos.y())
-            )
+            labels = self.appdata.project.maps[self.name].setdefault("labels", [])
+            label_index = len(labels)
+            labels.append((text, mouse_pos.x(), mouse_pos.y()))
+            text_item.label_index = label_index 
 
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
