@@ -217,9 +217,10 @@ class ArrowItem(QGraphicsPathItem):
         map_view: QGraphicsView,
         arrow_list_index: int,
         bending: float = 0.0,
-        width: float = 3.0,
+        standard_width: float = 3.0,
+        associated_expr: str = "",
         color: QColor | str = QColor("black"),
-        head_mode: Literal["end"] | Literal["both"] | Literal["none"]="end",
+        standard_head_mode: Literal["end"] | Literal["both"] | Literal["none"]="end",
     ):
         super().__init__()
 
@@ -230,11 +231,12 @@ class ArrowItem(QGraphicsPathItem):
         self.end_point = QPointF(end)
         self.bending = float(bending)
 
-        self.width = float(width)
+        self.standard_width = float(standard_width)
+        self.associated_expr = associated_expr
         self.color = QColor(color)
-        self.head_mode = head_mode
+        self.standard_head_mode = standard_head_mode
 
-        self.setPen(QPen(self.color, self.width))
+        self.setPen(QPen(self.color, self.standard_width))
         self.setAcceptHoverEvents(True)
 
         # drag state
@@ -307,9 +309,9 @@ class ArrowItem(QGraphicsPathItem):
             (self.start_point.x(), self.start_point.y()),
             (self.end_point.x(), self.end_point.y()),
             float(self.bending),
-            float(self.width),
+            float(self.standard_width),
             self.color.name(),
-            self.head_mode,
+            self.standard_head_mode,
         )
     
     def _handle_points(self):
@@ -426,8 +428,8 @@ class ArrowItem(QGraphicsPathItem):
     def _draw_arrowhead(self, painter, tip: QPointF, direction: QPointF):
         angle = math.atan2(direction.y(), direction.x())
 
-        arrow_size = max(8.0, self.width * 4.0)
-        phi = math.pi / 6 if self.width <= 5 else math.pi / 5
+        arrow_size = max(8.0, self.standard_width * 4.0)
+        phi = math.pi / 6 if self.standard_width <= 5 else math.pi / 5
 
         p1 = QPointF(
             tip.x() - arrow_size * math.cos(angle - phi),
@@ -441,7 +443,7 @@ class ArrowItem(QGraphicsPathItem):
         painter.drawPolygon(tip, p1, p2)
 
     def paint(self, painter: QPainter, option, widget=None):
-        painter.setPen(QPen(self.color, self.width))
+        painter.setPen(QPen(self.color, self.standard_width))
         painter.drawPath(self.path())
 
         # arrowhead aligned with tangent at end of Bézier
@@ -458,12 +460,12 @@ class ArrowItem(QGraphicsPathItem):
         control = self._control_point_from_bending()
 
         # arrowhead at END → points INTO the curve
-        if self.head_mode in ("end", "both"):
+        if self.standard_head_mode in ("end", "both"):
             direction = self.end_point - control
             self._draw_arrowhead(painter, self.end_point, direction)
 
         # arrowhead at START → points AWAY from the curve
-        if self.head_mode == "both":
+        if self.standard_head_mode == "both":
             direction = self.start_point - control
             self._draw_arrowhead(painter, self.start_point, direction)
 
@@ -501,7 +503,7 @@ class ArrowItem(QGraphicsPathItem):
         # - arrowhead size
         # - drag handles
         margin = max(
-            self.width * 2.5,
+            self.standard_width * 2.5,
             20.0, # arrowhead size
             self.dragpoint_draw_radius * 2,
         )
@@ -521,7 +523,7 @@ class ArrowEditDialog(QDialog):
         self.ey = QLineEdit(str(arrow.end_point.y()))
 
         self.bending = QLineEdit(str(arrow.bending))
-        self.width = QLineEdit(str(arrow.width))
+        self.standard_width = QLineEdit(str(arrow.standard_width))
         self.color = QLineEdit(arrow.color.name())
 
         layout = QFormLayout(self)
@@ -530,27 +532,27 @@ class ArrowEditDialog(QDialog):
         layout.addRow("End X", self.ex)
         layout.addRow("End Y", self.ey)
         layout.addRow("Bending", self.bending)
-        layout.addRow("Width", self.width)
+        layout.addRow("Standard width", self.standard_width)
         layout.addRow("Color (hex)", self.color)
 
-        self.head_none = QRadioButton("No arrowhead")
-        self.head_end = QRadioButton("Arrowhead at end")
-        self.head_both = QRadioButton("Arrowhead at both ends")
+        self.standard_head_none = QRadioButton("No arrowhead")
+        self.standard_head_end = QRadioButton("Arrowhead at end")
+        self.standard_head_both = QRadioButton("Arrowhead at both ends")
         buttons = QButtonGroup(self)
-        buttons.addButton(self.head_none)
-        buttons.addButton(self.head_end)
-        buttons.addButton(self.head_both)
-        layout.addRow(QLabel("Arrowhead"))
-        layout.addRow(self.head_none)
-        layout.addRow(self.head_end)
-        layout.addRow(self.head_both)
+        buttons.addButton(self.standard_head_none)
+        buttons.addButton(self.standard_head_end)
+        buttons.addButton(self.standard_head_both)
+        layout.addRow(QLabel("Standard arrowhead"))
+        layout.addRow(self.standard_head_none)
+        layout.addRow(self.standard_head_end)
+        layout.addRow(self.standard_head_both)
 
-        if arrow.head_mode == "none":
-            self.head_none.setChecked(True)
-        elif arrow.head_mode == "both":
-            self.head_both.setChecked(True)
+        if arrow.standard_head_mode == "none":
+            self.standard_head_none.setChecked(True)
+        elif arrow.standard_head_mode == "both":
+            self.standard_head_both.setChecked(True)
         else:
-            self.head_end.setChecked(True)
+            self.standard_head_end.setChecked(True)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -566,16 +568,16 @@ class ArrowEditDialog(QDialog):
         arrow.end_point = QPointF(float(self.ex.text()), float(self.ey.text()))
         arrow.bending = float(self.bending.text())
 
-        arrow.width = float(self.width.text())
+        arrow.standard_width = float(self.standard_width.text())
         arrow.color = QColor(self.color.text())
-        arrow.setPen(QPen(arrow.color, arrow.width))
+        arrow.setPen(QPen(arrow.color, arrow.standard_width))
 
-        if self.head_none.isChecked():
-            arrow.head_mode = "none"
-        elif self.head_both.isChecked():
-            arrow.head_mode = "both"
+        if self.standard_head_none.isChecked():
+            arrow.standard_head_mode = "none"
+        elif self.standard_head_both.isChecked():
+            arrow.standard_head_mode = "both"
         else:
-            arrow.head_mode = "end"
+            arrow.standard_head_mode = "end"
 
         arrow.update_path()
         arrow._store_geometry()
@@ -913,6 +915,7 @@ class MapView(QGraphicsView):
                         3.0,
                         "#000000",
                         "end",
+                        "",  # associated_expr
                     )
                 )
 
@@ -946,15 +949,16 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
         event.accept()
 
-    def draw_final_arrow(self, start, end, bending=0.0, width=3.0, color="black"):
+    def draw_final_arrow(self, start, end, bending=0.0, standard_width=3.0, color="black", associated_expr: str=""):
         arrow = ArrowItem(
             start,
             end,
             self,
             len(self.arrows),
             bending=bending,
-            width=width,
+            standard_width=standard_width,
             color=color,
+            associated_expr=associated_expr
         )
         self.arrows.append(arrow)
         self.scene.addItem(arrow)
@@ -1058,14 +1062,15 @@ class MapView(QGraphicsView):
         if "arrows" in map_data:
             self.arrows = []
             for data in map_data["arrows"]:
-                (sx, sy), (ex, ey), bending, width, color = data
+                (sx, sy), (ex, ey), bending, standard_width, color, associated_expr = data
 
                 self.draw_final_arrow(
                     QPointF(sx, sy),
                     QPointF(ex, ey),
                     bending=bending,
-                    width=width,
+                    standard_width=standard_width,
                     color=color,
+                    associated_expr=associated_expr,
                 )
         else:
             map_data["arrows"] = []
@@ -1187,7 +1192,6 @@ class MapView(QGraphicsView):
                 mouse_pos.y(),
                 12,
                 "#000000",
-                "end",
             ))
 
             label_item = LabelItem(text, mouse_pos, self, label_index)
