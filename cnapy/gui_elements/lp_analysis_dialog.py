@@ -120,7 +120,10 @@ class LpAnalysisDialog(QDialog):
         protein_pool_layout.setContentsMargins(0, 0, 0, 0)
         text_protein_pool = QLabel("Protein pool [in g/gDW]:")
         self.protein_pool = QLineEdit()
-        self.protein_pool.setText("0.25")
+        if "cobrak_global_settings" in self.appdata.project.cobra_py_model.reactions and "cobrak_max_prot_pool" in self.appdata.project.cobra_py_model.reactions.get_by_id("cobrak_global_settings").annotation:
+            self.protein_pool.setText(self.appdata.project.cobra_py_model.reactions.get_by_id("cobrak_global_settings").annotation["cobrak_max_prot_pool"])
+        else:
+            self.protein_pool.setText("0.25")
         protein_pool_layout.addWidget(text_protein_pool)
         protein_pool_layout.addWidget(self.protein_pool)
         self.protein_pool_layout_container.setEnabled(False)
@@ -233,6 +236,7 @@ class LpAnalysisDialog(QDialog):
                 objective_overwrite=linexpr2dict(self.set_objective.text(), self.model_reac_ids) if not self.set_mdf_objective.isChecked() else {MDF_VAR_ID: +1},
                 direction_overwrite=-1 if self.opt_direction.currentIndex() == 0 and not self.set_mdf_objective.isChecked() else +1,
                 parsimonious=self.is_parsimonious.isChecked(),
+                max_prot_pool=float(self.protein_pool.text()),
             )
             if error_message:
                 QMessageBox(
@@ -242,9 +246,10 @@ class LpAnalysisDialog(QDialog):
                 return
             
             for reac_id in self.model_reac_ids:
-                self.appdata.project.comp_values[reac_id] = (
-                    opt_solution[reac_id], opt_solution[reac_id],
-                )
+                if reac_id != "cobrak_global_settings":
+                    self.appdata.project.comp_values[reac_id] = (
+                        opt_solution[reac_id], opt_solution[reac_id],
+                    )
             self.appdata.project.comp_values_type = 0
             if self.set_mdf_objective.isChecked():
                 console_text += f"print('\\nOptMDF: {opt_solution[MDF_VAR_ID]} kJ/mol')"
@@ -263,6 +268,7 @@ class LpAnalysisDialog(QDialog):
                 max_default_conc=float(self.max_default_conc.text()),
                 use_results_cache=self.appdata.use_results_cache,
                 results_cache_dir=str(self.appdata.results_cache_dir),
+                max_prot_pool=float(self.protein_pool.text()),
             )
             for reaction in self.appdata.project.cobra_py_model.reactions:
                 reac_id = reaction.id
@@ -279,6 +285,7 @@ class LpAnalysisDialog(QDialog):
                 min_mdf=float(self.min_mdf.text()),
                 min_default_conc=float(self.min_default_conc.text()),
                 max_default_conc=float(self.max_default_conc.text()),
+                max_prot_pool=float(self.protein_pool.text()),
             )
             bottlenecks_string = "; ".join(bottlenecks)
             console_text += f"print('\\n{len(bottlenecks)} bottleneck reactions found: {bottlenecks_string}')"        

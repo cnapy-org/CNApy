@@ -126,6 +126,7 @@ def _get_cobrak_model(
     scen_values: Scenario,
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
+    max_prot_pool: float | None=None,
 ) -> Model:
     extra_linear_constraints: list[ExtraLinearConstraint] = []
     for constraint in scen_values.constraints:
@@ -163,6 +164,11 @@ def _get_cobrak_model(
             ),
             deactivate_mw_warning=True,
         )
+        cobrak_model.fwd_suffix = CNAPY_FWD_SUFFIX
+        cobrak_model.rev_suffix = CNAPY_REV_SUFFIX
+    
+    if max_prot_pool:
+        cobrak_model.max_prot_pool = max_prot_pool
 
     return cobrak_model
 
@@ -265,6 +271,7 @@ def run_lp_optimization(
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
     parsimonious: bool = False,
+    max_prot_pool: float | None = None,
 ) -> tuple[str, dict[str, float | None]]:
     if not objective_overwrite:
         objective = {}
@@ -287,6 +294,7 @@ def run_lp_optimization(
         scen_values=scen_values,
         min_default_conc=min_default_conc,
         max_default_conc=max_default_conc,
+        max_prot_pool=max_prot_pool,
     )
 
     if with_thermodynamic_constraints and _no_dG0(cobrak_model):
@@ -345,12 +353,14 @@ def run_lp_bottleneck_analysis(
     min_mdf: float = -float("inf"),
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
+    max_prot_pool: float | None = None,
 ) -> list[str]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
         min_default_conc=min_default_conc,
         max_default_conc=max_default_conc,
+        max_prot_pool=max_prot_pool,
     )
 
     if _no_dG0(cobrak_model):
@@ -393,12 +403,14 @@ def run_lp_variability_analysis(
     max_default_conc: float = 0.1,
     use_results_cache: bool=False,
     results_cache_dir: str="",
+    max_prot_pool: float | None=None,
 ) -> dict[str, tuple[float | None, float | None]]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
         min_default_conc=min_default_conc,
         max_default_conc=max_default_conc,
+        max_prot_pool=max_prot_pool,
     )
 
     if with_thermodynamic_constraints and _no_dG0(cobrak_model):
