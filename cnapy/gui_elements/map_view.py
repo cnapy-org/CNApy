@@ -16,6 +16,7 @@ from qtpy.QtGui import (
     QKeyEvent,
     QPainter,
     QFont,
+    QPainterPath,
 )
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (
@@ -23,6 +24,7 @@ from qtpy.QtWidgets import (
     QAction,
     QGraphicsItem,
     QGraphicsLineItem,
+    QGraphicsPathItem,
     QGraphicsScene,
     QGraphicsSceneDragDropEvent,
     QGraphicsTextItem,
@@ -42,31 +44,111 @@ from cnapy.gui_elements.box_position_dialog import BoxPositionDialog
 INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1 / INCREASE_FACTOR
 
-class ArrowItem(QGraphicsLineItem):
+
+class ArrowItem(QGraphicsPathItem):
+    """Quadratic Bézier arrow with a single scalar bending parameter.
+
+    Stored data format in appdata:
+        ((x_start, y_start), (x_end, y_end), bending)
+
+    - bending = 0: straight line.
+    - bending > 0 or < 0: curve to one side or the other.
+    """
+
     def __init__(
         self,
         start: QPointF,
         end: QPointF,
         map_view: QGraphicsView,
         arrow_list_index: int,
+        bending: float = 0.0,
     ):
-        super().__init__(start.x(), start.y(), end.x(), end.y())
+        super().__init__()
+
         self.map_view = map_view
         self.setPen(QPen(QColor("black"), 3))
         self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
 
-        # middle-button whole-arrow drag
-        self._dragging = False
-        self._last_mouse_scene_pos = None
-
+        self.start_point = QPointF(start)
+        self.end_point = QPointF(end)
+        self.bending = float(bending)
         self.arrow_list_index = arrow_list_index
 
-        # NEW: endpoint dragging state
+        # drag state
+        self._dragging = False
+        self._last_mouse_scene_pos = None
         self.endpoint_radius = 8.0
         self.dragging_start = False
         self.dragging_end = False
+        self.dragging_middle = False
+        self.middle_radius = 10.0
 
+        self.update_path()
+
+    # Geometry helpers (especially for bending)
+    def _unit_perp_from_start_to_end(self) -> QPointF:
+        """Unit vector perpendicular to the segment start->end."""
+        dx = self.end_point.x() - self.start_point.x()
+        dy = self.end_point.y() - self.start_point.y()
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return QPointF(0, 0)
+        return QPointF(-dy / length, dx / length)
+
+    def _control_point_from_bending(self) -> QPointF:
+        """
+        Compute quadratic Bézier control point from start, end, and bending.
+        C = midpoint + bending * unit_perp.
+        """
+        mid = (self.start_point + self.end_point) / 2.0
+        perp = self._unit_perp_from_start_to_end()
+        return QPointF(
+            mid.x() + self.bending * perp.x(), mid.y() + self.bending * perp.y()
+        )
+
+    def _bending_from_control_point(self, control: QPointF) -> float:
+        """
+        Given a control point, compute bending as the signed distance from
+        the segment midpoint along the perpendicular direction.
+        """
+        mid = (self.start_point + self.end_point) / 2.0
+        v = control - mid
+        perp = self._unit_perp_from_start_to_end()
+        return v.x() * perp.x() + v.y() * perp.y()
+
+    def update_path(self):
+        """Rebuild QPainterPath from start/end and current bending."""
+        control = self._control_point_from_bending()
+        path = QPainterPath(self.start_point)
+        path.quadTo(control, self.end_point)
+        self.setPath(path)
+
+    @staticmethod
+    def _dist2(p1: QPointF, p2: QPointF) -> float:
+        dx = p1.x() - p2.x()
+        dy = p1.y() - p2.y()
+        return dx * dx + dy * dy
+
+    def _bezier_midpoint(self) -> QPointF:
+        """Midpoint on the Bézier curve at t=0.5."""
+        control = self._control_point_from_bending()
+        return QPointF(
+            0.25 * self.start_point.x() + 0.5 * control.x() + 0.25 * self.end_point.x(),
+            0.25 * self.start_point.y() + 0.5 * control.y() + 0.25 * self.end_point.y(),
+        )
+
+    def _store_geometry(self):
+        """Store (start, end, bending) in appdata map state."""
+        self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
+            self.arrow_list_index
+        ] = (
+            (self.start_point.x(), self.start_point.y()),
+            (self.end_point.x(), self.end_point.y()),
+            float(self.bending),
+        )
+
+    # Mouse events
     def hoverEnterEvent(self, event):
         if self.map_view.arrow_drawing_mode:
             self.map_view.viewport().setCursor(Qt.PointingHandCursor)
@@ -79,7 +161,9 @@ class ArrowItem(QGraphicsLineItem):
 
     def mousePressEvent(self, event):
         if self.map_view.arrow_drawing_mode:
-            # Right button: delete arrow
+            scene_pos = event.scenePos()
+
+            # Right button: delete
             if event.button() == Qt.RightButton:
                 self.map_view.scene.removeItem(self)
                 del self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
@@ -91,30 +175,25 @@ class ArrowItem(QGraphicsLineItem):
                 event.accept()
                 return
 
-            # Left button: detect endpoint grab
+            # Left button: endpoints or middle
             if event.button() == Qt.LeftButton:
-                scene_pos = event.scenePos()
-                line = self.line()
-                start_point = QPointF(line.x1(), line.y1())
-                end_point = QPointF(line.x2(), line.y2())
-
-                def dist2(p1: QPointF, p2: QPointF) -> float:
-                    dx = p1.x() - p2.x()
-                    dy = p1.y() - p2.y()
-                    return dx * dx + dy * dy
-
                 r2 = self.endpoint_radius * self.endpoint_radius
-                if dist2(scene_pos, start_point) <= r2:
+                if self._dist2(scene_pos, self.start_point) <= r2:
                     self.dragging_start = True
                     event.accept()
                     return
-                elif dist2(scene_pos, end_point) <= r2:
+                if self._dist2(scene_pos, self.end_point) <= r2:
                     self.dragging_end = True
                     event.accept()
                     return
-                # If not near endpoints, fall through to normal item selection
 
-            # Middle button: drag whole arrow
+                mid = self._bezier_midpoint()
+                if self._dist2(scene_pos, mid) <= self.middle_radius**2:
+                    self.dragging_middle = True
+                    event.accept()
+                    return
+
+            # Middle button: move whole arrow
             if event.button() == Qt.MiddleButton:
                 self._dragging = True
                 self._last_mouse_scene_pos = event.scenePos()
@@ -125,43 +204,35 @@ class ArrowItem(QGraphicsLineItem):
 
     def mouseMoveEvent(self, event):
         if self.map_view.arrow_drawing_mode:
-            # Drag only one endpoint
-            if self.dragging_start or self.dragging_end:
-                line = self.line()
-                new_pos = event.scenePos()
+            new_pos = event.scenePos()
 
+            # Drag endpoints or middle
+            if self.dragging_start or self.dragging_end or self.dragging_middle:
                 if self.dragging_start:
-                    new_start = new_pos
-                    new_end = QPointF(line.x2(), line.y2())
-                else:  # dragging_end
-                    new_start = QPointF(line.x1(), line.y1())
-                    new_end = new_pos
+                    self.start_point = new_pos
+                elif self.dragging_end:
+                    self.end_point = new_pos
+                elif self.dragging_middle:
+                    self.bending = self._bending_from_control_point(new_pos)
 
-                self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
-
-                # update stored coordinates
-                self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
-                    self.arrow_list_index
-                ] = ((new_start.x(), new_start.y()), (new_end.x(), new_end.y()))
-
+                self.update_path()
+                self._store_geometry()
                 event.accept()
                 return
 
-            # Drag whole arrow with middle button
+            # Drag whole arrow
             if self._dragging:
-                current_scene_pos = event.scenePos()
-                dx = current_scene_pos.x() - self._last_mouse_scene_pos.x()
-                dy = current_scene_pos.y() - self._last_mouse_scene_pos.y()
-                self._last_mouse_scene_pos = current_scene_pos
+                current = event.scenePos()
+                dx = current.x() - self._last_mouse_scene_pos.x()
+                dy = current.y() - self._last_mouse_scene_pos.y()
+                self._last_mouse_scene_pos = current
 
-                line = self.line()
-                new_start = QPointF(line.x1() + dx, line.y1() + dy)
-                new_end = QPointF(line.x2() + dx, line.y2() + dy)
-                self.setLine(new_start.x(), new_start.y(), new_end.x(), new_end.y())
-                self.map_view.appdata.project.maps[self.map_view.name]["arrows"][
-                    self.arrow_list_index
-                ] = ((new_start.x(), new_start.y()), (new_end.x(), new_end.y()))
-
+                delta = QPointF(dx, dy)
+                self.start_point += delta
+                self.end_point += delta
+                # bending unchanged under translation
+                self.update_path()
+                self._store_geometry()
                 event.accept()
                 return
 
@@ -169,14 +240,15 @@ class ArrowItem(QGraphicsLineItem):
 
     def mouseReleaseEvent(self, event):
         if self.map_view.arrow_drawing_mode:
-            # Stop endpoint dragging
-            if event.button() == Qt.LeftButton and (self.dragging_start or self.dragging_end):
+            if event.button() == Qt.LeftButton and (
+                self.dragging_start or self.dragging_end or self.dragging_middle
+            ):
                 self.dragging_start = False
                 self.dragging_end = False
+                self.dragging_middle = False
                 event.accept()
                 return
 
-            # Stop whole-arrow dragging
             if self._dragging and event.button() == Qt.MiddleButton:
                 self._dragging = False
                 event.accept()
@@ -185,29 +257,34 @@ class ArrowItem(QGraphicsLineItem):
         super().mouseReleaseEvent(event)
 
     def paint(self, painter: QPainter, option, widget=None):
-        # Draw the main line
         painter.setPen(self.pen())
-        line = self.line()
-        painter.drawLine(line)
+        painter.drawPath(self.path())
 
-        # Draw arrowhead
-        arrow_size = 12.0  # length of arrowhead edges
-        angle = math.atan2(line.dy(), line.dx())
+        # arrowhead aligned with tangent at end of Bézier
+        control = self._control_point_from_bending()
+        tangent = QPointF(
+            2 * (self.end_point.x() - control.x()),
+            2 * (self.end_point.y() - control.y()),
+        )
+        if tangent.manhattanLength() == 0:
+            return
+
+        angle = math.atan2(tangent.y(), tangent.x())
+        arrow_size = 12.0
 
         # Two points making the triangle arrowhead
         p1 = QPointF(
-            line.x2() - arrow_size * math.cos(angle - math.pi / 6),
-            line.y2() - arrow_size * math.sin(angle - math.pi / 6),
+            self.end_point.x() - arrow_size * math.cos(angle - math.pi / 6),
+            self.end_point.y() - arrow_size * math.sin(angle - math.pi / 6),
         )
         p2 = QPointF(
-            line.x2() - arrow_size * math.cos(angle + math.pi / 6),
-            line.y2() - arrow_size * math.sin(angle + math.pi / 6),
+            self.end_point.x() - arrow_size * math.cos(angle + math.pi / 6),
+            self.end_point.y() - arrow_size * math.sin(angle + math.pi / 6),
         )
 
-        # Draw filled triangle
-        arrow_head = [QPointF(line.x2(), line.y2()), p1, p2]
         painter.setBrush(self.pen().color())
-        painter.drawPolygon(*arrow_head)
+        painter.drawPolygon(self.end_point, p1, p2)
+
 
 class MapView(QGraphicsView):
     """A map of reaction boxes"""
@@ -217,12 +294,11 @@ class MapView(QGraphicsView):
         QGraphicsView.__init__(self, self.scene)
         self.background: QGraphicsSvgItem = None
         palette = self.palette()
+        # Set color of Map etc. backgrounds
         if appdata.is_in_dark_mode:
-            palette.setColor(QPalette.Base, QColor(90, 90, 90))  # Map etc. backgrounds
+            palette.setColor(QPalette.Base, QColor(90, 90, 90))
         else:
-            palette.setColor(
-                QPalette.Base, QColor(250, 250, 250)
-            )  # Map etc. backgrounds
+            palette.setColor(QPalette.Base, QColor(250, 250, 250))
         self.setPalette(palette)
         self.setInteractive(True)
         self.setDragMode(QGraphicsView.ScrollHandDrag)
@@ -231,7 +307,7 @@ class MapView(QGraphicsView):
         self.name: str = name
         self.setAcceptDrops(True)
         self.drag_map = False
-        self.reaction_boxes: dict[str, ReactionBox] = {}
+        self.reaction_boxes: dict[str, "ReactionBox"] = {}
         self._zoom = 0
         self.previous_point = None
         self.select = False
@@ -295,13 +371,11 @@ class MapView(QGraphicsView):
                 selected = self.scene.selectedItems()
                 for item in selected:
                     pos = self.appdata.project.maps[self.name]["boxes"][item.id]
-
                     self.appdata.project.maps[self.name]["boxes"][item.id] = (
                         pos[0] + move_x,
                         pos[1] + move_y,
                     )
                     self.mapChanged.emit(item.id)
-
         else:  # drag reaction from list that has not yet a box on this map
             self.appdata.project.maps[self.name]["boxes"][r_id] = (
                 point_item.x(),
@@ -327,7 +401,6 @@ class MapView(QGraphicsView):
                 self.appdata.project.maps[self.name]["box-size"] *= INCREASE_FACTOR
             else:
                 self.appdata.project.maps[self.name]["box-size"] *= DECREASE_FACTOR
-
             self.mapChanged.emit("dummy")
             self.update()
         else:
@@ -341,20 +414,17 @@ class MapView(QGraphicsView):
 
     def zoom_in(self):
         self._zoom += 1
-
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(INCREASE_FACTOR, INCREASE_FACTOR)
 
     def zoom_out(self):
         self._zoom -= 1
-
         self.appdata.project.maps[self.name]["zoom"] = self._zoom
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def keyPressEvent(self, event: QKeyEvent):
-        # Handle Arrow Drawing Mode Toggle (ALT+A)
         if event.modifiers() == Qt.AltModifier and event.key() == Qt.Key_A:
-            self.enter_arrow_drawing_mode()
+            self.enterArrowDrawingMode()
             event.accept()
             return
 
@@ -404,19 +474,15 @@ class MapView(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent):
         if self.hasFocus():
-            # Handle Arrow Drawing Mode Press
             if self.arrow_drawing_mode and event.button() == Qt.LeftButton:
                 scene_pos = self.mapToScene(event.pos())
                 items = self.scene.items(scene_pos)
 
-                # If we clicked on an existing arrow, let the arrow handle it
                 for it in items:
                     if isinstance(it, ArrowItem):
-                        # Forward event to the item and don't create new arrow
                         QGraphicsView.mousePressEvent(self, event)
                         return
 
-                # Otherwise: start drawing a new arrow
                 self.arrow_start_point = scene_pos
 
                 pen = QPen(Qt.blue)
@@ -431,7 +497,7 @@ class MapView(QGraphicsView):
                 self.scene.addItem(self.temp_arrow_line)
 
                 event.accept()
-                return  # Don't call super() further
+                return
 
             if self.select:  # select multiple boxes
                 self.setDragMode(QGraphicsView.RubberBandDrag)
@@ -444,25 +510,20 @@ class MapView(QGraphicsView):
             super(MapView, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
-        # Handle Arrow Drawing Mode Move
         if self.arrow_drawing_mode and self.arrow_start_point and self.temp_arrow_line:
             current_point = self.mapToScene(event.pos())
-
-            # Update the temporary line end point
             self.temp_arrow_line.setLine(
                 self.arrow_start_point.x(),
                 self.arrow_start_point.y(),
                 current_point.x(),
                 current_point.y(),
             )
-
             event.accept()
             return
 
         super(MapView, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        # Handle Arrow Drawing Mode Release
         if (
             self.arrow_drawing_mode
             and self.arrow_start_point
@@ -470,26 +531,25 @@ class MapView(QGraphicsView):
         ):
             end_point = self.mapToScene(event.pos())
 
-            # Remove temporary line
             if self.temp_arrow_line:
                 self.scene.removeItem(self.temp_arrow_line)
                 self.temp_arrow_line = None
 
             # Check if arrow is long enough to draw a final one
-            if (
-                end_point - self.arrow_start_point
-            ).manhattanLength() > 5:  # minimum 5 pixels
-                self.draw_final_arrow(self.arrow_start_point, end_point)
+            if (end_point - self.arrow_start_point).manhattanLength() > 5:
+                bending = 0.0
+                self.draw_final_arrow(self.arrow_start_point, end_point, bending)
                 self.appdata.project.maps[self.name]["arrows"].append(
                     (
                         (self.arrow_start_point.x(), self.arrow_start_point.y()),
                         (end_point.x(), end_point.y()),
+                        float(bending),
                     )
                 )
 
             self.arrow_start_point = None
             event.accept()
-            return  # Don't call super() to prevent default release behavior
+            return
 
         if self.drag_map:
             self.viewport().setCursor(Qt.OpenHandCursor)
@@ -517,15 +577,14 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
         event.accept()
 
-    def draw_final_arrow(self, start: QPointF, end: QPointF):
-        arrow = ArrowItem(start, end, self, len(self.arrows))
+    def draw_final_arrow(self, start: QPointF, end: QPointF, bending: float = 0.0):
+        arrow = ArrowItem(start, end, self, len(self.arrows), bending)
         self.arrows.append(arrow)
         self.scene.addItem(arrow)
         return arrow
 
     def focusOutEvent(self, event):
         super(MapView, self).focusOutEvent(event)
-        # Only reset cursor if not in arrow drawing mode
         if not self.arrow_drawing_mode:
             self.viewport().setCursor(Qt.OpenHandCursor)
         self.select = False
@@ -574,7 +633,7 @@ class MapView(QGraphicsView):
         treffer.item.setFocus()
 
     def select_single_reaction(self, reac_id: str):
-        box: ReactionBox = self.reaction_boxes.get(reac_id, None)
+        box: "ReactionBox" = self.reaction_boxes.get(reac_id, None)
         if box is not None:
             self.scene.clearSelection()
             self.scene.clearFocus()
@@ -612,7 +671,6 @@ class MapView(QGraphicsView):
                     r_id
                 ).name
                 box = ReactionBox(self, r_id, name)
-
                 self.scene.addItem(box)
                 box.add_line_widget()
                 self.reaction_boxes[r_id] = box
@@ -622,10 +680,10 @@ class MapView(QGraphicsView):
         map_data = self.appdata.project.maps[self.name]
         if "arrows" in map_data:
             self.arrows = []
-            for start_coords, end_coords in map_data["arrows"]:
+            for start_coords, end_coords, bending in map_data["arrows"]:
                 start_point = QPointF(*start_coords)
                 end_point = QPointF(*end_coords)
-                self.draw_final_arrow(start_point, end_point)
+                self.draw_final_arrow(start_point, end_point, float(bending))
         else:
             map_data["arrows"] = []
 
@@ -638,8 +696,8 @@ class MapView(QGraphicsView):
                     QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
                 )
                 self.scene.addItem(ti)
-            else:
-                map_data["labels"] = []
+        else:
+            map_data["labels"] = []
 
     def delete_box(self, reaction_id: str) -> bool:
         box = self.reaction_boxes.get(reaction_id, None)
@@ -649,7 +707,6 @@ class MapView(QGraphicsView):
             self.scene.removeItem(box)
             return True
         else:
-            # print(f"Reaction {reaction_id} does not occur on map {self.name}")
             return False
 
     def update_reaction(self, old_reaction_id: str, new_reaction_id: str):
@@ -691,13 +748,10 @@ class MapView(QGraphicsView):
                     )
                 except KeyError:
                     print(f"{item.id} not found as box")
-            else:
-                pass
 
         self.set_values()
         self.recolor_all()
 
-        # set scrollbars
         self.horizontalScrollBar().setValue(
             self.appdata.project.maps[self.name]["pos"][0]
         )
@@ -734,24 +788,17 @@ class MapView(QGraphicsView):
         self.reaction_boxes[reaction].recolor()
 
     def add_text_at_mouse(self):
-        # Prompt for text
         text, ok = QInputDialog.getText(self, "Add Text", "Enter text to display:")
         if ok and text.strip():
-            # Get mouse position in scene coordinates
             mouse_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
-
-            # Create and format text item
             text_item = QGraphicsTextItem(text)
             text_item.setFont(QFont("Arial", 12))
             text_item.setPos(mouse_pos)
             text_item.setFlags(
                 QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
             )
-
-            # Add to scene
             self.scene.addItem(text_item)
 
-            # Optional: store in project data for future reload
             if "labels" not in self.appdata.project.maps[self.name]:
                 self.appdata.project.maps[self.name]["labels"] = []
             self.appdata.project.maps[self.name]["labels"].append(
@@ -771,7 +818,7 @@ class MapView(QGraphicsView):
                     nearest_dist = dist
                     nearest_item = item
 
-        # Remove it if found
+        # Remove text if found
         if nearest_item:
             self.scene.removeItem(nearest_item)
             # Also remove from project data if stored
@@ -804,7 +851,7 @@ class CLineEdit(QLineEdit):
     """A special line edit implementation for the use in ReactionBox"""
 
     def __init__(self, parent):
-        self.parent: ReactionBox = parent
+        self.parent: "ReactionBox" = parent
         self.accept_next_change_into_history = True
         super().__init__()
 
@@ -816,7 +863,6 @@ class CLineEdit(QLineEdit):
         self.parent.update()
 
     def focusInEvent(self, event):
-        # is called before mousePressEvent
         super().focusInEvent(event)
         self.accept_next_change_into_history = True
         self.setModified(False)
@@ -829,7 +875,7 @@ class CLineEdit(QLineEdit):
         self.parent.switch_to_reaction_mask()
 
     def mousePressEvent(self, event: QMouseEvent):
-        # is called after focusInEvent
+        # to bes called after focusInEvent
         super().mousePressEvent(event)
         if event.button() == Qt.MouseButton.LeftButton:
             if not self.parent.map.select:
@@ -854,7 +900,7 @@ class ReactionBox(QGraphicsItem):
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)
         self.item = CLineEdit(self)
-        self.item.setTextMargins(1, -13, 0, -10)  # l t r b
+        self.item.setTextMargins(1, -13, 0, -10)
         font = self.item.font()
         point_size = font.pointSize()
         font.setPointSizeF(point_size + 13.0)
@@ -879,13 +925,11 @@ class ReactionBox(QGraphicsItem):
             + "\nObjective coefficient: "
             + str(r.objective_coefficient)
         )
-
         self.item.setToolTip(text)
 
         self.proxy = (
             None  # proxy is set in add_line_widget after the item has been added
         )
-
         self.set_default_style()
 
         self.setCursor(Qt.OpenHandCursor)
@@ -896,7 +940,7 @@ class ReactionBox(QGraphicsItem):
         self.item.setContextMenuPolicy(Qt.CustomContextMenu)
         self.item.customContextMenuRequested.connect(self.on_context_menu)
 
-        # create context menu
+        # create context menu (on right click)
         self.pop_menu = QMenu(parent)
         maximize_action = QAction("maximize flux for this reaction", parent)
         self.pop_menu.addAction(maximize_action)
@@ -916,7 +960,6 @@ class ReactionBox(QGraphicsItem):
         remove_action = QAction("remove from map", parent)
         self.pop_menu.addAction(remove_action)
         remove_action.triggered.connect(self.remove)
-
         self.pop_menu.addSeparator()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
@@ -959,8 +1002,7 @@ class ReactionBox(QGraphicsItem):
         self.proxy.show()
 
     def returnPressed(self):
-        # self.item.clearFocus() # does not yet yield focus...
-        self.proxy.clearFocus()  # ...but this does
+        self.proxy.clearFocus()
         self.map.setFocus()
         self.item.accept_next_change_into_history = (
             True  # reset so that next change will be recorded
@@ -970,7 +1012,6 @@ class ReactionBox(QGraphicsItem):
         if self.item.isModified() and self.map.appdata.auto_fba:
             self.map.central_widget.parent.fba()
 
-    # @Slot() # using the decorator gives a connection error?
     def value_changed(self):
         test = self.item.text().replace(" ", "")
         if test == "":
@@ -994,7 +1035,6 @@ class ReactionBox(QGraphicsItem):
             self.set_error_style()
 
     def set_default_style(self):
-        """set the reaction box to error style"""
         palette = self.item.palette()
         role = self.item.backgroundRole()
         color = self.map.appdata.default_color
@@ -1003,11 +1043,9 @@ class ReactionBox(QGraphicsItem):
         role = self.item.foregroundRole()
         palette.setColor(role, Qt.black)
         self.item.setPalette(palette)
-
         self.set_font_style(QFont.StyleNormal)
 
     def set_error_style(self):
-        """set the reaction box to error style"""
         self.set_color(Qt.white)
         self.set_fg_color(self.map.appdata.scen_color_bad)
         self.set_font_style(QFont.StyleOblique)
@@ -1021,7 +1059,6 @@ class ReactionBox(QGraphicsItem):
         self.set_font_style(QFont.StyleNormal)
 
     def set_value(self, value: tuple[float, float]):
-        """Sets the text of and reaction box according to the given value"""
         (vl, vu) = value
         if isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
             self.item.setText(
@@ -1082,7 +1119,6 @@ class ReactionBox(QGraphicsItem):
         self.item.setFont(font)
 
     def set_fg_color(self, color: QColor):
-        """set foreground color of the reaction box"""
         palette = self.item.palette()
         role = self.item.foregroundRole()
         palette.setColor(role, color)
@@ -1097,15 +1133,14 @@ class ReactionBox(QGraphicsItem):
         )
 
     def paint(self, painter: QPainter, _option, _widget: QWidget):
-        # set color depending on wether the value belongs to the scenario
         if self.isSelected():
             light_blue = QColor(100, 100, 200)
             pen = QPen(light_blue)
             pen.setWidth(6)
             painter.setPen(pen)
             painter.drawRect(
-                0 - 6,
-                0 - 6,
+                -6,
+                -6,
                 self.map.appdata.box_width + 12,
                 self.map.appdata.box_height + 12,
             )
@@ -1129,8 +1164,8 @@ class ReactionBox(QGraphicsItem):
             pen.setWidth(6)
             painter.setPen(pen)
             painter.drawRect(
-                0 - 3,
-                0 - 3,
+                -3,
+                -3,
                 self.map.appdata.box_width + 6,
                 self.map.appdata.box_height + 6,
             )
@@ -1138,7 +1173,6 @@ class ReactionBox(QGraphicsItem):
             pen.setWidth(1)
             painter.setPen(pen)
             painter.drawEllipse(-15, -15, 20, 20)
-
         else:
             painter.setPen(Qt.darkGray)
             painter.drawEllipse(-15, -15, 20, 20)
@@ -1154,7 +1188,6 @@ class ReactionBox(QGraphicsItem):
         super().setPos(x, y)
 
     def on_context_menu(self, point):
-        # show context menu
         self.pop_menu.exec_(self.item.mapToGlobal(point))
 
     def position(self):
