@@ -170,6 +170,8 @@ class ReactionList(QWidget):
         self.reaction_list.setColumnHidden(ReactionListColumn.DF, True)
         self.visible_column[ReactionListColumn.DF] = False
 
+        self.reaction_counter = 0
+
     def clear(self):
         self.reaction_list.clear()
         self.reaction_mask.hide()
