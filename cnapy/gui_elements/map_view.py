@@ -45,6 +45,85 @@ INCREASE_FACTOR = 1.1
 DECREASE_FACTOR = 1 / INCREASE_FACTOR
 
 
+class LabelItem(QGraphicsTextItem):
+    """
+    Encapsulates all label logic:
+    - Dragging
+    - ALT+click deletion
+    - Persistence in appdata maps["labels"]
+    """
+
+    def __init__(self, text: str, pos: QPointF, map_view: "MapView", label_index: int):
+        super().__init__(text)
+
+        self.map_view = map_view
+        self.label_index = label_index
+        self.setFont(QFont("Arial", 12))
+        self.setPos(pos)
+
+        self.setAcceptHoverEvents(True)
+        self.setAcceptedMouseButtons(Qt.LeftButton)
+
+        self._dragging = False
+        self._drag_offset = QPointF()
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        if not self.map_view.arrow_drawing_mode:
+            super().mousePressEvent(event)
+            return
+
+        if event.button() == Qt.LeftButton and (event.modifiers() & Qt.AltModifier):
+            self.delete()
+            event.accept()
+            return
+
+        if event.button() == Qt.LeftButton:
+            self._dragging = True
+            self._drag_offset = event.scenePos() - self.pos()
+            self.map_view.viewport().setCursor(Qt.ClosedHandCursor)
+            event.accept()
+            return
+
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
+        if self._dragging:
+            new_pos = event.scenePos() - self._drag_offset
+            self.setPos(new_pos)
+            self._store_geometry()
+            event.accept()
+            return
+
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        if self._dragging:
+            self._dragging = False
+            self.map_view.viewport().setCursor(Qt.CrossCursor)
+            self._store_geometry()
+            event.accept()
+            return
+
+        super().mouseReleaseEvent(event)
+
+    def _store_geometry(self):
+        labels = self.map_view.appdata.project.maps[self.map_view.name]["labels"]
+        text = self.toPlainText()
+        labels[self.label_index] = (text, self.x(), self.y())
+
+    def delete(self):
+        labels = self.map_view.appdata.project.maps[self.map_view.name]["labels"]
+        idx = self.label_index
+
+        self.map_view.scene.removeItem(self)
+        del labels[idx]
+
+        # Reindex remaining LabelItems
+        for item in self.map_view.scene.items():
+            if isinstance(item, LabelItem) and item.label_index > idx:
+                item.label_index -= 1
+
+
 class ArrowItem(QGraphicsPathItem):
     """Quadratic Bézier arrow with a single scalar bending parameter.
 
@@ -779,12 +858,13 @@ class MapView(QGraphicsView):
             for i, (label_text, x, y) in enumerate(
                 self.appdata.project.maps[self.name]["labels"]
             ):
-                ti = QGraphicsTextItem(label_text)
-                ti.setFont(QFont("Arial", 12))
-                ti.setPos(QPointF(x, y))
-
-                ti.label_index = i
-                self.scene.addItem(ti)
+                li = LabelItem(
+                    label_text,
+                    QPointF(x, y),
+                    self,
+                    i,
+                )
+                self.scene.addItem(li)
         else:
             map_data["labels"] = []
 
@@ -880,17 +960,13 @@ class MapView(QGraphicsView):
         text, ok = QInputDialog.getText(self, "Add Text", "Enter text to display:")
         if ok and text.strip():
             mouse_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
-            text_item = QGraphicsTextItem(text)
-            text_item.setFont(QFont("Arial", 12))
-            text_item.setPos(mouse_pos)
-            self.scene.addItem(text_item)
 
-            if "labels" not in self.appdata.project.maps[self.name]:
-                self.appdata.project.maps[self.name]["labels"] = []
             labels = self.appdata.project.maps[self.name].setdefault("labels", [])
             label_index = len(labels)
             labels.append((text, mouse_pos.x(), mouse_pos.y()))
-            text_item.label_index = label_index 
+
+            label_item = LabelItem(text, mouse_pos, self, label_index)
+            self.scene.addItem(label_item)
 
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
