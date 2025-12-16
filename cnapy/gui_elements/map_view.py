@@ -445,17 +445,12 @@ class MapView(QGraphicsView):
             event.accept()
             return
 
-        if event.modifiers() == Qt.AltModifier and event.key() == Qt.Key_T:
-            self.add_text_at_mouse()
-            event.accept()
-            return
-
         if (
-            (event.modifiers() & Qt.AltModifier)
-            and (event.modifiers() & Qt.ShiftModifier)
+            self.arrow_drawing_mode
+            and event.modifiers() == Qt.AltModifier
             and event.key() == Qt.Key_T
         ):
-            self.remove_nearest_text_at_mouse()
+            self.add_text_at_mouse()
             event.accept()
             return
 
@@ -493,6 +488,38 @@ class MapView(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent):
         if self.hasFocus():
+            if (
+                self.arrow_drawing_mode
+                and event.button() == Qt.LeftButton
+                and (event.modifiers() & Qt.AltModifier)
+            ):
+                scene_pos = self.mapToScene(event.pos())
+                items = self.scene.items(scene_pos)
+
+                for item in items:
+                    if isinstance(item, QGraphicsTextItem):
+                        self.scene.removeItem(item)
+
+                        # Remove from project data
+                        labels = self.appdata.project.maps[self.name].get("labels", [])
+                        self.appdata.project.maps[self.name]["labels"] = [
+                            (t, x, y)
+                            for (t, x, y) in labels
+                            if not (
+                                t == item.toPlainText()
+                                and x == item.x()
+                                and y == item.y()
+                            )
+                        ]
+
+                        print(f"Deleted label: '{item.toPlainText()}'")
+                        event.accept()
+                        return
+
+                # ALT+click did not hit a label → do nothing
+                event.accept()
+                return
+
             if (self.arrow_drawing_mode
             and event.button() == Qt.LeftButton
             and (event.modifiers() & Qt.ShiftModifier)):
@@ -819,37 +846,6 @@ class MapView(QGraphicsView):
             self.appdata.project.maps[self.name]["labels"].append(
                 (text, mouse_pos.x(), mouse_pos.y())
             )
-
-    def remove_nearest_text_at_mouse(self):
-        mouse_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
-
-        # Find nearest QGraphicsTextItem
-        nearest_item = None
-        nearest_dist = float("inf")
-        for item in self.scene.items():
-            if isinstance(item, QGraphicsTextItem):
-                dist = (item.pos() - mouse_pos).manhattanLength()
-                if dist < nearest_dist:
-                    nearest_dist = dist
-                    nearest_item = item
-
-        # Remove text if found
-        if nearest_item:
-            self.scene.removeItem(nearest_item)
-            # Also remove from project data if stored
-            if "labels" in self.appdata.project.maps[self.name]:
-                self.appdata.project.maps[self.name]["labels"] = [
-                    (t, x, y)
-                    for (t, x, y) in self.appdata.project.maps[self.name]["labels"]
-                    if not (
-                        t == nearest_item.toPlainText()
-                        and x == nearest_item.x()
-                        and y == nearest_item.y()
-                    )
-                ]
-            print(f"Deleted label: '{nearest_item.toPlainText()}'")
-        else:
-            print("No label found near mouse.")
 
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
