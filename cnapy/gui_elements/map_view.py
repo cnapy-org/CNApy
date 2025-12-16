@@ -812,9 +812,6 @@ class MapView(QGraphicsView):
             text_item = QGraphicsTextItem(text)
             text_item.setFont(QFont("Arial", 12))
             text_item.setPos(mouse_pos)
-            text_item.setFlags(
-                QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable
-            )
             self.scene.addItem(text_item)
 
             if "labels" not in self.appdata.project.maps[self.name]:
