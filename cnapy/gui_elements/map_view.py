@@ -4,6 +4,7 @@ import math
 from ast import literal_eval as make_tuple
 from math import isclose
 import importlib.resources as resources
+from typing import Literal
 
 from qtpy.QtCore import QMimeData, QPointF, QRectF, Qt, Signal
 from qtpy.QtGui import (
@@ -22,6 +23,7 @@ from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (
     QApplication,
     QAction,
+    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -33,6 +35,7 @@ from qtpy.QtWidgets import (
     QGraphicsTextItem,
     QInputDialog,
     QLabel,
+    QRadioButton,
     QSpinBox,
     QTreeWidget,
     QGraphicsSceneMouseEvent,
@@ -216,6 +219,7 @@ class ArrowItem(QGraphicsPathItem):
         bending: float = 0.0,
         width: float = 3.0,
         color: QColor | str = QColor("black"),
+        head_mode: Literal["end"] | Literal["both"] | Literal["none"]="end",
     ):
         super().__init__()
 
@@ -228,6 +232,7 @@ class ArrowItem(QGraphicsPathItem):
 
         self.width = float(width)
         self.color = QColor(color)
+        self.head_mode = head_mode
 
         self.setPen(QPen(self.color, self.width))
         self.setAcceptHoverEvents(True)
@@ -304,6 +309,7 @@ class ArrowItem(QGraphicsPathItem):
             float(self.bending),
             float(self.width),
             self.color.name(),
+            self.head_mode,
         )
     
     def _handle_points(self):
@@ -355,7 +361,7 @@ class ArrowItem(QGraphicsPathItem):
                     return
 
             # Middle button: move whole arrow
-            if event.button() == Qt.MiddleButton:
+            if event.button() == Qt.LeftButton:
                 self._dragging = True
                 self._last_mouse_scene_pos = event.scenePos()
                 event.accept()
@@ -410,12 +416,29 @@ class ArrowItem(QGraphicsPathItem):
                 event.accept()
                 return
 
-            if self._dragging and event.button() == Qt.MiddleButton:
+            if self._dragging and event.button() == Qt.LeftButton:
                 self._dragging = False
                 event.accept()
                 return
 
         super().mouseReleaseEvent(event)
+    
+    def _draw_arrowhead(self, painter, tip: QPointF, direction: QPointF):
+        angle = math.atan2(direction.y(), direction.x())
+
+        arrow_size = max(8.0, self.width * 4.0)
+        phi = math.pi / 6 if self.width <= 5 else math.pi / 5
+
+        p1 = QPointF(
+            tip.x() - arrow_size * math.cos(angle - phi),
+            tip.y() - arrow_size * math.sin(angle - phi),
+        )
+        p2 = QPointF(
+            tip.x() - arrow_size * math.cos(angle + phi),
+            tip.y() - arrow_size * math.sin(angle + phi),
+        )
+
+        painter.drawPolygon(tip, p1, p2)
 
     def paint(self, painter: QPainter, option, widget=None):
         painter.setPen(QPen(self.color, self.width))
@@ -430,21 +453,19 @@ class ArrowItem(QGraphicsPathItem):
         if tangent.manhattanLength() == 0:
             return
 
-        angle = math.atan2(tangent.y(), tangent.x())
-        arrow_size = 12.0
+        painter.setBrush(self.color)
 
-        # Two points making the triangle arrowhead
-        p1 = QPointF(
-            self.end_point.x() - arrow_size * math.cos(angle - math.pi / 6),
-            self.end_point.y() - arrow_size * math.sin(angle - math.pi / 6),
-        )
-        p2 = QPointF(
-            self.end_point.x() - arrow_size * math.cos(angle + math.pi / 6),
-            self.end_point.y() - arrow_size * math.sin(angle + math.pi / 6),
-        )
+        control = self._control_point_from_bending()
 
-        painter.setBrush(self.pen().color())
-        painter.drawPolygon(self.end_point, p1, p2)
+        # arrowhead at END → points INTO the curve
+        if self.head_mode in ("end", "both"):
+            direction = self.end_point - control
+            self._draw_arrowhead(painter, self.end_point, direction)
+
+        # arrowhead at START → points AWAY from the curve
+        if self.head_mode == "both":
+            direction = self.start_point - control
+            self._draw_arrowhead(painter, self.start_point, direction)
 
         if self.map_view.arrow_drawing_mode:
             start, end, mid = self.start_point, self.end_point, self._bezier_midpoint()
@@ -496,6 +517,25 @@ class ArrowEditDialog(QDialog):
         layout.addRow("Width", self.width)
         layout.addRow("Color (hex)", self.color)
 
+        self.head_none = QRadioButton("No arrowhead")
+        self.head_end = QRadioButton("Arrowhead at end")
+        self.head_both = QRadioButton("Arrowhead at both ends")
+        buttons = QButtonGroup(self)
+        buttons.addButton(self.head_none)
+        buttons.addButton(self.head_end)
+        buttons.addButton(self.head_both)
+        layout.addRow(QLabel("Arrowhead"))
+        layout.addRow(self.head_none)
+        layout.addRow(self.head_end)
+        layout.addRow(self.head_both)
+
+        if arrow.head_mode == "none":
+            self.head_none.setChecked(True)
+        elif arrow.head_mode == "both":
+            self.head_both.setChecked(True)
+        else:
+            self.head_end.setChecked(True)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
@@ -513,6 +553,13 @@ class ArrowEditDialog(QDialog):
         arrow.width = float(self.width.text())
         arrow.color = QColor(self.color.text())
         arrow.setPen(QPen(arrow.color, arrow.width))
+
+        if self.head_none.isChecked():
+            arrow.head_mode = "none"
+        elif self.head_both.isChecked():
+            arrow.head_mode = "both"
+        else:
+            arrow.head_mode = "end"
 
         arrow.update_path()
         arrow._store_geometry()
@@ -849,6 +896,7 @@ class MapView(QGraphicsView):
                         float(bending),
                         3.0,
                         "#000000",
+                        "end",
                     )
                 )
 
@@ -1123,6 +1171,7 @@ class MapView(QGraphicsView):
                 mouse_pos.y(),
                 12,
                 "#000000",
+                "end",
             ))
 
             label_item = LabelItem(text, mouse_pos, self, label_index)
