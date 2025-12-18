@@ -1,5 +1,5 @@
 """The CNApy LP analysis dialog"""
-from cobrak.constants import MDF_VAR_ID, OBJECTIVE_VAR_NAME
+from cobrak.constants import MDF_VAR_ID
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -184,7 +184,7 @@ class LpAnalysisDialog(QDialog):
     
     def validate_set_objective(self) -> None:
         if self.lp_optimization.isChecked():
-            self.run_analysis.setEnabled(self.set_objective.is_valid)
+            self.run_analysis.setEnabled(self.set_objective.is_valid if self.set_objective.is_valid else False) # is_valid may also be None in empty models
             self.run_analysis.setText(
                 "Run analysis" if self.set_objective.is_valid else
                 "(cannot run analysis: set objective is invalid, check expression)"
@@ -256,7 +256,7 @@ class LpAnalysisDialog(QDialog):
                 console_text += f"print('\\nOptMDF: {opt_solution[MDF_VAR_ID]} kJ/mol')"
             self.central_widget.update()
         elif self.lp_variability.isChecked():
-            var_result = run_lp_variability_analysis(
+            error_message, var_result = run_lp_variability_analysis(
                 cobrapy_model=self.appdata.project.cobra_py_model,
                 scen_values=self.appdata.project.scen_values,
                 solver_name=self.solver_buttons["group"].checkedButton().property("cobrak_name"),
@@ -271,14 +271,22 @@ class LpAnalysisDialog(QDialog):
                 results_cache_dir=str(self.appdata.results_cache_dir),
                 max_prot_pool=float(self.protein_pool.text()),
             )
+            if error_message:
+                QMessageBox.warning(
+                    None,
+                    "Error",
+                    error_message,
+                )
+                return
             for reaction in self.appdata.project.cobra_py_model.reactions:
                 reac_id = reaction.id
-                self.appdata.project.comp_values[reac_id] = (var_result[reac_id][0], var_result[reac_id][1])
+                if reac_id != "cobrak_global_settings":
+                    self.appdata.project.comp_values[reac_id] = (var_result[reac_id][0], var_result[reac_id][1])
             self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
             self.appdata.project.comp_values_type = 1
             self.central_widget.update()
         elif self.lp_bottleneck_analysis.isChecked():
-            bottlenecks = run_lp_bottleneck_analysis(
+            error_message, bottlenecks, _ = run_lp_bottleneck_analysis(
                 cobrapy_model=self.appdata.project.cobra_py_model,
                 scen_values=self.appdata.project.scen_values,
                 solver_name=self.solver_buttons["group"].checkedButton().property("cobrak_name"),
@@ -288,8 +296,15 @@ class LpAnalysisDialog(QDialog):
                 max_default_conc=float(self.max_default_conc.text()),
                 max_prot_pool=float(self.protein_pool.text()),
             )
+            if error_message:
+                QMessageBox.warning(
+                    None,
+                    "Error",
+                    error_message,
+                )
+                return
             bottlenecks_string = "; ".join(bottlenecks)
-            console_text += f"print('\\n{len(bottlenecks)} bottleneck reactions found: {bottlenecks_string}')"        
+            console_text += f"print('\\n{len(bottlenecks)} bottleneck reactions found: {bottlenecks_string}.')"
         if console_text:
             self.central_widget.kernel_client.execute(console_text)
             self.central_widget.show_bottom_of_console()

@@ -1072,7 +1072,6 @@ class MapView(QGraphicsView):
         if "arrows" in map_data:
             self.arrows = []
             for data in map_data["arrows"]:
-                print(data)
                 (sx, sy), (ex, ey), bending, standard_width, color, standard_head_mode, associated_expr = data
 
                 self.draw_final_arrow(

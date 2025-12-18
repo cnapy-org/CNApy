@@ -17,9 +17,38 @@ from cnapy.appdata import Scenario
 from pydantic import validate_call, ConfigDict
 from optlang.symbolics import Zero
 
-NO_DG0_ERROR_MSG: str = "ERROR: To run a calculation with thermodynamic constraints, your model needs at least one reaction with a ΔG'° (annotation key 'dG0')."
+NO_DG0_ERROR_MESSAGE: str = "ERROR: To run a calculation with thermodynamic constraints, your model needs at least one reaction with a ΔG'° (annotation key 'dG0')."
 CNAPY_FWD_SUFFIX: str = "_CNAPYFWD"
 CNAPY_REV_SUFFIX: str = "_CNAPYREV"
+INFEASIBLE_ERROR_MESSAGE: str = ("The problem appears to be infeasible, i.e. the constraints make a solution impossible.\n"\
+                                 "If you used measured flux values as scenario, you may want to try 'Analysis->Make scenario feasible'.")
+
+@validate_call(validate_return=True)
+def _get_gurobi_error_message(
+    exception_message: str
+) -> str:
+    if "size-limited license" or "Model too large" in exception_message:
+        prefix = ("Gurobi Error: This error is likely caused by using the Gurobi Community Edition, which only works for small problems.\n"
+        "To solve this problem, use a different solver or install a full version of Gurobi on your system, see https://gurobi.com/unrestricted for the latter.\n"
+        "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure Gurobi full version' "
+        "in CNApy's main menu to connect the full Gurobi version to CNApy.\n")
+    else:
+        prefix = ""
+    return f"{prefix}Full text of Gurobi exception was: {exception_message}"
+
+
+@validate_call(validate_return=True)
+def _get_cplex_error_message(
+    exception_message: str
+) -> str:
+    if "1016" or "Community" in exception_message:
+        prefix = ("CPLEX Error: This error is likely caused by using the CPLEX Community Edition, which only works for small problems.\n"
+            "To solve this problem, use a different solver or install a full version of Gurobi on your system, see http://ibm.biz/error1016 for the latter.\n"
+            "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure CPLEX full version' "
+            "in CNApy's main menu to connect the full CPLEX version to CNApy.\n")
+    else:
+        prefix = ""
+    return f"{prefix}Full text of CPLEX exception was: {exception_message}"
 
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
@@ -94,7 +123,7 @@ def load_scenario_into_cobrapy_model(
 
 
 @validate_call(validate_return=True)
-def _get_error_message(solution: dict[str, float]) -> str:
+def _get_error_message(solution: dict[str, float | None]) -> str:
     if not solution[ALL_OK_KEY]:
         if TERMINATION_CONDITION_KEY in solution:
             match solution[TERMINATION_CONDITION_KEY]:
@@ -105,7 +134,7 @@ def _get_error_message(solution: dict[str, float]) -> str:
                 case 7:
                     return "The problem appears to be unbounded, i.e. there is no constraint limiting the objective values."
                 case 8:
-                    return "The problem appears to be infeasible, i.e. the constraints make a solution impossible."
+                    return INFEASIBLE_ERROR_MESSAGE
                 case 10:
                     return "Your solver seems to have crashed. Try another solver."
                 case 11:
@@ -260,7 +289,7 @@ def _get_combined_var_solution(
 
     return var_solution
 
-@validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
+@validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 def run_lp_optimization(
     cobrapy_model: cobra.Model,
     scen_values: Scenario,
@@ -301,7 +330,7 @@ def run_lp_optimization(
 
     if with_thermodynamic_constraints and _no_dG0(cobrak_model):
         return (
-            NO_DG0_ERROR_MSG,
+            NO_DG0_ERROR_MESSAGE,
             {},
         )
 
@@ -320,23 +349,23 @@ def run_lp_optimization(
         )
     except GurobiError as e:
         return (
-            "Gurobi Error: This error is likely caused by using the Gurobi Community Edition, which only works for small problems.\n"
-            "To solve this problem, use a different solver or install a full version of Gurobi on your system, see https://gurobi.com/unrestricted for the latter.\n"
-            "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure Gurobi full version' "
-            "in CNApy's main menu to connect the full Gurobi version to CNApy.\n"
-            f"Full text of expection was: {e}"
-            ,
-            {}
+            _get_gurobi_error_message(str(e)),
+            {},
         )
     except CplexError as e:
         return (
-            "CPLEX Error: This error is likely caused by using the CPLEX Community Edition, which only works for small problems.\n"
-            "To solve this problem, use a different solver or install a full version of Gurobi on your system, see http://ibm.biz/error1016 for the latter.\n"
-            "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure CPLEX full version' "
-            "in CNApy's main menu to connect the full CPLEX version to CNApy.\n"
-            f"Full text of CPLEX exception was: {e}"
-            ,
-            {}
+            _get_cplex_error_message(str(e)),
+            {},
+        )
+    except RuntimeError:
+        return (
+            INFEASIBLE_ERROR_MESSAGE,
+            {},
+        )
+    if any(val is None for val in lp_opt_solution.values()):
+        return (
+            INFEASIBLE_ERROR_MESSAGE,
+            {},
         )
 
     if parsimonious and lp_opt_solution[ALL_OK_KEY]:
@@ -360,10 +389,9 @@ def run_lp_optimization(
                 verbose=False,
                 with_flux_sum_var=True,
             )
-
     return (
         _get_error_message(lp_opt_solution),
-        _get_combined_opt_solution(cobrapy_model, lp_opt_solution),
+        _get_combined_opt_solution(cobrapy_model, lp_opt_solution) if lp_opt_solution[ALL_OK_KEY] else {},
     )
 
 
@@ -377,7 +405,7 @@ def run_lp_bottleneck_analysis(
     min_default_conc: float = 1e-6,
     max_default_conc: float = 0.1,
     max_prot_pool: float | None = None,
-) -> list[str]:
+) -> tuple[str, list[str], dict[str, float]]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
@@ -388,17 +416,43 @@ def run_lp_bottleneck_analysis(
 
     if _no_dG0(cobrak_model):
         return (
-            NO_DG0_ERROR_MSG,
+            NO_DG0_ERROR_MESSAGE,
             [],
+            {},
+        )
+    
+    try:
+        bottlenecks, bottleneck_solution = perform_lp_thermodynamic_bottleneck_analysis(
+            cobrak_model=cobrak_model,
+            with_enzyme_constraints=with_enzyme_constraints,
+            min_mdf=min_mdf,
+            solver=Solver(name=solver_name),
+        )
+    except GurobiError as e:
+        return (
+            _get_gurobi_error_message(str(e)),
+            [],
+            {},
+        )
+    except CplexError as e:
+        return (
+            _get_cplex_error_message(str(e)),
+            [],
+            {},
+        )
+    except RuntimeError:
+        return (
+            INFEASIBLE_ERROR_MESSAGE,
+            [],
+            {},
+        )
+    if any(val is None for val in bottleneck_solution.values()):
+        return (
+            INFEASIBLE_ERROR_MESSAGE,
+            [],
+            {},
         )
 
-    bottlenecks, _ = perform_lp_thermodynamic_bottleneck_analysis(
-        cobrak_model=cobrak_model,
-        with_enzyme_constraints=with_enzyme_constraints,
-        min_mdf=min_mdf,
-        solver=Solver(name=solver_name),
-        verbose=True,
-    )
     bottleneck_base_ids = [
         get_base_id(
             reac_id,
@@ -408,9 +462,11 @@ def run_lp_bottleneck_analysis(
         )
         for reac_id in bottlenecks
     ]
-
-    return [(bottleneck_base_ids[i] if bottleneck_base_ids[i] in cobrapy_model.reactions else bottlenecks[i]) for i in range(len(bottlenecks))]
-
+    return (
+        _get_error_message(bottleneck_solution),
+        [(bottleneck_base_ids[i] if bottleneck_base_ids[i] in cobrapy_model.reactions else bottlenecks[i]) for i in range(len(bottlenecks))],
+        bottleneck_solution,
+    )
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
 def run_lp_variability_analysis(
@@ -427,7 +483,7 @@ def run_lp_variability_analysis(
     use_results_cache: bool=False,
     results_cache_dir: str="",
     max_prot_pool: float | None=None,
-) -> dict[str, tuple[float | None, float | None]]:
+) -> tuple[str, dict[str, tuple[float | None, float | None]]]:
     cobrak_model = _get_cobrak_model(
         cobrapy_model=cobrapy_model,
         scen_values=scen_values,
@@ -450,23 +506,51 @@ def run_lp_variability_analysis(
         data_str = json.dumps(data_dict, sort_keys=True)
         data_bytes = data_str.encode('utf-8')
         full_hash = hashlib.md5(data_bytes).hexdigest()
-        if f"fvacache_{full_hash}.zip" in get_files(results_cache_dir):
-            var_result = json_zip_load(f"fvacache_{full_hash}")
+        cache_basename = f"fvacache_{with_thermodynamic_constraints}_{with_enzyme_constraints}_{full_hash}"
+        if f"{cache_basename}.zip" in get_files(results_cache_dir):
+            var_result = json_zip_load(cache_basename)
     if not var_result:
-        var_result = perform_lp_variability_analysis(
-            cobrak_model=cobrak_model,
-            with_enzyme_constraints=with_enzyme_constraints,
-            with_thermodynamic_constraints=with_thermodynamic_constraints,
-            solver=Solver(name=solver_name),
-            min_mdf=min_mdf,
-            calculate_reacs=calculate_reacs,
-            calculate_concs=calculate_concs,
-            calculate_rest=False,
+        try:
+            var_result = perform_lp_variability_analysis(
+                cobrak_model=cobrak_model,
+                with_enzyme_constraints=with_enzyme_constraints,
+                with_thermodynamic_constraints=with_thermodynamic_constraints,
+                solver=Solver(name=solver_name),
+                min_mdf=min_mdf,
+                calculate_reacs=calculate_reacs,
+                calculate_concs=calculate_concs,
+                calculate_rest=False,
+            )
+            if use_results_cache:
+                json_zip_write(f"{results_cache_dir}{cache_basename}", var_result)
+        except GurobiError as e:
+            return (
+                _get_gurobi_error_message(str(e)),
+                {},
+            )
+        except CplexError as e:
+            return (
+                _get_cplex_error_message(str(e)),
+                {},
+            )
+        except (RuntimeError, ValueError):
+            return (
+                INFEASIBLE_ERROR_MESSAGE,
+                {},
+            )
+    for val in var_result.values():
+        if len(val) > 1:
+            if val[0] is None or val[1] is None:
+                return (
+                INFEASIBLE_ERROR_MESSAGE,
+                {},
+            )
+
+    return (
+        "",
+        _get_combined_var_solution(
+            cobrapy_model,
+            cobrak_model,
+            var_result,
         )
-    if use_results_cache:
-        json_zip_write(f"{results_cache_dir}fvacache_{full_hash}", var_result)
-    return _get_combined_var_solution(
-        cobrapy_model,
-        cobrak_model,
-        var_result,
     )
