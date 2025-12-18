@@ -123,6 +123,7 @@ class LabelItem(QGraphicsTextItem):
             self._dragging = False
             self.map_view.viewport().setCursor(Qt.CrossCursor)
             self._store_geometry()
+            self.map_view.unsaved_changes()
             event.accept()
             return
 
@@ -149,6 +150,7 @@ class LabelItem(QGraphicsTextItem):
         for item in self.map_view.scene.items():
             if isinstance(item, LabelItem) and item.label_index > idx:
                 item.label_index -= 1
+        self.map_view.unsaved_changes()
     
     def mouseDoubleClickEvent(self, event):
             if not self.map_view.arrow_drawing_mode:
@@ -158,6 +160,7 @@ class LabelItem(QGraphicsTextItem):
             if dlg.exec():
                 dlg.apply()
 
+            self.map_view.unsaved_changes()
             event.accept()
 
 
@@ -312,6 +315,7 @@ class ArrowItem(QGraphicsPathItem):
             float(self.standard_width),
             self.color.name(),
             self.standard_head_mode,
+            self.associated_expr,
         )
     
     def _handle_points(self):
@@ -341,6 +345,7 @@ class ArrowItem(QGraphicsPathItem):
                 del self.map_view.arrows[self.arrow_list_index]
                 for i, arrow in enumerate(self.map_view.arrows):
                     arrow.arrow_list_index = i
+                self.map_view.unsaved_changes()
                 event.accept()
                 return
 
@@ -415,11 +420,13 @@ class ArrowItem(QGraphicsPathItem):
                 self.dragging_start = False
                 self.dragging_end = False
                 self.dragging_middle = False
+                self.map_view.unsaved_changes()
                 event.accept()
                 return
 
             if self._dragging and event.button() == Qt.LeftButton:
                 self._dragging = False
+                self.map_view.unsaved_changes()
                 event.accept()
                 return
 
@@ -492,6 +499,7 @@ class ArrowItem(QGraphicsPathItem):
         if dlg.exec():
             dlg.apply()
 
+        self.map_view.unsaved_changes()
         event.accept()
     
     def boundingRect(self) -> QRectF:
@@ -918,6 +926,7 @@ class MapView(QGraphicsView):
                         "",  # associated_expr
                     )
                 )
+                self.unsaved_changes()
 
             self.arrow_start_point = None
             event.accept()
@@ -949,7 +958,7 @@ class MapView(QGraphicsView):
         super(MapView, self).mouseReleaseEvent(event)
         event.accept()
 
-    def draw_final_arrow(self, start, end, bending=0.0, standard_width=3.0, color="black", associated_expr: str=""):
+    def draw_final_arrow(self, start, end, bending=0.0, standard_width=3.0, color="black", standard_head_mode: str = "", associated_expr: str=""):
         arrow = ArrowItem(
             start,
             end,
@@ -958,7 +967,8 @@ class MapView(QGraphicsView):
             bending=bending,
             standard_width=standard_width,
             color=color,
-            associated_expr=associated_expr
+            associated_expr=associated_expr,
+            standard_head_mode=standard_head_mode,
         )
         self.arrows.append(arrow)
         self.scene.addItem(arrow)
@@ -1062,13 +1072,15 @@ class MapView(QGraphicsView):
         if "arrows" in map_data:
             self.arrows = []
             for data in map_data["arrows"]:
-                (sx, sy), (ex, ey), bending, standard_width, color, associated_expr = data
+                print(data)
+                (sx, sy), (ex, ey), bending, standard_width, color, standard_head_mode, associated_expr = data
 
                 self.draw_final_arrow(
                     QPointF(sx, sy),
                     QPointF(ex, ey),
                     bending=bending,
                     standard_width=standard_width,
+                    standard_head_mode=standard_head_mode,
                     color=color,
                     associated_expr=associated_expr,
                 )
@@ -1195,7 +1207,11 @@ class MapView(QGraphicsView):
             ))
 
             label_item = LabelItem(text, mouse_pos, self, label_index)
+            self.unsaved_changes()
             self.scene.addItem(label_item)
+    
+    def unsaved_changes(self) -> None:
+        self.central_widget.parent.unsaved_changes()
 
     switchToReactionMask = Signal(str)
     maximizeReaction = Signal(str)
