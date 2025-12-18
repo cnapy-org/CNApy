@@ -4,13 +4,15 @@ import json
 import cobra
 from cobrak.dataclasses import ExtraLinearConstraint, Solver, Model
 from cobrak.constants import ALL_OK_KEY, FLUX_SUM_VAR_ID, LNCONC_VAR_PREFIX, OBJECTIVE_VAR_NAME, REAC_ENZ_SEPARATOR, TERMINATION_CONDITION_KEY
-from cobrak.io import get_base_id, get_files, json_load, json_write, json_zip_load, json_zip_write, load_annotated_cobrapy_model_as_cobrak_model, standardize_folder
+from cobrak.io import get_base_id, get_files, json_zip_load, json_zip_write, load_annotated_cobrapy_model_as_cobrak_model, standardize_folder
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 from cobrak.lps import (
     perform_lp_optimization,
     perform_lp_thermodynamic_bottleneck_analysis,
     perform_lp_variability_analysis,
 )
+from gurobipy import GurobiError
+from cplex import CplexError
 from cnapy.appdata import Scenario
 from pydantic import validate_call, ConfigDict
 from optlang.symbolics import Zero
@@ -303,20 +305,41 @@ def run_lp_optimization(
             {},
         )
 
-    lp_opt_solution = perform_lp_optimization(
-        cobrak_model=cobrak_model,
-        objective_target=objective,
-        objective_sense=direction,
-        with_enzyme_constraints=with_enzyme_constraints,
-        with_thermodynamic_constraints=with_thermodynamic_constraints,
-        with_loop_constraints=False,
-        min_mdf=min_mdf,
-        solver=Solver(name=solver_name),
-        verbose=False,
-        with_flux_sum_var=parsimonious,
-    )
+    try:
+        lp_opt_solution = perform_lp_optimization(
+            cobrak_model=cobrak_model,
+            objective_target=objective,
+            objective_sense=direction,
+            with_enzyme_constraints=with_enzyme_constraints,
+            with_thermodynamic_constraints=with_thermodynamic_constraints,
+            with_loop_constraints=False,
+            min_mdf=min_mdf,
+            solver=Solver(name=solver_name),
+            verbose=False,
+            with_flux_sum_var=parsimonious,
+        )
+    except GurobiError as e:
+        return (
+            "Gurobi Error: This error is likely caused by using the Gurobi Community Edition, which only works for small problems.\n"
+            "To solve this problem, use a different solver or install a full version of Gurobi on your system, see https://gurobi.com/unrestricted for the latter.\n"
+            "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure Gurobi full version' "
+            "in CNApy's main menu to connect the full Gurobi version to CNApy.\n"
+            f"Full text of expection was: {e}"
+            ,
+            {}
+        )
+    except CplexError as e:
+        return (
+            "CPLEX Error: This error is likely caused by using the CPLEX Community Edition, which only works for small problems.\n"
+            "To solve this problem, use a different solver or install a full version of Gurobi on your system, see http://ibm.biz/error1016 for the latter.\n"
+            "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure CPLEX full version' "
+            "in CNApy's main menu to connect the full CPLEX version to CNApy.\n"
+            f"Full text of CPLEX exception was: {e}"
+            ,
+            {}
+        )
 
-    if parsimonious:
+    if parsimonious and lp_opt_solution[ALL_OK_KEY]:
         with cobrak_model as min_flux_sum_model:
             min_flux_sum_model.extra_linear_constraints.append(
                 ExtraLinearConstraint(

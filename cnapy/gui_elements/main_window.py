@@ -20,7 +20,7 @@ import openpyxl
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
 from qtpy.QtGui import QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
+                            QMainWindow, QMessageBox, QToolBar, QShortcut)
 
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.about_dialog import AboutDialog
