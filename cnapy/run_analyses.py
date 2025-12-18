@@ -16,6 +16,7 @@ from cplex import CplexError
 from cnapy.appdata import Scenario
 from pydantic import validate_call, ConfigDict
 from optlang.symbolics import Zero
+from pyomo.common.errors import ApplicationError
 
 NO_DG0_ERROR_MESSAGE: str = "ERROR: To run a calculation with thermodynamic constraints, your model needs at least one reaction with a ΔG'° (annotation key 'dG0')."
 CNAPY_FWD_SUFFIX: str = "_CNAPYFWD"
@@ -49,6 +50,25 @@ def _get_cplex_error_message(
     else:
         prefix = ""
     return f"{prefix}Full text of CPLEX exception was: {exception_message}"
+
+
+@validate_call(validate_return=True)
+def _get_application_error_message(
+    exception_message: str
+) -> str:
+    if "scip" in exception_message and "No executable found" in exception_message:
+        prefix = (
+            "SCIP error: Likely (check with exception message below), you don't have SCIP installed on your system.\n"
+            "Try a different solver or install SCIP and make optimizations with it possible by following the instructions under https://scipopt.org/"
+        )
+    elif "glpk" in exception_message and "No executable found" in exception_message:
+        prefix = (
+            "GLPK error: Likely (check with exception message below), you don't have GLPK installed on your system.\n"
+            "Try a different solver or install GLPK and make optimizations with it possible by following the instructions under https://www.gnu.org/software/glpk/"
+        )
+    else:
+        prefix = ""
+    return f"{prefix}Full text of ApplicationError exception was: {exception_message}"
 
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
@@ -362,6 +382,11 @@ def run_lp_optimization(
             INFEASIBLE_ERROR_MESSAGE,
             {},
         )
+    except ApplicationError as e:
+        return (
+            _get_application_error_message(str(e)),
+            {},
+        )
     if any(val is None for val in lp_opt_solution.values()):
         return (
             INFEASIBLE_ERROR_MESSAGE,
@@ -444,6 +469,11 @@ def run_lp_bottleneck_analysis(
         return (
             INFEASIBLE_ERROR_MESSAGE,
             [],
+            {},
+        )
+    except ApplicationError as e:
+        return (
+            _get_application_error_message(str(e)),
             {},
         )
     if any(val is None for val in bottleneck_solution.values()):
@@ -536,6 +566,11 @@ def run_lp_variability_analysis(
         except (RuntimeError, ValueError):
             return (
                 INFEASIBLE_ERROR_MESSAGE,
+                {},
+            )
+        except ApplicationError as e:
+            return (
+                _get_application_error_message(str(e)),
                 {},
             )
     for val in var_result.values():
