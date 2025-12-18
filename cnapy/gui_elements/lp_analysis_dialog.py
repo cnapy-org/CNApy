@@ -239,8 +239,9 @@ class LpAnalysisDialog(QDialog):
                 max_prot_pool=float(self.protein_pool.text()),
             )
             if error_message:
-                QMessageBox(
-                    "LP optimization error",
+                QMessageBox.warning(
+                    None,
+                    "Error",
                     error_message,
                 )
                 return
