@@ -199,12 +199,13 @@ def _get_cobrak_model(
         extra_linear_constraints.append(extra_linear_constraint)
 
     with cobrapy_model as model:
+        chosen_fwd_suffix, chosen_rev_suffix = _get_chosen_fwd_rev_suffix(model)
         load_scenario_into_cobrapy_model(model, scen_values)
         cobrak_model = load_annotated_cobrapy_model_as_cobrak_model(
             get_fullsplit_cobra_model(
                 model,
-                fwd_suffix=CNAPY_FWD_SUFFIX,
-                rev_suffix=CNAPY_REV_SUFFIX,
+                fwd_suffix=chosen_fwd_suffix,
+                rev_suffix=chosen_rev_suffix,
                 add_cobrak_sbml_annotation=True,
                 cobrak_default_min_conc=min_default_conc,
                 cobrak_default_max_conc=max_default_conc,
@@ -212,11 +213,12 @@ def _get_cobrak_model(
                 cobrak_kinetic_ignored_metabolites=[],
                 cobrak_no_extra_versions=True,
                 reac_lb_ub_cap=1_000.0,
+                delete_old_cobrak_id_annotations=True,
             ),
             deactivate_mw_warning=True,
         )
-        cobrak_model.fwd_suffix = CNAPY_FWD_SUFFIX
-        cobrak_model.rev_suffix = CNAPY_REV_SUFFIX
+        cobrak_model.fwd_suffix = chosen_fwd_suffix
+        cobrak_model.rev_suffix = chosen_rev_suffix
     
     if max_prot_pool:
         cobrak_model.max_prot_pool = max_prot_pool
@@ -231,15 +233,26 @@ def _no_dG0(cobrak_model: Model) -> bool:
         for reac_id in cobrak_model.reactions
     )
 
+@validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
+def _get_chosen_fwd_rev_suffix(model: cobra.Model) -> tuple[str, str]:
+    if "cobrak_global_settings" in model.reactions:
+        fwd_suffix = model.reactions.get_by_id("cobrak_global_settings").annotation.get("cobrak_reac_fwd_suffix", CNAPY_FWD_SUFFIX)
+        rev_suffix = model.reactions.get_by_id("cobrak_global_settings").annotation.get("cobrak_reac_rev_suffix", CNAPY_REV_SUFFIX)
+    else:
+        fwd_suffix = CNAPY_FWD_SUFFIX
+        rev_suffix = CNAPY_REV_SUFFIX
+    return fwd_suffix, rev_suffix
+
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
 def _get_combined_opt_solution(
     original_model: cobra.Model, solution: dict[str, float]
 ) -> dict[str, float]:
     # Combine FWD and REV flux solutions
+    chosen_fwd_suffix, chosen_rev_suffix = _get_chosen_fwd_rev_suffix(original_model)
     combined_solution: dict[str, float] = {}
     for var_id in solution.keys():
-        base_key = get_base_id(var_id, fwd_suffix=CNAPY_FWD_SUFFIX, rev_suffix=CNAPY_REV_SUFFIX, reac_enz_separator=REAC_ENZ_SEPARATOR)
+        base_key = get_base_id(var_id, fwd_suffix=chosen_fwd_suffix, rev_suffix=chosen_rev_suffix, reac_enz_separator=REAC_ENZ_SEPARATOR)
         key = base_key if base_key in original_model.reactions else var_id
         multiplier = -1.0 if var_id.endswith(CNAPY_REV_SUFFIX) else 1.0
         if key not in combined_solution.keys():
