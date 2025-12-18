@@ -251,10 +251,9 @@ def _get_combined_opt_solution(
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True), validate_return=True)
 def _get_combined_var_solution(
     original_cobrapy_model: cobra.Model,
-    cobrak_model: Model, # Assuming this is your cobrak.core.model.Model class
+    cobrak_model: Model,
     variability_dict: dict[str, tuple[float, float]],
 ) -> dict[str, tuple[float, float]]:
-    # Use a dict for combining the intermediate results
     var_solution: dict[str, tuple[float, float]] = {}
 
     for reac_id in cobrak_model.reactions:
@@ -267,47 +266,39 @@ def _get_combined_var_solution(
             cobrak_model.rev_suffix,
             cobrak_model.reac_enz_separator,
         )
-        base_id = (
-            temp_base_id
-            if temp_base_id in original_cobrapy_model.reactions
-            else reac_id
-        )
+        base_id = temp_base_id if temp_base_id in original_cobrapy_model.reactions else reac_id
 
-        min_flux_split = variability_dict[reac_id][0]
-        max_flux_split = variability_dict[reac_id][1]
+        min_val, max_val = variability_dict[reac_id]
 
-        # Initialize the combined solution for the base reaction if not present
+        # Initialize base_id if not seen before
         if base_id not in var_solution:
-            # Initialize with (0.0, 0.0). This represents the starting point for 
-            # calculating the range: min(R_fwd) - max(R_rev) and max(R_fwd) - min(R_rev)
-            var_solution[base_id] = (0.0, 0.0) 
+            var_solution[base_id] = [0.0, 0.0]
 
-        current_min, current_max = var_solution[base_id]
-
-        # Apply the correct combination logic based on the split reaction type
+        # Logic: Net Flux = Forward - Reverse
         if reac_id.endswith(cobrak_model.fwd_suffix):
-            # The net MIN flux is based on min(R_fwd)
-            new_min = min(current_min, min_flux_split)
-            # The net MAX flux is based on max(R_fwd)
-            new_max = max(current_max, max_flux_split)
-            var_solution[base_id] = (new_min, new_max)
+            # Add forward contributions to the net range
+            var_solution[base_id][0] += min_val
+            var_solution[base_id][1] += max_val
         elif reac_id.endswith(cobrak_model.rev_suffix):
-            # To get the net MIN flux (a - d), subtract max(R_rev)
-            new_min = current_min - max_flux_split 
-            # To get the net MAX flux (b - c), subtract min(R_rev)
-            new_max = current_max - min_flux_split 
-            var_solution[base_id] = (new_min, new_max)
+            # Subtract reverse contributions: 
+            # net_min = fwd_min - rev_max
+            # net_max = fwd_max - rev_min
+            var_solution[base_id][0] -= max_val
+            var_solution[base_id][1] -= min_val
         else:
-             # Handle non-split irreversible reactions directly
-             var_solution[base_id] = variability_dict[reac_id]
+            # For non-split reactions, we overwrite the initialization
+            var_solution[base_id] = [min_val, max_val]
 
-    # Handle metabolite variables
+    # Convert lists back to tuples and handle metabolites
+    final_solution = {k: tuple(v) for k, v in var_solution.items()}
+    
     for met_id in cobrak_model.metabolites:
         met_var_id = f"{LNCONC_VAR_PREFIX}{met_id}"
         if met_var_id in variability_dict:
-            var_solution[met_id] = variability_dict[met_var_id]
+            final_solution[met_id] = variability_dict[met_var_id]
 
-    return var_solution
+    return final_solution
+
 
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 def run_lp_optimization(
