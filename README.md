@@ -28,6 +28,8 @@ Supported COBRA methods (partly provided by cobrapy [[GitHub]](https://github.co
 
 **→ If you have questions, suggestions or bug reports regarding CNApy, you can use either of the [CNApy GitHub issues](https://github.com/cnapy-org/CNApy/issues), the [CNApy GitHub discussions](https://github.com/cnapy-org/CNApy/discussions) or the [CNApy Gitter chat room](https://gitter.im/cnapy-org/community)**
 
+**→ If you want to contact CNApy's developers, see section [Contact](#contact).**
+
 **→ If you want to cite CNApy, see section [How to cite CNApy](#how-to-cite-cnapy)**
 
 **→ For information about how to contribute to CNApy as a developer, see section [Contribute to the CNApy development](#contribute-to-the-cnapy-development)**
@@ -104,6 +106,15 @@ uv run cnapy.py
 ```
 
 uv will automatically install the correct Python version and CNApy dependencies (all done by reading CNApy's pyproject.toml file). If you get a Java/JDK/JVM/jpype error when running CNApy, consider installing OpenJDK [[Site]](https://openjdk.org/install/) on your system to fix this problem.
+
+## Contact
+
+To contact CNApy's developers, you may either:
+
+* Write a GitHub issue: https://github.com/cnapy-org/CNApy/issues
+* Contact us via the CNA(py) mailing list: https://groups.google.com/g/cellnetanalyzer-user-forum
+* Contact the corresponding author of CNApy's publication (see below), Steffen Klamt, whose contact details (e.g. e-mail) are here: https://www.mpi-magdeburg.mpg.de/person/26626
+
 
 ## How to cite CNApy
 

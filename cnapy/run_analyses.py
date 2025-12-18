@@ -29,7 +29,7 @@ def _get_gurobi_error_message(
     exception_message: str
 ) -> str:
     if "size-limited license" or "Model too large" in exception_message:
-        prefix = ("Gurobi Error: This error is likely caused by using the Gurobi Community Edition, which only works for small problems.\n"
+        prefix = ("Gurobi Error: Likely (check with exception message below), this error was caused by using the Gurobi Community Edition, which only works for small problems.\n"
         "To solve this problem, use a different solver or install a full version of Gurobi on your system, see https://gurobi.com/unrestricted for the latter.\n"
         "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure Gurobi full version' "
         "in CNApy's main menu to connect the full Gurobi version to CNApy.\n")
@@ -43,7 +43,7 @@ def _get_cplex_error_message(
     exception_message: str
 ) -> str:
     if "1016" or "Community" in exception_message:
-        prefix = ("CPLEX Error: This error is likely caused by using the CPLEX Community Edition, which only works for small problems.\n"
+        prefix = ("CPLEX Error: Likely (check with exception message below), this error was caused by using the CPLEX Community Edition, which only works for small problems.\n"
             "To solve this problem, use a different solver or install a full version of Gurobi on your system, see http://ibm.biz/error1016 for the latter.\n"
             "Or, if you have already installed a full Gurobi version on your system, follow the instructions under 'Config->Configure CPLEX full version' "
             "in CNApy's main menu to connect the full CPLEX version to CNApy.\n")
@@ -59,12 +59,12 @@ def _get_application_error_message(
     if "scip" in exception_message and "No executable found" in exception_message:
         prefix = (
             "SCIP error: Likely (check with exception message below), you don't have SCIP installed on your system.\n"
-            "Try a different solver or install SCIP and make optimizations with it possible by following the instructions under https://scipopt.org/"
+            "Try a different solver or install SCIP and make optimizations with it possible by following the instructions under https://scipopt.org/\n"
         )
     elif "glpk" in exception_message and "No executable found" in exception_message:
         prefix = (
             "GLPK error: Likely (check with exception message below), you don't have GLPK installed on your system.\n"
-            "Try a different solver or install GLPK and make optimizations with it possible by following the instructions under https://www.gnu.org/software/glpk/"
+            "Try a different solver or install GLPK and make optimizations with it possible by following the instructions under https://www.gnu.org/software/glpk/\n"
         )
     else:
         prefix = ""
@@ -148,11 +148,11 @@ def _get_error_message(solution: dict[str, float | None]) -> str:
         if TERMINATION_CONDITION_KEY in solution:
             match solution[TERMINATION_CONDITION_KEY]:
                 case 1:
-                    return "Solver's time limit hit. Please change solver or problem complexity."
+                    return "Solver's time limit hit. Please change solver or reduce problem complexity."
                 case 2:
-                    return "Solver's iterations limit hit. Please change solver or problem complexity."
+                    return "Solver's iterations limit hit. Please change solver or reduce problem complexity."
                 case 7:
-                    return "The problem appears to be unbounded, i.e. there is no constraint limiting the objective values."
+                    return "The problem appears to be unbounded, i.e. there is no constraint limiting the objective values. E.g., maybe there is no limit on substrate uptake?"
                 case 8:
                     return INFEASIBLE_ERROR_MESSAGE
                 case 10:
@@ -162,7 +162,7 @@ def _get_error_message(solution: dict[str, float | None]) -> str:
                 case 15:
                     return "License problem with the solver! Check out CNApy's documentation for more about how to solve it for CPLEX and Gurobi, or try another solver."
                 case _:
-                    return "The solution process or the solution failed somehow."
+                    return "The solution process or the solution failed for an unknown reason."
         else:
             return (
                 "Something went wrong (CNApy could not identify the type of error). The computation could not run. Check your problem's constraints or try a different solver.",

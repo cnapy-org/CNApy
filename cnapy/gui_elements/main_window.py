@@ -23,7 +23,6 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QS
                             QMainWindow, QMessageBox, QToolBar, QShortcut)
 
 from cnapy.appdata import AppData, CnaMap
-from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
@@ -523,7 +522,7 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(show_model_view_action)
         show_model_view_action.triggered.connect(self.show_model_view)
 
-        about_action = QAction("About CNApy...", self)
+        about_action = QAction("About CNApy/Contact to CNApy developers...", self)
         about_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
@@ -670,8 +669,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_about(self):
-        dialog = AboutDialog(self.appdata)
-        dialog.exec_()
+        utils.show_about_dialog()
 
     @Slot()
     def plot_space(self):

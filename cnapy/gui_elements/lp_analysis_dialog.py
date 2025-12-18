@@ -13,7 +13,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QGroupBox,
     QWidget,
-    QMessageBox,
 )
 from straindesign import linexpr2dict
 
@@ -23,7 +22,7 @@ from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.model_info import OptimizationDirection
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from cnapy.run_analyses import run_lp_optimization, run_lp_variability_analysis, run_lp_bottleneck_analysis
-from cnapy.utils import QComplReceivLineEdit
+from cnapy.utils import QComplReceivLineEdit, show_known_error_box
 
 
 class LpAnalysisDialog(QDialog):
@@ -239,11 +238,7 @@ class LpAnalysisDialog(QDialog):
                 max_prot_pool=float(self.protein_pool.text()),
             )
             if error_message:
-                QMessageBox.warning(
-                    None,
-                    "Error",
-                    error_message,
-                )
+                show_known_error_box(error_message)
                 return
             
             for reac_id in self.model_reac_ids:
@@ -272,11 +267,7 @@ class LpAnalysisDialog(QDialog):
                 max_prot_pool=float(self.protein_pool.text()),
             )
             if error_message:
-                QMessageBox.warning(
-                    None,
-                    "Error",
-                    error_message,
-                )
+                show_known_error_box(error_message)
                 return
             for reaction in self.appdata.project.cobra_py_model.reactions:
                 reac_id = reaction.id
@@ -297,11 +288,7 @@ class LpAnalysisDialog(QDialog):
                 max_prot_pool=float(self.protein_pool.text()),
             )
             if error_message:
-                QMessageBox.warning(
-                    None,
-                    "Error",
-                    error_message,
-                )
+                show_known_error_box(error_message)
                 return
             bottlenecks_string = "; ".join(bottlenecks)
             console_text += f"print('\\n{len(bottlenecks)} bottleneck reactions found: {bottlenecks_string}.')"

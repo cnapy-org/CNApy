@@ -64,11 +64,58 @@ def show_unknown_error_box(exstr):
     msgBox.setTextFormat(Qt.RichText)
 
     msgBox.setText(
-        f"<p>{exstr}</p><p><b> Please report the problem to:</b></p>"+\
-        "<p><a href='https://github.com/cnapy-org/CNApy/issues'>"+\
-        "https://github.com/cnapy-org/CNApy/issues</a></p>"
+        f"<p>{exstr}</p><p><b>Please report the problem to either one of:</b></p>"+\
+        "<p><ul><li>CNApy's GitHub issues: <a href='https://github.com/cnapy-org/CNApy/issues'>"+\
+        "https://github.com/cnapy-org/CNApy/issues</a></li>"+\
+        "<li>CNA/CNApy's mailing list: <a href='https://groups.google.com/g/cellnetanalyzer-user-forum'>"+\
+        "https://groups.google.com/g/cellnetanalyzer-user-forum</a></li>"+\
+        "<li>Contact the corresponding author of CNApy's publication, Steffen Klamt, whose contact details (e.g. e-mail) are here: "+\
+        "<a href='https://www.mpi-magdeburg.mpg.de/person/26626'>https://www.mpi-magdeburg.mpg.de/person/26626</a></li></ul>"+\
+        "</p>"
     )
     msgBox.setIcon(QMessageBox.Warning)
+    msgBox.exec()
+
+
+def show_known_error_box(exstr):
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("Exception")
+    msgBox.setTextFormat(Qt.RichText)
+    exstr = exstr.replace('\n', '<br>')
+    msgBox.setText(
+        f"<p>{exstr}</p><small><p>If you feel like the issue should not have occured or need help, please report the issue to either one of:</p>"+\
+        "<p><ul><li>CNApy's GitHub issues: <a href='https://github.com/cnapy-org/CNApy/issues'>"+\
+        "https://github.com/cnapy-org/CNApy/issues</a></li>"+\
+        "<li>CNA/CNApy's mailing list: <a href='https://groups.google.com/g/cellnetanalyzer-user-forum'>"+\
+        "https://groups.google.com/g/cellnetanalyzer-user-forum</a></li>"+\
+        "<li>Contact the corresponding author of CNApy's publication, Steffen Klamt, whose contact details (e.g. e-mail) are here: "+\
+        "<a href='https://www.mpi-magdeburg.mpg.de/person/26626'>https://www.mpi-magdeburg.mpg.de/person/26626</a></li></ul>"+\
+        "</p></small>"
+    )
+    msgBox.setIcon(QMessageBox.Information)
+    msgBox.exec()
+
+
+def show_about_dialog():
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("About CNApy / Contact")
+    msgBox.setTextFormat(Qt.RichText)
+    msgBox.setText(
+        "<p>CNApy is an integrated environment for metabolic modeling. If you use CNApy in your work, please cite its corresponding publication:</p>"
+
+        "<p>Thiele et al. (2022). CNApy: a CellNetAnalyzer GUI in Python for analyzing and designing metabolic networks. <i>Bioinformatics</i> 38, 1467-1469:"
+        "<a href=\"https://doi.org/10.1093/bioinformatics/btab828\"> https://doi.org/10.1093/bioinformatics/btab828 </a></p>"
+
+        "<p>If you have any suggestions, issues or questions regarding CNApy, use either of the following options:</p>"+\
+        "<p><ul><li>CNApy's GitHub issues: <a href='https://github.com/cnapy-org/CNApy/issues'>"+\
+        "https://github.com/cnapy-org/CNApy/issues</a></li>"+\
+        "<li>CNA/CNApy's mailing list: <a href='https://groups.google.com/g/cellnetanalyzer-user-forum'>"+\
+        "https://groups.google.com/g/cellnetanalyzer-user-forum</a></li>"+\
+        "<li>Contact the corresponding author of CNApy's publication, Steffen Klamt, whose contact details (e.g. e-mail) are here: "+\
+        "<a href='https://www.mpi-magdeburg.mpg.de/person/26626'>https://www.mpi-magdeburg.mpg.de/person/26626</a></li></ul>"+\
+        "</p></small>"
+    )
+    msgBox.setIcon(QMessageBox.NoIcon)
     msgBox.exec()
 
 

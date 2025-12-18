@@ -25,6 +25,8 @@ Aside of performing calculations on metabolic models, CNApy can also be used to 
 
 **For information about how to contribute to CNApy as a developer, see section [Contribute to the CNApy development](#contribute-to-the-cnapy-development).**
 
+**If you want to contact CNApy's developers, see section [Contact](#contact).**
+
 **If you want to cite CNApy, see section [How to cite CNApy](#how-to-cite-cnapy).**
 
 *Associated project note*: If you want to use the well-known MATLAB-based *CellNetAnalyzer* (CNA), *which is not compatible with CNApy*, you can download it from [CNA's website](https://www2.mpi-magdeburg.mpg.de/projects/cna/cna.html).
@@ -127,6 +129,14 @@ If you have conda installed you can:
     ```
 
 Any contribution intentionally submitted for inclusion in the work by you, shall be licensed under the terms of the Apache 2.0 license without any additional terms or conditions.
+
+## Contact
+
+To contact CNApy's developers, you may either:
+
+* Write a GitHub issue: https://github.com/cnapy-org/CNApy/issues
+* Contact us via the CNA(py) mailing list: https://groups.google.com/g/cellnetanalyzer-user-forum
+* Contact the corresponding author of CNApy's publication (see below), Steffen Klamt, whose contact details (e.g. e-mail) are here: https://www.mpi-magdeburg.mpg.de/person/26626
 
 ## How to cite CNApy
 
