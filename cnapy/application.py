@@ -231,31 +231,36 @@ class Application:
             try:
                 color = config_parser.get(
                     'cnapy-config', 'scen_color')
-                self.appdata.scen_color = QColor.fromRgb(int(color))
+                if color.startswith("#"):
+                    self.appdata.scen_color = color
             except (KeyError, NoOptionError):
                 print("Could not find scen_color in cnapy-config.txt")
             try:
                 color = config_parser.get(
                     'cnapy-config', 'comp_color')
-                self.appdata.comp_color = QColor.fromRgb(int(color))
+                if color.startswith("#"):
+                    self.appdata.comp_color = color
             except (KeyError, NoOptionError):
                 print("Could not find comp_color in cnapy-config.txt")
             try:
                 color = config_parser.get(
                     'cnapy-config', 'spec1_color')
-                self.appdata.special_color_1 = QColor.fromRgb(int(color))
+                if color.startswith("#"):
+                    self.appdata.special_color_1 = color
             except (KeyError, NoOptionError):
                 print("Could not find spec1_color in cnapy-config.txt")
             try:
                 color = config_parser.get(
                     'cnapy-config', 'spec2_color')
-                self.appdata.special_color_2 = QColor.fromRgb(int(color))
+                if color.startswith("#"):
+                    self.appdata.special_color_2 = color
             except (KeyError, NoOptionError):
                 print("Could not find spec2_color in cnapy-config.txt")
             try:
                 color = config_parser.get(
                     'cnapy-config', 'default_color')
-                self.appdata.default_color = QColor.fromRgb(int(color))
+                if color.startswith("#"):
+                    self.appdata.default_color = color
             except (KeyError, NoOptionError):
                 print("Could not find default_color in cnapy-config.txt")
             try:

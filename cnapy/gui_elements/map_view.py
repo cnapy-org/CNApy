@@ -1413,7 +1413,7 @@ class ReactionBox(QGraphicsItem):
     def set_default_style(self):
         palette = self.item.palette()
         role = self.item.backgroundRole()
-        color = self.map.appdata.default_color
+        color = QColor(self.map.appdata.default_color)
         color.setAlphaF(0.4)
         palette.setColor(role, color)
         role = self.item.foregroundRole()
@@ -1422,16 +1422,16 @@ class ReactionBox(QGraphicsItem):
         self.set_font_style(QFont.StyleNormal)
 
     def set_error_style(self):
-        self.set_color(Qt.white)
-        self.set_fg_color(self.map.appdata.scen_color_bad)
+        self.set_color(QColor("#FFFFFF"))
+        self.set_fg_color(QColor(self.map.appdata.scen_color_bad))
         self.set_font_style(QFont.StyleOblique)
 
     def set_comp_style(self):
-        self.set_color(self.map.appdata.comp_color)
+        self.set_color(QColor(self.map.appdata.comp_color))
         self.set_font_style(QFont.StyleNormal)
 
     def set_scen_style(self):
-        self.set_color(self.map.appdata.scen_color)
+        self.set_color(QColor(self.map.appdata.scen_color))
         self.set_font_style(QFont.StyleNormal)
 
     def set_value(self, value: tuple[float, float]):
@@ -1471,13 +1471,13 @@ class ReactionBox(QGraphicsItem):
                         self.set_comp_style()
                 else:
                     if math.isclose(vl, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.special_color_1)
+                        self.set_color(QColor(self.map.appdata.special_color_1))
                     elif math.isclose(vu, 0.0, abs_tol=self.map.appdata.abs_tol):
-                        self.set_color(self.map.appdata.special_color_1)
+                        self.set_color(QColor(self.map.appdata.special_color_1))
                     elif vl <= 0 and vu >= 0:
-                        self.set_color(self.map.appdata.special_color_1)
+                        self.set_color(QColor(self.map.appdata.special_color_1))
                     else:
-                        self.set_color(self.map.appdata.special_color_2)
+                        self.set_color(QColor(self.map.appdata.special_color_2))
         else:
             self.set_error_style()
 
@@ -1531,11 +1531,11 @@ class ReactionBox(QGraphicsItem):
             ).upper_bound
 
             if vu < ml or vl > mu:
-                pen = QPen(self.map.appdata.scen_color_warn)
-                painter.setBrush(self.map.appdata.scen_color_warn)
+                pen = QPen(QColor(self.map.appdata.scen_color_warn))
+                painter.setBrush(QColor(self.map.appdata.scen_color_warn))
             else:
-                pen = QPen(self.map.appdata.scen_color_good)
-                painter.setBrush(self.map.appdata.scen_color_good)
+                pen = QPen(QColor(self.map.appdata.scen_color_good))
+                painter.setBrush(QColor(self.map.appdata.scen_color_good))
 
             pen.setWidth(6)
             painter.setPen(pen)

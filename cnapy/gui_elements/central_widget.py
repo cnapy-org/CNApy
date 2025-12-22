@@ -463,15 +463,15 @@ class CentralWidget(QWidget):
                         if item.text(0) in bnd_dict:
                             v = bnd_dict[item.text(0)]
                             if numpy.any(numpy.isnan(v)):
-                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                                item.setBackground(ReactionListColumn.Flux, QColor(self.appdata.special_color_1))
                             elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
-                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_2)
+                                item.setBackground(ReactionListColumn.Flux, QColor(self.appdata.special_color_2))
                             elif v[0] == 0.0 and v[1] == 0.0:
-                                item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 0, 0))
+                                item.setBackground(ReactionListColumn.Flux, QColor("#ff0000"))
                             elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
-                                item.setBackground(ReactionListColumn.Flux, self.appdata.special_color_1)
+                                item.setBackground(ReactionListColumn.Flux, QColor(self.appdata.special_color_1))
                         else:
-                            item.setBackground(ReactionListColumn.Flux, QColor.fromRgb(255, 255, 255))
+                            item.setBackground(ReactionListColumn.Flux, QColor("#ffffff"))
                     view.reaction_list.blockSignals(False)
                 idx = self.appdata.window.centralWidget().map_tabs.currentIndex()
                 if idx < 0:
@@ -482,15 +482,15 @@ class CentralWidget(QWidget):
                     if key in bnd_dict:
                         v = bnd_dict[key]
                         if numpy.any(numpy.isnan(v)):
-                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                            view.reaction_boxes[key].set_color(QColor(self.appdata.special_color_1))
                         elif (v[0]<0 and v[1]>=0) or (v[0]<=0 and v[1]>0):
-                            view.reaction_boxes[key].set_color(self.appdata.special_color_2)
+                            view.reaction_boxes[key].set_color(QColor(self.appdata.special_color_2))
                         elif v[0] == 0.0 and v[1] == 0.0:
-                            view.reaction_boxes[key].set_color(QColor.fromRgb(255, 0, 0))
+                            view.reaction_boxes[key].set_color(QColor("#ff0000"))
                         elif (v[0]<0 and v[1]<0) or (v[0]>0 and v[1]>0):
-                            view.reaction_boxes[key].set_color(self.appdata.special_color_1)
+                            view.reaction_boxes[key].set_color(QColor(self.appdata.special_color_1))
                     else:
-                        view.reaction_boxes[key].set_color(QColor.fromRgb(255, 255, 255))
+                        view.reaction_boxes[key].set_color(QColor("#ffffff"))
                 if self.appdata.window.sd_sols and self.appdata.window.sd_sols.__weakref__: # if dialog exists
                     self.mode_navigator.current
                     for i in range(self.appdata.window.sd_sols.sd_table.rowCount()):
@@ -500,10 +500,10 @@ class CentralWidget(QWidget):
                             if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
                                 self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(230,230,230)))
                         else:
-                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor(255, 255, 255)))
-                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor(255, 255, 255)))
+                            self.appdata.window.sd_sols.sd_table.item(i,0).setBackground(QBrush(QColor("#ffffff")))
+                            self.appdata.window.sd_sols.sd_table.item(i,1).setBackground(QBrush(QColor("#ffffff")))
                             if self.appdata.window.sd_sols.sd_table.columnCount() == 3:
-                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor(255, 255, 255)))
+                                self.appdata.window.sd_sols.sd_table.item(i,2).setBackground(QBrush(QColor("#ffffff")))
         self.mode_navigator.current_flux_values = self.appdata.project.comp_values.copy()
 
     def reaction_participation(self):

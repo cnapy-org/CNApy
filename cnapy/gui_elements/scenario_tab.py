@@ -166,10 +166,10 @@ class ScenarioTab(QWidget):
                 flux_text, background_color, _ = self.appdata.flux_value_display(vl, vu)
             else:
                 flux_text = ''
-                background_color = Qt.white
+                background_color = "#ffffff"
             item = self.reactions.item(row, ScenarioReactionColumn.Flux)
             item.setText(flux_text)
-            item.setBackground(QBrush(background_color))
+            item.setBackground(QBrush(QColor(background_color)))
 
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid

@@ -15,7 +15,7 @@ import cobra
 from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from qtpy.QtCore import Qt, Signal, QObject, QStringListModel
-from qtpy.QtGui import QColor, QFont
+from qtpy.QtGui import QFont, QColor
 from qtpy.QtWidgets import QMessageBox
 
 # from straindesign.parse_constr import linexprdict2str # indirectly leads to a JVM restart exception?!?
@@ -31,25 +31,25 @@ class AppData(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.version = "cnapy-1.2.7"
-        self.format_version = 2
+        self.format_version = 3
         self.unsaved = False
         self.project = ProjectData()
         self.modes_coloring = False
-        self.scen_color = QColor(255, 0, 127)
+        self.scen_color = "#FF007F"
         # more scencolors
-        self.scen_color_good = QColor(130, 190, 0)
-        self.scen_color_warn = QColor(255, 200, 0)
-        self.scen_color_bad = Qt.red
+        self.scen_color_good = "#82BE00"
+        self.scen_color_warn = "#FFC800"
+        self.scen_color_bad = "#FF0000"
 
         font = QFont()
         font.setFamily(font.defaultFamily())
         self.font_size = font.pointSize()
         self.box_width = 80
         self.box_height = 40
-        self.comp_color = QColor(0, 170, 255)
-        self.special_color_1 = QColor(255, 215, 0)
-        self.special_color_2 = QColor(150, 220, 0)  # for bounds excluding 0
-        self.default_color = QColor(200, 200, 200)
+        self.comp_color = "#00AAFF"
+        self.special_color_1 = "#FFD700"
+        self.special_color_2 = "#96DC00"  # for bounds excluding 0
+        self.default_color = "#C8C8C8"
         self.abs_tol = 0.0001
         self.rounding = 3
         self.cna_path = ""
@@ -155,11 +155,11 @@ class AppData(QObject):
         parser.add_section('cnapy-config')
         parser.set('cnapy-config', 'version', self.version)
         parser.set('cnapy-config', 'work_directory', self.work_directory)
-        parser.set('cnapy-config', 'scen_color', str(self.scen_color.rgb()))
-        parser.set('cnapy-config', 'comp_color', str(self.comp_color.rgb()))
-        parser.set('cnapy-config', 'spec1_color', str(self.special_color_1.rgb()))
-        parser.set('cnapy-config', 'spec2_color', str(self.special_color_2.rgb()))
-        parser.set('cnapy-config', 'default_color', str(self.default_color.rgb()))
+        parser.set('cnapy-config', 'scen_color', self.scen_color)
+        parser.set('cnapy-config', 'comp_color', self.comp_color)
+        parser.set('cnapy-config', 'spec1_color', self.special_color_1)
+        parser.set('cnapy-config', 'spec2_color', self.special_color_2)
+        parser.set('cnapy-config', 'default_color', self.default_color)
         parser.set('cnapy-config', 'font_size', str(self.font_size))
         parser.set('cnapy-config', 'box_width', str(self.box_width))
         parser.set('cnapy-config', 'rounding', str(self.rounding))
@@ -225,11 +225,6 @@ class AppData(QObject):
 
 class Scenario(dict[str, tuple[float, float]]):
     empty_constraint = (None, "", "")
-
-    # cannot do this because of the import problem
-    # @staticmethod
-    # def format_constraint(constraint):
-    #     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
 
     def __init__(self):
         super().__init__() # this dictionary contains the flux values
@@ -507,9 +502,6 @@ class ProjectData:
     def update_reaction_id_lists(self):
         self.reaction_ids.set_ids(self.cobra_py_model.reactions.list_attr("id"), self.scen_values.reactions.keys())
 
-    # currently unused
-    # def scenario_hash_value(self):
-    #     return hashlib.md5(pickle.dumps(sorted(self.scen_values.items()))).digest()
 
 def CnaMap(name):
     background_svg_path: str = resources.files("cnapy") / "data" / "default-bg.svg"

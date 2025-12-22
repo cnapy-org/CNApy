@@ -193,7 +193,7 @@ class ReactionList(QWidget):
             self.set_flux_value(item)
         self.set_bounds_values(item)
         if item.reaction.id in self.appdata.project.scen_values:
-            scen_background_color = self.appdata.scen_color
+            scen_background_color = QColor(self.appdata.scen_color)
             (vl, vu) = self.appdata.project.scen_values[item.reaction.id]
             scen_text = self.appdata.format_flux_value(vl)
             if vl != vu:
@@ -216,10 +216,10 @@ class ReactionList(QWidget):
             item.set_flux_data(flux_text, vl if as_one else (vl, vu))
         else:
             item.reset_flux_data()
-            background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
-            item.setForeground(ReactionListColumn.Flux, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
-        item.setBackground(ReactionListColumn.Flux, background_color)
-        item.setForeground(ReactionListColumn.Flux, Qt.black)
+            background_color = "#4B4B4B" if self.appdata.is_in_dark_mode else "#ffffff"
+            item.setForeground(ReactionListColumn.Flux, QColor("#ffffff") if self.appdata.is_in_dark_mode else QColor("#000000"))
+        item.setBackground(ReactionListColumn.Flux, QColor(background_color))
+        item.setForeground(ReactionListColumn.Flux, QColor("#000000"))
 
     def set_bounds_values(self, item):
         key = item.reaction.id
@@ -228,20 +228,20 @@ class ReactionList(QWidget):
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if self.appdata.modes_coloring:
                     if vl == 0:
-                        background_color = Qt.red
+                        background_color = "#ff0000"
                     else:
-                        background_color = Qt.green
+                        background_color = "#00ff00"
                 else:
-                        background_color = self.appdata.comp_color
+                        background_color = QColor(self.appdata.comp_color)
             else:
                 if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
+                    background_color = QColor(self.appdata.special_color_1)
                 elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
+                    background_color = QColor(self.appdata.special_color_1)
                 elif vl <= 0 and vu >= 0:
-                    background_color = self.appdata.special_color_1
+                    background_color = QColor(self.appdata.special_color_1)
                 else:
-                    background_color = self.appdata.special_color_2
+                    background_color = QColor(self.appdata.special_color_2)
         else:
             vl = item.reaction.lower_bound
             vu = item.reaction.upper_bound
