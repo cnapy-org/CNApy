@@ -33,8 +33,10 @@ SUPPRESS_STR = 'Suppress (MCS)'
 OPTKNOCK_STR = 'OptKnock'
 ROBUSTKNOCK_STR = 'RobustKnock'
 OPTCOUPLE_STR = 'OptCouple'
+DOUBLEOPT_STR = 'DoubleOpt'
 NESTED_OPT = 'Nested_Optimization'
-MODULE_TYPES = [PROTECT_STR, SUPPRESS_STR, OPTKNOCK_STR, ROBUSTKNOCK_STR, OPTCOUPLE_STR]
+OUTER_OBJ_OPT = 'Outer_Objective_Opt'
+MODULE_TYPES = [PROTECT_STR, SUPPRESS_STR, OPTKNOCK_STR, ROBUSTKNOCK_STR, OPTCOUPLE_STR, DOUBLEOPT_STR]
 
 def BORDER_COLOR(HEX): # string that defines style sheet for changing the color of the module-box
     return "QGroupBox#EditModule "+\
@@ -158,23 +160,30 @@ class SDDialog(QDialog):
         self.module_edit = {}
 
         # module sense
-        self.module_edit[NESTED_OPT] = QCheckBox(" At optimum of an (inner) objective funciton")
+        self.module_edit[NESTED_OPT] = QCheckBox(" At optimum of objective function")
         self.module_edit[NESTED_OPT].setChecked(False)
         self.module_edit[NESTED_OPT].clicked.connect(self.nested_opt_checked)
         module_spec_layout.addWidget(self.module_edit[NESTED_OPT])
 
-        # Outer objective
-        self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Outer objective (maximized)")
+        # Outer objective (shown first — becomes sole inner_objective when no inner layer)
+        self.module_edit[OUTER_OBJECTIVE+"_label"] = QLabel("Objective function (maximized)")
         self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
         self.module_edit[OUTER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.module_edit[OUTER_OBJECTIVE].setPlaceholderText(placeholder_expr)
         self.module_edit[OUTER_OBJECTIVE].setHidden(True)
         self.module_edit[OUTER_OBJECTIVE].textCorrect.connect(self.update_global_objective)
-        module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE+"_label"] )
+        module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE+"_label"])
         module_spec_layout.addWidget(self.module_edit[OUTER_OBJECTIVE])
 
-        # Inner objective
-        self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized)")
+        # Inner optimization checkbox (for SUPPRESS/PROTECT — adds a second nested layer)
+        self.module_edit[OUTER_OBJ_OPT] = QCheckBox(" Subject to inner optimization (optimized first)")
+        self.module_edit[OUTER_OBJ_OPT].setChecked(False)
+        self.module_edit[OUTER_OBJ_OPT].setHidden(True)
+        self.module_edit[OUTER_OBJ_OPT].clicked.connect(self.outer_obj_opt_checked)
+        module_spec_layout.addWidget(self.module_edit[OUTER_OBJ_OPT])
+
+        # Inner objective (shown below second checkbox)
+        self.module_edit[INNER_OBJECTIVE+"_label"] = QLabel("Inner objective (maximized first)")
         self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
         self.module_edit[INNER_OBJECTIVE] = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
         self.module_edit[INNER_OBJECTIVE].setPlaceholderText(placeholder_expr)
@@ -208,6 +217,28 @@ class SDDialog(QDialog):
         optcouple_layout.addItem(optcouple_layout_mingcp)
         module_spec_layout.addItem(optcouple_layout)
 
+        # Optimality tolerance fields (for DoubleOpt)
+        opttol_layout = QHBoxLayout()
+        opttol_inner_layout = QVBoxLayout()
+        self.module_edit[INNER_OPT_TOL+"_label"] = QLabel("Inner opt. tolerance")
+        self.module_edit[INNER_OPT_TOL+"_label"].setHidden(True)
+        self.module_edit[INNER_OPT_TOL] = QLineEdit(self)
+        self.module_edit[INNER_OPT_TOL].setHidden(True)
+        self.module_edit[INNER_OPT_TOL].setPlaceholderText("optional: (float) e.g.: 0.9")
+        opttol_inner_layout.addWidget(self.module_edit[INNER_OPT_TOL+"_label"])
+        opttol_inner_layout.addWidget(self.module_edit[INNER_OPT_TOL])
+        opttol_layout.addItem(opttol_inner_layout)
+        opttol_outer_layout = QVBoxLayout()
+        self.module_edit[OUTER_OPT_TOL+"_label"] = QLabel("Outer opt. tolerance")
+        self.module_edit[OUTER_OPT_TOL+"_label"].setHidden(True)
+        self.module_edit[OUTER_OPT_TOL] = QLineEdit(self)
+        self.module_edit[OUTER_OPT_TOL].setHidden(True)
+        self.module_edit[OUTER_OPT_TOL].setPlaceholderText("optional: (float) e.g.: 0.9")
+        opttol_outer_layout.addWidget(self.module_edit[OUTER_OPT_TOL+"_label"])
+        opttol_outer_layout.addWidget(self.module_edit[OUTER_OPT_TOL])
+        opttol_layout.addItem(opttol_outer_layout)
+        module_spec_layout.addItem(opttol_layout)
+
         # module constraints
         self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
         module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
@@ -217,7 +248,6 @@ class SDDialog(QDialog):
 
         # layout for constraint list and buttons
         self.module_edit[CONSTRAINTS] = QTableWidget(0, 1)
-        self.module_edit[CONSTRAINTS].setMaximumHeight(80)
         self.module_edit[CONSTRAINTS].setMinimumHeight(40)
         self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(18)
         self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
@@ -827,18 +857,52 @@ class SDDialog(QDialog):
                 constr_entry[i].setPlaceholderText(self.placeholder_eq)
                 self.module_edit[CONSTRAINTS].setCellWidget(i, 0, constr_entry[i])
             # load other information from module
-            if mod[INNER_OBJECTIVE] and module_type in [PROTECT_STR,SUPPRESS_STR]:
-                self.module_edit[NESTED_OPT].setChecked(True)
+            # For PROTECT/SUPPRESS: map back to UI layout
+            # Upper field (OUTER_OBJECTIVE widget) = sole objective or outer objective
+            # Lower field (INNER_OBJECTIVE widget) = inner objective (only when both present)
+            if module_type in [PROTECT_STR,SUPPRESS_STR]:
+                if mod[INNER_OBJECTIVE] and mod[OUTER_OBJECTIVE]:
+                    # Two objectives: upper=outer, lower=inner
+                    self.module_edit[NESTED_OPT].setChecked(True)
+                    self.module_edit[OUTER_OBJ_OPT].setChecked(True)
+                    self.module_edit[OUTER_OBJECTIVE].setText(
+                        linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
+                    self.module_edit[OUTER_OBJECTIVE].check_text(True)
+                    self.module_edit[INNER_OBJECTIVE].setText(
+                        linexprdict2str(mod[INNER_OBJECTIVE])+' ')
+                    self.module_edit[INNER_OBJECTIVE].check_text(True)
+                elif mod[INNER_OBJECTIVE]:
+                    # Single objective: put inner_objective in upper field
+                    self.module_edit[NESTED_OPT].setChecked(True)
+                    self.module_edit[OUTER_OBJ_OPT].setChecked(False)
+                    self.module_edit[OUTER_OBJECTIVE].setText(
+                        linexprdict2str(mod[INNER_OBJECTIVE])+' ')
+                    self.module_edit[OUTER_OBJECTIVE].check_text(True)
+                else:
+                    self.module_edit[NESTED_OPT].setChecked(False)
+                    self.module_edit[OUTER_OBJ_OPT].setChecked(False)
             else:
                 self.module_edit[NESTED_OPT].setChecked(False)
-            if mod[INNER_OBJECTIVE]:
-                self.module_edit[INNER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[INNER_OBJECTIVE])+' ')     # add space character to avoid
-                self.module_edit[INNER_OBJECTIVE].check_text(True) # word completion
-            if mod[OUTER_OBJECTIVE]:
-                self.module_edit[OUTER_OBJECTIVE].setText(\
-                    linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
-                self.module_edit[OUTER_OBJECTIVE].check_text(True)
+                self.module_edit[OUTER_OBJ_OPT].setChecked(False)
+                if mod[INNER_OBJECTIVE]:
+                    self.module_edit[INNER_OBJECTIVE].setText(
+                        linexprdict2str(mod[INNER_OBJECTIVE])+' ')
+                    self.module_edit[INNER_OBJECTIVE].check_text(True)
+                if mod[OUTER_OBJECTIVE]:
+                    self.module_edit[OUTER_OBJECTIVE].setText(
+                        linexprdict2str(mod[OUTER_OBJECTIVE])+' ')
+                    self.module_edit[OUTER_OBJECTIVE].check_text(True)
+            # opt_tol
+            inner_opt_tol = self.modules[self.current_module].get(INNER_OPT_TOL)
+            outer_opt_tol = self.modules[self.current_module].get(OUTER_OPT_TOL)
+            if inner_opt_tol is not None:
+                self.module_edit[INNER_OPT_TOL].setText(str(inner_opt_tol))
+            else:
+                self.module_edit[INNER_OPT_TOL].setText("")
+            if outer_opt_tol is not None:
+                self.module_edit[OUTER_OPT_TOL].setText(str(outer_opt_tol))
+            else:
+                self.module_edit[OUTER_OPT_TOL].setText("")
             if mod[PROD_ID]:
                 self.module_edit[PROD_ID].setText(\
                     linexprdict2str(mod[PROD_ID])+' ')
@@ -846,61 +910,51 @@ class SDDialog(QDialog):
             if mod[MIN_GCP]:
                 self.module_edit[MIN_GCP].setText(str(mod[MIN_GCP]))
 
-        if module_type == PROTECT_STR:
-            self.module_edit[NESTED_OPT].setHidden(	                False)
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
-            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
-            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
-            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
-            self.module_edit[PROD_ID].setHidden( 					True)
-            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
-            self.module_edit[MIN_GCP].setHidden( 					True)
+        # Helper: hide all optional fields first, then selectively show
+        def _hide_all_optional():
+            self.module_edit[NESTED_OPT].setHidden(True)
+            self.module_edit[OUTER_OBJ_OPT].setHidden(True)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
+            self.module_edit[INNER_OBJECTIVE].setHidden(True)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden(True)
+            self.module_edit[PROD_ID+"_label"].setHidden(True)
+            self.module_edit[PROD_ID].setHidden(True)
+            self.module_edit[MIN_GCP+"_label"].setHidden(True)
+            self.module_edit[MIN_GCP].setHidden(True)
+            self.module_edit[INNER_OPT_TOL+"_label"].setHidden(True)
+            self.module_edit[INNER_OPT_TOL].setHidden(True)
+            self.module_edit[OUTER_OPT_TOL+"_label"].setHidden(True)
+            self.module_edit[OUTER_OPT_TOL].setHidden(True)
+
+        _hide_all_optional()
+        if module_type in [PROTECT_STR, SUPPRESS_STR]:
+            self.module_edit[NESTED_OPT].setHidden(False)
             self.nested_opt_checked()
-        elif module_type == SUPPRESS_STR:
-            self.module_edit[NESTED_OPT].setHidden(	                False)
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
-            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
-            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
-            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
-            self.module_edit[PROD_ID].setHidden( 					True)
-            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
-            self.module_edit[MIN_GCP].setHidden( 					True)
-            self.nested_opt_checked()
-        elif module_type == OPTKNOCK_STR:
-            self.module_edit[NESTED_OPT].setChecked(                False)
-            self.module_edit[NESTED_OPT].setHidden(	                True)
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
-            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[OUTER_OBJECTIVE].setHidden( 			False)
-            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
-            self.module_edit[PROD_ID].setHidden( 					True)
-            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
-            self.module_edit[MIN_GCP].setHidden( 					True)
-        elif module_type == ROBUSTKNOCK_STR:
-            self.module_edit[NESTED_OPT].setChecked(                False)
-            self.module_edit[NESTED_OPT].setHidden(	                True)
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
-            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[OUTER_OBJECTIVE].setHidden( 			False)
-            self.module_edit[PROD_ID+"_label"].setHidden( 			True)
-            self.module_edit[PROD_ID].setHidden( 					True)
-            self.module_edit[MIN_GCP+"_label"].setHidden( 			True)
-            self.module_edit[MIN_GCP].setHidden( 					True)
+        elif module_type in [OPTKNOCK_STR, ROBUSTKNOCK_STR]:
+            self.module_edit[NESTED_OPT].setChecked(False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[OUTER_OBJECTIVE].setHidden(False)
         elif module_type == OPTCOUPLE_STR:
-            self.module_edit[NESTED_OPT].setChecked(                False)
-            self.module_edit[NESTED_OPT].setHidden(	                True)
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
-            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(	True)
-            self.module_edit[OUTER_OBJECTIVE].setHidden( 			True)
-            self.module_edit[PROD_ID+"_label"].setHidden( 			False)
-            self.module_edit[PROD_ID].setHidden( 					False)
-            self.module_edit[MIN_GCP+"_label"].setHidden( 			False)
-            self.module_edit[MIN_GCP].setHidden( 					False)
+            self.module_edit[NESTED_OPT].setChecked(False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(False)
+            self.module_edit[PROD_ID+"_label"].setHidden(False)
+            self.module_edit[PROD_ID].setHidden(False)
+            self.module_edit[MIN_GCP+"_label"].setHidden(False)
+            self.module_edit[MIN_GCP].setHidden(False)
+        elif module_type == DOUBLEOPT_STR:
+            self.module_edit[NESTED_OPT].setChecked(False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[OUTER_OBJECTIVE].setHidden(False)
+            self.module_edit[INNER_OPT_TOL+"_label"].setHidden(False)
+            self.module_edit[INNER_OPT_TOL].setHidden(False)
+            self.module_edit[OUTER_OPT_TOL+"_label"].setHidden(False)
+            self.module_edit[OUTER_OPT_TOL].setHidden(False)
         self.update_global_objective()
 
     def verify_module(self,*args):
@@ -916,9 +970,15 @@ class SDDialog(QDialog):
         outer_objective = self.module_edit[OUTER_OBJECTIVE].text()
         prod_id = self.module_edit[PROD_ID].text()
         min_gcp = self.module_edit[MIN_GCP].text()
-        if module_type in [PROTECT_STR,SUPPRESS_STR] and (not self.module_edit[NESTED_OPT].isChecked() \
-                                                    or not self.module_edit[INNER_OBJECTIVE]):
-            inner_objective = None
+        if module_type in [PROTECT_STR,SUPPRESS_STR]:
+            if not self.module_edit[NESTED_OPT].isChecked():
+                inner_objective = None
+                outer_objective = None
+            elif not self.module_edit[OUTER_OBJ_OPT].isChecked():
+                # Single objective: upper field → inner_objective
+                inner_objective = outer_objective  # upper field is OUTER_OBJECTIVE widget
+                outer_objective = None
+            # else: two objectives — upper=outer, lower=inner (already assigned correctly)
         if min_gcp:
             min_gcp = float(min_gcp)
         else:
@@ -930,10 +990,14 @@ class SDDialog(QDialog):
                     self.appdata.project.load_scenario_into_model(model)
                 if module_type == PROTECT_STR:
                     module = SDModule(model,module_type=PROTECT, inner_objective=inner_objective,\
-                                        inner_opt_sense=MAXIMIZE, constraints=constraints)
+                                        inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
+                                        outer_opt_sense=MAXIMIZE if outer_objective else None,\
+                                        constraints=constraints)
                 elif module_type == SUPPRESS_STR:
                     module = SDModule(model,module_type=SUPPRESS, inner_objective=inner_objective,\
-                                        inner_opt_sense=MAXIMIZE, constraints=constraints)
+                                        inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
+                                        outer_opt_sense=MAXIMIZE if outer_objective else None,\
+                                        constraints=constraints)
                 elif module_type == OPTKNOCK_STR:
                     module = SDModule(model,module_type=OPTKNOCK, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
@@ -946,6 +1010,15 @@ class SDDialog(QDialog):
                     module = SDModule(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
                                         min_gcp=min_gcp, constraints=constraints)
+                elif module_type == DOUBLEOPT_STR:
+                    inner_opt_tol_text = self.module_edit[INNER_OPT_TOL].text()
+                    outer_opt_tol_text = self.module_edit[OUTER_OPT_TOL].text()
+                    inner_opt_tol = float(inner_opt_tol_text) if inner_opt_tol_text else None
+                    outer_opt_tol = float(outer_opt_tol_text) if outer_opt_tol_text else None
+                    module = SDModule(model,module_type=DOUBLEOPT, inner_objective=inner_objective,\
+                                        inner_opt_sense=MAXIMIZE, outer_objective=outer_objective,\
+                                        outer_opt_sense=MAXIMIZE, inner_opt_tol=inner_opt_tol,\
+                                        outer_opt_tol=outer_opt_tol, constraints=constraints)
             self.setCursor(Qt.ArrowCursor)
             return True, module
         except Exception as e:
@@ -964,17 +1037,17 @@ class SDDialog(QDialog):
         if not modules:
             self.global_objective.setStyleSheet(FONT_COLOR('#000000'))
             self.global_objective.setText("Please add strain design module(s)...")
-        elif all([m in [PROTECT_STR, SUPPRESS_STR] for m in modules]):
+        elif all([m in [PROTECT_STR, SUPPRESS_STR, DOUBLEOPT_STR] for m in modules]):
             self.global_objective.setStyleSheet(FONT_COLOR('#59a861'))
             self.global_objective.setText(self.global_objective.property('prefix')+\
                 "Minimization of intervention costs (Minimal Cut Set computation)")
-        elif sum([1 for m in modules if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR]]) > 1:
-            confl_modules = [(i+1,m) for i,m in enumerate(modules) if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR]]
+        elif sum([1 for m in modules if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR,DOUBLEOPT_STR]]) > 1:
+            confl_modules = [(i+1,m) for i,m in enumerate(modules) if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR,DOUBLEOPT_STR]]
             self.global_objective.setStyleSheet(FONT_COLOR('#de332a'))
             self.global_objective.setText("Conflicting modules: "+\
                 ", ".join([str(m[0])+" ("+m[1]+")" for m in confl_modules]))
-        elif sum([1 for m in modules if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR]]) == 1:
-            main_module = [(self.modules[i],i,m) for i,m in enumerate(modules) if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR]][0]
+        elif sum([1 for m in modules if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR,DOUBLEOPT_STR]]) == 1:
+            main_module = [(self.modules[i],i,m) for i,m in enumerate(modules) if m in [OPTKNOCK_STR,ROBUSTKNOCK_STR,OPTCOUPLE_STR,DOUBLEOPT_STR]][0]
             if main_module[0] is not None and main_module[2] != OPTCOUPLE_STR:
                 objective = linexprdict2str(main_module[0][OUTER_OBJECTIVE])
                 if objective:
@@ -1025,11 +1098,25 @@ class SDDialog(QDialog):
 
     def nested_opt_checked(self):
         if self.module_edit[NESTED_OPT].isChecked():
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	False)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			False)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[OUTER_OBJECTIVE].setHidden(False)
+            self.module_edit[OUTER_OBJ_OPT].setHidden(False)
+            self.outer_obj_opt_checked()
         else:
-            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(	True)
-            self.module_edit[INNER_OBJECTIVE].setHidden(			True)
+            self.module_edit[OUTER_OBJECTIVE+"_label"].setHidden(True)
+            self.module_edit[OUTER_OBJECTIVE].setHidden(True)
+            self.module_edit[OUTER_OBJ_OPT].setHidden(True)
+            self.module_edit[OUTER_OBJ_OPT].setChecked(False)
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
+            self.module_edit[INNER_OBJECTIVE].setHidden(True)
+
+    def outer_obj_opt_checked(self):
+        if self.module_edit[OUTER_OBJ_OPT].isChecked():
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(False)
+            self.module_edit[INNER_OBJECTIVE].setHidden(False)
+        else:
+            self.module_edit[INNER_OBJECTIVE+"_label"].setHidden(True)
+            self.module_edit[INNER_OBJECTIVE].setHidden(True)
 
     def gen_ko_checked(self):
         if self.gen_kos.isChecked():
@@ -1269,6 +1356,8 @@ class SDDialog(QDialog):
                 self.module_list.cellWidget(i, 0).setCurrentText(ROBUSTKNOCK_STR)
             elif m[MODULE_TYPE] == OPTCOUPLE:
                 self.module_list.cellWidget(i, 0).setCurrentText(OPTCOUPLE_STR)
+            elif m[MODULE_TYPE] == DOUBLEOPT:
+                self.module_list.cellWidget(i, 0).setCurrentText(DOUBLEOPT_STR)
         [m.update({MODEL_ID:self.appdata.project.cobra_py_model.id}) for m in sd_setup[MODULES]]
         self.modules = sd_setup[MODULES]
         self.current_module = len(self.modules)-1
@@ -1358,14 +1447,14 @@ class SDDialog(QDialog):
             self.module_edit()
             return
         bilvl_modules = [i for i,m in enumerate(self.modules) \
-                            if m[MODULE_TYPE] in [OPTKNOCK,ROBUSTKNOCK,OPTCOUPLE]]
+                            if m[MODULE_TYPE] in [OPTKNOCK,ROBUSTKNOCK,OPTCOUPLE,DOUBLEOPT]]
         sd_setup = self.parse_dialog_inputs()
 
         if self.solver_buttons['OPTLANG'].isChecked():
             if len(bilvl_modules) > 0:
                 QMessageBox.information(self, "Bilevel modules not supported",
-                                        "Module types 'OptKnock', " +\
-                                        "'RobustKnock' and 'OptCouple' are not supported " +\
+                                        "Module types 'OptKnock', 'RobustKnock', " +\
+                                        "'OptCouple' and 'DoubleOpt' are not supported " +\
                                         "by optlang_enumerator.\nChoose one of the StrainDesign solvers instead.")
                 return
             if sd_setup['gene_kos']:
@@ -1390,8 +1479,8 @@ class SDDialog(QDialog):
         else:
             if len(bilvl_modules) > 1:
                 QMessageBox.information(self, "Conflicting Modules",
-                                        "Only one of the module types 'OptKnock', " +\
-                                        "'RobustKnock' and 'OptCouple' can be defined per " +\
+                                        "Only one of the module types 'OptKnock', 'RobustKnock', " +\
+                                        "'OptCouple' and 'DoubleOpt' can be defined per " +\
                                         "strain design setup.")
                 self.current_module = bilvl_modules[0]
                 self.module_edit()
