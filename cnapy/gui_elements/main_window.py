@@ -357,6 +357,11 @@ class MainWindow(QMainWindow):
         fva_action.triggered.connect(self.fva)
         self.analysis_menu.addAction(fva_action)
 
+        gene_ko_action = QAction("Simulate gene knockouts...", self)
+        gene_ko_action.triggered.connect(self.simulate_gene_knockouts)
+        self.analysis_menu.addAction(gene_ko_action)
+        self.gene_ko_dialog = None
+
         make_scenario_feasible_action = QAction("Make scenario feasible...", self)
         make_scenario_feasible_action.triggered.connect(self.make_scenario_feasible)
         self.analysis_menu.addAction(make_scenario_feasible_action)
@@ -1684,6 +1689,11 @@ class MainWindow(QMainWindow):
             self.appdata.project.comp_values_type = 0
         if update:
             self.centralWidget().update()
+
+    def simulate_gene_knockouts(self):
+        from cnapy.gui_elements.gene_ko_dialog import GeneKODialog
+        self.gene_ko_dialog = GeneKODialog(self)
+        self.gene_ko_dialog.show()
 
     def make_scenario_feasible(self):
         if self.make_scenario_feasible_dialog is None:

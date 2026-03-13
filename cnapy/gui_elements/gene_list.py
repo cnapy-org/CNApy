@@ -13,6 +13,16 @@ from cnapy.gui_elements.annotation_widget import AnnotationWidget
 from cnapy.gui_elements.reaction_table_widget import ModelElementType, ReactionTableWidget
 
 
+class GeneTreeWidgetItem(QTreeWidgetItem):
+    """QTreeWidgetItem that sorts the Active column by check state."""
+
+    def __lt__(self, other):
+        col = self.treeWidget().sortColumn()
+        if col == 2:  # Active column — sort by UserRole (1=active, 0=KO)
+            return (self.data(2, Qt.UserRole) or 0) < (other.data(2, Qt.UserRole) or 0)
+        return super().__lt__(other)
+
+
 class GeneList(QWidget):
     """A list of genes"""
 
@@ -23,17 +33,30 @@ class GeneList(QWidget):
         self.last_selected = None
 
         self.gene_list = QTreeWidget()
-        self.gene_list.setHeaderLabels(["Id", "Name"])
+        self.gene_list.setHeaderLabels(["Id", "Name", "Active"])
         self.gene_list.setSortingEnabled(True)
         self.gene_list.sortByColumn(0, Qt.AscendingOrder)
 
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
+        self.gene_list.setColumnWidth(2, 55)
         self.gene_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.gene_list.customContextMenuRequested.connect(
             self.on_context_menu)
 
         # create context menu
+        self.pop_menu = QMenu(self.gene_list)
+        ko_action = QAction("Knock out this gene", self.gene_list)
+        ko_action.triggered.connect(self.knockout_selected_gene)
+        self.pop_menu.addAction(ko_action)
+        restore_action = QAction("Restore this gene", self.gene_list)
+        restore_action.triggered.connect(self.restore_selected_gene)
+        self.pop_menu.addAction(restore_action)
+        self.pop_menu.addSeparator()
+        restore_all_action = QAction("Restore all genes", self.gene_list)
+        restore_all_action.triggered.connect(self.restore_all_genes)
+        self.pop_menu.addAction(restore_all_action)
+
         self.gene_mask = GenesMask(self, self.appdata)
         self.gene_mask.hide()
 
@@ -49,6 +72,8 @@ class GeneList(QWidget):
 
         self.gene_list.currentItemChanged.connect(
             self.gene_selected)
+        self.gene_list.itemChanged.connect(
+            self._on_item_changed)
         self.gene_mask.geneChanged.connect(
             self.handle_changed_gene)
         self.gene_mask.jumpToReaction.connect(
@@ -62,10 +87,13 @@ class GeneList(QWidget):
         self.gene_mask.hide()
 
     def add_gene(self, gene):
-        item = QTreeWidgetItem(self.gene_list)
+        item = GeneTreeWidgetItem(self.gene_list)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setText(0, gene.id)
         item.setText(1, gene.name)
-        item.setData(2, 0, gene)
+        item.setCheckState(2, Qt.Checked)
+        item.setData(2, Qt.UserRole, 1)  # sort key: 1=active, 0=KO
+        item.setData(3, 0, gene)
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.genes) > 0:
@@ -77,7 +105,7 @@ class GeneList(QWidget):
         child_count = root.childCount()
         for i in range(child_count):
             item = root.child(i)
-            if item.data(2, 0) == gene:
+            if item.data(3, 0) == gene:
                 old_id = item.text(0)
                 item.setText(0, gene.id)
                 item.setText(1, gene.name)
@@ -105,7 +133,7 @@ class GeneList(QWidget):
             self.gene_mask.hide()
         else:
             self.gene_mask.show()
-            gene: cobra.Gene = item.data(2, 0)
+            gene: cobra.Gene = item.data(3, 0)
 
             self.gene_mask.gene = gene
 
@@ -120,15 +148,25 @@ class GeneList(QWidget):
             self.central_widget.add_model_item_to_history(gene.id, gene.name, ModelItemType.Gene)
 
     def update(self):
+        # Preserve KO states across update
+        ko_genes = self.get_knocked_out_genes()
+        self.gene_list.blockSignals(True)
         self.gene_list.clear()
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
+        # Restore KO states
+        for gene_id in ko_genes:
+            items = self.gene_list.findItems(gene_id, Qt.MatchExactly, 0)
+            for item in items:
+                item.setCheckState(2, Qt.Unchecked)
+                item.setData(2, Qt.UserRole, 0)
+        self.gene_list.blockSignals(False)
 
         if self.last_selected is None:
             self.gene_list.setCurrentItem(None)
         else:
             items = self.gene_list.findItems(
-                self.last_selected, Qt.MatchExactly)
+                self.last_selected, Qt.MatchExactly, 0)
 
             for i in items:
                 self.gene_list.setCurrentItem(i)
@@ -144,6 +182,90 @@ class GeneList(QWidget):
 
     def emit_jump_to_metabolite(self, metabolite):
         self.jumpToMetabolite.emit(metabolite)
+
+    def _on_item_changed(self, item, column):
+        """When a checkbox is toggled, update sort key and scenario."""
+        if column == 2:
+            item.setData(2, Qt.UserRole, 1 if item.checkState(2) == Qt.Checked else 0)
+            self.apply_gene_kos()
+
+    def get_knocked_out_genes(self):
+        """Return list of gene IDs for unchecked (knocked-out) genes."""
+        ko_genes = []
+        root = self.gene_list.invisibleRootItem()
+        for i in range(root.childCount()):
+            item = root.child(i)
+            if item.checkState(2) == Qt.Unchecked:
+                ko_genes.append(item.text(0))  # gene ID in column 0
+        return ko_genes
+
+    def knockout_selected_gene(self):
+        """Uncheck the currently selected gene."""
+        item = self.gene_list.currentItem()
+        if item is not None:
+            item.setCheckState(2, Qt.Unchecked)
+
+    def restore_selected_gene(self):
+        """Re-check the currently selected gene."""
+        item = self.gene_list.currentItem()
+        if item is not None:
+            item.setCheckState(2, Qt.Checked)
+
+    def restore_all_genes(self):
+        """Re-check all genes and clear gene KO scenario values."""
+        self.gene_list.blockSignals(True)
+        root = self.gene_list.invisibleRootItem()
+        for i in range(root.childCount()):
+            root.child(i).setCheckState(2, Qt.Checked)
+        self.gene_list.blockSignals(False)
+        self._clear_gene_ko_scenario_values()
+        self.central_widget.update()
+
+    def _clear_gene_ko_scenario_values(self):
+        """Remove scenario values that were set by gene KO simulation."""
+        if hasattr(self, '_last_ko_reactions'):
+            for r_id in self._last_ko_reactions:
+                self.appdata.scen_values_pop(r_id)
+            self._last_ko_reactions = set()
+
+    def apply_gene_kos(self, silent=False):
+        """Evaluate GPR rules for unchecked genes and set affected reactions to 0 in scenario.
+
+        When called from checkbox toggle (silent=True via _on_item_changed),
+        no message boxes are shown.
+        """
+        from straindesign.networktools import gene_kos_to_constraints
+
+        # First, clear previous gene KO scenario values
+        self._clear_gene_ko_scenario_values()
+
+        ko_genes = self.get_knocked_out_genes()
+        if not ko_genes:
+            self.central_widget.update()
+            return
+
+        model = self.appdata.project.cobra_py_model
+        constraints = gene_kos_to_constraints(model, ko_genes)
+
+        # Set affected reactions to (0, 0) in the scenario
+        reactions = []
+        values = []
+        for c in constraints:
+            r_id = list(c[0].keys())[0]
+            reactions.append(r_id)
+            values.append((0.0, 0.0))
+
+        # Track which reactions we set so restore_all can undo them
+        self._last_ko_reactions = set(reactions)
+
+        if reactions:
+            self.appdata.scen_values_set_multiple(reactions, values)
+        self.central_widget.update()
+        if reactions:
+            self.central_widget.console._append_plain_text(
+                f"\nGene KO: {len(ko_genes)} gene(s) knocked out, "
+                f"{len(reactions)} reaction(s) set to 0: {', '.join(reactions)}",
+                before_prompt=True)
 
     itemActivated = Signal(str)
     geneChanged = Signal(str, cobra.Gene)
