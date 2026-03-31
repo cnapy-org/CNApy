@@ -44,6 +44,7 @@ from cnapy.gui_elements.rename_map_dialog import RenameMapDialog
 from cnapy.gui_elements.yield_optimization_dialog import YieldOptimizationDialog
 from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
+from cnapy.gui_elements.configuration_cplex_new import CplexNewConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
 import cnapy.utils as utils
@@ -506,10 +507,15 @@ class MainWindow(QMainWindow):
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
-        config_action = QAction("Configure IBM CPLEX Full Version...", self)
+        config_action = QAction("Configure IBM CPLEX Full Version (up to CPLEX version 22.1.1)...", self)
         config_action.setMenuRole(QAction.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_cplex_configuration_dialog)
+
+        config_action = QAction("Configure IBM CPLEX Full Version (for CPLEX versions >=22.1.2)...", self)
+        config_action.setMenuRole(QAction.NoRole)
+        self.config_menu.addAction(config_action)
+        config_action.triggered.connect(self.show_new_cplex_configuration_dialog)
 
         config_action = QAction("Configure Gurobi Full Version...", self)
         config_action.setMenuRole(QAction.NoRole)
@@ -798,6 +804,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_cplex_configuration_dialog(self):
         dialog = CplexConfigurationDialog(self.appdata)
+        dialog.exec_()
+
+    @Slot()
+    def show_new_cplex_configuration_dialog(self):
+        dialog = CplexNewConfigurationDialog(self.appdata)
         dialog.exec_()
 
     @Slot()
@@ -2255,7 +2266,7 @@ class MainWindow(QMainWindow):
 
     def _load_concentrations_json(self, replace_all):
         concentrations = self._load_json()
-        self._set_concentrations(concentrations)
+        self._set_concentrations(concentrations, replace_all)
 
     def load_concentrations_json_amend(self, replace_all):
         self._load_concentrations_json(False)
@@ -2317,7 +2328,7 @@ class MainWindow(QMainWindow):
                 "Warnings occured while loading XLSX",
                 f"The following warnings occured while loading the XLSX:\n{warnings}"
             )
-        self._set_concentrations(concentrations)
+        self._set_concentrations(concentrations, replace_all)
 
     def load_concentrations_xlsx_amend(self):
         self._load_concentrations_xlsx(False)
