@@ -24,7 +24,7 @@ from pathlib import Path
 
 import cobra
 from qtpy.QtCore import Qt, QLocale
-from qtpy.QtGui import QColor, QPalette
+from qtpy.QtGui import QColor, QFont, QPalette
 from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
 
@@ -150,7 +150,10 @@ class Application:
         QLocale.setDefault(QLocale(QLocale.English)) # to set . as decimal point
         self.qapp = QApplication(sys.argv)
         self.qapp.setStyle("fusion")
-        self.appdata = AppData()
+        font = QFont() # A default family font to get a standard font size on the device
+        font.setFamily(font.defaultFamily())
+        print(font.pointSize())
+        self.appdata = AppData(font.pointSize())
         config_file_version = self.read_config()
         if not self.appdata.is_in_dark_mode:
             # "Light mode"

@@ -15,7 +15,7 @@ import cobra
 from optlang.symbolics import Zero
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from qtpy.QtCore import Qt, Signal, QObject, QStringListModel
-from qtpy.QtGui import QFont, QColor
+from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QMessageBox
 
 # from straindesign.parse_constr import linexprdict2str # indirectly leads to a JVM restart exception?!?
@@ -28,47 +28,44 @@ class ModelItemType(IntEnum):
 class AppData(QObject):
     ''' The application data '''
 
-    def __init__(self):
+    def __init__(self, font_size: int = 13):
         QObject.__init__(self)
-        self.version = "cnapy-1.2.7"
-        self.format_version = 3
-        self.unsaved = False
-        self.project = ProjectData()
-        self.modes_coloring = False
-        self.scen_color = "#FF007F"
-        # more scencolors
-        self.scen_color_good = "#82BE00"
-        self.scen_color_warn = "#FFC800"
-        self.scen_color_bad = "#FF0000"
+        self.version: str = "cnapy-1.2.7"
+        self.format_version: int = 3
+        self.unsaved: bool = False
+        self.project: ProjectData = ProjectData()
+        self.modes_coloring: bool = False
+        self.scen_color: str = "#FF007F"
+        self.scen_color_good: str = "#82BE00"
+        self.scen_color_warn: str = "#FFC800"
+        self.scen_color_bad: str = "#FF0000"
 
-        font = QFont()
-        font.setFamily(font.defaultFamily())
-        self.font_size = font.pointSize()
-        self.box_width = 80
-        self.box_height = 40
-        self.comp_color = "#00AAFF"
-        self.special_color_1 = "#FFD700"
-        self.special_color_2 = "#96DC00"  # for bounds excluding 0
-        self.default_color = "#C8C8C8"
-        self.abs_tol = 0.0001
-        self.rounding = 3
-        self.cna_path = ""
-        self.work_directory = str(os.path.join(
+        self.font_size: int = font_size
+        self.box_width: int = 80
+        self.box_height: int = 40
+        self.comp_color: str = "#00AAFF"
+        self.special_color_1: str = "#FFD700"
+        self.special_color_2: str = "#96DC00"  # for bounds excluding 0
+        self.default_color: str = "#C8C8C8"
+        self.abs_tol: float = 0.0001
+        self.rounding: int = 3
+        self.cna_path: str = ""
+        self.work_directory: str = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
-        self.use_results_cache = False
+        self.use_results_cache: bool = False
         self.results_cache_dir: pathlib.Path = pathlib.Path(".")
         self.last_scen_directory = str(os.path.join(
             pathlib.Path.home(), "CNApy-projects"))
         self.temp_dir = TemporaryDirectory()
-        self.conf_path = os.path.join(appdirs.user_config_dir(
+        self.conf_path: str = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
         self.cobrapy_conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cobrapy-config.txt")
-        self.scenario_past = []
-        self.scenario_future = []
-        self.recent_cna_files = []
-        self.auto_fba = False
-        self.is_in_dark_mode = False
+        self.scenario_past: list[Scenario] = []
+        self.scenario_future: list[Scenario] = []
+        self.recent_cna_files: list[str] = []
+        self.auto_fba: bool = False
+        self.is_in_dark_mode: bool = False
 
     def scen_values_set(self, reaction: str, values: tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
