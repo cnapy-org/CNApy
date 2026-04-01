@@ -100,3 +100,8 @@ cnapy-config.txt
 
 # uv files
 uv.lock
+
+.DS_Store
+cnapy/cnapy_server.py
+fvacache*
+_FVA*

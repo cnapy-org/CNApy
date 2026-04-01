@@ -1,4 +1,4 @@
-from importlib import find_loader as module_exists
+from importlib.util import find_spec as module_exists
 from qtpy.QtWidgets import (QButtonGroup, QRadioButton, QVBoxLayout)
 from straindesign import select_solver
 from straindesign.names import CPLEX, GUROBI, GLPK, SCIP
