@@ -181,114 +181,118 @@ class ThermodynamicDialog(QDialog):
     def compute_optmdf(self):
         self.setCursor(Qt.BusyCursor)
 
-        with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.load_scenario_into_model(model)
+        # Decouple models ("with" and "deepcopy" do not work) so that no
+        # extra COBRA-k annotation spills into the original model
+        modelstr = cobra.io.to_json(self.appdata.project.cobra_py_model)
+        model = cobra.io.from_json(modelstr)
 
-            extra_linear_constraints: list[ExtraLinearConstraint] = []
-            for constraint in self.appdata.project.scen_values.constraints:
-                # e.g., [({'EDD': 1.0}, '>=', 1.0)]
-                extra_linear_constraint = ExtraLinearConstraint(
-                    stoichiometries={key: value for key, value in constraint[0].items()},
-                )
+        self.appdata.project.load_scenario_into_model(model)
 
-                direction = constraint[1]
-                rhs = constraint[2]
-                if direction == ">=":
-                    extra_linear_constraint.lower_value = rhs
-                elif direction == "<=":
-                    extra_linear_constraint.upper_value = rhs
-                else:  # == "="
-                    extra_linear_constraint.lower_value = rhs
-                    extra_linear_constraint.upper_value = rhs
-
-                extra_linear_constraints.append(extra_linear_constraint)
-
-            solver_name = self.solver_buttons["group"].checkedButton().property("cobrak_name")
-
-            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
-                min_mdf = -float("inf")
-            else:
-                try:
-                    min_mdf = float(self.min_mdf.text())
-                except ValueError:
-                    QMessageBox.warning(
-                        self,
-                        "Invalid minimal OptMDF",
-                        "The given minimal OptMDF could not be converted into a valid number (such as, e.g., 1.231)."
-                        "Aborting calculation...",
-                    )
-                    return
-
-            match self.analysis_type:
-                case ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
-                    objective = {MDF_VAR_ID: 1}
-                    direction = +1
-                case ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-                    objective = {"bottleneck_z_sum": 1}
-                    direction = -1
-                case ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
-                    objective = {}
-                    for (
-                        reaction,
-                        coefficient,
-                    ) in cobra.util.solver.linear_reaction_coefficients(model).items():
-                        if reaction.reversibility:
-                            objective[reaction.id + self.FWDID] = coefficient
-                            objective[reaction.id + self.REVID] = -coefficient
-                        else:
-                            objective[reaction.id] = coefficient
-                    direction = +1
-
-            cobrak_model = load_annotated_cobrapy_model_as_cobrak_model(
-                get_fullsplit_cobra_model(
-                    model,
-                    fwd_suffix=self.FWDID,
-                    rev_suffix=self.REVID,
-                    add_cobrak_sbml_annotation=True,
-                    cobrak_default_min_conc=float(self.min_default_conc.text()),
-                    cobrak_default_max_conc=float(self.max_default_conc.text()),
-                    cobrak_extra_linear_constraints=extra_linear_constraints,
-                    cobrak_kinetic_ignored_metabolites=[],
-                    cobrak_no_extra_versions=True,
-                    reac_lb_ub_cap=1_000.0,
-                )
+        extra_linear_constraints: list[ExtraLinearConstraint] = []
+        for constraint in self.appdata.project.scen_values.constraints:
+            # e.g., [({'EDD': 1.0}, '>=', 1.0)]
+            extra_linear_constraint = ExtraLinearConstraint(
+                stoichiometries={key: value for key, value in constraint[0].items()},
             )
 
-            if all(cobrak_model.reactions[reac_id].dG0 is None for reac_id in cobrak_model.reactions):
+            direction = constraint[1]
+            rhs = constraint[2]
+            if direction == ">=":
+                extra_linear_constraint.lower_value = rhs
+            elif direction == "<=":
+                extra_linear_constraint.upper_value = rhs
+            else:  # == "="
+                extra_linear_constraint.lower_value = rhs
+                extra_linear_constraint.upper_value = rhs
+
+            extra_linear_constraints.append(extra_linear_constraint)
+
+        solver_name = self.solver_buttons["group"].checkedButton().property("cobrak_name")
+
+        if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            min_mdf = -float("inf")
+        else:
+            try:
+                min_mdf = float(self.min_mdf.text())
+            except ValueError:
                 QMessageBox.warning(
                     self,
-                    "No ΔG'° set",
-                    "To run a thermodynamic calculation, your model needs at least one reaction with a ΔG'° (annotation 'dG0')."
-                    "Check out CNApy's documentation for more",
+                    "Invalid minimal OptMDF",
+                    "The given minimal OptMDF could not be converted into a valid number (such as, e.g., 1.231)."
+                    "Aborting calculation...",
                 )
-                self.setCursor(Qt.ArrowCursor)
                 return
-            if self.analysis_type in (ThermodynamicAnalysisTypes.OPTMDFPATHWAY, ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
-                solution = perform_lp_optimization(
-                    cobrak_model=cobrak_model,
-                    objective_target=objective,
-                    objective_sense=direction,
-                    with_enzyme_constraints=False,
-                    with_thermodynamic_constraints=True,
-                    with_loop_constraints=False,
-                    min_mdf=min_mdf,
-                    solver=Solver(name=solver_name),
-                    verbose=True,
-                )
-            elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-                bottlenecks, solution = perform_lp_thermodynamic_bottleneck_analysis(
-                    cobrak_model=cobrak_model,
-                    with_enzyme_constraints=False,
-                    min_mdf=min_mdf,
-                    solver=Solver(name=solver_name),
-                    verbose=True,
-                )
-                if solution != {}:
-                    solution[ALL_OK_KEY] = True
-            self.get_solution_from_thread(solution)
-        # except Exception:
-        #    self.send_solution.emit(pickle.dumps("ERROR"))
-        #    self.finished_computation.emit()
+
+        match self.analysis_type:
+            case ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+                objective = {MDF_VAR_ID: 1}
+                direction = +1
+            case ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
+                objective = {"bottleneck_z_sum": 1}
+                direction = -1
+            case ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+                objective = {}
+                for (
+                    reaction,
+                    coefficient,
+                ) in cobra.util.solver.linear_reaction_coefficients(model).items():
+                    if reaction.reversibility:
+                        objective[reaction.id + self.FWDID] = coefficient
+                        objective[reaction.id + self.REVID] = -coefficient
+                    else:
+                        objective[reaction.id] = coefficient
+                direction = +1
+
+        cobrak_model = load_annotated_cobrapy_model_as_cobrak_model(
+            get_fullsplit_cobra_model(
+                model,
+                fwd_suffix=self.FWDID,
+                rev_suffix=self.REVID,
+                add_cobrak_sbml_annotation=True,
+                cobrak_default_min_conc=float(self.min_default_conc.text()),
+                cobrak_default_max_conc=float(self.max_default_conc.text()),
+                cobrak_extra_linear_constraints=extra_linear_constraints,
+                cobrak_kinetic_ignored_metabolites=[],
+                cobrak_no_extra_versions=True,
+                reac_lb_ub_cap=1_000.0,
+            )
+        )
+
+        if all(cobrak_model.reactions[reac_id].dG0 is None for reac_id in cobrak_model.reactions):
+            QMessageBox.warning(
+                self,
+                "No ΔG'° set",
+                "To run a thermodynamic calculation, your model needs at least one reaction with a ΔG'° (annotation 'dG0')."
+                "Check out CNApy's documentation for more",
+            )
+            self.setCursor(Qt.ArrowCursor)
+            return
+        if self.analysis_type in (ThermodynamicAnalysisTypes.OPTMDFPATHWAY, ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
+            solution = perform_lp_optimization(
+                cobrak_model=cobrak_model,
+                objective_target=objective,
+                objective_sense=direction,
+                with_enzyme_constraints=False,
+                with_thermodynamic_constraints=True,
+                with_loop_constraints=False,
+                min_mdf=min_mdf,
+                solver=Solver(name=solver_name),
+                verbose=True,
+            )
+        elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
+            bottlenecks, solution = perform_lp_thermodynamic_bottleneck_analysis(
+                cobrak_model=cobrak_model,
+                with_enzyme_constraints=False,
+                min_mdf=min_mdf,
+                solver=Solver(name=solver_name),
+                verbose=True,
+            )
+            if solution != {}:
+                solution[ALL_OK_KEY] = True
+        self.get_solution_from_thread(solution)
+    # except Exception:
+    #    self.send_solution.emit(pickle.dumps("ERROR"))
+    #    self.finished_computation.emit()
 
     def set_boxes(self, solution: dict[str, float]):
         # Combine FWD and REV flux solutions
