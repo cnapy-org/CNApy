@@ -104,4 +104,5 @@ uv.lock
 .DS_Store
 cnapy/cnapy_server.py
 fvacache*
-_FVA*
+*_FVA*
+*.json.maps
