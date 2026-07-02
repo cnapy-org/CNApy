@@ -34,7 +34,8 @@ dependencies = [
     "openpyxl",
     "jpype1==1.5.0",
     "setuptools",
-    "cobrak==0.0.10",
+    "nest_asyncio",
+    "cobrak>=0.0.11",
 ]
 
 [project.scripts]
