@@ -18,11 +18,22 @@ from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from enum import Enum
-from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME, TERMINATION_CONDITION_KEY
-from cobrak.dataclasses import ExtraLinearConstraint, Solver
-from cobrak.lps import perform_lp_optimization, perform_lp_thermodynamic_bottleneck_analysis
-from cobrak.io import load_annotated_cobrapy_model_as_cobrak_model
-from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
+# cobrak (COBRA-k) powers the thermodynamic methods but is treated as an optional
+# dependency so CNApy can be installed and started even when cobrak is unavailable
+# in the environment. Import it lazily and gate the "Thermodynamic analyses" menu
+# actions on COBRAK_AVAILABLE (see main_window.py). Enable the feature with
+# `pip install cnapy[thermodynamics]`.
+try:
+    from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME, TERMINATION_CONDITION_KEY
+    from cobrak.dataclasses import ExtraLinearConstraint, Solver
+    from cobrak.lps import perform_lp_optimization, perform_lp_thermodynamic_bottleneck_analysis
+    from cobrak.io import load_annotated_cobrapy_model_as_cobrak_model
+    from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
+    COBRAK_AVAILABLE = True
+    COBRAK_IMPORT_ERROR = ""
+except ModuleNotFoundError as _cobrak_err:
+    COBRAK_AVAILABLE = False
+    COBRAK_IMPORT_ERROR = str(_cobrak_err)
 
 
 

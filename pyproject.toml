@@ -35,8 +35,14 @@ dependencies = [
     "jpype1==1.5.0",
     "setuptools",
     "nest_asyncio",
-    "cobrak>=0.0.11",
 ]
+
+[project.optional-dependencies]
+# COBRA-k powers the thermodynamic analyses. It is kept as an optional extra rather
+# than a hard dependency so that a plain `pip install cnapy` always succeeds and the
+# GUI starts, even if cobrak cannot be installed in a given environment. Enable the
+# feature with `pip install cnapy[thermodynamics]`.
+thermodynamics = ["cobrak>=0.0.11"]
 
 [project.scripts]
 cnapy = "cnapy.__main__:main_cnapy"

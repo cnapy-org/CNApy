@@ -46,7 +46,12 @@ from cnapy.gui_elements.flux_optimization_dialog import FluxOptimizationDialog
 from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_cplex_new import CplexNewConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
-from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
+from cnapy.gui_elements.thermodynamics_dialog import (
+    ThermodynamicAnalysisTypes,
+    ThermodynamicDialog,
+    COBRAK_AVAILABLE,
+    COBRAK_IMPORT_ERROR,
+)
 import cnapy.utils as utils
 
 SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
@@ -423,6 +428,18 @@ class MainWindow(QMainWindow):
         bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
         bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
         self.thermodynamic_menu.addAction(bottleneck_action)
+
+        # These three analyses require the optional COBRA-k package. When it is not
+        # installed, grey the entries out and explain via tooltip instead of letting
+        # the user open a dialog that cannot run. (perform_* still guard defensively.)
+        if not COBRAK_AVAILABLE:
+            for _cobrak_action in (optmdf_action, tfba_action, bottleneck_action):
+                _cobrak_action.setEnabled(False)
+                _cobrak_action.setToolTip(
+                    "Requires the optional COBRA-k package "
+                    "(install with: pip install cnapy[thermodynamics])"
+                )
+            self.thermodynamic_menu.setToolTipsVisible(True)
 
         self.thermodynamic_menu.addSeparator()
 
@@ -2163,8 +2180,29 @@ class MainWindow(QMainWindow):
         self.solver_status_symbol.setStyleSheet("color: black")
         self.solver_status_symbol.setText("?")
 
+    def _require_cobrak(self) -> bool:
+        """Warn (and return False) if the optional COBRA-k package is missing.
+
+        The thermodynamic methods depend on cobrak, which is an optional
+        dependency. Guarding here lets CNApy run even when it is not installed.
+        """
+        if COBRAK_AVAILABLE:
+            return True
+        QMessageBox.warning(
+            self,
+            "COBRA-k not installed",
+            "The thermodynamic analyses require the optional 'cobrak' (COBRA-k) "
+            "package, which is not installed.\n\n"
+            "Install it with 'pip install cnapy[thermodynamics]' or from "
+            "https://github.com/klamt-lab/COBRA-k\n\n"
+            f"Import error: {COBRAK_IMPORT_ERROR}",
+        )
+        return False
+
     @Slot()
     def perform_optmdfpathway(self):
+        if not self._require_cobrak():
+            return
         # Has to be in self to keep computation thread
         self.optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
@@ -2175,6 +2213,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_thermodynamic_fba(self):
+        if not self._require_cobrak():
+            return
         # Has to be in self to keep computation thread
         self.thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
@@ -2185,6 +2225,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_bottleneck_analysis(self):
+        if not self._require_cobrak():
+            return
         # Has to be in self to keep computation thread
         self.bottleneck_dialog = ThermodynamicDialog(
             self.appdata,
