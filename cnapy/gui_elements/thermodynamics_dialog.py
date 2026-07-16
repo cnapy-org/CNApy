@@ -1,4 +1,5 @@
 """The CNApy OptMDFpathway dialog"""
+from cobrak.utilities import delete_orphaned_metabolites_and_enzymes
 import cobra
 import cobra.util.solver
 from numpy import exp
@@ -18,10 +19,10 @@ from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.gui_elements.solver_buttons import get_solver_buttons
 from enum import Enum
-from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME, TERMINATION_CONDITION_KEY
+from cobrak.constants import LNCONC_VAR_PREFIX, DF_VAR_PREFIX, MDF_VAR_ID, ALL_OK_KEY, OBJECTIVE_VAR_NAME, TERMINATION_CONDITION_KEY, REAC_ENZ_SEPARATOR
 from cobrak.dataclasses import ExtraLinearConstraint, Solver
 from cobrak.lps import perform_lp_optimization, perform_lp_thermodynamic_bottleneck_analysis
-from cobrak.io import load_annotated_cobrapy_model_as_cobrak_model
+from cobrak.io import load_annotated_cobrapy_model_as_cobrak_model, json_write
 from cobrak.cobrapy_model_functionality import get_fullsplit_cobra_model
 
 
@@ -223,27 +224,7 @@ class ThermodynamicDialog(QDialog):
                 )
                 return
 
-        match self.analysis_type:
-            case ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
-                objective = {MDF_VAR_ID: 1}
-                direction = +1
-            case ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-                objective = {"bottleneck_z_sum": 1}
-                direction = -1
-            case ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
-                objective = {}
-                for (
-                    reaction,
-                    coefficient,
-                ) in cobra.util.solver.linear_reaction_coefficients(model).items():
-                    if reaction.reversibility:
-                        objective[reaction.id + self.FWDID] = coefficient
-                        objective[reaction.id + self.REVID] = -coefficient
-                    else:
-                        objective[reaction.id] = coefficient
-                direction = +1
-
-        cobrak_model = load_annotated_cobrapy_model_as_cobrak_model(
+        cobrak_model = delete_orphaned_metabolites_and_enzymes(load_annotated_cobrapy_model_as_cobrak_model(
             get_fullsplit_cobra_model(
                 model,
                 fwd_suffix=self.FWDID,
@@ -256,7 +237,34 @@ class ThermodynamicDialog(QDialog):
                 cobrak_no_extra_versions=True,
                 reac_lb_ub_cap=1_000.0,
             )
-        )
+        ))
+        cobrak_model = delete_orphaned_metabolites_and_enzymes(cobrak_model)
+
+        objective: dict[str, int | float] = {}
+        match self.analysis_type:
+            case ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+                objective = {MDF_VAR_ID: 1}
+                direction = +1
+            case ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
+                objective = {"bottleneck_z_sum": 1}
+                direction = -1
+            case ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+                for (
+                    reaction,
+                    coefficient,
+                ) in cobra.util.solver.linear_reaction_coefficients(model).items():
+                    split_reac_ids = [
+                        reac_id
+                        for reac_id in cobrak_model.reactions.keys()
+                        if reac_id.startswith(reaction.id + REAC_ENZ_SEPARATOR) or reac_id == reaction.id
+                    ]
+                    for split_reac_id in split_reac_ids:
+                        if split_reac_id.endswith(self.REVID):
+                            objective[split_reac_id] = -coefficient
+                        else:
+                            objective[split_reac_id] = +coefficient
+                direction = +1
+
 
         if all(cobrak_model.reactions[reac_id].dG0 is None for reac_id in cobrak_model.reactions):
             QMessageBox.warning(
@@ -296,20 +304,20 @@ class ThermodynamicDialog(QDialog):
 
     def set_boxes(self, solution: dict[str, float]):
         # Combine FWD and REV flux solutions
-        combined_solution = {}
-        for var_id in solution.keys():
-            if var_id.endswith(self.FWDID):
-                key = var_id.replace(self.FWDID, "")
-                multiplier = 1.0
-            elif var_id.endswith(self.REVID):
-                key = var_id.replace(self.REVID, "")
-                multiplier = -1.0
-            else:
-                key = var_id
-                multiplier = 1.0
-            if key not in combined_solution.keys():
-                combined_solution[key] = 0.0
-            combined_solution[key] += multiplier * solution[var_id]
+        model: cobra.Model = self.appdata.project.cobra_py_model
+        combined_solution: dict[str, float] = {}
+        for reaction in model.reactions:
+            split_reac_ids = [
+                var_id
+                for var_id in solution
+                if var_id.startswith(reaction.id + REAC_ENZ_SEPARATOR) or var_id == reaction.id
+            ]
+            if not split_reac_ids:
+                continue
+            combined_solution[reaction.id] = 0.0
+            for split_reac_id in split_reac_ids:
+                multiplier = -1.0 if split_reac_id.endswith(self.REVID) else +1.0
+                combined_solution[reaction.id] += solution[split_reac_id] * multiplier
 
         # write results into comp_values
         for search_key in self.reac_ids:
