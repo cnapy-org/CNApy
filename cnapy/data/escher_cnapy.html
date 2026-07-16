@@ -11,13 +11,13 @@
             try {
               cnapy_bridge.get_map_and_geometry(map_and_geometry => {
                 if (map_and_geometry[0].length > 0) {
-                  console.warn("Loading map");
+                  //console.warn("Loading map");
                   builder.load_map(JSON.parse(map_and_geometry[0]));
                   builder.map.zoomContainer.goTo(JSON.parse(map_and_geometry[1]), JSON.parse(map_and_geometry[2]));
                 }
                 cnapy_bridge.changeReactionId.connect(changeReacId)
-                cnapy_bridge.zoomIn.connect(builder.zoom_container.zoom_in)
-                cnapy_bridge.zoomOut.connect(builder.zoom_container.zoom_out)
+                cnapy_bridge.zoomIn.connect(() => {builder.zoom_container.zoom_in()})
+                cnapy_bridge.zoomOut.connect(() => {builder.zoom_container.zoom_out()})
                 cnapy_bridge.changeMetId.connect(changeMetId)
                 cnapy_bridge.highlightAndFocusReaction.connect(highlightAndFocusReaction)
                 cnapy_bridge.highlightReaction.connect(highlightReaction)
@@ -60,7 +60,7 @@
                 })
                 cnapy_bridge.clearReactionData.connect(function() {builder.set_reaction_data(null)})
                 builder.passPropsSearchBar({display:true}); // create here, will be hidden in finish_setup
-                setTimeout(() => {cnapy_bridge.finish_setup();}, 50)
+                cnapy_bridge.finish_setup();
               })
             }
             catch (error) {
