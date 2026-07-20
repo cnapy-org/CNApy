@@ -1,14 +1,16 @@
-import io
 import json
 import os
+import sys
 import traceback
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
+from cnapy.core import multi_threaded_HiGHS_FVA
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
+import optlang
 from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
@@ -1899,10 +1901,27 @@ class MainWindow(QMainWindow):
             else:
                 fva_hash = None
             try:
-                solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
-                    results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
-                    fva_hash= fva_hash,
-                    print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
+                if sys.platform == "win32" or (not isinstance(model.solver, optlang.cplex_interface.Model) and \
+                    not isinstance(model.solver, optlang.gurobi_interface.Model)):
+                        lb, ub, dud = multi_threaded_HiGHS_FVA(model, self.appdata.project.scen_values.constraints)
+                        if dud > 0:
+                            QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
+                        self.appdata.project.comp_values = {
+                            model.reactions[i].id: (lb[i], ub[i]) for i in range(len(model.reactions))}
+                        self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+                        self.appdata.project.comp_values_type = 1
+                else:
+                    solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
+                        results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
+                        fva_hash= fva_hash,
+                        print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
+                    minimum = solution.minimum.to_dict()
+                    maximum = solution.maximum.to_dict()
+                    for i in minimum:
+                        self.appdata.project.comp_values[i] = (
+                            minimum[i], maximum[i])
+                    self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+                    self.appdata.project.comp_values_type = 1
             except cobra.exceptions.Infeasible:
                 QMessageBox.information(
                     self, 'No solution', 'The scenario is infeasible')
@@ -1914,14 +1933,6 @@ class MainWindow(QMainWindow):
                 else:
                     print(exstr)
                     utils.show_unknown_error_box(exstr)
-            else:
-                minimum = solution.minimum.to_dict()
-                maximum = solution.maximum.to_dict()
-                for i in minimum:
-                    self.appdata.project.comp_values[i] = (
-                        minimum[i], maximum[i])
-                self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
-                self.appdata.project.comp_values_type = 1
 
         self.centralWidget().update()
         self.setCursor(Qt.ArrowCursor)
