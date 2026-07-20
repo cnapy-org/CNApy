@@ -426,8 +426,8 @@ def build_highs_fba_model(cobra_model: cobra.Model, constraints=None) -> highspy
             continue
         S[row_idx, col_idx] = list(expression.values())
 
-    S = S.tocsc()
     lp = highspy.HighsLp()
+    lp.a_matrix_.format_ = highspy.MatrixFormat.kRowwise
     lp.num_col_ = n_rxns
     lp.num_row_ = n_rows
     lp.col_cost_ = col_cost
@@ -435,9 +435,12 @@ def build_highs_fba_model(cobra_model: cobra.Model, constraints=None) -> highspy
     lp.col_upper_ = col_upper
     lp.row_lower_ = row_lower
     lp.row_upper_ = row_upper
-    lp.a_matrix_.start_ = S.indptr.astype(numpy.int32)
-    lp.a_matrix_.index_ = S.indices.astype(numpy.int32)
-    lp.a_matrix_.value_ = S.data.astype(numpy.double)
+    row_lengths = [len(row) for row in S.rows]
+    indptr = numpy.zeros(len(row_lengths) + 1, dtype=numpy.int32)
+    indptr[1:] = numpy.cumsum(row_lengths)
+    lp.a_matrix_.start_ = indptr
+    lp.a_matrix_.index_ = numpy.array([col for row in S.rows for col in row], dtype=numpy.int32)
+    lp.a_matrix_.value_ = numpy.array([val for row in S.data for val in row], dtype=S.dtype)
     lp.sense_ = (
         highspy.ObjSense.kMaximize if cobra_model.objective_direction == "max"
         else highspy.ObjSense.kMinimize
