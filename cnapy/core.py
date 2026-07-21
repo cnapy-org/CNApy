@@ -514,7 +514,7 @@ def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
     h.run()
     status = h.getModelStatus()
     if status == highspy.HighsModelStatus.kInfeasible:
-        raise cobra.exceptions.Infeasible
+        raise cobra.exceptions.Infeasible("")
     elif status != highspy.HighsModelStatus.kOptimal:
         raise ValueError(f"Unexpected solver status {h.modelStatusToString(status)} during FVA")
     solution = h.getSolution()
@@ -529,7 +529,7 @@ def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
     h.run()
     status = h.getModelStatus()
     if status == highspy.HighsModelStatus.kInfeasible:
-        raise cobra.exceptions.Infeasible
+        raise cobra.exceptions.Infeasible("")
     elif status != highspy.HighsModelStatus.kOptimal:
         raise ValueError(f"Unexpected solver status {h.modelStatusToString(status)} during FVA")
     solution = h.getSolution()

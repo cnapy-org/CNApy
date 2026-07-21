@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import traceback
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 import pickle
@@ -12,7 +13,6 @@ from cnapy.core_gui import model_optimization_with_exceptions, except_likely_com
 import cobra
 import optlang
 from optlang_enumerator.cobra_cnapy import CNApyModel
-from optlang_enumerator.mcs_computation import flux_variability_analysis
 from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
@@ -1870,13 +1870,16 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
-    def fva(self, fraction_of_optimum=0.0, zero_objective_with_zero_fraction_of_optimum=True):
-        self.setCursor(Qt.BusyCursor)
+    def fva(self):
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
+        fva_result = None
         with self.appdata.project.cobra_py_model as model:
+            constraints = self.appdata.project.scen_values.constraints
+            # do not load constraints into model, they are processed separately in multi_threaded_HiGHS_FVA
+            self.appdata.project.scen_values.constraints = []
             self.appdata.project.load_scenario_into_model(model)
-            if zero_objective_with_zero_fraction_of_optimum:
-                # completely remove objective for basic FVA, not the same as only setting fraction_of_optimum = 0.0
-                model.objective = model.problem.Objective(Zero)
+            self.appdata.project.scen_values.constraints = constraints
             if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
                 update_stoichiometry_hash = True
             else:
@@ -1884,58 +1887,57 @@ class MainWindow(QMainWindow):
             for r in self.appdata.project.cobra_py_model.reactions:
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
+                    if self.appdata.use_results_cache:
+                        r.set_hash_value()
+                        update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
+                    if self.appdata.use_results_cache:
+                        r.set_hash_value()
+                        update_stoichiometry_hash = True
             if self.appdata.use_results_cache:
                 if update_stoichiometry_hash:
                     model.set_stoichiometry_hash_object()
                 fva_hash = model.stoichiometry_hash_object.copy()
                 if len(self.appdata.project.scen_values.constraints) > 0:
-                    # although the constraints are already in the model they are not covered by
-                    # the reaction hashes and therefore taken into account here
                     fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
-            else:
-                fva_hash = None
-            try:
-                if sys.platform == "win32" or (not isinstance(model.solver, optlang.cplex_interface.Model) and \
-                    not isinstance(model.solver, optlang.gurobi_interface.Model)):
-                        lb, ub, dud = multi_threaded_HiGHS_FVA(model, self.appdata.project.scen_values.constraints)
-                        if dud > 0:
-                            QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
-                        self.appdata.project.comp_values = {
-                            model.reactions[i].id: (lb[i], ub[i]) for i in range(len(model.reactions))}
-                        self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
-                        self.appdata.project.comp_values_type = 1
-                else:
-                    solution = flux_variability_analysis(model, fraction_of_optimum=fraction_of_optimum,
-                        results_cache_dir=self.appdata.results_cache_dir if self.appdata.use_results_cache else None,
-                        fva_hash= fva_hash,
-                        print_func=lambda *txt: self.statusBar().showMessage(' '.join(list(txt))))
-                    minimum = solution.minimum.to_dict()
-                    maximum = solution.maximum.to_dict()
-                    for i in minimum:
-                        self.appdata.project.comp_values[i] = (
-                            minimum[i], maximum[i])
-                    self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
-                    self.appdata.project.comp_values_type = 1
-            except cobra.exceptions.Infeasible:
-                QMessageBox.information(
-                    self, 'No solution', 'The scenario is infeasible')
-            except Exception:
-                exstr = get_last_exception_string()
-                # Check for substrings of Gurobi and CPLEX community edition errors
-                if has_community_error_substring(exstr):
-                    except_likely_community_model_error()
-                else:
+                fva_hash.update(pickle.dumps(model.tolerance))
+                file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+fva_hash.hexdigest()+".pkl")
+
+                if Path.exists(file_path):
+                    try:
+                        with open(file_path, 'rb') as file:
+                            fva_result = pickle.load(file)
+                        self.statusBar().showMessage("Loaded FVA result from " + str(file_path))
+                    except:
+                        self.statusBar().showMessage("Loading FVA result from " + str(file_path) + " failed, running FVA.")
+
+            if not fva_result:
+                try:
+                    lb, ub, dud = multi_threaded_HiGHS_FVA(model, self.appdata.project.scen_values.constraints)
+                    fva_result = (lb, ub)
+                    if dud > 0:
+                        QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
+                    elif self.appdata.use_results_cache:
+                        with open(file_path, 'wb') as file:
+                            pickle.dump(fva_result, file)
+                            self.statusBar().showMessage("Saved FVA result to " + str(file_path))
+                except cobra.exceptions.Infeasible:
+                    QMessageBox.information(
+                        self, 'FVA not possible', 'The scenario is infeasible.')
+                except Exception:
+                    exstr = get_last_exception_string()
                     print(exstr)
                     utils.show_unknown_error_box(exstr)
 
+        if fva_result:
+            self.appdata.project.comp_values = {
+                model.reactions[i].id: (fva_result[0][i], fva_result[1][i]) for i in range(len(model.reactions))}
+            self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
+            self.appdata.project.comp_values_type = 1
+
         self.centralWidget().update()
-        self.setCursor(Qt.ArrowCursor)
+        QApplication.restoreOverrideCursor()
 
     # def efm(self):
     #     self.efm_dialog = EFMDialog(
