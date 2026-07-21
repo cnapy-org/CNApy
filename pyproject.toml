@@ -35,6 +35,7 @@ dependencies = [
     "jpype1==1.5.0",
     "setuptools",
     "cobrak==0.0.10",
+    "highspy>=1.14.0"
 ]
 
 [project.scripts]
