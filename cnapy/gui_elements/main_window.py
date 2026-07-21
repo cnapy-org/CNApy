@@ -3,6 +3,7 @@ import json
 import os
 import traceback
 from tempfile import TemporaryDirectory
+from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
@@ -1288,13 +1289,13 @@ class MainWindow(QMainWindow):
     def open_project(self, filename):
         self.close_project_dialogs()
         temp_dir = TemporaryDirectory()
-
+        base_path = Path(temp_dir.name)
         self.setCursor(Qt.BusyCursor)
         try:
             with ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir.name)
+                zip_ref.extractall(base_path)
 
-                box_positions_path = temp_dir.name+"/box_positions.json"
+                box_positions_path = base_path / "box_positions.json"
                 if not os.path.exists(box_positions_path):
                     QMessageBox.critical(
                         self,
@@ -1310,16 +1311,14 @@ class MainWindow(QMainWindow):
 
                     count = 1
                     for _name, m in maps.items():
-                        m["background"] = temp_dir.name + \
-                            "/map" + str(count) + ".svg"
+                        m["background"] = str(base_path / ("map" + str(count) + ".svg"))
                         count += 1
                 # load meta_data
-                with open(temp_dir.name+"/meta.json", 'r') as fp:
+                with open(base_path / "meta.json", 'r') as fp:
                     meta_data = json.load(fp)
 
                 try:
-                    cobra_py_model = CNApyModel.read_sbml_model(
-                        temp_dir.name + "/model.sbml")
+                    cobra_py_model = CNApyModel.read_sbml_model(base_path /  "model.sbml")
                 except cobra.io.sbml.CobraSBMLError:
                     exstr = get_last_exception_string()
                     QMessageBox.warning(
@@ -1458,53 +1457,55 @@ class MainWindow(QMainWindow):
     @Slot()
     def continue_save_project(self):
         ''' Save the project '''
-        tmp_dir = TemporaryDirectory().name
-        filename: str = self.appdata.project.name
+        with TemporaryDirectory() as tmp_dir:
+            base_path = Path(tmp_dir)
+            print(base_path / "model.sbml")
+            filename: str = self.appdata.project.name
 
-        self.setCursor(Qt.BusyCursor)
-        try:
-            self.save_sbml(tmp_dir + "model.sbml")
-        except ValueError:
-            exstr = get_last_exception_string()
-            utils.show_unknown_error_box(exstr)
+            self.setCursor(Qt.BusyCursor)
+            try:
+                self.save_sbml(base_path / "model.sbml")
+            except ValueError:
+                exstr = get_last_exception_string()
+                utils.show_unknown_error_box(exstr)
 
-            return
+                return
 
-        svg_files = {}
-        count = 1
-        for name, m in self.appdata.project.maps.items():
-            if m.get('view', 'cnapy') == 'cnapy':
-                arc_name = "map" + str(count) + ".svg"
-                svg_files[m["background"]] = arc_name
-                m["background"] = arc_name
-            count += 1
-
-        # Save maps information
-        # also contains the Escher map JSONs
-        with open(tmp_dir + "box_positions.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp, skipkeys=True)
-
-        # Save meta data
-        self.appdata.project.meta_data["format version"] = self.appdata.format_version
-        with open(tmp_dir + "meta.json", 'w') as fp:
-            json.dump(self.appdata.project.meta_data, fp)
-
-        with ZipFile(filename, 'w') as zip_obj:
-            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zip_obj.write(tmp_dir + "box_positions.json",
-                          arcname="box_positions.json")
-            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
-            for name, m in svg_files.items():
-                zip_obj.write(name, arcname=m)
-
-        # put svgs into temporary directory and update references
-        with ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(self.appdata.temp_dir.name)
+            svg_files = {}
             count = 1
             for name, m in self.appdata.project.maps.items():
-                m["background"] = self.appdata.temp_dir.name + \
-                    "/map" + str(count) + ".svg"
+                if m.get('view', 'cnapy') == 'cnapy':
+                    arc_name = "map" + str(count) + ".svg"
+                    svg_files[m["background"]] = arc_name
+                    m["background"] = arc_name
                 count += 1
+
+            # Save maps information
+            # also contains the Escher map JSONs
+            with open(base_path / "box_positions.json", 'w') as fp:
+                json.dump(self.appdata.project.maps, fp, skipkeys=True)
+
+            # Save meta data
+            self.appdata.project.meta_data["format version"] = self.appdata.format_version
+            with open(base_path / "meta.json", 'w') as fp:
+                json.dump(self.appdata.project.meta_data, fp)
+
+            with ZipFile(filename, 'w') as zip_obj:
+                zip_obj.write(base_path / "model.sbml", arcname="model.sbml")
+                zip_obj.write(base_path / "box_positions.json",
+                            arcname="box_positions.json")
+                zip_obj.write(base_path / "meta.json", arcname="meta.json")
+                for name, m in svg_files.items():
+                    zip_obj.write(name, arcname=m)
+
+            # put svgs into temporary directory and update references
+            with ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(self.appdata.temp_dir.name)
+                count = 1
+                for name, m in self.appdata.project.maps.items():
+                    m["background"] = self.appdata.temp_dir.name + \
+                        "/map" + str(count) + ".svg"
+                    count += 1
 
         self.nounsaved_changes()
         self.setCursor(Qt.ArrowCursor)
