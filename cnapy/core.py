@@ -360,7 +360,6 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
             if status == 'optimal':
                 fluxes = pandas.Series({r.id: flux_vars[r.id].primal for r in model.reactions})
                 solution = QPSolution(status=status, objective_value=qp_model.objective.value, fluxes=fluxes)
-                print(solution)
             else:
                 solution = SolverFailure(status=status)
                 print("Optimization failed, no solution could be found.")
@@ -368,7 +367,6 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
         else:
             try:
                 solution = model.optimize()
-                print(solution)
             except OptimizationError:
                 solution = SolverFailure(status=model.solver.status)
                 print("Optimization failed, no solution could be found.")
