@@ -23,6 +23,7 @@ from configparser import NoOptionError, NoSectionError
 from pathlib import Path
 
 import cobra
+import cnapy.optlang_highs_interface
 from qtpy.QtCore import Qt, QLocale
 from qtpy.QtGui import QColor, QPalette
 from qtpy.QtWidgets import QApplication
@@ -316,7 +317,11 @@ class Application:
                 print("No cobrapy-config.txt file found, using COBRApy base settings.")
                 return
             try:
-                cobra.Configuration().solver = config_parser.get('cobrapy-config', 'solver')
+                solver_name = config_parser.get('cobrapy-config', 'solver')
+                if solver_name == "highs":
+                    cobra.Configuration().solver = cnapy.optlang_highs_interface
+                else:
+                    cobra.Configuration().solver = solver_name
             except Exception as e:
                 print("Cannot set solver from cobrapy-config.txt file because:", e,
                       "\nReverting solver to COBRApy base setting.")

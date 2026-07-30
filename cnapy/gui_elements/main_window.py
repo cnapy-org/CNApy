@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
+from qtpy.QtCore import Qt, Slot, QTimer, QSignalBlocker, QSize
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
@@ -643,7 +643,7 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name + ' - unsaved changes')
 
@@ -654,7 +654,7 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name)
 
@@ -674,7 +674,7 @@ class MainWindow(QMainWindow):
         if len(self.appdata.project.name) == 0:
             shown_name = "Untitled project"
         else:
-            shown_name = QFileInfo(self.appdata.project.name).fileName()
+            shown_name = os.path.basename(filename)
 
         self.setWindowTitle("CNApy - " + shown_name)
 
@@ -1332,6 +1332,7 @@ class MainWindow(QMainWindow):
                 self.appdata.project.meta_data = meta_data
                 self.appdata.project.cobra_py_model = cobra_py_model
                 self.set_current_filename(filename)
+                self.appdata.last_scen_directory = os.path.dirname(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
                 self.centralWidget().clear_model_item_history()
@@ -1704,6 +1705,8 @@ class MainWindow(QMainWindow):
         else:
             self.make_scenario_feasible_dialog.modified_scenario = None
         self.make_scenario_feasible_dialog.show()
+        # have bm_reac_id_select always enabled even if the parent is not
+        self.make_scenario_feasible_dialog.bm_reac_id_select.setEnabled(True)
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:

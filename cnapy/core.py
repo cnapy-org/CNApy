@@ -2,21 +2,29 @@
 
 import os
 import itertools
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from typing import Dict, Tuple, List
 from collections import Counter
 import threading as th
 import numpy
+import pandas
+import scipy.sparse as sp
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
 from cobra.core.dictlist import DictList
-from optlang.symbolics import Zero, Add
+from cobra.core.solution import Solution
+from optlang.symbolics import Add
+from optlang import cplex_interface, gurobi_interface # , scip_interface
+from cobra.exceptions import OptimizationError
 import highspy
+import osqp
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
 from cnapy.appdata import Scenario
+# from cnapy.conservation_relations import find_redundant_metabolites_qr
+import cnapy.optlang_highs_interface
 
 organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
 
@@ -73,22 +81,62 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
 class QPnotSupportedException(Exception):
     pass
 
+SolverFailure = namedtuple('SolverFailure', ('status',))
+# Result container for the standalone QP model (built without cobrapy's
+# forward/reverse variable splitting); mirrors the small subset of
+# cobra.Solution's interface (.status, .fluxes) that downstream code needs.
+QPSolution = namedtuple('QPSolution', ('status', 'objective_value', 'fluxes'))
+
 def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], use_QP: bool = False,
                               flux_weight_scale: float = 1.0, abs_flux_weights: bool = False, weights_key: str = None,
                               bm_reac_id: str = "", variable_constituents: List[cobra.Metabolite] = None,
                               max_coeff_change: float = 0.9, min_rel_changes: bool = True, bm_change_in_gram: bool = False,
                               gam_mets_param: Tuple[List[cobra.Metabolite], float, float, float] = ([], 0.0, 0.0, 0.0)):
+    # For now, unless CPLEX or Gurobi are set as current solvers, OSQP will be used
+    # for QPs because it performs mich better than HiGHS or SCIP.
+    # There is some commented-out code that may be reactivated in case HiGHS or SCIP improve.
+    if use_QP and cobra_model.problem not in (cplex_interface, gurobi_interface):
+        osqp_settings={
+            'max_iter': 100000,
+            'eps_abs': cobra_model.tolerance,    # default is 1e-8
+            'eps_rel': cobra_model.tolerance,    # default is 1e-8
+        }
+        return make_scenario_feasible_osqp(cobra_model, scen_values,
+                                flux_weight_scale=flux_weight_scale, abs_flux_weights=abs_flux_weights,
+                                weights_key=weights_key,
+                                bm_reac_id=bm_reac_id, variable_constituents=variable_constituents,
+                                max_coeff_change=max_coeff_change, min_rel_changes=min_rel_changes, 
+                                bm_change_in_gram=bm_change_in_gram,
+                                gam_mets_param=gam_mets_param, osqp_settings=osqp_settings)
+
     # if flux_weight_scale == 0 only biomass equation is adjusted
     # if bm_reac_id == "" only fluxes will be adjusted
     reactions_in_objective = []
     bm_mod = dict() # for use with Reaction.add_metabolites
     gam_mets_sign = []
     gam_adjust = 0
-    if use_QP:
-        qp_terms = [] # list of terms for the quadratic objective
     with cobra_model as model:
-        model.objective = model.problem.Objective(Zero, direction='min')
+        model.objective = model.problem.Objective(0, direction='min')
         scen_values.add_scenario_reactions_to_model(model)
+        if use_QP:
+            interface = model.problem  # optlang solver interface (shared between cobra_model and the standalone QP model)
+            flux_vars = None      # populated below, only when use_QP
+            met_constraints = None
+            qp_terms = [] # list of terms for the quadratic objective
+            qp_flux_targets = {}  # reaction_id -> (target_value, weight); QP terms built once flux_vars exist below
+            # selection = find_redundant_metabolites_qr(create_stoichiometric_matrix(cobra_model))
+            # redundant_met = model.metabolites.get_by_any(selection['remove_idx'].tolist())
+            # redundant_met_ids = {m.id for m in redundant_met}
+            # # Note: we deliberately do NOT call model.remove_metabolites() here.
+            # # cobra_model is never mutated for the QP case -- the standalone
+            # # qp_model built below just excludes these metabolites' rows when
+            # # constructing its own mass-balance constraints. This also avoids
+            # # a context-manager rollback bug: remove_metabolites() inside a
+            # # `with cobra_model as model:` block gets replayed (re-added) at
+            # # __exit__, which was tripping a stale-row-count bug in the HiGHS
+            # # interface's constraint re-insertion path.
+            # print("Excluding redundant (conserved-moiety) metabolites from the QP mass balance:")
+            # print(redundant_met)
         if flux_weight_scale > 0:
             for reaction_id, scen_val in scen_values.items():
                 if reaction_id == bm_reac_id:
@@ -121,11 +169,16 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                             weight = flux_weight_scale
 
                     if use_QP:
-                        qp_terms.append(((reaction.flux_expression - scen_val[0])**2)/weight)
+                        # Variable splitting is avoided entirely: no net_var/
+                        # net_constr indirection is needed here anymore. We
+                        # just remember the target/weight; the actual QP term
+                        # is built directly on the single, unsplit flux
+                        # variable once the standalone QP model exists below.
+                        qp_flux_targets[reaction_id] = (scen_val[0], weight)
                     else:
                         pos_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_pos_slack", lb=0, ub=None)
                         neg_slack = model.problem.Variable(reaction_id+"_make_feasible_linear_neg_slack", lb=0, ub=None)
-                        elastic_constr = model.problem.Constraint(Zero, lb=scen_val[0], ub=scen_val[0])
+                        elastic_constr = model.problem.Constraint(0, lb=scen_val[0], ub=scen_val[0])
                         model.add_cons_vars([pos_slack, neg_slack, elastic_constr])
                         elastic_constr.set_linear_coefficients({reaction.forward_variable: 1.0, reaction.reverse_variable: -1.0,
                                                                 pos_slack: 1.0, neg_slack: -1.0})
@@ -134,6 +187,41 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                 else:
                     reaction.lower_bound = scen_val[0]
                     reaction.upper_bound = scen_val[1]
+
+        if use_QP:
+            # Build a dedicated, standalone optlang Model with exactly one
+            # (unsplit) flux variable per reaction, using the same solver
+            # interface as cobra_model. This is where variable splitting is
+            # avoided completely: cobra_model's own forward_variable /
+            # reverse_variable machinery is never touched for the QP.
+            # This is not strictly necessary for CPLEX/Gurobi, but lowers that numbers
+            # of variables so that the community models can be used for more models.
+            qp_model = interface.Model(name="scenario_feasibility_QP")
+
+            flux_vars = {r.id: interface.Variable(r.id, lb=r.lower_bound, ub=r.upper_bound) for r in model.reactions}
+            qp_model.add(list(flux_vars.values()))
+            qp_model.update()
+
+            # Mass balance constraints, one per metabolite EXCLUDING the
+            # redundant (conserved-moiety) rows identified above -- those
+            # rows are skipped here rather than removed from cobra_model.
+            met_terms = defaultdict(list)
+            for r in model.reactions:
+                v = flux_vars[r.id]
+                for met, coeff in r.metabolites.items():
+                    # if met.id in redundant_met_ids:
+                    #     continue
+                    met_terms[met.id].append(coeff * v)
+
+            met_constraints = {}
+            for met_id, terms in met_terms.items():
+                expr = terms[0] if len(terms) == 1 else Add(*terms)
+                met_constraints[met_id] = interface.Constraint(expr, lb=0, ub=0, name=met_id, sloppy=True)
+            qp_model.add(list(met_constraints.values()), sloppy=True)
+            qp_model.update()  # commit constraints before any later set_linear_coefficients calls on them
+
+            qp_terms += [((flux_vars[rid] - target) ** 2) / weight
+                         for rid, (target, weight) in qp_flux_targets.items()]
 
         if len(bm_reac_id) > 0:
             mue_fixed = scen_values[bm_reac_id][0]
@@ -144,6 +232,16 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                 bm_coeff_var = [[m, m.formula_weight, c,None] for m,f,c in bm_coeff_var if c < 0 and m.formula_weight > 0 and f.get('C', 0) > 0 and f.get('P', 0) == 0]
             else:
                 bm_coeff_var = [[met, met.formula_weight, bm_reaction.metabolites[met], None] for met in variable_constituents]
+            # if use_QP:
+            #     # A biomass constituent that happens to be one of the redundant
+            #     # (conserved-moiety) rows has no entry in met_constraints (its
+            #     # balance is only implicitly represented via the rest of its
+            #     # conserved pool) -- skip it here rather than KeyError below.
+            #     excluded = [m for m, *_ in bm_coeff_var if m.id in redundant_met_ids]
+            #     if excluded:
+            #         print("Skipping QP slack for biomass constituent(s) that are part of a "
+            #               "removed conservation relation:", [m.id for m in excluded])
+            #     bm_coeff_var = [entry for entry in bm_coeff_var if entry[0].id not in redundant_met_ids]
             if flux_weight_scale == 0: # otherwise they have already been integrated above
                 for reac_id in scen_values:
                     try:
@@ -152,10 +250,21 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                         print('reaction', reac_id, 'not found!')
                     else:
                         reaction.bounds = scen_values[reac_id]
+                        if use_QP:
+                            # keep the standalone QP's flux variable bounds in sync;
+                            # set_bounds() avoids a transient lb>ub error that separate
+                            # .lb=/.ub= assignments could hit depending on prior bounds
+                            flux_vars[reaction.id].set_bounds(*reaction.bounds)
             bm_reaction.lower_bound = mue_fixed
             bm_reaction.upper_bound = mue_fixed
-            mass_const = model.problem.Constraint(0, lb=0, ub=0)
-            model.add_cons_vars([mass_const])
+            if use_QP:
+                flux_vars[bm_reaction.id].set_bounds(mue_fixed, mue_fixed)
+                mass_const = interface.Constraint(0, lb=0, ub=0)
+                qp_model.add([mass_const])
+                qp_model.update()
+            else:
+                mass_const = model.problem.Constraint(0, lb=0, ub=0)
+                model.add_cons_vars([mass_const])
 
             i = 0
             while i < len(bm_coeff_var):
@@ -167,10 +276,11 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                         continue
                     bm_coeff_var[i][2] = coeff
                 if use_QP:
-                    slack = model.problem.Variable(met.id+"_slack", lb=-abs(coeff)*max_coeff_change, ub=abs(coeff)*max_coeff_change)
+                    slack = interface.Variable(met.id+"_slack", lb=-abs(coeff)*max_coeff_change, ub=abs(coeff)*max_coeff_change)
                     bm_coeff_var[i][3] = slack
-                    model.add_cons_vars([slack])
-                    met.constraint.set_linear_coefficients({slack: mue_fixed})
+                    qp_model.add([slack])
+                    qp_model.update()  # slack must be committed before referencing it below
+                    met_constraints[met.id].set_linear_coefficients({slack: mue_fixed})
                     mass_const.set_linear_coefficients({slack: mol_weigt})
                 else:
                     pos_slack = model.problem.Variable(met.id+"_pos_slack", lb=0, ub=abs(coeff)*max_coeff_change)
@@ -185,14 +295,20 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
             if len(gam_mets) > 0:
                 gam_mets_sign = [0] * len(gam_mets)
                 if use_QP:
-                    gam_slack = model.problem.Variable("gam_slack", lb=-1.0, ub=1.0)
-                    model.add_cons_vars([gam_slack])
+                    scale = gam_max_change * mue_fixed
+                    gam_slack = interface.Variable("gam_slack", lb=-scale, ub=scale)
+                    qp_model.add([gam_slack])
+                    qp_model.update()  # commit gam_slack before wiring it into met_constraints below
                     for i in range(len(gam_mets)):
                         met = gam_mets[i]
+                        # if met.id in redundant_met_ids:
+                        #     print("Skipping GAM slack wiring for", met.id,
+                        #           "-- part of a removed conservation relation.")
+                        #     continue
                         sign = numpy.sign(bm_reaction.metabolites[met]) # !! FIXME: only correct when gam_base is larger than biomass part !! 
-                        met.constraint.set_linear_coefficients({gam_slack: sign*gam_max_change*mue_fixed})
+                        met_constraints[met.id].set_linear_coefficients({gam_slack: sign})
                         gam_mets_sign[i] = sign
-                    qp_terms.append(gam_weight * (gam_slack**2))
+                    qp_terms.append((gam_weight  / scale**2) * (gam_slack**2))
                 else:
                     gam_slack_pos = model.problem.Variable("gam_slack_pos", lb=0.0, ub=1.0)
                     gam_slack_neg = model.problem.Variable("gam_slack_neg", lb=0.0, ub=1.0)
@@ -226,43 +342,317 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
 
         if use_QP:
             try:
-                model.objective = model.problem.Objective(Add(*qp_terms), direction='min')
+                qp_model.objective = interface.Objective(Add(*qp_terms), direction='min')
+                print(qp_model.objective)
             except ValueError: # solver does not support QP
                 raise QPnotSupportedException
-        solution = model.optimize()
-        print(solution)
+            try:
+                # if interface == cnapy.optlang_highs_interface:
+                #     qp_model.problem.setOptionValue("solver", model.solver.problem.getOptionValue("solver")[1])
+                #     qp_model.problem.setOptionValue("kkt_tolerance", model.tolerance)
+                #     qp_model.problem.setOptionValue("output_flag", True)
+                # elif interface == scip_interface:
+                #     qp_model.configuration.verbosity = 3
+                status = qp_model.optimize()
+            except Exception as exc:  # standalone optlang Model.optimize() generally returns a
+                status = 'error'      # status string rather than raising; guard against solver-level errors anyway
+                print("QP solver raised an exception:", exc)
+            if status == 'optimal':
+                fluxes = pandas.Series({r.id: flux_vars[r.id].primal for r in model.reactions})
+                solution = QPSolution(status=status, objective_value=qp_model.objective.value, fluxes=fluxes)
+                print(solution)
+            else:
+                solution = SolverFailure(status=status)
+                print("Optimization failed, no solution could be found.")
+                print("Try relaxing model tolerance or choose a different solver.")
+        else:
+            try:
+                solution = model.optimize()
+                print(solution)
+            except OptimizationError:
+                solution = SolverFailure(status=model.solver.status)
+                print("Optimization failed, no solution could be found.")
+                print("Try relaxing model tolerance or choose a different solver.")
+
+        if solution.status == "optimal":
+            if len(bm_reac_id) > 0:
+                format_string = "{:.2g} {:.2g}"
+                if use_QP:
+                    for m,_,coeff,s in bm_coeff_var:
+                        v = s.primal
+                        if v != 0:
+                            print(s.name, format_string.format(v, v/abs(coeff)))
+                            bm_mod[m] = v
+                    if len(gam_mets) > 0:
+                        # gam_slack already represents the physical adjustment directly
+                        # (its bounds/coefficients were rescaled to +/-gam_max_change*mue_fixed
+                        # with unit constraint coefficients), so recovering the original
+                        # [-gam_max_change, gam_max_change]-scaled quantity means dividing
+                        # back out mue_fixed rather than re-multiplying by gam_max_change.
+                        gam_adjust = gam_slack.primal / mue_fixed
+                else:
+                    for m,_,coeff,(s_p,s_n) in bm_coeff_var:
+                        v = model.solver.variables[s_p.name].primal
+                        if v != 0:
+                            print(s_p.name, format_string.format(v, v/abs(coeff)))
+                            bm_mod[m] = v
+                        v = model.solver.variables[s_n.name].primal
+                        if v != 0:
+                            print(s_n.name, format_string.format(v, v/abs(coeff)))
+                            bm_mod[m] = -v
+                    if len(gam_mets) > 0:
+                        gam_adjust = gam_max_change * \
+                            (model.solver.variables["gam_slack_pos"].primal - model.solver.variables["gam_slack_neg"].primal)
+                if len(gam_mets) > 0:
+                    if use_QP:
+                        print("gam_slack {:.3g}".format(gam_slack.primal))
+                    else:
+                        print("gam_slack_pos", model.solver.variables["gam_slack_pos"].primal)
+                        print("gam_slack_neg", model.solver.variables["gam_slack_neg"].primal)
+
+    return solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust
+
+
+def make_scenario_feasible_osqp(cobra_model: cobra.Model, scen_values: Scenario,
+                                flux_weight_scale: float = 1.0, abs_flux_weights: bool = False, weights_key: str = None,
+                                bm_reac_id: str = "", variable_constituents: List[cobra.Metabolite] = None,
+                                max_coeff_change: float = 0.9, min_rel_changes: bool = True, bm_change_in_gram: bool = False,
+                                gam_mets_param: Tuple[List[cobra.Metabolite], float, float, float] = ([], 0.0, 0.0, 0.0),
+                                osqp_settings: dict = None):
+    """QP variant of make_scenario_feasible that builds and solves the problem directly with the osqp
+    Python package, bypassing optlang/cobra.util.solver entirely (i.e. this replaces the use_QP=True
+    branch of make_scenario_feasible; there is no use_QP parameter here since this function is always QP).
+
+    Deliberate differences from the optlang-based use_QP=True path, all a consequence of not building the
+    problem through cobra's optlang Model:
+
+    - Each reaction is a single (possibly negative) variable with cobra's own bounds, not optlang's
+      forward/reverse split. Consequently the "net_flux" helper variable used in make_scenario_feasible
+      (introduced there only to avoid cross-terms between the forward and reverse variables) is not
+      needed; the flux variable itself is used directly in the quadratic deviation terms.
+    - Variable bounds are enforced as extra rows appended to the constraint matrix, since osqp has no
+      native notion of variable bounds.
+    - `solution` is a real cobra.core.Solution (status/objective_value/fluxes) on success, or the same
+      SolverFailure(status=...) namedtuple used in make_scenario_feasible on failure/infeasibility, so
+      callers can keep using `solution.status == "optimal"`.
+    - `objective_value` includes the constant term(s) dropped when completing the square for osqp's
+      0.5 x^T P x + q^T x form, so it is comparable to what make_scenario_feasible would report.
+
+    This function assumes scen_values.add_scenario_reactions_to_model only performs cobra-level edits
+    (e.g. via add_reactions/bounds) since it is invoked through the normal cobra_model context manager
+    here, exactly as in make_scenario_feasible; no optlang objects are ever created or required.
+
+    All other parameters have the same meaning as in make_scenario_feasible.
+
+    osqp_settings: optional dict overriding the default osqp solver settings (verbose, polish, eps_abs,
+    eps_rel, max_iter).
+    """
+
+    reactions_in_objective: List[str] = []
+    bm_mod = dict()  # for use with Reaction.add_metabolites
+    gam_mets_sign = []
+    gam_adjust = 0
+
+    # (reaction_id, target_value, weight) for the flux-fixation quadratic terms; resolved to column
+    # indices once the final (post-scenario) reaction list is known.
+    quad_terms = []
+
+    with cobra_model as model:
+        scen_values.add_scenario_reactions_to_model(model)
+
+        if flux_weight_scale > 0:
+            for reaction_id, scen_val in scen_values.items():
+                if reaction_id == bm_reac_id:
+                    continue  # growth rate will be fixed below if biomass adjustment is used
+                try:
+                    reaction: cobra.Reaction = model.reactions.get_by_id(reaction_id)
+                except KeyError:
+                    print('reaction', reaction_id, 'not found!')
+                    continue
+                # reactions set to 0 are still considered off
+                if scen_val[0] == scen_val[1] and scen_val[0] != 0:
+                    reactions_in_objective.append(reaction_id)
+                    if scen_val[0] < reaction.lower_bound:
+                        reaction.lower_bound = cobra.Configuration().lower_bound
+                    if scen_val[0] > reaction.upper_bound:
+                        reaction.upper_bound = cobra.Configuration().upper_bound
+                    if abs_flux_weights:
+                        weight = abs(scen_val[0]) * flux_weight_scale  # for scaling relative to biomass adjustment
+                    else:
+                        if isinstance(weights_key, str):
+                            try:
+                                weight = float(reaction.annotation.get(weights_key, flux_weight_scale))
+                            except ValueError:
+                                weight = 0
+                            if weight <= 0:
+                                print("The value of annotation key '" + weights_key + "' of reaction'" +
+                                    reaction_id + "' is not a positive number, using default weight.")
+                                weight = flux_weight_scale
+                        else:
+                            weight = flux_weight_scale
+                    quad_terms.append((reaction_id, scen_val[0], weight))
+                else:
+                    reaction.lower_bound = scen_val[0]
+                    reaction.upper_bound = scen_val[1]
+
+        bm_coeff_var = []  # [metabolite, mol_weight, coeff], slack column index tracked separately below
+        gam_mets: List[cobra.Metabolite] = []
+        gam_max_change = gam_weight = gam_base = 0.0
+        mue_fixed = None
+        bm_reaction = None
+        use_gam = False
 
         if len(bm_reac_id) > 0:
-            format_string = "{:.2g} {:.2g}"
-            if use_QP:
-                for m,_,coeff,s in bm_coeff_var:
-                    v = model.solver.variables[s.name].primal
-                    if v != 0:
-                        print(s.name, format_string.format(v, v/abs(coeff)))
-                        bm_mod[m] = v
-                if len(gam_mets) > 0:
-                    gam_adjust = gam_max_change * model.solver.variables["gam_slack"].primal
+            mue_fixed = scen_values[bm_reac_id][0]
+            bm_reaction = cobra_model.reactions.get_by_id(bm_reac_id)
+            gam_mets, gam_max_change, gam_weight, gam_base = gam_mets_param
+            if variable_constituents is None:
+                bm_coeff_all = [(met, met.elements, coeff) for met, coeff in bm_reaction.metabolites.items()]
+                bm_coeff_var = [[m, m.formula_weight, c] for m, f, c in bm_coeff_all
+                                if c < 0 and m.formula_weight > 0 and f.get('C', 0) > 0 and f.get('P', 0) == 0]
             else:
-                for m,_,coeff,(s_p,s_n) in bm_coeff_var:
-                    v = model.solver.variables[s_p.name].primal
-                    if v != 0:
-                        print(s_p.name, format_string.format(v, v/abs(coeff)))
-                        bm_mod[m] = v
-                    v = model.solver.variables[s_n.name].primal
-                    if v != 0:
-                        print(s_n.name, format_string.format(v, v/abs(coeff)))
-                        bm_mod[m] = -v
-                if len(gam_mets) > 0:
-                    gam_adjust = gam_max_change * \
-                        (model.solver.variables["gam_slack_pos"].primal - model.solver.variables["gam_slack_neg"].primal)
-            if len(gam_mets) > 0:
-                if use_QP:
-                    print("gam_slack {:.3g}".format(model.solver.variables["gam_slack"].primal))
-                else:
-                    print("gam_slack_pos", model.solver.variables["gam_slack_pos"].primal)
-                    print("gam_slack_neg", model.solver.variables["gam_slack_neg"].primal)
+                bm_coeff_var = [[met, met.formula_weight, bm_reaction.metabolites[met]] for met in variable_constituents]
 
-        return solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust
+            if flux_weight_scale == 0:  # otherwise they have already been integrated above
+                for reac_id in scen_values:
+                    try:
+                        reaction = model.reactions.get_by_id(reac_id)
+                    except KeyError:
+                        print('reaction', reac_id, 'not found!')
+                    else:
+                        reaction.bounds = scen_values[reac_id]
+
+            bm_reaction.lower_bound = mue_fixed
+            bm_reaction.upper_bound = mue_fixed
+
+            i = 0
+            while i < len(bm_coeff_var):
+                met, mol_weigt, coeff = bm_coeff_var[i]
+                if met in gam_mets and gam_base > 0:
+                    coeff = coeff - numpy.sign(coeff) * gam_base
+                    if coeff == 0:  # can e.g. occur when ATP is only used for GAM
+                        del bm_coeff_var[i]
+                        continue
+                    bm_coeff_var[i][2] = coeff
+                i += 1
+
+            use_gam = len(gam_mets) > 0
+
+        # ---- final (post-scenario) cobra model structure ----
+        n_rxns = len(model.reactions)
+        n_mets = len(model.metabolites)
+        rxn_index = {r.id: idx for idx, r in enumerate(model.reactions)}
+        met_index = {m.id: idx for idx, m in enumerate(model.metabolites)}
+
+        col_lower = numpy.array([r.lower_bound for r in model.reactions], dtype=numpy.double)
+        col_upper = numpy.array([r.upper_bound for r in model.reactions], dtype=numpy.double)
+        S = create_stoichiometric_matrix(model, array_type='lil')
+
+        # ---- assign column indices for the extra (slack) variables ----
+        extra_lb: List[float] = []
+        extra_ub: List[float] = []
+        gam_slack_idx = None
+        if use_gam:
+            gam_slack_idx = n_rxns + len(extra_lb)
+            extra_lb.append(-1.0)
+            extra_ub.append(1.0)
+
+        bm_slack_idx = []  # parallel to bm_coeff_var
+        for met, mol_weigt, coeff in bm_coeff_var:
+            bm_slack_idx.append(n_rxns + len(extra_lb))
+            extra_lb.append(-abs(coeff) * max_coeff_change)
+            extra_ub.append(abs(coeff) * max_coeff_change)
+
+        n_vars = n_rxns + len(extra_lb)
+        col_lower = numpy.concatenate([col_lower, extra_lb])
+        col_upper = numpy.concatenate([col_upper, extra_ub])
+
+        # ---- diagonal quadratic objective: P (diagonal) and q ----
+        P_diag = numpy.zeros(n_vars)
+        q = numpy.zeros(n_vars)
+        const_offset = 0.0  # only affects the reported objective_value, not the solution itself
+
+        for reaction_id, target, weight in quad_terms:
+            j = rxn_index[reaction_id]
+            P_diag[j] += 2.0 / weight
+            q[j] += -2.0 * target / weight
+            const_offset += target ** 2 / weight
+
+        if gam_slack_idx is not None:
+            P_diag[gam_slack_idx] += 2.0 * gam_weight
+
+        for (met, mol_weigt, coeff), s_idx in zip(bm_coeff_var, bm_slack_idx):
+            scale = mol_weigt if bm_change_in_gram else 1.0
+            a = (scale / abs(coeff)) ** 2 if min_rel_changes else scale ** 2
+            P_diag[s_idx] += 2.0 * a
+
+        # ---- constraint matrix: stoichiometry (+ slack contributions), mass balance, box bounds ----
+        n_eq_extra = 1 if len(bm_reac_id) > 0 else 0  # the mass_const row
+        A_eq = sp.lil_matrix((n_mets + n_eq_extra, n_vars))
+        A_eq[:n_mets, :n_rxns] = S
+
+        if gam_slack_idx is not None:
+            for met in gam_mets:
+                sign = numpy.sign(bm_reaction.metabolites[met])
+                gam_mets_sign.append(sign)
+                A_eq[met_index[met.id], gam_slack_idx] += sign * gam_max_change * mue_fixed
+
+        mass_row = n_mets  # only used/meaningful when n_eq_extra == 1
+        for (met, mol_weigt, coeff), s_idx in zip(bm_coeff_var, bm_slack_idx):
+            A_eq[met_index[met.id], s_idx] += mue_fixed
+            if n_eq_extra:
+                A_eq[mass_row, s_idx] += mol_weigt
+
+        l_eq = numpy.zeros(n_mets + n_eq_extra)
+        u_eq = numpy.zeros(n_mets + n_eq_extra)
+
+        A_box = sp.eye(n_vars, format='lil')
+        A = sp.vstack([A_eq, A_box]).tocsc()
+        l = numpy.concatenate([l_eq, col_lower])
+        u = numpy.concatenate([u_eq, col_upper])
+
+        P = sp.diags(P_diag, format='csc')
+
+        settings = dict(verbose=False, polish=True, eps_abs=1e-8, eps_rel=1e-8, max_iter=20000)
+        if osqp_settings:
+            settings.update(osqp_settings)
+
+        prob = osqp.OSQP()
+        prob.setup(P=P, q=q, A=A, l=l, u=u, **settings)
+        res = prob.solve()
+        raw_status = res.info.status
+
+        if raw_status in ("solved", "solved inaccurate"):
+            status = "optimal"
+        elif "infeasible" in raw_status:
+            status = "infeasible"
+        elif "unbounded" in raw_status:
+            status = "unbounded"
+        else:
+            status = raw_status
+
+        if status == "optimal":
+            objective_value = res.info.obj_val + const_offset
+            fluxes = pandas.Series(res.x[:n_rxns], index=[r.id for r in model.reactions])
+            solution = Solution(objective_value, status, fluxes)
+            print(solution)
+
+            if len(bm_reac_id) > 0:
+                format_string = "{:.2g} {:.2g}"
+                for (met, mol_weigt, coeff), s_idx in zip(bm_coeff_var, bm_slack_idx):
+                    v = res.x[s_idx]
+                    if v != 0:
+                        print(met.id, format_string.format(v, v / abs(coeff)))
+                        bm_mod[met] = v
+                if gam_slack_idx is not None:
+                    gam_adjust = gam_max_change * res.x[gam_slack_idx]
+                    print("gam_slack {:.3g}".format(res.x[gam_slack_idx]))
+        else:
+            solution = SolverFailure(status=status)
+            print("Optimization failed, no solution could be found. (osqp status: {})".format(raw_status))
+
+    return solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust
+
 
 def element_exchange_balance(model: cobra.Model, scen_values: Scenario, non_boundary_reactions: List[str],
                              organic_elements_only=False, print_func=print):

@@ -3,11 +3,12 @@ from qtpy.QtCore import Qt, Slot, QSignalBlocker, QStringListModel, QSize
 from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox, QMainWindow,
                             QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView, QAction,
                             QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, QWidget,
-                            QStyledItemDelegate, QTableWidgetSelectionRange, QCompleter)
+                            QStyledItemDelegate, QTableWidgetSelectionRange, QCompleter, QApplication)
 from qtpy.QtGui import QGuiApplication, QDoubleValidator
 
 from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException, element_exchange_balance
+from cnapy.core_gui import get_last_exception_string, has_community_error_substring, except_likely_community_model_error
 from cnapy.gui_elements.central_widget import ModelTabIndex
 from cnapy.appdata import Scenario
 import cobra
@@ -263,15 +264,16 @@ class FluxFeasibilityDialog(QDialog):
             self.bm_mod_reac_id = ""
             self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
 
-        self.main_window.setCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
         try:
             self.appdata.project.solution, reactions_in_objective, bm_mod, gam_mets_sign, gam_adjust = make_scenario_feasible(
                 self.appdata.project.cobra_py_model, self.appdata.project.scen_values, use_QP=self.method_qp.isChecked(),
                 flux_weight_scale=flux_weight_scale, abs_flux_weights=abs_flux_weights, weights_key=weights_key,
                 bm_reac_id=bm_reac_id, variable_constituents=variable_constituents, max_coeff_change=max_coeff_change/100,
                 bm_change_in_gram=self.bm_gram.isChecked(), gam_mets_param=gam_mets_param)
-            self.main_window.process_fba_solution(update=False)
             if self.appdata.project.solution.status == 'optimal':
+                self.main_window.process_fba_solution(update=False)
                 bm_is_modified = len(bm_mod) > 0 or gam_adjust != 0
                 if len(reactions_in_objective) > 0:
                     self.main_window.centralWidget().console._append_plain_text(
@@ -320,13 +322,18 @@ class FluxFeasibilityDialog(QDialog):
                     self.gam_adjustment.setText("Calculated GAM adjustment: "+coefficient_format.format(gam_adjust))
             else:
                 QMessageBox.critical(self, "Solver could not find an optimal solution",
-                            "No optimal solution was found, solver returned status '"+self.appdata.project.solution.status+"'.")
+                            "Solver status is '"+self.appdata.project.solution.status+"'.\nTry relaxing model tolerance or choose a different solver.")
             self.main_window.centralWidget().update()
         except QPnotSupportedException:
             QMessageBox.critical(self, "Solver with support for quadratic objectives required",
                 "Choose an appropriate solver, e.g. cplex, gurobi, cbc-coinor (see Configure COBRApy in the Config menu).")
+        except Exception:
+            exstr = get_last_exception_string()
+            # Check for substrings of Gurobi and CPLEX community edition errors
+            if has_community_error_substring(exstr):
+                except_likely_community_model_error()
         finally:
-            self.main_window.setCursor(Qt.ArrowCursor)
+            QApplication.restoreOverrideCursor()
 
     def update_bm_constituents_table(self):
         bm_reac: cobra.Reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(self.bm_reac_id)
