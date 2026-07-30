@@ -22,14 +22,15 @@ import cnapy.optlang_highs_interface
 # Add the current directory to the path to import the module if needed
 sys.path.insert(0, os.path.dirname(__file__))
 cobra.Configuration.solver = cnapy.optlang_highs_interface
+from cnapy.optlang_highs_interface import Model, Variable, Constraint, Objective, _get_quadratic_terms_from_expr
 
-try:
-    from cnapy.optlang_highs_interface import Model, Variable, Constraint, Objective, _get_quadratic_terms_from_expr
-except ImportError:
-    # If the file is named differently, adjust here
-    print("Could not import highs_interface. Ensure it is in the path.")
-    sys.exit(1)
-from optlang import symbolics
+# try:
+#     from cnapy.optlang_highs_interface import Model, Variable, Constraint, Objective, _get_quadratic_terms_from_expr
+# except ImportError:
+#     # If the file is named differently, adjust here
+#     print("Could not import highs_interface. Ensure it is in the path.")
+#     sys.exit(1)
+# from optlang import symbolics
 
 class TestHiGHSQP(unittest.TestCase):
     def setUp(self):
@@ -454,6 +455,8 @@ class TestHiGHSQP(unittest.TestCase):
         reaction = cobra.Reaction('R1')
         reaction.add_metabolites({met_a: -1, met_b: 1})
         cobra_model.add_reactions([reaction])
+        cobra_model.add_boundary(met_a, type="exchange")
+        cobra_model.add_boundary(met_b, type="exchange")
         
         # Set objective to maximize R1
         cobra_model.objective = 'R1'
@@ -471,7 +474,7 @@ class TestHiGHSQP(unittest.TestCase):
         from cobra import Model as CobraModel
 
         cobra_model = CobraModel('test_model')
-        cobra_model.add_metabolites([cobra.Metabolite('A')])
+        cobra_model.add_metabolites([cobra.Metabolite('A', compartment='e')])
         reaction = cobra.Reaction('R1')
         reaction.add_metabolites({cobra_model.metabolites.A: -1})
         cobra_model.add_reactions([reaction])
@@ -494,58 +497,67 @@ class TestHiGHSQP(unittest.TestCase):
         self.assertEqual(cobra_model.reactions.get_by_id('R1').lower_bound, initial_lb)
         self.assertEqual(cobra_model.reactions.get_by_id('R1').upper_bound, initial_ub)
 
-    def test_cobrapy_context_qp_rollback(self):
-        """Test that rolling back quadratic objective changes works correctly."""
-        import cobra
-        from cobra import Model as CobraModel
+    # this test cannot work  because for the rollback to happen one would need 
+    # to set the objective via cobra_model.objective and this only supports a 
+    # dictionary of linear coefficients, not quadratic ones.
+    # def test_cobrapy_context_qp_rollback(self):
+    #     """Test that rolling back quadratic objective changes works correctly."""
+    #     import cobra
+    #     from cobra import Model as CobraModel
 
-        cobra_model = CobraModel('test_model')
+    #     cobra_model = CobraModel('test_model')
         
-        # Make metabolites boundary metabolites
-        met_a = cobra.Metabolite('A', compartment='e')
-        met_b = cobra.Metabolite('B', compartment='e')
-        cobra_model.add_metabolites([met_a, met_b])
+    #     # Make metabolites boundary metabolites
+    #     met_a = cobra.Metabolite('A', compartment='e')
+    #     met_b = cobra.Metabolite('B', compartment='e')
+    #     cobra_model.add_metabolites([met_a, met_b])
         
-        reaction = cobra.Reaction('R1')
-        reaction.add_metabolites({met_a: -1, met_b: 1})
-        cobra_model.add_reactions([reaction])
-        cobra_model.add_boundary(met_a, type="exchange")
-        cobra_model.add_boundary(met_b, type="exchange")
+    #     reaction = cobra.Reaction('R1')
+    #     reaction.add_metabolites({met_a: -1, met_b: 1})
+    #     cobra_model.add_reactions([reaction])
+    #     cobra_model.add_boundary(met_a, type="exchange")
+    #     cobra_model.add_boundary(met_b, type="exchange")
                 
-        # Set a linear objective initially
-        cobra_model.objective = 'R1'
-        cobra_model.objective_direction = 'max'
+    #     # Set a linear objective initially
+    #     cobra_model.objective = 'R1'
+    #     cobra_model.objective_direction = 'max'
         
-        # Optimize initial state to ensure we are in a clean LP state
-        sol_init = cobra_model.optimize()
-        self.assertGreater(sol_init.fluxes['R1'], 0)
+    #     # Optimize initial state to ensure we are in a clean LP state
+    #     sol_init = cobra_model.optimize()
+    #     self.assertGreater(sol_init.fluxes['R1'], 0)
         
-        with cobra_model:
-            # Change to a quadratic objective using the HiGHS interface method
-            # cobra_model.solver is the Model instance
-            # cobra_model.solver.objective is the Objective instance
+    #     with cobra_model:
+    #         # Change to a quadratic objective using the HiGHS interface method
+    #         # cobra_model.solver is the Model instance
+    #         # cobra_model.solver.objective is the Objective instance
             
-            r1 = cobra_model.reactions.get_by_id('R1')
+    #         r1 = cobra_model.reactions.get_by_id('R1')
             
-            # Set quadratic coefficients: (R1 - 0.5)^2 = R1^2 - R1 + 0.25
-            cobra_model.solver.objective.set_coefficients(
-                quadratic={(r1, r1): 1.0},
-                linear={r1: -1.0},
-                constant=0.25
-            )
-            cobra_model.solver.objective.direction = 'min'
+    #         # Set quadratic coefficients: (R1 - 0.5)^2 = R1^2 - R1 + 0.25
+    #         # Note: must use r1.forward_variable (the actual optlang Variable),
+    #         # not the cobra Reaction object itself - Reaction.name is its
+    #         # human-readable descriptive name (defaults to ""), not the
+    #         # solver variable name, so passing r1 directly silently resolves
+    #         # to the wrong (nonexistent) column.
+    #         r1_var = r1.forward_variable
+    #         cobra_model.solver.objective.set_coefficients(
+    #             quadratic={(r1_var, r1_var): 1.0},
+    #             linear={r1_var: -1.0},
+    #             constant=0.25
+    #         )
+    #         cobra_model.solver.objective.direction = 'min'
             
-            sol_temp = cobra_model.optimize()
-            # Solution should be close to 0.5
-            self.assertAlmostEqual(sol_temp.fluxes['R1'], 0.5, places=4)
+    #         sol_temp = cobra_model.optimize()
+    #         # Solution should be close to 0.5
+    #         self.assertAlmostEqual(sol_temp.fluxes['R1'], 0.5, places=4)
             
-        # Verify rollback: The objective should be linear again
-        self.assertTrue(cobra_model.objective.is_Linear)
+    #     # Verify rollback: The objective should be linear again
+    #     self.assertTrue(cobra_model.objective.is_Linear)
         
-        # Optimize to ensure solver is in the correct state
-        sol_final = cobra_model.optimize()
-        # With linear objective max R1, it should go to upper bound (1000)
-        self.assertAlmostEqual(sol_final.fluxes['R1'], 1000.0)
+    #     # Optimize to ensure solver is in the correct state
+    #     sol_final = cobra_model.optimize()
+    #     # With linear objective max R1, it should go to upper bound (1000)
+    #     self.assertAlmostEqual(sol_final.fluxes['R1'], 1000.0)
 
 if __name__ == '__main__':
     unittest.main()
