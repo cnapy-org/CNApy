@@ -827,7 +827,7 @@ class MainWindow(QMainWindow):
 
         self.setCursor(Qt.BusyCursor)
         try:
-            self.save_sbml(filename)
+            self.save_model(filename)
         except ValueError:
             exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
@@ -1290,7 +1290,8 @@ class MainWindow(QMainWindow):
         self.close_project_dialogs()
         temp_dir = TemporaryDirectory()
         base_path = Path(temp_dir.name)
-        self.setCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
         try:
             with ZipFile(filename, 'r') as zip_ref:
                 zip_ref.extractall(base_path)
@@ -1318,7 +1319,19 @@ class MainWindow(QMainWindow):
                     meta_data = json.load(fp)
 
                 try:
-                    cobra_py_model = CNApyModel.read_sbml_model(base_path /  "model.sbml")
+                    json_model_path = base_path / "model.json"
+                    sbml_model_path = base_path / "model.sbml"
+
+                    if json_model_path.exists():
+                        cobra_py_model = cobra.io.load_json_model(json_model_path)
+                        # the following calls are copied from CNApyModel.read_sbml_model
+                        cobra_py_model.set_reaction_hashes()
+                        cobra_py_model.set_stoichiometry_hash_object()
+                        cobra_py_model.__class__ = CNApyModel
+                    elif sbml_model_path.exists():
+                        cobra_py_model = CNApyModel.read_sbml_model(sbml_model_path)
+                    else:
+                        raise FileNotFoundError("Project does not contain a model.json or model.sbml file.")
                 except cobra.io.sbml.CobraSBMLError:
                     exstr = get_last_exception_string()
                     QMessageBox.warning(
@@ -1367,7 +1380,7 @@ class MainWindow(QMainWindow):
                 "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
             )
 
-        self.setCursor(Qt.ArrowCursor)
+        QApplication.restoreOverrideCursor()
 
     @Slot()
     def open_project_dialog(self):
@@ -1394,7 +1407,7 @@ class MainWindow(QMainWindow):
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
 
-    def save_sbml(self, filename):
+    def save_model(self, filename, save_as_json: bool = False):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
@@ -1423,8 +1436,10 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.cobra_py_model = clean_model
 
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, filename)
+        if save_as_json:
+            cobra.io.save_json_model(self.appdata.project.cobra_py_model, filename)
+        else:
+            cobra.io.write_sbml_model(self.appdata.project.cobra_py_model, filename)
 
     @Slot()
     def save_project(self):
@@ -1454,17 +1469,16 @@ class MainWindow(QMainWindow):
         else:
             self.continue_save_project()
 
-    @Slot()
     def continue_save_project(self):
         ''' Save the project '''
         with TemporaryDirectory() as tmp_dir:
             base_path = Path(tmp_dir)
-            print(base_path / "model.sbml")
             filename: str = self.appdata.project.name
+            model_file: str = "model.json" if self.appdata.save_model_as_json else "model.sbml"
 
             self.setCursor(Qt.BusyCursor)
             try:
-                self.save_sbml(base_path / "model.sbml")
+                self.save_model(base_path / model_file, save_as_json=self.appdata.save_model_as_json)
             except ValueError:
                 exstr = get_last_exception_string()
                 utils.show_unknown_error_box(exstr)
@@ -1491,7 +1505,7 @@ class MainWindow(QMainWindow):
                 json.dump(self.appdata.project.meta_data, fp)
 
             with ZipFile(filename, 'w') as zip_obj:
-                zip_obj.write(base_path / "model.sbml", arcname="model.sbml")
+                zip_obj.write(base_path / model_file, arcname=model_file)
                 zip_obj.write(base_path / "box_positions.json",
                             arcname="box_positions.json")
                 zip_obj.write(base_path / "meta.json", arcname="meta.json")
