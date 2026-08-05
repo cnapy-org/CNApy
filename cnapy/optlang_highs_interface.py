@@ -204,6 +204,16 @@ class Variable(interface.Variable):
         if self.problem is not None:
             self.problem._highs_set_col_bounds(self)
 
+    @interface.Variable.name.setter
+    def name(self, value):
+        # getattr(self, 'problem', None), not self.problem: sympy's
+        # Symbol.__new__ (via __xnew__) assigns .name during construction,
+        # before Variable.__init__ has set self.problem at all - a direct
+        # attribute access would raise AttributeError at that point.
+        interface.Variable.name.fset(self, value)
+        if getattr(self, 'problem', None) is not None:
+            self.problem._highs_set_col_name(self)
+
     def set_bounds(self, lb, ub):
         super(Variable, self).set_bounds(lb, ub)
         if self.problem is not None:
@@ -226,9 +236,16 @@ class Constraint(interface.Constraint):
     """
     Unlike the earlier version of this interface, this Constraint does not keep
     its own copy of the linear coefficients around. Once the constraint is part
-    of a model, HiGHS's own row data is the single source of truth - reads go
-    straight to the solver (mirroring the GLPK interface's design) and writes
-    go straight through to the solver too. There is nothing left to go stale.
+    of a model, HiGHS's own row data is the single source of truth - writes go
+    straight through to the solver (mirroring the GLPK interface's design), so
+    there's no local coefficient cache that can silently drift from it.
+
+    .expression is the one exception: rebuilding it from HiGHS's row data on
+    every access is expensive, so it's cached in `_expression` and only
+    rebuilt when `_expression_expired` is set. Anything that changes what a
+    constraint's row actually contains - a direct coefficient write, or a
+    referenced variable disappearing out from under it - is responsible for
+    setting that flag.
 
     `_initial_coeffs` is only a bootstrap value: it is parsed once at
     construction time so `_add_constraints` has something to build the HiGHS
@@ -240,10 +257,14 @@ class Constraint(interface.Constraint):
     a coefficient cache can.
     """
 
-    def __init__(self, expression, sloppy=True, *args, **kwargs):
+    _INDICATOR_CONSTRAINT_SUPPORT = False
+
+    def __init__(self, expression, sloppy=False, *args, **kwargs):
         if isinstance(expression, (int, float)):
+            sloppy = True
             expression = symbolics.Real(expression)
 
+        self._expression_expired = False
         super(Constraint, self).__init__(expression, sloppy=sloppy, *args, **kwargs)
 
         if not sloppy and not self.is_Linear:
@@ -271,6 +292,12 @@ class Constraint(interface.Constraint):
         if self.problem is not None:
             self.problem._highs_set_row_bounds(self)
 
+    @interface.Constraint.name.setter
+    def name(self, value):
+        interface.Constraint.name.fset(self, value)
+        if getattr(self, 'problem', None) is not None:
+            self.problem._highs_set_row_name(self)
+
     @property
     def primal(self):
         if self.problem is None:
@@ -284,11 +311,14 @@ class Constraint(interface.Constraint):
         return self.problem._constraint_dual(self)
 
     def _get_expression(self):
-        """Reconstruct the expression by reading HiGHS's live row data."""
-        if self.problem is None:
-            # Never attached to a model - nothing to query, report what we
-            # were constructed with (base class stashed it as _expression).
+        """Reconstruct the expression by reading HiGHS's live row data if necessary."""
+        if not self._expression_expired:
             return self._expression
+        elif self.problem is not None: # constraint may be pending removal
+            self.problem.update()
+
+        if self.problem is None:
+            raise ValueError("Constraint expression cannot be constructed.")
 
         row_index = self._solver_index
         if row_index is None:
@@ -315,11 +345,9 @@ class Constraint(interface.Constraint):
             # no attribute 'is_commutative'), so sympify explicitly.
             terms.append(symbolics.Real(self._constant))
 
-        return symbolics.add(terms) if terms else symbolics.sympify(0)
-
-    @interface.Constraint.expression.getter
-    def expression(self):
-        return self._get_expression()
+        self._expression =  symbolics.add(terms) if terms else symbolics.sympify(0)
+        self._expression_expired = False
+        return self._expression
 
     def set_linear_coefficients(self, coefficients, sloppy=False):
         """
@@ -349,6 +377,7 @@ class Constraint(interface.Constraint):
 
         if sloppy:
             self.problem._highs_set_coefficients(self, coefficients)
+            self._expression_expired = True
             return
 
         model_coeffs = {}
@@ -358,6 +387,32 @@ class Constraint(interface.Constraint):
                 model_coeffs[var_obj] = coeff
 
         self.problem._highs_set_coefficients(self, model_coeffs)
+        self._expression_expired = True
+
+    def get_linear_coefficients(self, variables):
+        """
+        Get coefficients of linear terms in constraint.
+
+        Like everything else on this class, this reads straight from HiGHS's
+        row data when the constraint is attached to a model (via the same
+        helper _get_expression uses), rather than from any local cache.
+
+        Parameters
+        ----------
+        variables : iterable
+            An iterable of Variable objects
+
+        Returns
+        -------
+        Coefficients : dict
+            {var1: coefficient, var2: coefficient ...}. Variables with no
+            entry in the constraint get a coefficient of 0.
+        """
+        if self.problem is None:
+            raise Exception(
+                "Can't get coefficients from solver if constraint is not associated with a model.")
+        coeffs, _, _ = self.problem._constraint_to_coeffs(self)
+        return {variable: coeffs.get(variable.name, 0) for variable in variables}
 
 
 class Objective(interface.Objective):
@@ -377,9 +432,10 @@ class Objective(interface.Objective):
     prune it explicitly when a variable disappears.
     """
 
-    def __init__(self, expression, sloppy=True, *args, **kwargs):
+    def __init__(self, expression, sloppy=False, *args, **kwargs):
         if isinstance(expression, (int, float)):
             expression = symbolics.Real(expression)
+            sloppy = True
 
         kwargs['sloppy'] = sloppy
         super(Objective, self).__init__(expression, *args, **kwargs)
@@ -484,6 +540,37 @@ class Objective(interface.Objective):
         if constant is not None:
             self._constant = float(constant)
             self.problem.problem.changeObjectiveOffset(float(constant))
+
+    def get_linear_coefficients(self, variables):
+        """
+        Get coefficients of linear terms in objective.
+
+        Reads the linear part straight from HiGHS's live cost vector when
+        attached to a model, the same way _get_expression does. The
+        quadratic part is intentionally not reflected here since this only
+        reports linear coefficients (see set_linear_coefficients/
+        set_coefficients for the quadratic equivalent).
+
+        Parameters
+        ----------
+        variables : iterable
+            An iterable of Variable objects
+
+        Returns
+        -------
+        Coefficients : dict
+            {var1: coefficient, var2: coefficient ...}. Variables with no
+            linear entry in the objective get a coefficient of 0.
+        """
+        if self.problem is None:
+            raise Exception(
+                "Can't get coefficients from solver if objective is not associated with a model.")
+        obj_expr, _ = self.problem.problem.getObjective()
+        linear_coeffs = {
+            self.problem.problem.variableName(int(i)): float(v)
+            for i, v in zip(obj_expr.idxs, obj_expr.vals)
+        }
+        return {variable: linear_coeffs.get(variable.name, 0) for variable in variables}
 
 
 class Tolerances(object):
@@ -788,6 +875,102 @@ class Model(interface.Model):
         self._variables = HighsVariablesContainer(self)
         self._constraints = HighsConstraintsContainer(self)
 
+    def _initialize_model_from_problem(self, problem: highspy.Highs):
+        """
+        Copies an already-populated highspy.Highs instance, reconstructing
+        optlang Variable/Constraint/Objective wrappers for its current
+        columns, rows and cost vector.
+        """
+        if not isinstance(problem, highspy.Highs):
+            raise TypeError(
+                "Provided problem must be a highspy.Highs instance, not %s." % type(problem))
+
+        # self.problem = problem
+        # self._variables = HighsVariablesContainer(self)
+        # self._constraints = HighsConstraintsContainer(self)
+
+        # lp = problem.getLp()
+
+        self._initialize_problem() # create a new highspy.Highs problem
+        self.problem.passModel(problem.getModel()) # copy the source problem
+        lp = self.problem.getLp()
+        problem = self.problem
+
+        inf = highspy.kHighsInf
+
+        # Variables: one wrapper per existing column, bounds and index taken
+        # straight from the live problem.
+        for i in range(problem.getNumCol()):
+            name = problem.variableName(i)
+            lb = float(lp.col_lower_[i])
+            ub = float(lp.col_upper_[i])
+            variable = Variable(
+                name,
+                lb=None if lb <= -inf else lb,
+                ub=None if ub >= inf else ub,
+            )
+            # Raw assignment, not variable.problem = self: mirrors
+            # _add_variables/the rest of this file, and (unlike Constraint's
+            # or Objective's `problem`) Variable.problem is a plain
+            # attribute with no side effects, so either would work - this
+            # just keeps the pattern identical across all three.
+            variable._solver_index = i
+            variable.problem = self
+            self._variables.append(variable)
+            self._variables_to_constraints_mapping[name] = set()
+
+        # Constraints: one wrapper per existing row. Built the same way
+        # Constraint.__init__ always is elsewhere in this file - constructed
+        # unattached, with _solver_index and _problem only patched in
+        # afterwards. Constraint._get_expression touches self._solver_index,
+        # so constructing it directly with problem=self here (before that
+        # attribute exists) would blow up; this order avoids that.
+        for i in range(problem.getNumRow()):
+            _, name = problem.getRowName(i)
+            _, row_lb, row_ub, _ = problem.getRow(i)
+            _, idx, val = problem.getRowEntries(i)
+            # terms = [float(v) * self._variables[problem.variableName(int(j))] for j, v in zip(idx, val)]
+            # expression = symbolics.add(terms) if terms else symbolics.sympify(0)
+            # constraint = Constraint(
+            constraint = Constraint(
+                0, # do not set up explicit expression here, can be constructed on demand
+                lb=None if row_lb <= -inf else float(row_lb),
+                ub=None if row_ub >= inf else float(row_ub),
+                name=name,
+                sloppy=True,
+            )
+            constraint._expression_expired = True
+            constraint._solver_index = i
+            constraint._problem = self
+            self._constraints.append(constraint)
+            for j in idx:
+                var_name = problem.variableName(int(j))
+                self._variables_to_constraints_mapping[var_name].add(name)
+
+        # Objective: linear part only, see docstring. Same construction
+        # order rationale as Constraint above - Objective._get_expression
+        # reads self._quadratic_coeffs, which does not exist until after
+        # __init__ returns, so this too is built unattached first.
+        obj_expr, sense = problem.getObjective()
+        linear_coeffs = {}
+        terms = []
+        for i, v in zip(obj_expr.idxs, obj_expr.vals):
+            var_name = problem.variableName(int(i))
+            linear_coeffs[var_name] = float(v)
+            terms.append(float(v) * self._variables[var_name])
+        constant = float(obj_expr.constant or 0.0)
+        if constant:
+            terms.append(symbolics.Real(constant))
+        expression = symbolics.add(terms) if terms else symbolics.sympify(0)
+        direction = "max" if sense == highspy.ObjSense.kMaximize else "min"
+
+        objective = Objective(expression, direction=direction, sloppy=True)
+        objective._initial_linear_coeffs = linear_coeffs
+        objective._quadratic_coeffs = {}
+        objective._constant = constant
+        objective._problem = self
+        self._objective = objective
+
     def _build_hessian_data(self, quadratic_coeffs, num_col):
         """
         Helper to build Hessian matrix data (start, index, value) for HiGHS.
@@ -848,10 +1031,21 @@ class Model(interface.Model):
         n = self.problem.getNumCol()
         if n > 0:
             self.problem.changeColsCost(n, np.arange(n, dtype=np.int32), np.zeros(n, dtype=np.double))
-        
-        linear_coeffs = self.objective._initial_linear_coeffs
-        obj_constant = self.objective._constant
-        
+
+        # Re-derive from the objective's own (unattached-side) expression
+        # rather than trusting _initial_linear_coeffs/_constant verbatim:
+        # those are snapshotted once at Objective.__init__ time, but
+        # +=/-=/*= (OptimizationExpression's __iadd__/__isub__/__imul__)
+        # mutate _expression directly and have no way to know they should
+        # keep that snapshot in sync. Re-parsing here, at the one place the
+        # snapshot is actually consumed, keeps a mutated-before-attachment
+        # Objective (e.g. `obj = Objective(x); obj += 2 * y; model.objective
+        # = obj`) working correctly without having to intercept every
+        # mutating operator individually.
+        linear_coeffs, _, obj_constant = _separate_linear_and_quadratic_from_expr(self.objective._expression)
+        self.objective._initial_linear_coeffs = linear_coeffs
+        self.objective._constant = obj_constant
+
         for var_name, coeff in linear_coeffs.items():
             var = self._variables.get(var_name)
             if var is not None:
@@ -981,11 +1175,19 @@ class Model(interface.Model):
                 variable._solver_index -= shift
 
         for variable in variables:
-            # _variables_to_constraints_mapping is maintained by the base
-            # class's _add_constraints for compatibility, but Constraint no
-            # longer caches coefficients locally (its expression is always
-            # read live from HiGHS's own row data), so there's nothing on the
-            # constraint side left to look up or invalidate here.
+            # Constraint now caches its expression (_expression_expired) as
+            # of the sloppy-removal changes below - a constraint referencing
+            # this variable has a stale cache the moment the variable's
+            # column disappears from its row, so mark it expired before
+            # forgetting the mapping that's the only way to find it. (The
+            # comment this replaced predated that cache and was no longer
+            # accurate: it used to be true that there was nothing to
+            # invalidate here, back when Constraint.expression always read
+            # HiGHS live with no local cache at all.)
+            for constraint_name in self._variables_to_constraints_mapping.get(variable.name, ()):
+                constraint = self._constraints.get(constraint_name)
+                if constraint is not None:
+                    constraint._expression_expired = True
             self._variables_to_constraints_mapping.pop(variable.name, None)
             variable.problem = None
             del self._variables[variable.name]
@@ -1081,6 +1283,16 @@ class Model(interface.Model):
         row_lb = -inf if lb is None else lb
         row_ub = inf if ub is None else ub
         self.problem.changeRowBounds(constraint._solver_index, row_lb, row_ub)
+
+    def _highs_set_col_name(self, variable):
+        # Same flush rationale as _highs_set_col_bounds.
+        self.update()
+        self.problem.passColName(variable._solver_index, variable.name)
+
+    def _highs_set_row_name(self, constraint):
+        # Same flush rationale as _highs_set_col_bounds.
+        self.update()
+        self.problem.passRowName(constraint._solver_index, constraint.name)
 
     def _highs_set_coefficients(self, constraint, coefficients):
         # Same rationale as _highs_set_col_bounds: coefficients may reference
