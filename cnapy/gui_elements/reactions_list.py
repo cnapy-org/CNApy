@@ -5,16 +5,16 @@ from typing_extensions import Annotated
 
 import cobra
 import copy
-from qtpy.QtCore import QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
+import re
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication, QKeyEvent
-from qtpy.QtWidgets import (QHBoxLayout, QTreeWidget, QLabel, QLineEdit,
+from qtpy.QtWidgets import (QHBoxLayout, QTableView, QTableWidget, QTableWidgetItem, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
-                            QTreeWidgetItem, QVBoxLayout, QWidget, QMenu,
-                            QAbstractItemView)
+                            QVBoxLayout, QWidget, QMenu, QAbstractItemView)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
-from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
+from cnapy.utils import SignalThrottler, turn_red, turn_white
 from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_identifiers_org
 from cnapy.gui_elements.map_view import validate_value
 from cnapy.gui_elements.escher_map_view import EscherMapView
@@ -28,8 +28,222 @@ class ReactionListColumn(IntEnum):
     UB = 5
     DF = 6
 
-class DragableTreeWidget(QTreeWidget):
-    '''A list of dragable reaction items'''
+class ReactionListItem:
+    """Row data for reactions in the table model."""
+
+    def __init__(self, reaction: cobra.Reaction, model=None):
+        self.reaction: cobra.Reaction = reaction
+        self.model = model
+        self.texts = [""] * len(ReactionListColumn)
+        self.backgrounds = [None] * len(ReactionListColumn)
+        self.foregrounds = [None] * len(ReactionListColumn)
+        self.tooltips = [""] * len(ReactionListColumn)
+        self.flux_sort_val = -float('inf')
+        self.lb_val = -float('inf')
+        self.ub_val = float('inf')
+        self.df_val = -float("inf")
+        self.pin_at_top = False
+        self.hidden = False
+
+    def flags(self):
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+    def setFlags(self, _flags):
+        return None
+
+    def text(self, column):
+        return self.texts[int(column)]
+
+    def setText(self, column, text):
+        self.texts[int(column)] = text
+        self._emit_changed(column)
+
+    def setBackground(self, column, color):
+        self.backgrounds[int(column)] = color
+        self._emit_changed(column)
+
+    def setForeground(self, column, color):
+        self.foregrounds[int(column)] = color
+        self._emit_changed(column)
+
+    def setToolTip(self, column, text):
+        self.tooltips[int(column)] = text
+        self._emit_changed(column)
+
+    def setSelected(self, selected):
+        if self.model is not None and selected:
+            self.model.view.setCurrentItem(self)
+
+    def setHidden(self, hidden):
+        self.hidden = hidden
+        if self.model is not None:
+            row = self.model.indexOfTopLevelItem(self)
+            if row >= 0:
+                self.model.view.setRowHidden(row, hidden)
+
+    def isHidden(self):
+        return self.hidden
+
+    def set_flux_data(self, text, value):
+        self.setText(ReactionListColumn.Flux, text)
+        if isinstance(value, (int, float)):
+            self.flux_sort_val = abs(value)
+        else:
+            self.flux_sort_val = value[1] - value[0]
+
+    def reset_flux_data(self):
+        self.setText(ReactionListColumn.Flux, "")
+        self.flux_sort_val = -float('inf')
+        self.lb_val = -float('inf')
+        self.ub_val = float('inf')
+
+    def update_tooltips(self):
+        text = "Id: " + self.reaction.id + "\nName: " + self.reaction.name \
+            + "\nEquation: " + self.reaction.build_reaction_string()\
+            + "\nLowerbound: " + str(self.reaction.lower_bound) \
+            + "\nUpper bound: " + str(self.reaction.upper_bound) \
+            + "\nObjective coefficient: " + str(self.reaction.objective_coefficient)
+        self.setToolTip(ReactionListColumn.Id, text)
+        self.setToolTip(ReactionListColumn.Name, text)
+
+    def _emit_changed(self, column):
+        if self.model is not None:
+            self.model.emit_item_changed(self, int(column))
+
+
+class ReactionListModel(QAbstractTableModel):
+    """Custom table model backing the reaction list view."""
+
+    itemChanged = Signal(object, int)
+
+    def __init__(self, header_labels, parent=None):
+        super().__init__(parent)
+        self.header_labels = header_labels
+        self.items = []
+        self.sort_column = ReactionListColumn.Id
+        self.sort_order = Qt.AscendingOrder
+        self.sorting_enabled = False
+        self.view = None
+
+    def rowCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self.items)
+
+    def columnCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self.header_labels)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+        item = self.items[index.row()]
+        column = index.column()
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            return item.text(column)
+        if role == Qt.BackgroundRole:
+            return item.backgrounds[column]
+        if role == Qt.ForegroundRole:
+            return item.foregrounds[column]
+        if role == Qt.ToolTipRole:
+            return item.tooltips[column]
+        return None
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid() or role != Qt.EditRole:
+            return False
+        item = self.items[index.row()]
+        item.texts[index.column()] = value
+        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
+        self.itemChanged.emit(item, index.column())
+        return True
+
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.NoItemFlags
+        flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled
+        if index.column() == ReactionListColumn.Scenario:
+            flags |= Qt.ItemIsEditable
+        return flags
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.header_labels[section]
+        return None
+
+    def add_item(self, item):
+        item.model = self
+        self.beginInsertRows(QModelIndex(), len(self.items), len(self.items))
+        self.items.append(item)
+        self.endInsertRows()
+        if self.sorting_enabled:
+            self.sort(self.sort_column, self.sort_order)
+
+    def clear(self):
+        self.beginResetModel()
+        self.items.clear()
+        self.endResetModel()
+
+    def emit_item_changed(self, item, column):
+        row = self.indexOfTopLevelItem(item)
+        if row >= 0:
+            index = self.index(row, int(column))
+            self.dataChanged.emit(index, index)
+
+    def indexOfTopLevelItem(self, item):
+        try:
+            return self.items.index(item)
+        except ValueError:
+            return -1
+
+    def takeTopLevelItem(self, row):
+        if row < 0 or row >= len(self.items):
+            return None
+        self.beginRemoveRows(QModelIndex(), row, row)
+        item = self.items.pop(row)
+        item.model = None
+        self.endRemoveRows()
+        return item
+
+    def sort_value(self, item, column):
+        if column == ReactionListColumn.Flux:
+            return item.flux_sort_val
+        if column == ReactionListColumn.LB:
+            return item.lb_val
+        if column == ReactionListColumn.UB:
+            return item.ub_val
+        if column == ReactionListColumn.DF:
+            return item.df_val
+        return item.text(column)
+
+    def sort(self, column, order=Qt.AscendingOrder):
+        self.sort_column = column
+        self.sort_order = order
+        if not self.sorting_enabled:
+            return
+        self.layoutAboutToBeChanged.emit()
+        reverse = order == Qt.DescendingOrder
+        pinned = [item for item in self.items if item.pin_at_top]
+        unpinned = [item for item in self.items if not item.pin_at_top]
+        pinned.sort(key=lambda item: self.sort_value(item, column), reverse=reverse)
+        unpinned.sort(key=lambda item: self.sort_value(item, column), reverse=reverse)
+        self.items[:] = pinned + unpinned
+        self.layoutChanged.emit()
+
+
+class DragableTableView(QTableView):
+    """A table of dragable reaction items."""
+
+    currentItemChanged = Signal(object)
+    itemClicked = Signal(object, int)
+
+    def __init__(self):
+        super().__init__()
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+
+    def setModel(self, model):
+        super().setModel(model)
+        model.view = self
+        self.selectionModel().currentChanged.connect(self._current_changed)
+        self.clicked.connect(self._clicked)
 
     def mouseMoveEvent(self, _event):
         item = self.currentItem()
@@ -41,69 +255,79 @@ class DragableTreeWidget(QTreeWidget):
             drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
 
     def keyPressEvent(self, event: QKeyEvent):
-        # enable sequential editing of scenario values using up/down arrow keys
         super().keyPressEvent(event)
         if self.currentColumn() == ReactionListColumn.Scenario:
-            if not self.isPersistentEditorOpen(self.currentItem(), self.currentColumn()):
-                key = event.key()
-                if key == Qt.Key_Up or key == Qt.Key_Down:
-                    self.editItem(self.currentItem(), self.currentColumn())
+            key = event.key()
+            if key == Qt.Key_Up or key == Qt.Key_Down:
+                self.edit(self.currentIndex())
 
-class ReactionListItem(QTreeWidgetItem):
-    """ For custom sorting of columns """
+    def _current_changed(self, current, _previous):
+        self.currentItemChanged.emit(self.itemFromIndex(current))
 
-    def __init__(self, reaction: cobra.Reaction, parent: QTreeWidget):
-        # although QTreeWidgetItem is constructed with the reaction_list as parent this
-        # will not be its parent() which is None because it is a top-level item
-        QTreeWidgetItem.__init__(self, parent)
-        self.reaction: cobra.Reaction = reaction
-        self.flux_sort_val = -float('inf')
-        self.lb_val = -float('inf')
-        self.ub_val = float('inf')
-        self.df_val = -float("inf")
-        self.pin_at_top = False
+    def _clicked(self, index):
+        self.itemClicked.emit(self.itemFromIndex(index), index.column())
 
-    def set_flux_data(self, text, value):
-        self.setText(ReactionListColumn.Flux, text)
-        if isinstance(value, (int, float)):
-            self.flux_sort_val = abs(value)
-        else:  # assumes value is a pair of numbers
-            self.flux_sort_val = value[1] - value[0]
+    def itemFromIndex(self, index):
+        if index.isValid():
+            return self.model().items[index.row()]
+        return None
 
-    def reset_flux_data(self):
-        self.setText(ReactionListColumn.Flux, "")
-        self.flux_sort_val = -float('inf')
-        self.lb_val = -float('inf')
-        self.ub_val = float('inf')
+    def currentItem(self):
+        return self.itemFromIndex(self.currentIndex())
 
-    def __lt__(self, other):
-        """ overrides QTreeWidgetItem::operator< """
-        if self.pin_at_top != other.pin_at_top:
-            if self.treeWidget().header().sortIndicatorOrder() == Qt.DescendingOrder:
-                return self.pin_at_top < other.pin_at_top
-            else:
-                return other.pin_at_top < self.pin_at_top
-        column = self.treeWidget().sortColumn()
-        if column == ReactionListColumn.Flux:
-            return self.flux_sort_val < other.flux_sort_val
-        elif column == ReactionListColumn.LB:
-            return self.lb_val < other.lb_val
-        elif column == ReactionListColumn.UB:
-            return self.ub_val < other.ub_val
-        elif column == ReactionListColumn.DF:
-            return self.df_val < other.df_val
-        else:  # use Qt default comparison for the other columns
-#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
-            return self.text(column) < other.text(column)
+    def currentColumn(self):
+        return self.currentIndex().column()
 
-    def update_tooltips(self):
-        text = "Id: " + self.reaction.id + "\nName: " + self.reaction.name \
-            + "\nEquation: " + self.reaction.build_reaction_string()\
-            + "\nLowerbound: " + str(self.reaction.lower_bound) \
-            + "\nUpper bound: " + str(self.reaction.upper_bound) \
-            + "\nObjective coefficient: " + str(self.reaction.objective_coefficient)
-        self.setToolTip(ReactionListColumn.Id, text)
-        self.setToolTip(ReactionListColumn.Name, text)
+    def clear(self):
+        self.model().clear()
+
+    def clearSelection(self):
+        super().clearSelection()
+        self.setCurrentIndex(QModelIndex())
+
+    def setCurrentItem(self, item):
+        if item is None:
+            self.clearSelection()
+            return
+        row = self.model().indexOfTopLevelItem(item)
+        if row >= 0:
+            self.setCurrentIndex(self.model().index(row, 0))
+
+    def scrollToItem(self, item):
+        row = self.model().indexOfTopLevelItem(item)
+        if row >= 0:
+            self.scrollTo(self.model().index(row, 0))
+
+    def editItem(self, item, column):
+        row = self.model().indexOfTopLevelItem(item)
+        if row >= 0:
+            self.edit(self.model().index(row, int(column)))
+
+    def topLevelItemCount(self):
+        return len(self.model().items)
+
+    def topLevelItem(self, row):
+        return self.model().items[row]
+
+    def findItems(self, text, _flags, column=ReactionListColumn.Id):
+        return [item for item in self.model().items if item.text(column) == text]
+
+    def sortItems(self, column, order):
+        self.model().sort(column, order)
+
+    def sortColumn(self):
+        return self.model().sort_column
+
+    def setSortingEnabled(self, enable):
+        self.model().sorting_enabled = enable
+        super().setSortingEnabled(enable)
+
+    def indexOfTopLevelItem(self, item):
+        return self.model().indexOfTopLevelItem(item)
+
+    def takeTopLevelItem(self, row):
+        return self.model().takeTopLevelItem(row)
+
 
 class ReactionList(QWidget):
     """A list of reaction"""
@@ -121,26 +345,25 @@ class ReactionList(QWidget):
         policy.ShrinkFlag = True
         self.add_button.setSizePolicy(policy)
 
-        self.reaction_list: DragableTreeWidget = DragableTreeWidget()
+        self.reaction_list: DragableTableView = DragableTableView()
         self.reaction_list.setDragEnabled(True)
-        self.reaction_list.setColumnCount(len(ReactionListColumn))
-        self.reaction_list.setRootIsDecorated(False)
+        self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
+        self.reaction_model = ReactionListModel(self.header_labels, self.reaction_list)
+        self.reaction_list.setModel(self.reaction_model)
         self.reaction_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.reaction_list.customContextMenuRequested.connect(self.context_menu)
-        self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
-        self.reaction_list.setHeaderLabels(self.header_labels)
         # heuristic initial column widths
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Scenario)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
-        width = self.reaction_list.header().sectionSize(ReactionListColumn.Scenario) + \
-                self.reaction_list.header().sectionSize(ReactionListColumn.LB)
-        self.reaction_list.header().resizeSection(ReactionListColumn.Id, width)
-        self.reaction_list.header().resizeSection(ReactionListColumn.Name, width)
+        width = self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.Scenario) + \
+                self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.LB)
+        self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Id, width)
+        self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Name, width)
         self.visible_column = [True]*len(self.header_labels)
         self.reaction_list.setSortingEnabled(True)
         self.reaction_list.sortByColumn(ReactionListColumn.Id, Qt.AscendingOrder)
-        self.reaction_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
-        self.reaction_list.header().customContextMenuRequested.connect(self.header_context_menu)
+        self.reaction_list.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reaction_list.horizontalHeader().customContextMenuRequested.connect(self.header_context_menu)
 
         for r in self.appdata.project.cobra_py_model.reactions:
             self.add_reaction(r)
@@ -164,7 +387,7 @@ class ReactionList(QWidget):
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
         self.reaction_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.reaction_list.itemClicked.connect(self.handle_item_clicked)
-        self.reaction_list.itemChanged.connect(self.handle_item_changed)
+        self.reaction_model.itemChanged.connect(self.handle_item_changed)
 
         self.reaction_mask.reactionChanged.connect(
             self.handle_changed_reaction)
@@ -185,8 +408,9 @@ class ReactionList(QWidget):
     def add_reaction(self, reaction: cobra.Reaction) -> ReactionListItem:
         ''' create a new item in the reaction list'''
         self.reaction_list.clearSelection()
-        item = ReactionListItem(reaction, self.reaction_list)
+        item = ReactionListItem(reaction)
         item.setFlags(item.flags() | Qt.ItemIsEditable)
+        self.reaction_model.add_item(item)
         item.setText(ReactionListColumn.Id, reaction.id)
         item.setText(ReactionListColumn.Name, reaction.name)
         item.update_tooltips()
@@ -325,10 +549,7 @@ class ReactionList(QWidget):
 
     def handle_changed_reaction(self, reaction: cobra.Reaction):
         # Update reaction item in list
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in self.reaction_model.items:
             if item.reaction == reaction:
                 old_id = item.text(ReactionListColumn.Id)
                 item.setText(ReactionListColumn.Id, reaction.id)
@@ -341,11 +562,8 @@ class ReactionList(QWidget):
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         '''Remove reaction item from reaction list'''
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
         with QSignalBlocker(self.reaction_list):
-            for i in range(child_count):
-                item = root.child(i)
+            for item in list(self.reaction_model.items):
                 if item.reaction == reaction:
                     # remove item
                     self.reaction_list.takeTopLevelItem(
@@ -355,13 +573,13 @@ class ReactionList(QWidget):
         self.last_selected = self.reaction_mask.id.text()
         self.reactionDeleted.emit(reaction)
 
-    @Slot(QTreeWidgetItem, int)
+    @Slot(object, int)
     def handle_item_clicked(self, item: ReactionListItem, column):
         self.last_selected = item.reaction.id
         if column == ReactionListColumn.Scenario:
             self.reaction_list.editItem(item, column)
 
-    @Slot(QTreeWidgetItem, int)
+    @Slot(object, int)
     def handle_item_changed(self, item: ReactionListItem, column: int):
         if column == ReactionListColumn.Scenario:
             scen_text = item.text(column).strip()
@@ -377,12 +595,33 @@ class ReactionList(QWidget):
                 item.setBackground(column, Qt.red)
 
     def update_selected(self, string, with_annotations):
-        return update_selected(
-            string=string,
-            with_annotations=with_annotations,
-            model_elements=self.appdata.project.cobra_py_model.reactions,
-            element_list=self.reaction_list,
-        )
+        if len(string) >= 2:
+            regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
+            found_ids = [
+                reaction.id
+                for reaction in self.appdata.project.cobra_py_model.reactions
+                if regex.search(reaction.id)
+                or regex.search(reaction.name)
+                or (
+                    with_annotations
+                    and (
+                        any(regex.search(key) for key in reaction.annotation.keys())
+                        or any(regex.search(str(value)) for value in reaction.annotation.values())
+                    )
+                )
+            ]
+        else:
+            found_ids = [reaction.id for reaction in self.appdata.project.cobra_py_model.reactions]
+
+        found_id_set = set(found_ids)
+        for item in self.reaction_model.items:
+            item.setHidden(item.reaction.id not in found_id_set)
+
+        current_item = self.reaction_list.currentItem()
+        if current_item is not None and not current_item.isHidden():
+            self.reaction_list.scrollToItem(current_item)
+
+        return found_ids
 
     def update(self, rebuild=False):
         if len(self.appdata.project.df_values.keys()) > 0:
@@ -390,7 +629,7 @@ class ReactionList(QWidget):
             self.visible_column[ReactionListColumn.DF] = True
 
         # should only need to rebuild the whole list if the model changes
-        self.reaction_list.itemChanged.disconnect(self.handle_item_changed)
+        self.reaction_model.itemChanged.disconnect(self.handle_item_changed)
         self.reaction_list.setSortingEnabled(False) # keep row order stable so that each item is updated
         if rebuild:
             self.reaction_list.clear()
@@ -399,7 +638,7 @@ class ReactionList(QWidget):
         else:
             for i in range(self.reaction_list.topLevelItemCount()):
                 self.update_item(self.reaction_list.topLevelItem(i))
-        self.reaction_list.itemChanged.connect(self.handle_item_changed)
+        self.reaction_model.itemChanged.connect(self.handle_item_changed)
 
         if self.last_selected is None:
             self.reaction_list.setCurrentItem(None)
@@ -455,27 +694,21 @@ class ReactionList(QWidget):
     def change_pinned(self, checked: bool):
         self.reaction_list.currentItem().pin_at_top = checked
         if checked:
-            self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.header().sortIndicatorOrder())
+            self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.horizontalHeader().sortIndicatorOrder())
             self.appdata.project.scen_values.pinned_reactions.add(self.reaction_list.currentItem().reaction.id)
         else:
             self.appdata.project.scen_values.pinned_reactions.discard(self.reaction_list.currentItem().reaction.id)
 
     def pin_multiple(self, reac_ids):
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item: ReactionListItem = root.child(i)
+        for item in self.reaction_model.items:
             if item.reaction.id in reac_ids:
                 item.pin_at_top = True
-        self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.header().sortIndicatorOrder())
+        self.reaction_list.sortItems(self.reaction_list.sortColumn(), self.reaction_list.horizontalHeader().sortIndicatorOrder())
         self.appdata.project.scen_values.pinned_reactions.update(reac_ids)
 
     @Slot()
     def unpin_all(self):
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item: ReactionListItem = root.child(i)
+        for item in self.reaction_model.items:
             if item.reaction.id in self.appdata.project.scen_values.pinned_reactions:
                 item.pin_at_top = False
         self.appdata.project.scen_values.pinned_reactions = set()
@@ -500,7 +733,7 @@ class ReactionList(QWidget):
 
     @Slot(QPoint)
     def header_context_menu(self, position):
-        menu = QMenu(self.reaction_list.header())
+        menu = QMenu(self.reaction_list.horizontalHeader())
         for col_idx in range(1, len(self.header_labels)):
             action = menu.addAction(self.header_labels[col_idx])
             action.setCheckable(True)
@@ -510,15 +743,12 @@ class ReactionList(QWidget):
         menu.addSeparator()
         action = menu.addAction("Copy table to system clipboard")
         action.triggered.connect(self.copy_to_clipboard)
-        menu.exec_(self.reaction_list.header().mapToGlobal(position))
+        menu.exec_(self.reaction_list.horizontalHeader().mapToGlobal(position))
 
     def get_as_table(self) -> str:
         visible_columns = [j.value for j in ReactionListColumn if not self.reaction_list.isColumnHidden(j)]
         table = ["\t".join([ReactionListColumn(j).name for j in visible_columns])]
-        root = self.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in self.reaction_model.items:
             line = []
             for j in visible_columns:
                 line.append(item.text(j))
@@ -663,8 +893,9 @@ class ReactionMask(QWidget):
         label = QLabel("Metabolites involved in this reaction:")
         l.addWidget(label)
         l2 = QHBoxLayout()
-        self.metabolites = QTreeWidget()
-        self.metabolites.setHeaderLabels(["Id"])
+        self.metabolites = QTableWidget()
+        self.metabolites.setColumnCount(2)
+        self.metabolites.setHorizontalHeaderLabels(["Id", "Name"])
         self.metabolites.setSortingEnabled(True)
         l2.addWidget(self.metabolites)
         l.addItem(l2)
@@ -976,23 +1207,29 @@ class ReactionMask(QWidget):
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)
 
-        self.metabolites.clear()
+        self.metabolites.setSortingEnabled(False)
+        self.metabolites.setRowCount(0)
         if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
             reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
                 self.id.text())
-            for m in reaction.metabolites:
-                item = QTreeWidgetItem(self.metabolites)
-                item.setText(0, m.id)
-                item.setText(1, m.name)
-                item.setData(2, 0, m)
+            for row, m in enumerate(reaction.metabolites):
+                self.metabolites.insertRow(row)
+                id_item = QTableWidgetItem(m.id)
+                name_item = QTableWidgetItem(m.name)
+                id_item.setData(Qt.UserRole, m)
                 text = "Id: " + m.id + "\nName: " + m.name
-                item.setToolTip(1, text)
+                id_item.setToolTip(text)
+                name_item.setToolTip(text)
+                self.metabolites.setItem(row, 0, id_item)
+                self.metabolites.setItem(row, 1, name_item)
+        self.metabolites.setSortingEnabled(True)
 
     def emit_jump_to_map(self, name):
         self.jumpToMap.emit(name, self.id.text())
 
     def emit_jump_to_metabolite(self, metabolite):
-        self.jumpToMetabolite.emit(str(metabolite.data(2, 0)))
+        item = self.metabolites.item(metabolite.row(), 0)
+        self.jumpToMetabolite.emit(str(item.data(Qt.UserRole)))
 
     @Slot()
     def update_reaction_string(self):

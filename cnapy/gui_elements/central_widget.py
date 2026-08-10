@@ -444,11 +444,8 @@ class CentralWidget(QWidget):
                 idx = self.appdata.window.centralWidget().tabs.currentIndex()
                 if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
                     view = self.appdata.window.centralWidget().reaction_list
-                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-                    root = view.reaction_list.invisibleRootItem()
-                    child_count = root.childCount()
-                    for i in range(child_count):
-                        item = root.child(i)
+                    view.reaction_list.blockSignals(True) # block selection signals while recoloring
+                    for item in view.reaction_model.items:
                         if item.text(0) in bnd_dict:
                             v = bnd_dict[item.text(0)]
                             if numpy.any(numpy.isnan(v)):
@@ -613,12 +610,9 @@ class CentralWidget(QWidget):
     def __set_onoff_reaction_list(self):
         # do coloring of LB/UB columns in this case?
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
@@ -656,12 +650,9 @@ class CentralWidget(QWidget):
     def __set_heaton_reaction_list(self, low, high):
         # TODO: coloring of LB/UB columns
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
