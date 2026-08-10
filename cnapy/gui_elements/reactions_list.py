@@ -38,10 +38,6 @@ class ReactionListItem:
         self.backgrounds = [None] * len(ReactionListColumn)
         self.foregrounds = [None] * len(ReactionListColumn)
         self.tooltips = [""] * len(ReactionListColumn)
-        self.flux_sort_val = -float('inf')
-        self.lb_val = -float('inf')
-        self.ub_val = float('inf')
-        self.df_val = -float("inf")
         self.pin_at_top = False
         self.hidden = False
 
@@ -84,19 +80,6 @@ class ReactionListItem:
     def isHidden(self):
         return self.hidden
 
-    def set_flux_data(self, text, value):
-        self.setText(ReactionListColumn.Flux, text)
-        if isinstance(value, (int, float)):
-            self.flux_sort_val = abs(value)
-        else:
-            self.flux_sort_val = value[1] - value[0]
-
-    def reset_flux_data(self):
-        self.setText(ReactionListColumn.Flux, "")
-        self.flux_sort_val = -float('inf')
-        self.lb_val = -float('inf')
-        self.ub_val = float('inf')
-
     def update_tooltips(self):
         text = "Id: " + self.reaction.id + "\nName: " + self.reaction.name \
             + "\nEquation: " + self.reaction.build_reaction_string()\
@@ -116,9 +99,10 @@ class ReactionListModel(QAbstractTableModel):
 
     itemChanged = Signal(object, int)
 
-    def __init__(self, header_labels, parent=None):
+    def __init__(self, header_labels, appdata, parent=None):
         super().__init__(parent)
         self.header_labels = header_labels
+        self.appdata = appdata
         self.items = []
         self.sort_column = ReactionListColumn.Id
         self.sort_order = Qt.AscendingOrder
@@ -136,15 +120,77 @@ class ReactionListModel(QAbstractTableModel):
             return None
         item = self.items[index.row()]
         column = index.column()
+        text, background, foreground, tooltip = self.cell_data(item, column)
         if role in (Qt.DisplayRole, Qt.EditRole):
-            return item.text(column)
+            return text
         if role == Qt.BackgroundRole:
-            return item.backgrounds[column]
+            return background
         if role == Qt.ForegroundRole:
-            return item.foregrounds[column]
+            return foreground
         if role == Qt.ToolTipRole:
-            return item.tooltips[column]
+            return tooltip
         return None
+
+    def cell_data(self, item, column):
+        column = ReactionListColumn(column)
+        text = item.text(column)
+        background = item.backgrounds[column]
+        foreground = item.foregrounds[column]
+        tooltip = item.tooltips[column]
+        default_background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+        default_foreground = QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0)
+        key = item.reaction.id
+
+        if column == ReactionListColumn.Scenario:
+            if key in self.appdata.project.scen_values:
+                vl, vu = self.appdata.project.scen_values[key]
+                text = self.appdata.format_flux_value(vl)
+                if vl != vu:
+                    text = text + ", " + self.appdata.format_flux_value(vu)
+                background = self.appdata.scen_color
+            else:
+                text = ""
+                background = default_background
+                foreground = default_foreground
+        elif column == ReactionListColumn.Flux:
+            if key in self.appdata.project.comp_values:
+                vl, vu = self.appdata.project.comp_values[key]
+                text, background, as_one = self.appdata.flux_value_display(vl, vu)
+            else:
+                text = ""
+                background = default_background
+                foreground = default_foreground
+        elif column in (ReactionListColumn.LB, ReactionListColumn.UB):
+            vl, vu, background = self.bounds_data(item)
+            text = self.appdata.format_flux_value(vl if column == ReactionListColumn.LB else vu)
+            if key not in self.appdata.project.fva_values:
+                foreground = default_foreground
+        elif column == ReactionListColumn.DF and key in self.appdata.project.df_values:
+            text = str(self.appdata.project.df_values[key])
+        if item.backgrounds[column] is not None:
+            background = item.backgrounds[column]
+        if item.foregrounds[column] is not None:
+            foreground = item.foregrounds[column]
+        return text, background, foreground, tooltip
+
+    def bounds_data(self, item):
+        key = item.reaction.id
+        if key in self.appdata.project.fva_values.keys():
+            vl, vu = self.appdata.project.fva_values[key]
+            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
+                if self.appdata.modes_coloring:
+                    background = Qt.red if vl == 0 else Qt.green
+                else:
+                    background = self.appdata.comp_color
+            elif isclose(vl, 0.0, abs_tol=self.appdata.abs_tol) or isclose(vu, 0.0, abs_tol=self.appdata.abs_tol) or vl <= 0 and vu >= 0:
+                background = self.appdata.special_color_1
+            else:
+                background = self.appdata.special_color_2
+        else:
+            vl = item.reaction.lower_bound
+            vu = item.reaction.upper_bound
+            background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+        return vl, vu, background
 
     def setData(self, index, value, role=Qt.EditRole):
         if not index.isValid() or role != Qt.EditRole:
@@ -203,14 +249,20 @@ class ReactionListModel(QAbstractTableModel):
         return item
 
     def sort_value(self, item, column):
+        key = item.reaction.id
         if column == ReactionListColumn.Flux:
-            return item.flux_sort_val
+            if key in self.appdata.project.comp_values:
+                vl, vu = self.appdata.project.comp_values[key]
+                return abs(vl) if vl == vu else vu - vl
+            return -float('inf')
         if column == ReactionListColumn.LB:
-            return item.lb_val
+            vl, _vu, _background = self.bounds_data(item)
+            return vl
         if column == ReactionListColumn.UB:
-            return item.ub_val
+            _vl, vu, _background = self.bounds_data(item)
+            return vu
         if column == ReactionListColumn.DF:
-            return item.df_val
+            return self.appdata.project.df_values.get(key, -float('inf'))
         return item.text(column)
 
     def sort(self, column, order=Qt.AscendingOrder):
@@ -353,7 +405,7 @@ class ReactionList(QWidget):
         self.reaction_list: DragableTableView = DragableTableView()
         self.reaction_list.setDragEnabled(True)
         self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
-        self.reaction_model = ReactionListModel(self.header_labels, self.reaction_list)
+        self.reaction_model = ReactionListModel(self.header_labels, self.appdata, self.reaction_list)
         self.reaction_list.setModel(self.reaction_model)
         self.reaction_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.reaction_list.customContextMenuRequested.connect(self.context_menu)
@@ -419,76 +471,16 @@ class ReactionList(QWidget):
         item.setText(ReactionListColumn.Id, reaction.id)
         item.setText(ReactionListColumn.Name, reaction.name)
         item.update_tooltips()
-        self.update_item(item)
         return item
 
     def update_item(self, item: ReactionListItem):
-        ''' update Scenario, Flux, LB, UB columns '''
-        if self.appdata.project.comp_values_type == 0:
-            self.set_flux_value(item)
-        self.set_bounds_values(item)
-        if item.reaction.id in self.appdata.project.scen_values:
-            scen_background_color = self.appdata.scen_color
-            (vl, vu) = self.appdata.project.scen_values[item.reaction.id]
-            scen_text = self.appdata.format_flux_value(vl)
-            if vl != vu:
-                scen_text = scen_text+", "+self.appdata.format_flux_value(vu)
-        else:
-            scen_background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
-            scen_text = ""
-            item.setForeground(ReactionListColumn.Scenario, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
-        item.setBackground(ReactionListColumn.Scenario, scen_background_color)
-        item.setText(ReactionListColumn.Scenario, scen_text)
-        if item.reaction.id in self.appdata.project.df_values.keys():
-            item.setText(ReactionListColumn.DF, str(self.appdata.project.df_values[item.reaction.id]))
-            item.df_val = self.appdata.project.df_values[item.reaction.id]
-
-    def set_flux_value(self, item: ReactionListItem):
-        key = item.reaction.id
-        if key in self.appdata.project.comp_values.keys():
-            (vl, vu) = self.appdata.project.comp_values[key]
-            flux_text, background_color, as_one = self.appdata.flux_value_display(vl, vu)
-            item.set_flux_data(flux_text, vl if as_one else (vl, vu))
-        else:
-            item.reset_flux_data()
-            background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
-            item.setForeground(ReactionListColumn.Flux, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
-        item.setBackground(ReactionListColumn.Flux, background_color)
-        item.setForeground(ReactionListColumn.Flux, Qt.black)
-
-    def set_bounds_values(self, item):
-        key = item.reaction.id
-        if key in self.appdata.project.fva_values.keys():
-            (vl, vu) = self.appdata.project.fva_values[key]
-            if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
-                if self.appdata.modes_coloring:
-                    if vl == 0:
-                        background_color = Qt.red
-                    else:
-                        background_color = Qt.green
-                else:
-                        background_color = self.appdata.comp_color
-            else:
-                if isclose(vl, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
-                elif isclose(vu, 0.0, abs_tol=self.appdata.abs_tol):
-                    background_color = self.appdata.special_color_1
-                elif vl <= 0 and vu >= 0:
-                    background_color = self.appdata.special_color_1
-                else:
-                    background_color = self.appdata.special_color_2
-        else:
-            vl = item.reaction.lower_bound
-            vu = item.reaction.upper_bound
-            background_color = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
-            item.setForeground(ReactionListColumn.LB, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
-            item.setForeground(ReactionListColumn.UB, QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0))
-        item.setBackground(ReactionListColumn.LB, background_color)  #ZZZ
-        item.lb_val = vl
-        item.setText(ReactionListColumn.LB, self.appdata.format_flux_value(vl))
-        item.setBackground(ReactionListColumn.UB, background_color)
-        item.ub_val = vu
-        item.setText(ReactionListColumn.UB, self.appdata.format_flux_value(vu))
+        ''' notify the view that lazily computed columns changed '''
+        row = self.reaction_model.indexOfTopLevelItem(item)
+        if row >= 0:
+            self.reaction_model.dataChanged.emit(
+                self.reaction_model.index(row, ReactionListColumn.Scenario),
+                self.reaction_model.index(row, ReactionListColumn.DF),
+            )
 
     def add_new_reaction(self):
         self.reaction_mask.show()
@@ -589,6 +581,7 @@ class ReactionList(QWidget):
         if column == ReactionListColumn.Scenario:
             scen_text = item.text(column).strip()
             if len(scen_text) == 0 or validate_value(scen_text):
+                item.backgrounds[ReactionListColumn.Scenario] = None
                 self.central_widget.update_reaction_value(item.reaction.id, scen_text,
                     update_reaction_list=False) # not necessary to update the whole reaction list
                 if self.appdata.auto_fba:
@@ -633,17 +626,22 @@ class ReactionList(QWidget):
             self.reaction_list.setColumnHidden(ReactionListColumn.DF, False)
             self.visible_column[ReactionListColumn.DF] = True
 
-        # should only need to rebuild the whole list if the model changes
-        self.reaction_model.itemChanged.disconnect(self.handle_item_changed)
-        self.reaction_list.setSortingEnabled(False) # keep row order stable so that each item is updated
+        # should only need to rebuild the whole list if the model changes; computed
+        # columns are evaluated lazily by ReactionListModel.data() for visible rows.
         if rebuild:
+            self.reaction_model.itemChanged.disconnect(self.handle_item_changed)
+            self.reaction_list.setSortingEnabled(False)
             self.reaction_list.clear()
             for r in self.appdata.project.cobra_py_model.reactions:
                 self.add_reaction(r)
-        else:
-            for i in range(self.reaction_list.topLevelItemCount()):
-                self.update_item(self.reaction_list.topLevelItem(i))
-        self.reaction_model.itemChanged.connect(self.handle_item_changed)
+            self.reaction_model.itemChanged.connect(self.handle_item_changed)
+        elif self.reaction_model.rowCount() > 0:
+            for item in self.reaction_model.items:
+                item.backgrounds[ReactionListColumn.Flux] = None
+            self.reaction_model.dataChanged.emit(
+                self.reaction_model.index(0, ReactionListColumn.Scenario),
+                self.reaction_model.index(self.reaction_model.rowCount() - 1, ReactionListColumn.DF),
+            )
 
         if self.last_selected is None:
             self.reaction_list.setCurrentItem(None)
@@ -657,10 +655,10 @@ class ReactionList(QWidget):
                 break
 
         self.reaction_list.setSortingEnabled(True)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.Flux)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.DF)
+        self.reaction_list.sortItems(
+            self.reaction_list.sortColumn(),
+            self.reaction_list.horizontalHeader().sortIndicatorOrder(),
+        )
 
     def set_current_item(self, key: str):
         self.last_selected = key
@@ -756,7 +754,7 @@ class ReactionList(QWidget):
         for item in self.reaction_model.items:
             line = []
             for j in visible_columns:
-                line.append(item.text(j))
+                line.append(self.reaction_model.cell_data(item, j)[0])
             table.append("\t".join(line))
         return "\r".join(table)
 
