@@ -1049,7 +1049,6 @@ class GraphAwareFVAWorker(th.Thread):
         h.changeObjectiveSense(highspy.ObjSense.kMinimize)
 
         stack = LocalStack()
-        n_bad = 0
         while True:
             job = stack.claim_from(self.job_queue)
             if job is None:
@@ -1068,7 +1067,7 @@ class GraphAwareFVAWorker(th.Thread):
                 obj_val = h.getInfo().objective_function_value
             else:
                 obj_val = float("NaN")
-                n_bad += 1
+                self.n_bad += 1
             if coef == -1:
                 self.ub[i] = -obj_val
             else:
@@ -1077,8 +1076,6 @@ class GraphAwareFVAWorker(th.Thread):
 
             if self.neighbors:
                 stack.push_neighbors(i, coef, self.neighbors, self.relation)
-        return n_bad
-
 
 def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
     pre_tol = 1e-9
@@ -1133,7 +1130,6 @@ def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
             jobs.append((i, 1))
 
     lp_data.col_cost_[:] = 0.0
-    print(len(jobs))
     if len(jobs) >= 2000:
         if constraints:
             S.resize((len(model.metabolites), num_reac))
