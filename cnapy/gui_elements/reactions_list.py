@@ -10,7 +10,7 @@ from qtpy.QtCore import QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal,
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication, QKeyEvent
 from qtpy.QtWidgets import (QHBoxLayout, QTableView, QTableWidget, QTableWidgetItem, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter,
-                            QVBoxLayout, QWidget, QMenu, QAbstractItemView)
+                            QVBoxLayout, QWidget, QMenu, QAbstractItemView, QHeaderView)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
@@ -238,6 +238,11 @@ class DragableTableView(QTableView):
         super().__init__()
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setWordWrap(False)
+        self.verticalHeader().setVisible(False)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.verticalHeader().setMinimumSectionSize(self.fontMetrics().lineSpacing())
+        self.verticalHeader().setDefaultSectionSize(self.fontMetrics().lineSpacing())
 
     def setModel(self, model):
         super().setModel(model)
@@ -896,6 +901,11 @@ class ReactionMask(QWidget):
         self.metabolites = QTableWidget()
         self.metabolites.setColumnCount(2)
         self.metabolites.setHorizontalHeaderLabels(["Id", "Name"])
+        self.metabolites.setWordWrap(False)
+        self.metabolites.verticalHeader().setVisible(False)
+        self.metabolites.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.metabolites.verticalHeader().setMinimumSectionSize(self.metabolites.fontMetrics().lineSpacing())
+        self.metabolites.verticalHeader().setDefaultSectionSize(self.metabolites.fontMetrics().lineSpacing())
         self.metabolites.setSortingEnabled(True)
         l2.addWidget(self.metabolites)
         l.addItem(l2)
