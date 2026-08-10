@@ -767,7 +767,7 @@ def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool
         if len(candidates) > 0 and new_id != old_id and old_id == entry.id:
             print("Could not find a new ID for", entry.id, "in", candidates)
 
-def build_highs_fba_model(cobra_model: cobra.Model, constraints=None) -> highspy.HighsLp:
+def build_highs_fba_model(cobra_model: cobra.Model, constraints=None):
     """Build a highspy.HighsLp instance directly from a cobrapy Model,
     bypassing optlang entirely. """
 
@@ -834,16 +834,208 @@ def build_highs_fba_model(cobra_model: cobra.Model, constraints=None) -> highspy
         else highspy.ObjSense.kMinimize
     )
     
-    return lp
+    return lp, S
 
-class FVAHiGHSworker(th.Thread):
-    def __init__(self, job_queue, job_queue_lock, lb, ub, lp_data, tolerance):
+def _build_reaction_adjacency(S: sp.spmatrix, lb: numpy.ndarray, ub: numpy.ndarray,
+                               hub_degree_percentile: float = 95.0,
+                               max_neighbors: int = 12):
+    """
+    fwd_only[i] = lb[i] >= 0   (ordinary irreversible reaction)
+    bwd_only[i] = ub[i] <= 0   (irreversible *in the reverse* direction)
+    Reversible reactions have neither flag set and never cause exclusion --
+    their flux sign is unconstrained, so they're compatible with anything.
+    """
+    S = S.tocsr()
+    n_mets, n_rxns = S.shape
+    if n_mets == 0 or n_rxns == 0:
+        empty_i = numpy.empty(0, dtype=numpy.int32)
+        empty_r = numpy.empty(0, dtype=numpy.int8)
+        return [empty_i] * n_rxns, [empty_r] * n_rxns
+
+    met_degree = numpy.asarray((S != 0).sum(axis=1)).ravel()
+    hub_cutoff = max(numpy.percentile(met_degree, hub_degree_percentile), 2)
+    keep = (met_degree <= hub_cutoff).astype(numpy.float64)
+    keep_diag = sp.diags(keep)
+
+    P = (keep_diag @ (S > 0).astype(numpy.float64)).tocsr()
+    C = (keep_diag @ (S < 0).astype(numpy.float64)).tocsr()
+
+    OPP = (P.T @ C) + (C.T @ P)     # opposite role  -> same-direction, IF achievable
+    SAME = (P.T @ P) + (C.T @ C)    # same role      -> opposite-direction, IF achievable
+
+    fwd_only = (lb >= 0).astype(numpy.float64)
+    bwd_only = (ub <= 0).astype(numpy.float64)
+    D_fwd, D_bwd = sp.diags(fwd_only), sp.diags(bwd_only)
+
+    # OPP needs matched half-lines (both fwd-only or both bwd-only or either
+    # reversible); degenerate when they're MISMATCHED (one fwd, one bwd)
+    OPP_excluded = (D_fwd @ OPP @ D_bwd) + (D_bwd @ OPP @ D_fwd)
+    # SAME needs at least one side free to move opposite; degenerate when
+    # BOTH are pinned to the same half-line
+    SAME_excluded = (D_fwd @ SAME @ D_fwd) + (D_bwd @ SAME @ D_bwd)
+
+    SIGNED = (OPP - OPP_excluded) - (SAME - SAME_excluded)
+    SIGNED = SIGNED.tocsr()
+    #SIGNED.data = numpy.clip(SIGNED.data, a_min=None, a_max=None)  # no-op, keeps dtype tidy
+
+    neighbors, relation = [], []
+    for j in range(n_rxns):
+        row = SIGNED.getrow(j)
+        idx, val = row.indices, row.data
+        mask = (idx != j) & (val != 0)
+        idx, val = idx[mask], val[mask]
+        if len(idx) == 0:
+            neighbors.append(numpy.empty(0, dtype=numpy.int32))
+            relation.append(numpy.empty(0, dtype=numpy.int8))
+            continue
+        strength = numpy.abs(val)
+        if len(idx) > max_neighbors:
+            top = numpy.argpartition(-strength, max_neighbors)[:max_neighbors]
+            idx, val, strength = idx[top], val[top], strength[top]
+        order = numpy.argsort(-strength)
+        neighbors.append(idx[order].astype(numpy.int32))
+        relation.append(numpy.sign(val[order]).astype(numpy.int8))
+    return neighbors, relation
+
+class GraphAwareJobQueue:
+    """
+    pending[0, i] : job (i, +1) [lower bound] still open
+    pending[1, i] : job (i, -1) [upper bound] still open
+
+    Two ways to take work, both under a single lock acquisition each:
+      - claim_best: given a whole batch of candidate (reaction, coef) pairs
+        in priority order, find and take the best one that's still open in
+        ONE vectorized boolean-array check, instead of one lock per
+        candidate.
+      - claim_chunk: reserve a *chunk* of arbitrary remaining jobs at once
+        (size shrinks as the pool drains -- "guided scheduling"), so the
+        fallback path also amortizes lock overhead over several jobs
+        instead of paying it per job, while still rebalancing finely near
+        the tail where mismatches matter most.
+    """
+    def __init__(self, n_rxns, jobs):
+        self._pending = numpy.zeros((2, n_rxns), dtype=bool)
+        for i, coef in jobs:
+            self._pending[0 if coef == 1 else 1, i] = True
+        self._remaining = len(jobs)
+        self._lock = th.Lock()
+
+    @staticmethod
+    def _dir_idx(coefs):
+        return (numpy.asarray(coefs) == -1).astype(numpy.intp)
+
+    def claim_best(self, reaction_idx: numpy.ndarray, coefs: numpy.ndarray):
+        if len(reaction_idx) == 0:
+            return None
+        d = self._dir_idx(coefs)
+        with self._lock:
+            avail = self._pending[d, reaction_idx]
+            if not avail.any():
+                return None
+            pick = int(numpy.argmax(avail))
+            self._pending[d[pick], reaction_idx[pick]] = False
+            self._remaining -= 1
+        return int(reaction_idx[pick]), int(coefs[pick]), pick
+
+    def get_chunk(self, num_threads: int, factor: int = 4):
+        with self._lock:
+            if self._remaining == 0:
+                return numpy.empty(0, dtype=numpy.int32), numpy.empty(0, dtype=numpy.int8)
+            k = max(1, self._remaining // (num_threads * factor))
+            d_idx, r_idx = numpy.nonzero(self._pending)
+            take = min(k, len(r_idx))
+            sel_d, sel_r = d_idx[:take].copy(), r_idx[:take].copy()
+        coefs = numpy.where(sel_d == 0, 1, -1).astype(numpy.int8)
+        return sel_r.astype(numpy.int32), coefs
+
+
+class LocalStack:
+    """Per-thread, lock-free (nothing here is shared) stack of candidate
+    jobs, backed by preallocated numpy buffers instead of a Python list of
+    tuples -- pushing a reaction's whole neighbor set is one slice
+    assignment, not a Python loop of individual appends."""
+
+    def __init__(self, cap: int = 64):
+        self.r = numpy.empty(cap, dtype=numpy.int32)
+        self.c = numpy.empty(cap, dtype=numpy.int8)
+        self.top = 0
+
+    def _grow(self, min_cap):
+        new_cap = max(min_cap, len(self.r) * 2)
+        self.r = numpy.resize(self.r, new_cap)
+        self.c = numpy.resize(self.c, new_cap)
+
+    def push_neighbors(self, i, coef, neighbors, relation):
+        nbrs, rel = neighbors[i], relation[i]
+        m = len(nbrs)
+        if m == 0:
+            return
+        if self.top + m > len(self.r):
+            self._grow(self.top + m)
+        self.r[self.top:self.top+m] = nbrs
+        self.c[self.top:self.top+m] = coef * rel
+        self.top += m
+
+    def push_batch(self, r_arr, c_arr):
+        m = len(r_arr)
+        if m == 0:
+            return
+        if self.top + m > len(self.r):
+            self._grow(self.top + m)
+        self.r[self.top:self.top+m] = r_arr
+        self.c[self.top:self.top+m] = c_arr
+        self.top += m
+
+    def claim_from(self, queue: GraphAwareJobQueue):
+        if self.top == 0:
+            return None
+        rev_r = self.r[:self.top][::-1]   # most-recently-pushed first
+        rev_c = self.c[:self.top][::-1]
+        result = queue.claim_best(rev_r, rev_c)
+        if result is None:
+            self.top = 0                  # everything here is stale, drop it
+            return None
+        i, coef, pick_rev = result
+        real_idx = self.top - 1 - pick_rev
+        self.top -= 1
+        if real_idx != self.top:          # swap-remove, O(1)
+            self.r[real_idx] = self.r[self.top]
+            self.c[real_idx] = self.c[self.top]
+        return i, coef
+
+
+class GraphAwareFVAWorker(th.Thread):
+    """
+    Same job semantics as FVAHiGHSworker: (reaction_index, coef), coef==1
+    solves for the lower bound, coef==-1 for the upper bound. What changes
+    is job *selection*: each thread keeps a local stack of "reactions
+    worth trying next", seeded from the neighbors of whatever it just
+    solved, instead of pulling an unrelated job off the shared queue.
+    HiGHS keeps reusing this thread's own `h` instance exactly as before,
+    so the previous optimum is now likely to already satisfy most of the
+    next problem's binding constraints.
+
+    Priority for candidates pushed after solving reaction i with sign
+    `coef` (highest priority is popped first, i.e. pushed last):
+      1. same direction, irreversible neighbor -- the case from the
+         prompt: maximize an irreversible reaction -> maximize an
+         adjacent irreversible reaction next
+      2. same direction, reversible neighbor
+      3. opposite direction, any neighbor
+    If every candidate on the stack is already claimed, it drains and the
+    thread falls back to job_queue.pop_arbitrary().
+    """
+
+    def __init__(self, job_queue: GraphAwareJobQueue, neighbors: List[numpy.ndarray],
+                relation, lb, ub, lp_data, num_threads, tolerance):
         super().__init__()
         self.job_queue = job_queue
-        self.job_queue_lock = job_queue_lock
+        self.neighbors = neighbors
+        self.relation = relation
         self.lb = lb
         self.ub = ub
         self.lp_data = lp_data
+        self.num_threads = num_threads
         self.tolerance = tolerance
         self.n_bad = 0
 
@@ -851,47 +1043,58 @@ class FVAHiGHSworker(th.Thread):
         h = highspy.Highs()
         h.passModel(self.lp_data)
         h.setOptionValue("solver", "simplex")
-        h.setOptionValue("simplex_strategy", 4) # primal simplex, typically fastest for FBA-like problems
-        h.setOptionValue("output_flag", False) # reduces execution time even though no output was visible before
+        h.setOptionValue("simplex_strategy", 4)
+        h.setOptionValue("output_flag", False)
         h.setOptionValue("kkt_tolerance", self.tolerance)
         h.changeObjectiveSense(highspy.ObjSense.kMinimize)
-        # both min and max jobs use MINIMIZE
-        while True:
-            with self.job_queue_lock:
-                if not self.job_queue:
-                    break
-                i, coef = self.job_queue.pop()
 
+        stack = LocalStack()
+        n_bad = 0
+        while True:
+            job = stack.claim_from(self.job_queue)
+            if job is None:
+                r_arr, c_arr = self.job_queue.get_chunk(self.num_threads)
+                if len(r_arr) == 0:
+                    break
+                stack.push_batch(r_arr, c_arr)
+                job = stack.claim_from(self.job_queue)
+                if job is None:
+                    continue
+
+            i, coef = job
             h.changeColCost(i, coef)
             h.run()
-
             if h.getModelStatus() == highspy.HighsModelStatus.kOptimal:
                 obj_val = h.getInfo().objective_function_value
             else:
                 obj_val = float("NaN")
-                self.n_bad += 1
-
+                n_bad += 1
             if coef == -1:
                 self.ub[i] = -obj_val
             else:
                 self.lb[i] = obj_val
             h.changeColCost(i, 0.0)
 
+            if self.neighbors:
+                stack.push_neighbors(i, coef, self.neighbors, self.relation)
+        return n_bad
+
+
 def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
     pre_tol = 1e-9
     num_proc = os.cpu_count()
     if num_proc is None:
-        num_proc = 2 # unlikely that there are any single-core users
+        num_proc = 2
     elif num_proc > 4:
         num_proc -= 1
         if num_proc > 8:
-            num_proc -= 1 
+            num_proc -= 1
     num_reac = len(model.reactions)
     lb = [float('NaN')] * num_reac
     ub = [float('NaN')] * num_reac
-    job_queue = []
 
-    lp_data = build_highs_fba_model(model, constraints)
+    lp_data, S = build_highs_fba_model(model, constraints)
+
     lp_data.col_cost_[:] = 1.0
     lp_data.sense_ = highspy.ObjSense.kMaximize
     h = highspy.Highs()
@@ -907,11 +1110,12 @@ def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
         raise ValueError(f"Unexpected solver status {h.modelStatusToString(status)} during FVA")
     solution = h.getSolution()
     pre_ub = list(solution.col_value)
+    jobs = []
     for i in range(num_reac):
-        if abs(model.reactions[i].upper_bound- pre_ub[i]) < pre_tol:
+        if abs(model.reactions[i].upper_bound - pre_ub[i]) < pre_tol:
             ub[i] = model.reactions[i].upper_bound
         else:
-            job_queue.append((i, -1))
+            jobs.append((i, -1))
 
     h.changeObjectiveSense(highspy.ObjSense.kMinimize)
     h.run()
@@ -926,15 +1130,23 @@ def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
         if abs(model.reactions[i].lower_bound - pre_lb[i]) < pre_tol:
             lb[i] = model.reactions[i].lower_bound
         else:
-            job_queue.append((i, 1))
+            jobs.append((i, 1))
 
     lp_data.col_cost_[:] = 0.0
-    job_queue_lock = th.Lock()
-    workers = [None] * num_proc
-    for p in range(num_proc):
-        workers[p] = FVAHiGHSworker(job_queue, job_queue_lock, lb, ub, lp_data, model.tolerance)
-    for i in range(num_proc):
-        workers[i].start()
-    for i in range(num_proc):
-        workers[i].join()
-    return lb, ub, sum(workers[p].n_bad for p in range(num_proc))
+    print(len(jobs))
+    if len(jobs) >= 2000:
+        if constraints:
+            S.resize((len(model.metabolites), num_reac))
+        neighbors, relation = _build_reaction_adjacency(
+            S, numpy.asarray([r.lower_bound for r in model.reactions]),
+               numpy.asarray([r.upper_bound for r in model.reactions]))
+    else:
+        neighbors = relation = None # workers skip push_neighbors, pure chunked scheduling
+    job_queue = GraphAwareJobQueue(num_reac, jobs)
+    workers = [GraphAwareFVAWorker(job_queue, neighbors, relation, lb, ub, lp_data, num_proc,
+                model.tolerance) for _ in range(num_proc)]
+    for w in workers:
+        w.start()
+    for w in workers:
+        w.join()
+    return lb, ub, sum(w.n_bad for w in workers)
