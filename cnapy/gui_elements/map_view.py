@@ -9,7 +9,7 @@ from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
 from qtpy.QtGui import QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
 from qtpy.QtSvg import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
-                            QGraphicsSceneDragDropEvent, QTreeWidget,
+                            QGraphicsSceneDragDropEvent, QAbstractItemView,
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
@@ -80,7 +80,7 @@ class MapView(QGraphicsView):
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
-            if isinstance(event.source(), QTreeWidget): # existing/continued drag from reaction list
+            if isinstance(event.source(), QAbstractItemView): # existing/continued drag from reaction list
                 self.appdata.project.maps[self.name]["boxes"][r_id] = (point_item.x(), point_item.y())
                 self.mapChanged.emit(r_id)
             else:

@@ -6,10 +6,10 @@ from typing_extensions import Annotated
 import cobra
 import copy
 import re
-from qtpy.QtCore import QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker
-from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication, QKeyEvent
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker, QEvent
+from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
 from qtpy.QtWidgets import (QHBoxLayout, QTableView, QTableWidget, QTableWidgetItem, QLabel, QLineEdit,
-                            QMessageBox, QPushButton, QSizePolicy, QSplitter,
+                            QMessageBox, QPushButton, QSizePolicy, QSplitter, QStyledItemDelegate,
                             QVBoxLayout, QWidget, QMenu, QAbstractItemView, QHeaderView)
 
 from cnapy.appdata import AppData, ModelItemType
@@ -42,6 +42,9 @@ class ReactionListItem:
         self.hidden = False
 
     def flags(self):
+        # Vestigial QTreeWidgetItem-compatibility shim: ReactionListModel.flags()
+        # hardcodes which column is editable and never consults this, so this
+        # value is not authoritative and setFlags() below does not store anything.
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def setFlags(self, _flags):
@@ -108,6 +111,19 @@ class ReactionListModel(QAbstractTableModel):
         self.sort_order = Qt.AscendingOrder
         self.sorting_enabled = False
         self.view = None
+        # Snapshot of appdata.project.comp_values for display in the Flux
+        # column, decoupled from that dict itself: appdata.project.comp_values
+        # is shared between FBA (comp_values_type == 0, real flux values) and
+        # FVA (comp_values_type == 1, used only for the map's coloring), but
+        # the Flux column should only ever reflect the last real FBA solution.
+        self.flux_values = {}
+        self.refresh_flux_values()
+
+    def refresh_flux_values(self):
+        """Pick up appdata.project.comp_values for the Flux column, but only
+        when it currently holds real flux values rather than FVA results."""
+        if self.appdata.project.comp_values_type == 0:
+            self.flux_values = dict(self.appdata.project.comp_values)
 
     def rowCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self.items)
@@ -153,8 +169,8 @@ class ReactionListModel(QAbstractTableModel):
                 background = default_background
                 foreground = default_foreground
         elif column == ReactionListColumn.Flux:
-            if key in self.appdata.project.comp_values:
-                vl, vu = self.appdata.project.comp_values[key]
+            if key in self.flux_values:
+                vl, vu = self.flux_values[key]
                 text, background, as_one = self.appdata.flux_value_display(vl, vu)
             else:
                 text = ""
@@ -196,9 +212,20 @@ class ReactionListModel(QAbstractTableModel):
         if not index.isValid() or role != Qt.EditRole:
             return False
         item = self.items[index.row()]
-        item.texts[index.column()] = value
+        column = index.column()
+        if column == ReactionListColumn.Scenario:
+            current_text, *_ = self.cell_data(item, column)
+            if value == current_text:
+                # Nothing actually changed -- e.g. the editor was opened (by a
+                # click, or by ScenarioValueDelegate moving between rows while
+                # editing) and closed again without being typed into. Treating
+                # this as a real edit would make handle_item_changed invalidate
+                # the previously computed flux values on every such no-op commit,
+                # including every arrow-key step while just browsing the column.
+                return True
+        item.texts[column] = value
         self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
-        self.itemChanged.emit(item, index.column())
+        self.itemChanged.emit(item, column)
         return True
 
     def flags(self, index):
@@ -250,9 +277,14 @@ class ReactionListModel(QAbstractTableModel):
 
     def sort_value(self, item, column):
         key = item.reaction.id
+        if column == ReactionListColumn.Scenario:
+            if key in self.appdata.project.scen_values:
+                vl, vu = self.appdata.project.scen_values[key]
+                return abs(vl) if vl == vu else vu - vl
+            return -float('inf')
         if column == ReactionListColumn.Flux:
-            if key in self.appdata.project.comp_values:
-                vl, vu = self.appdata.project.comp_values[key]
+            if key in self.flux_values:
+                vl, vu = self.flux_values[key]
                 return abs(vl) if vl == vu else vu - vl
             return -float('inf')
         if column == ReactionListColumn.LB:
@@ -276,8 +308,68 @@ class ReactionListModel(QAbstractTableModel):
         unpinned = [item for item in self.items if not item.pin_at_top]
         pinned.sort(key=lambda item: self.sort_value(item, column), reverse=reverse)
         unpinned.sort(key=lambda item: self.sort_value(item, column), reverse=reverse)
-        self.items[:] = pinned + unpinned
+        new_items = pinned + unpinned
+
+        new_row_of_item = {id(item): row for row, item in enumerate(new_items)}
+        for old_index in self.persistentIndexList():
+            old_item = self.items[old_index.row()]
+            new_row = new_row_of_item.get(id(old_item))
+            new_index = (self.index(new_row, old_index.column())
+                         if new_row is not None else QModelIndex())
+            self.changePersistentIndex(old_index, new_index)
+
+        self.items[:] = new_items
         self.layoutChanged.emit()
+
+
+class ScenarioValueDelegate(QStyledItemDelegate):
+    """Editor delegate for the Scenario column.
+
+    Qt installs the delegate itself as an event filter on the editor widget
+    it creates (this is how Tab/Backtab/Enter/Escape are normally handled,
+    see QAbstractItemDelegate.eventFilter). We hook the same mechanism for
+    Up/Down so they commit the current row and move the *editor* to the
+    row above/below instead of just moving the cursor inside the QLineEdit
+    (which ignores Up/Down anyway).
+
+    This intentionally does not rely on the key event bubbling up from the
+    editor to the view: that bubbling does happen in plain Qt, but the
+    editor's parent view here also reacts to currentIndex changes (to keep
+    the reaction detail mask in sync), and that reaction can itself change
+    the current index again before a view-level keyPressEvent handler gets
+    a chance to reopen the editor. Handling it here, before the event ever
+    leaves the editor, sidesteps that reentrancy entirely.
+    """
+
+    @staticmethod
+    def _next_visible_row(view, row, step):
+        """Row index one step away in the given direction, skipping rows
+        hidden by the search filter (see ReactionList.update_selected).
+        Returns -1 if there is no visible row in that direction."""
+        row_count = view.model().rowCount()
+        row += step
+        while 0 <= row < row_count and view.isRowHidden(row):
+            row += step
+        return row if 0 <= row < row_count else -1
+
+    def eventFilter(self, editor, event):
+        if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Up, Qt.Key_Down):
+            view = self.parent()
+            index = view.currentIndex()
+            step = 1 if event.key() == Qt.Key_Down else -1
+            new_row = self._next_visible_row(view, index.row(), step)
+            # Commit unconditionally, even at the boundary (no row to move to):
+            # otherwise a value typed into the first/last row is silently lost
+            # instead of saved, since there's nowhere left to arrow away to.
+            self.commitData.emit(editor)
+            if new_row >= 0:
+                self.closeEditor.emit(editor, QStyledItemDelegate.NoHint)
+                new_index = view.model().index(new_row, index.column())
+                view.setCurrentIndex(new_index)
+                view.scrollTo(new_index)
+                view.edit(new_index)
+            return True
+        return super().eventFilter(editor, event)
 
 
 class DragableTableView(QTableView):
@@ -295,6 +387,7 @@ class DragableTableView(QTableView):
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.verticalHeader().setMinimumSectionSize(self.fontMetrics().lineSpacing())
         self.verticalHeader().setDefaultSectionSize(self.fontMetrics().lineSpacing())
+        self.setItemDelegateForColumn(ReactionListColumn.Scenario, ScenarioValueDelegate(self))
 
     def setModel(self, model):
         super().setModel(model)
@@ -310,13 +403,6 @@ class DragableTableView(QTableView):
             drag = QDrag(self)
             drag.setMimeData(mime_data)
             drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
-
-    def keyPressEvent(self, event: QKeyEvent):
-        super().keyPressEvent(event)
-        if self.currentColumn() == ReactionListColumn.Scenario:
-            key = event.key()
-            if key == Qt.Key_Up or key == Qt.Key_Down:
-                self.edit(self.currentIndex())
 
     def _current_changed(self, current, _previous):
         self.currentItemChanged.emit(self.itemFromIndex(current))
@@ -367,7 +453,8 @@ class DragableTableView(QTableView):
         return self.model().items[row]
 
     def findItems(self, text, _flags, column=ReactionListColumn.Id):
-        return [item for item in self.model().items if item.text(column) == text]
+        model = self.model()
+        return [item for item in model.items if model.cell_data(item, column)[0] == text]
 
     def sortItems(self, column, order):
         self.model().sort(column, order)
@@ -466,7 +553,6 @@ class ReactionList(QWidget):
         ''' create a new item in the reaction list'''
         self.reaction_list.clearSelection()
         item = ReactionListItem(reaction)
-        item.setFlags(item.flags() | Qt.ItemIsEditable)
         self.reaction_model.add_item(item)
         item.setText(ReactionListColumn.Id, reaction.id)
         item.setText(ReactionListColumn.Name, reaction.name)
@@ -507,7 +593,13 @@ class ReactionList(QWidget):
         if item is None:
             self.reaction_mask.hide()
         elif self.reaction_list.currentColumn() != ReactionListColumn.Scenario or self.splitter.sizes()[1] > 0:
-            item.setSelected(True)
+            if self.reaction_list.currentItem() is not item:
+                # Only needed to make `item` current in the first place (e.g. a
+                # newly added reaction, called outside the currentChanged signal).
+                # Calling it when `item` is already current would reset the
+                # current column back to 0, fighting with in-row column
+                # navigation (see ScenarioValueDelegate).
+                item.setSelected(True)
             self.reaction_mask.show()
             reaction: cobra.Reaction = item.reaction
 
@@ -536,8 +628,9 @@ class ReactionList(QWidget):
             turn_white(self.reaction_mask.gene_reaction_rule, self.appdata.is_in_dark_mode)
             self.reaction_mask.is_valid = True
 
-            (_, r) = self.splitter.getRange(1)
-            self.splitter.moveSplitter(int(r/2), 1)
+            if self.splitter.sizes()[1] == 0:
+                (_, r) = self.splitter.getRange(1)
+                self.splitter.moveSplitter(int(r/2), 1)
             self.reaction_list.scrollToItem(item)
             self.reaction_mask.update_state()
 
@@ -636,6 +729,7 @@ class ReactionList(QWidget):
                 self.add_reaction(r)
             self.reaction_model.itemChanged.connect(self.handle_item_changed)
         elif self.reaction_model.rowCount() > 0:
+            self.reaction_model.refresh_flux_values()
             for item in self.reaction_model.items:
                 item.backgrounds[ReactionListColumn.Flux] = None
             self.reaction_model.dataChanged.emit(
