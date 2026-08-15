@@ -7,7 +7,7 @@ from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
 from qtpy.QtGui import QAction, QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
-from qtpy.QtSvg import QGraphicsSvgItem
+from qtpy.QtSvgWidgets import QGraphicsSvgItem
 from qtpy.QtWidgets import (QApplication, QGraphicsItem, QGraphicsScene,
                             QGraphicsSceneDragDropEvent, QAbstractItemView,
                             QGraphicsSceneMouseEvent, QGraphicsView,

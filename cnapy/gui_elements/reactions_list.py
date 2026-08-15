@@ -486,7 +486,7 @@ class ReactionList(QWidget):
         self.add_button = QPushButton("Add new reaction")
         self.add_button.setIcon(QIcon.fromTheme("list-add"))
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.add_button.setSizePolicy(policy)
 
         self.reaction_list: DragableTableView = DragableTableView()
@@ -900,7 +900,7 @@ class JumpList(QWidget):
 
         jb = JumpButton(self, name)
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         jb.setSizePolicy(policy)
         self.layout.addWidget(jb)
         self.setLayout(self.layout)
@@ -937,7 +937,7 @@ class ReactionMask(QWidget):
         self.delete_button = QPushButton("Delete reaction")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
         layout.addItem(l)

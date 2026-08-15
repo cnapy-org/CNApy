@@ -14,7 +14,7 @@ class EscherMapView(QWebEngineView):
     download_directory: str = ""
 
     @staticmethod
-    @Slot("QWebEngineDownloadItem*") # QWebEngineDownloadItem not declared in qtpy
+    @Slot(object) # QWebEngineDownloadItem not declared in qtpy
     def save_from_escher(download):
         file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
         (_, ext) = os.path.splitext(file_name)

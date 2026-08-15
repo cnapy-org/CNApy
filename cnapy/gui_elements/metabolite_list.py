@@ -266,7 +266,7 @@ class MetabolitesMask(QWidget):
         self.delete_button.setToolTip(
             "Delete this metabolite and remove it from associated reactions.")
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
         layout.addItem(l)

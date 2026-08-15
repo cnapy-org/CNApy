@@ -178,7 +178,7 @@ class GenesMask(QWidget):
             "Delete this gene and remove it from associated reactions."
         )
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
 

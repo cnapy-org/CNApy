@@ -21,7 +21,7 @@ class AnnotationWidget(QVBoxLayout):
         check_button = QPushButton("identifiers.org check")
         check_button.setIcon(QIcon.fromTheme("list-add"))
         policy = QSizePolicy()
-        policy.PolicyFlag.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         check_button.setSizePolicy(policy)
         check_button.clicked.connect(self.check_in_identifiers_org)
         lh.addWidget(check_button)
