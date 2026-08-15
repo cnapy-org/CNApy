@@ -27,7 +27,7 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
             item.setHidden(True)
 
         for found_id in found_ids:
-            for item in element_list.findItems(found_id, Qt.MatchExactly, 0):
+            for item in element_list.findItems(found_id, Qt.MatchFlag.MatchExactly, 0):
                 item.setHidden(False)
     else:
         found_ids = [x.id for x in model_elements]
@@ -62,21 +62,21 @@ def FONT_COLOR(HEX):  # string that defines style sheet for changing the color o
 def show_unknown_error_box(exstr):
     msgBox = QMessageBox()
     msgBox.setWindowTitle("Unknown Error!")
-    msgBox.setTextFormat(Qt.RichText)
+    msgBox.setTextFormat(Qt.TextFormat.RichText)
 
     msgBox.setText(
         f"<p>{exstr}</p><p><b> Please report the problem to:</b></p>"+\
         "<p><a href='https://github.com/cnapy-org/CNApy/issues'>"+\
         "https://github.com/cnapy-org/CNApy/issues</a></p>"
     )
-    msgBox.setIcon(QMessageBox.Warning)
+    msgBox.setIcon(QMessageBox.Icon.Warning)
     msgBox.exec()
 
 
 def turn_red(item):
     palette = item.palette()
     role = item.foregroundRole()
-    palette.setColor(role, Qt.black)
+    palette.setColor(role, Qt.GlobalColor.black)
     item.setPalette(palette)
 
     item.setStyleSheet("background: #ff9999")
@@ -129,7 +129,7 @@ class QComplReceivLineEdit(QLineEdit):
     def __init__(self, parent, wordlist, is_in_dark_mode: bool = False, check=True, is_constr=False, reject_empty_string=True):
         super().__init__("", parent)
         self.completer: QCompleter = QCompleter()
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         if isinstance(wordlist, IDList):
             self.wordlist: list = wordlist.id_list
             self.completer.setModel(wordlist.ids_model)
@@ -228,7 +228,7 @@ class QTableCopyable(QTableWidget):
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
-        if event.key() == Qt.Key_C and (event.modifiers() & Qt.ControlModifier):
+        if event.key() == Qt.Key.Key_C and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             copied_cells = sorted(self.selectedIndexes())
             copy_text = ''
             max_column = copied_cells[-1].column()
@@ -249,23 +249,23 @@ class QTableItem(QTableWidgetItem):
     def setEditable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsEditable)
+            self.setFlags(f | Qt.ItemFlag.ItemIsEditable)
         else:
-            self.setFlags(f & ~Qt.ItemIsEditable)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsEditable)
 
     def setSelectable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsSelectable)
+            self.setFlags(f | Qt.ItemFlag.ItemIsSelectable)
         else:
-            self.setFlags(f & ~Qt.ItemIsSelectable)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsSelectable)
 
     def setEnabled(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsEnabled)
+            self.setFlags(f | Qt.ItemFlag.ItemIsEnabled)
         else:
-            self.setFlags(f & ~Qt.ItemIsEnabled)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsEnabled)
 
 
 class QHSeperationLine(QFrame):
@@ -277,9 +277,9 @@ class QHSeperationLine(QFrame):
         super().__init__()
         self.setMinimumWidth(1)
         self.setFixedHeight(20)
-        self.setFrameShape(QFrame.HLine)
-        self.setFrameShadow(QFrame.Sunken)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setFrameShape(QFrame.Shape.HLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         return
 
 
@@ -292,7 +292,7 @@ class QVSeperationLine(QFrame):
         super().__init__()
         self.setFixedWidth(20)
         self.setMinimumHeight(1)
-        self.setFrameShape(QFrame.VLine)
-        self.setFrameShadow(QFrame.Sunken)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        self.setFrameShape(QFrame.Shape.VLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         return

@@ -45,7 +45,7 @@ class ReactionListItem:
         # Vestigial QTreeWidgetItem-compatibility shim: ReactionListModel.flags()
         # hardcodes which column is editable and never consults this, so this
         # value is not authoritative and setFlags() below does not store anything.
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     def setFlags(self, _flags):
         return None
@@ -108,7 +108,7 @@ class ReactionListModel(QAbstractTableModel):
         self.appdata = appdata
         self.items = []
         self.sort_column = ReactionListColumn.Id
-        self.sort_order = Qt.AscendingOrder
+        self.sort_order = Qt.SortOrder.AscendingOrder
         self.sorting_enabled = False
         self.view = None
         # Snapshot of appdata.project.comp_values for display in the Flux
@@ -131,19 +131,19 @@ class ReactionListModel(QAbstractTableModel):
     def columnCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self.header_labels)
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
         item = self.items[index.row()]
         column = index.column()
         text, background, foreground, tooltip = self.cell_data(item, column)
-        if role in (Qt.DisplayRole, Qt.EditRole):
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
             return text
-        if role == Qt.BackgroundRole:
+        if role == Qt.ItemDataRole.BackgroundRole:
             return background
-        if role == Qt.ForegroundRole:
+        if role == Qt.ItemDataRole.ForegroundRole:
             return foreground
-        if role == Qt.ToolTipRole:
+        if role == Qt.ItemDataRole.ToolTipRole:
             return tooltip
         return None
 
@@ -153,7 +153,7 @@ class ReactionListModel(QAbstractTableModel):
         background = item.backgrounds[column]
         foreground = item.foregrounds[column]
         tooltip = item.tooltips[column]
-        default_background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+        default_background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.GlobalColor.white
         default_foreground = QColor(255, 255, 255) if self.appdata.is_in_dark_mode else QColor(0, 0, 0)
         key = item.reaction.id
 
@@ -195,7 +195,7 @@ class ReactionListModel(QAbstractTableModel):
             vl, vu = self.appdata.project.fva_values[key]
             if isclose(vl, vu, abs_tol=self.appdata.abs_tol):
                 if self.appdata.modes_coloring:
-                    background = Qt.red if vl == 0 else Qt.green
+                    background = Qt.GlobalColor.red if vl == 0 else Qt.GlobalColor.green
                 else:
                     background = self.appdata.comp_color
             elif isclose(vl, 0.0, abs_tol=self.appdata.abs_tol) or isclose(vu, 0.0, abs_tol=self.appdata.abs_tol) or vl <= 0 and vu >= 0:
@@ -205,11 +205,11 @@ class ReactionListModel(QAbstractTableModel):
         else:
             vl = item.reaction.lower_bound
             vu = item.reaction.upper_bound
-            background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.white
+            background = QColor(75, 75, 75) if self.appdata.is_in_dark_mode else Qt.GlobalColor.white
         return vl, vu, background
 
-    def setData(self, index, value, role=Qt.EditRole):
-        if not index.isValid() or role != Qt.EditRole:
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
+        if not index.isValid() or role != Qt.ItemDataRole.EditRole:
             return False
         item = self.items[index.row()]
         column = index.column()
@@ -224,20 +224,20 @@ class ReactionListModel(QAbstractTableModel):
                 # including every arrow-key step while just browsing the column.
                 return True
         item.texts[column] = value
-        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
+        self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole])
         self.itemChanged.emit(item, column)
         return True
 
     def flags(self, index):
         if not index.isValid():
-            return Qt.NoItemFlags
-        flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled
+            return Qt.ItemFlag.NoItemFlags
+        flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsDragEnabled
         if index.column() == ReactionListColumn.Scenario:
-            flags |= Qt.ItemIsEditable
+            flags |= Qt.ItemFlag.ItemIsEditable
         return flags
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return self.header_labels[section]
         return None
 
@@ -297,13 +297,13 @@ class ReactionListModel(QAbstractTableModel):
             return self.appdata.project.df_values.get(key, -float('inf'))
         return item.text(column)
 
-    def sort(self, column, order=Qt.AscendingOrder):
+    def sort(self, column, order=Qt.SortOrder.AscendingOrder):
         self.sort_column = column
         self.sort_order = order
         if not self.sorting_enabled:
             return
         self.layoutAboutToBeChanged.emit()
-        reverse = order == Qt.DescendingOrder
+        reverse = order == Qt.SortOrder.DescendingOrder
         pinned = [item for item in self.items if item.pin_at_top]
         unpinned = [item for item in self.items if not item.pin_at_top]
         pinned.sort(key=lambda item: self.sort_value(item, column), reverse=reverse)
@@ -353,10 +353,10 @@ class ScenarioValueDelegate(QStyledItemDelegate):
         return row if 0 <= row < row_count else -1
 
     def eventFilter(self, editor, event):
-        if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Up, Qt.Key_Down):
+        if event.type() == QEvent.KeyPress and event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
             view = self.parent()
             index = view.currentIndex()
-            step = 1 if event.key() == Qt.Key_Down else -1
+            step = 1 if event.key() == Qt.Key.Key_Down else -1
             new_row = self._next_visible_row(view, index.row(), step)
             # Commit unconditionally, even at the boundary (no row to move to):
             # otherwise a value typed into the first/last row is silently lost
@@ -380,11 +380,11 @@ class DragableTableView(QTableView):
 
     def __init__(self):
         super().__init__()
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setWordWrap(False)
         self.verticalHeader().setVisible(False)
-        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         self.verticalHeader().setMinimumSectionSize(self.fontMetrics().lineSpacing())
         self.verticalHeader().setDefaultSectionSize(self.fontMetrics().lineSpacing())
         self.setItemDelegateForColumn(ReactionListColumn.Scenario, ScenarioValueDelegate(self))
@@ -402,7 +402,7 @@ class DragableTableView(QTableView):
             mime_data.setText(item.reaction.id)
             drag = QDrag(self)
             drag.setMimeData(mime_data)
-            drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
+            drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction, Qt.DropAction.CopyAction)
 
     def _current_changed(self, current, _previous):
         self.currentItemChanged.emit(self.itemFromIndex(current))
@@ -486,7 +486,7 @@ class ReactionList(QWidget):
         self.add_button = QPushButton("Add new reaction")
         self.add_button.setIcon(QIcon.fromTheme("list-add"))
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.PolicyFlag.ShrinkFlag = True
         self.add_button.setSizePolicy(policy)
 
         self.reaction_list: DragableTableView = DragableTableView()
@@ -494,7 +494,7 @@ class ReactionList(QWidget):
         self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
         self.reaction_model = ReactionListModel(self.header_labels, self.appdata, self.reaction_list)
         self.reaction_list.setModel(self.reaction_model)
-        self.reaction_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reaction_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.reaction_list.customContextMenuRequested.connect(self.context_menu)
         # heuristic initial column widths
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Scenario)
@@ -505,8 +505,8 @@ class ReactionList(QWidget):
         self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Name, width)
         self.visible_column = [True]*len(self.header_labels)
         self.reaction_list.setSortingEnabled(True)
-        self.reaction_list.sortByColumn(ReactionListColumn.Id, Qt.AscendingOrder)
-        self.reaction_list.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.reaction_list.sortByColumn(ReactionListColumn.Id, Qt.SortOrder.AscendingOrder)
+        self.reaction_list.horizontalHeader().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.reaction_list.horizontalHeader().customContextMenuRequested.connect(self.header_context_menu)
 
         for r in self.appdata.project.cobra_py_model.reactions:
@@ -518,10 +518,10 @@ class ReactionList(QWidget):
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
         l = QHBoxLayout()
-        l.setAlignment(Qt.AlignRight)
+        l.setAlignment(Qt.AlignmentFlag.AlignRight)
         l.addWidget(self.add_button)
         self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Vertical)
+        self.splitter.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.reaction_list)
         self.splitter.addWidget(self.reaction_mask)
         self.layout.addItem(l)
@@ -529,7 +529,7 @@ class ReactionList(QWidget):
         self.setLayout(self.layout)
 
         self.reaction_list.currentItemChanged.connect(self.reaction_selected)
-        self.reaction_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.reaction_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.reaction_list.itemClicked.connect(self.handle_item_clicked)
         self.reaction_model.itemChanged.connect(self.handle_item_changed)
 
@@ -683,7 +683,7 @@ class ReactionList(QWidget):
                     self.update_item(item)
                     self.central_widget.update_maps()
             else:
-                item.setBackground(column, Qt.red)
+                item.setBackground(column, Qt.GlobalColor.red)
 
     def update_selected(self, string, with_annotations):
         if len(string) >= 2:
@@ -741,7 +741,7 @@ class ReactionList(QWidget):
             self.reaction_list.setCurrentItem(None)
         else:
             items = self.reaction_list.findItems(
-                self.last_selected, Qt.MatchExactly)
+                self.last_selected, Qt.MatchFlag.MatchExactly)
             for i in items:
                 # triggers self.reaction_selected which also does a self.reaction_mask.update_state()
                 self.reaction_list.setCurrentItem(i)
@@ -785,7 +785,7 @@ class ReactionList(QWidget):
             minimize_action.triggered.connect(self.minimize_reaction)
             set_scen_value_action = menu.addAction("add computed value to scenario")
             set_scen_value_action.triggered.connect(self.set_scen_value_action)
-            menu.exec_(self.reaction_list.mapToGlobal(position))
+            menu.exec(self.reaction_list.mapToGlobal(position))
 
     @Slot(bool)
     def change_pinned(self, checked: bool):
@@ -840,7 +840,7 @@ class ReactionList(QWidget):
         menu.addSeparator()
         action = menu.addAction("Copy table to system clipboard")
         action.triggered.connect(self.copy_to_clipboard)
-        menu.exec_(self.reaction_list.horizontalHeader().mapToGlobal(position))
+        menu.exec(self.reaction_list.horizontalHeader().mapToGlobal(position))
 
     def get_as_table(self) -> str:
         visible_columns = [j.value for j in ReactionListColumn if not self.reaction_list.isColumnHidden(j)]
@@ -887,7 +887,7 @@ class JumpList(QWidget):
         QWidget.__init__(self)
         self.parent = parent
         self.layout = QHBoxLayout()
-        self.layout.setAlignment(Qt.AlignLeft)
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
     def clear(self):
         for i in reversed(range(self.layout.count())):
@@ -900,7 +900,7 @@ class JumpList(QWidget):
 
         jb = JumpButton(self, name)
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.PolicyFlag.ShrinkFlag = True
         jb.setSizePolicy(policy)
         self.layout.addWidget(jb)
         self.setLayout(self.layout)
@@ -937,7 +937,7 @@ class ReactionMask(QWidget):
         self.delete_button = QPushButton("Delete reaction")
         self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.PolicyFlag.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
         layout.addItem(l)
@@ -995,7 +995,7 @@ class ReactionMask(QWidget):
         self.metabolites.setHorizontalHeaderLabels(["Id", "Name"])
         self.metabolites.setWordWrap(False)
         self.metabolites.verticalHeader().setVisible(False)
-        self.metabolites.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.metabolites.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         self.metabolites.verticalHeader().setMinimumSectionSize(self.metabolites.fontMetrics().lineSpacing())
         self.metabolites.verticalHeader().setDefaultSectionSize(self.metabolites.fontMetrics().lineSpacing())
         self.metabolites.setSortingEnabled(True)
@@ -1116,13 +1116,13 @@ class ReactionMask(QWidget):
         if self.grp_test_model.reactions.get_by_id("GPR_TEST").gene_reaction_rule == "":
             self.gene_reaction_rule.blockSignals(True)
             msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setIcon(QMessageBox.Icon.Question)
             msg_box.setWindowTitle("Malformed GPR rule")
             msg_box.setText("It appears that your changed GPR rule is not valid. Do you want to edit or revert your changes?")
-            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.RejectRole)
-            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ResetRole)
+            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.ButtonRole.RejectRole)
+            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ButtonRole.ResetRole)
             msg_box.setDefaultButton(revert_but)
-            msg_box.exec_()
+            msg_box.exec()
             self.gene_reaction_rule.blockSignals(False)
 
             if msg_box.clickedButton() == edit_but:
@@ -1151,14 +1151,14 @@ class ReactionMask(QWidget):
         if len(genes_to_add) > 0:
             self.gene_reaction_rule.blockSignals(True)
             msg_box = QMessageBox(self)
-            msg_box.setIcon(QMessageBox.Question)
+            msg_box.setIcon(QMessageBox.Icon.Question)
             msg_box.setWindowTitle("Create new genes?")
             msg_box.setText("The following genes do not exist and will be added to the model:\n" +
                             ', '.join(genes_to_add))
-            msg_box.setDefaultButton(msg_box.addButton(QMessageBox.Ok))
-            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.RejectRole)
-            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ResetRole)
-            msg_box.exec_()
+            msg_box.setDefaultButton(msg_box.addButton(QMessageBox.StandardButton.Ok))
+            edit_but = msg_box.addButton("Edit GPR rule", QMessageBox.ButtonRole.RejectRole)
+            revert_but = msg_box.addButton("Revert GPR rule", QMessageBox.ButtonRole.ResetRole)
+            msg_box.exec()
             self.gene_reaction_rule.blockSignals(False)
             if msg_box.clickedButton() == edit_but:
                 self.gene_reaction_rule.setFocus()
@@ -1225,14 +1225,14 @@ class ReactionMask(QWidget):
                 if len(new_metabolites) > 0:
                     self.equation.blockSignals(True)
                     msg_box = QMessageBox(self)
-                    msg_box.setIcon(QMessageBox.Question)
+                    msg_box.setIcon(QMessageBox.Icon.Question)
                     msg_box.setWindowTitle("Create new metabolites?")
                     msg_box.setText("The following metabolites do not exist and will be added to the model:\n" +
                                     ', '.join(new_metabolites))
-                    msg_box.setDefaultButton(msg_box.addButton(QMessageBox.Ok)) #"Ok", QMessageBox.AcceptRole))
-                    edit_but = msg_box.addButton("Edit equation", QMessageBox.RejectRole)
-                    revert_but = msg_box.addButton("Revert equation", QMessageBox.ResetRole)
-                    msg_box.exec_()
+                    msg_box.setDefaultButton(msg_box.addButton(QMessageBox.StandardButton.Ok)) #"Ok", QMessageBox.AcceptRole))
+                    edit_but = msg_box.addButton("Edit equation", QMessageBox.ButtonRole.RejectRole)
+                    revert_but = msg_box.addButton("Revert equation", QMessageBox.ButtonRole.ResetRole)
+                    msg_box.exec()
                     if msg_box.clickedButton() == edit_but:
                         self.equation.setFocus()
                         ok = False
@@ -1318,7 +1318,7 @@ class ReactionMask(QWidget):
                 self.metabolites.insertRow(row)
                 id_item = QTableWidgetItem(m.id)
                 name_item = QTableWidgetItem(m.name)
-                id_item.setData(Qt.UserRole, m)
+                id_item.setData(Qt.ItemDataRole.UserRole, m)
                 text = "Id: " + m.id + "\nName: " + m.name
                 id_item.setToolTip(text)
                 name_item.setToolTip(text)
@@ -1331,7 +1331,7 @@ class ReactionMask(QWidget):
 
     def emit_jump_to_metabolite(self, metabolite):
         item = self.metabolites.item(metabolite.row(), 0)
-        self.jumpToMetabolite.emit(str(item.data(Qt.UserRole)))
+        self.jumpToMetabolite.emit(str(item.data(Qt.ItemDataRole.UserRole)))
 
     @Slot()
     def update_reaction_string(self):

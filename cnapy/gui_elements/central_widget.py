@@ -6,9 +6,9 @@ import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
-from qtpy.QtGui import QColor, QBrush
+from qtpy.QtGui import QAction, QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame)
+                            QTabWidget, QVBoxLayout, QWidget, QApplication, QComboBox, QFrame)
 
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
@@ -47,8 +47,8 @@ class CentralWidget(QWidget):
         self.search_annotations.setChecked(False)
         searchbar_layout.addWidget(self.search_annotations)
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         searchbar_layout.addWidget(line)
         searchbar_layout.addSpacing(10)
         self.model_item_history = QComboBox()
@@ -120,7 +120,7 @@ class CentralWidget(QWidget):
         self.mode_navigator = ModeNavigator(self.appdata, self)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
-        self.splitter2.setOrientation(Qt.Vertical)
+        self.splitter2.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.splitter2)
         self.splitter.addWidget(self.tabs)
         self.console.show()
@@ -354,7 +354,7 @@ class CentralWidget(QWidget):
         map_idx = self.map_tabs.currentIndex()
 
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
@@ -723,7 +723,7 @@ class CentralWidget(QWidget):
             if index >= 0:
                 index = self.model_item_history.removeItem(index)
             self.model_item_history.insertItem(0, item_id + " (" + ModelItemType(item_type).name + ")", item_data)
-            self.model_item_history.setItemData(0, item_name, Qt.ToolTipRole)
+            self.model_item_history.setItemData(0, item_name, Qt.ItemDataRole.ToolTipRole)
             self.model_item_history.setCurrentIndex(0)
 
     def update_item_in_history(self, previous_id: str, new_id: str, new_name: str, item_type: ModelItemType):

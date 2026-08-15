@@ -2,8 +2,8 @@
 
 import cobra
 from qtpy.QtCore import Qt, QPoint, Signal, Slot
-from qtpy.QtGui import QColor, QGuiApplication, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
+from qtpy.QtGui import QAction, QColor, QGuiApplication, QIcon
+from qtpy.QtWidgets import (QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
                             QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
@@ -62,11 +62,11 @@ class MetaboliteList(QWidget):
         self.metabolite_list.setHeaderLabels(self.header_labels)
         self.visible_column = [True]*len(self.header_labels)
         self.metabolite_list.setSortingEnabled(True)
-        self.metabolite_list.sortByColumn(MetaboliteListColumn.Id, Qt.AscendingOrder)
+        self.metabolite_list.sortByColumn(MetaboliteListColumn.Id, Qt.SortOrder.AscendingOrder)
 
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
-        self.metabolite_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metabolite_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.metabolite_list.customContextMenuRequested.connect(
             self.on_context_menu)
 
@@ -84,7 +84,7 @@ class MetaboliteList(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Vertical)
+        self.splitter.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.metabolite_list)
         self.splitter.addWidget(self.metabolite_mask)
         self.layout.addWidget(self.splitter)
@@ -96,7 +96,7 @@ class MetaboliteList(QWidget):
             self.handle_changed_metabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
-        self.metabolite_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metabolite_list.header().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.metabolite_list.header().customContextMenuRequested.connect(self.header_context_menu)
 
     def clear(self):
@@ -113,7 +113,7 @@ class MetaboliteList(QWidget):
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.metabolites) > 0:
-            self.pop_menu.exec_(self.mapToGlobal(point))
+            self.pop_menu.exec(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
         self.metabolite_mask.annotation_widget.update_annotations(annotation)
@@ -183,7 +183,7 @@ class MetaboliteList(QWidget):
             self.metabolite_list.setCurrentItem(None)
         else:
             items = self.metabolite_list.findItems(
-                self.last_selected, Qt.MatchExactly)
+                self.last_selected, Qt.MatchFlag.MatchExactly)
 
             for i in items:
                 self.metabolite_list.setCurrentItem(i)
@@ -233,7 +233,7 @@ class MetaboliteList(QWidget):
         menu.addSeparator()
         action = menu.addAction("Copy table to system clipboard")
         action.triggered.connect(self.copy_to_clipboard)
-        menu.exec_(self.metabolite_list.header().mapToGlobal(position))
+        menu.exec(self.metabolite_list.header().mapToGlobal(position))
 
     itemActivated = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite, object, str)
@@ -266,7 +266,7 @@ class MetabolitesMask(QWidget):
         self.delete_button.setToolTip(
             "Delete this metabolite and remove it from associated reactions.")
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.PolicyFlag.ShrinkFlag = True
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
         layout.addItem(l)
@@ -440,12 +440,12 @@ class MetabolitesMask(QWidget):
                 message_box.setInformativeText(
                     "Do you want to create the compartment?")
                 message_box.setStandardButtons(
-                    QMessageBox.Ok | QMessageBox.Cancel)
-                message_box.setDefaultButton(QMessageBox.Ok)
+                    QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+                message_box.setDefaultButton(QMessageBox.StandardButton.Ok)
                 ret = message_box.exec()
                 self.compartment.blockSignals(False)
 
-                if ret == QMessageBox.Cancel:
+                if ret == QMessageBox.StandardButton.Cancel:
                     metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
                         self.id.text())
                     self.compartment.setText(metabolite.compartment)

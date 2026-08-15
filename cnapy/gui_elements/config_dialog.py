@@ -45,7 +45,7 @@ class ConfigDialog(QDialog):
         self.scen_color_btn = QPushButton()
         self.scen_color_btn.setFixedWidth(100)
         palette = self.scen_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.scen_color)
+        palette.setColor(QPalette.ColorRole.Button, self.appdata.scen_color)
         self.scen_color_btn.setPalette(palette)
         h2.addWidget(self.scen_color_btn)
         self.layout.addItem(h2)
@@ -57,7 +57,7 @@ class ConfigDialog(QDialog):
         self.comp_color_btn = QPushButton()
         self.comp_color_btn.setFixedWidth(100)
         palette = self.comp_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.comp_color)
+        palette.setColor(QPalette.ColorRole.Button, self.appdata.comp_color)
         self.comp_color_btn.setPalette(palette)
         h3.addWidget(self.comp_color_btn)
         self.layout.addItem(h3)
@@ -69,7 +69,7 @@ class ConfigDialog(QDialog):
         self.spec1_color_btn = QPushButton()
         self.spec1_color_btn.setFixedWidth(100)
         palette = self.spec1_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.special_color_1)
+        palette.setColor(QPalette.ColorRole.Button, self.appdata.special_color_1)
         self.spec1_color_btn.setPalette(palette)
         h4.addWidget(self.spec1_color_btn)
         self.layout.addItem(h4)
@@ -81,7 +81,7 @@ class ConfigDialog(QDialog):
         self.spec2_color_btn = QPushButton()
         self.spec2_color_btn.setFixedWidth(100)
         palette = self.spec2_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.special_color_2)
+        palette.setColor(QPalette.ColorRole.Button, self.appdata.special_color_2)
         self.spec2_color_btn.setPalette(palette)
         h5.addWidget(self.spec2_color_btn)
         self.layout.addItem(h5)
@@ -93,7 +93,7 @@ class ConfigDialog(QDialog):
         self.default_color_btn = QPushButton()
         self.default_color_btn.setFixedWidth(100)
         palette = self.default_color_btn.palette()
-        palette.setColor(QPalette.Button, self.appdata.default_color)
+        palette.setColor(QPalette.ColorRole.Button, self.appdata.default_color)
         self.default_color_btn.setPalette(palette)
         h6.addWidget(self.default_color_btn)
         self.layout.addItem(h6)
@@ -185,52 +185,52 @@ class ConfigDialog(QDialog):
 
     def choose_scen_color(self):
         palette = self.scen_color_btn.palette()
-        initial = palette.color(QPalette.Button)
+        initial = palette.color(QPalette.ColorRole.Button)
 
         dialog = QColorDialog(self)
         color: str = dialog.getColor(initial)
         if color.isValid():
-            palette.setColor(QPalette.Button, color)
+            palette.setColor(QPalette.ColorRole.Button, color)
             self.scen_color_btn.setPalette(palette)
 
     def choose_comp_color(self):
         palette = self.comp_color_btn.palette()
-        initial = palette.color(QPalette.Button)
+        initial = palette.color(QPalette.ColorRole.Button)
 
         dialog = QColorDialog(self)
         color: str = dialog.getColor(initial)
         if color.isValid():
-            palette.setColor(QPalette.Button, color)
+            palette.setColor(QPalette.ColorRole.Button, color)
             self.comp_color_btn.setPalette(palette)
 
     def choose_spec1_color(self):
         palette = self.spec1_color_btn.palette()
-        initial = palette.color(QPalette.Button)
+        initial = palette.color(QPalette.ColorRole.Button)
 
         dialog = QColorDialog(self)
         color: str = dialog.getColor(initial)
         if color.isValid():
-            palette.setColor(QPalette.Button, color)
+            palette.setColor(QPalette.ColorRole.Button, color)
             self.spec1_color_btn.setPalette(palette)
 
     def choose_spec2_color(self):
         palette = self.spec2_color_btn.palette()
-        initial = palette.color(QPalette.Button)
+        initial = palette.color(QPalette.ColorRole.Button)
 
         dialog = QColorDialog(self)
         color: str = dialog.getColor(initial)
         if color.isValid():
-            palette.setColor(QPalette.Button, color)
+            palette.setColor(QPalette.ColorRole.Button, color)
             self.spec2_color_btn.setPalette(palette)
 
     def choose_default_color(self):
         palette = self.default_color_btn.palette()
-        initial = palette.color(QPalette.Button)
+        initial = palette.color(QPalette.ColorRole.Button)
 
         dialog = QColorDialog(self)
         color: str = dialog.getColor(initial)
         if color.isValid():
-            palette.setColor(QPalette.Button, color)
+            palette.setColor(QPalette.ColorRole.Button, color)
             self.default_color_btn.setPalette(palette)
 
     def apply(self):
@@ -251,19 +251,19 @@ class ConfigDialog(QDialog):
         self.appdata.last_scen_directory = self.work_directory.text()
 
         palette = self.scen_color_btn.palette()
-        self.appdata.scen_color = palette.color(QPalette.Button)
+        self.appdata.scen_color = palette.color(QPalette.ColorRole.Button)
 
         palette = self.comp_color_btn.palette()
-        self.appdata.comp_color = palette.color(QPalette.Button)
+        self.appdata.comp_color = palette.color(QPalette.ColorRole.Button)
 
         palette = self.spec1_color_btn.palette()
-        self.appdata.special_color_1 = palette.color(QPalette.Button)
+        self.appdata.special_color_1 = palette.color(QPalette.ColorRole.Button)
 
         palette = self.spec2_color_btn.palette()
-        self.appdata.special_color_2 = palette.color(QPalette.Button)
+        self.appdata.special_color_2 = palette.color(QPalette.ColorRole.Button)
 
         palette = self.default_color_btn.palette()
-        self.appdata.default_color = palette.color(QPalette.Button)
+        self.appdata.default_color = palette.color(QPalette.ColorRole.Button)
 
         self.appdata.box_width = int(self.box_width.text())
         self.appdata.rounding = int(self.rounding.text())

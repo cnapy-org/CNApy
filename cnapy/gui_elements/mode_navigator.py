@@ -75,11 +75,11 @@ class ModeNavigator(QWidget):
         self.completion_list = QStringListModel()
         self.completer = CustomCompleter(self)
         self.completer.setModel(self.completion_list)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.selector.setCompleter(self.completer)
 
         l12 = QHBoxLayout()
-        l12.setAlignment(Qt.AlignRight)
+        l12.setAlignment(Qt.AlignmentFlag.AlignRight)
         l12.addWidget(self.save_button)
         l12.addWidget(self.clear_button)
         l1.addWidget(self.title)
@@ -352,7 +352,7 @@ class ModeNavigator(QWidget):
 
     def normalization(self):
         dialog = NormalizationDialog(self.appdata, self)
-        dialog.exec_()
+        dialog.exec()
 
     def __del__(self):
         self.central_widget.mode_normalization_reaction = ""
@@ -452,8 +452,8 @@ class NormalizationDialog(QDialog):
 
     @Slot()
     def normalize(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         self.parent.central_widget.mode_normalization_reaction = self.expr.text().strip()
         self.parent.central_widget.update_mode()
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.accept()

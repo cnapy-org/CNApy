@@ -37,7 +37,7 @@ class EscherMapView(QWebEngineView):
             EscherMapView.web_engine_profile.downloadRequested.connect(EscherMapView.save_from_escher)
         page = QWebEnginePage(EscherMapView.web_engine_profile, self)
         self.setPage(page)
-        self.setContextMenuPolicy(Qt.NoContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.initialized = False
         self.central_widget = central_widget
         self.cnapy_bridge = CnapyBridge(self, central_widget)
@@ -220,8 +220,8 @@ class CnapyBridge(QObject):
                     self.last_accepted_value = value
                     ret = QMessageBox.question(self.escher_map, f"Change reaction ID on map to {value}?",
                             "This is only useful if this is the same reaction as in the model but with a different ID on the map because the metabolites displayed on the map will not change!",
-                            QMessageBox.Ok | QMessageBox.Cancel)
-                    if ret == QMessageBox.Ok:
+                            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+                    if ret == QMessageBox.StandardButton.Ok:
                         self.escher_map.change_reaction_id(reac_id, value)
                         self.escher_map.update_reaction_stoichiometry(value)
                         self.central_widget.unsaved_changes()
