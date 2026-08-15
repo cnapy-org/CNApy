@@ -28,14 +28,15 @@ from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, CnaMap
 from cnapy.gui_elements.about_dialog import AboutDialog
-from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
+from cnapy.gui_elements.central_widget import (CentralWidget, ModelTabIndex,
+                                        create_cnapy_map_view,
+                                        is_cnapy_map_view)
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
 from cnapy.gui_elements.config_dialog import ConfigDialog
 from cnapy.gui_elements.download_dialog import DownloadDialog
 from cnapy.gui_elements.config_cobrapy_dialog import ConfigCobrapyDialog
 from cnapy.gui_elements.efmtool_dialog import EFMtoolDialog
 from cnapy.gui_elements.flux_feasibility_dialog import FluxFeasibilityDialog
-from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.mcs_dialog import MCSDialog
 from cnapy.gui_elements.strain_design_dialog import SDDialog, SDComputationViewer, SDViewer, SDComputationThread
@@ -1527,7 +1528,7 @@ class MainWindow(QMainWindow):
         self.delete_maps()
         for name, mmap in self.appdata.project.maps.items():
             if mmap.get("view", "cnapy") == "cnapy":
-                mmap = MapView(self.appdata, self.centralWidget(), name)
+                mmap = create_cnapy_map_view(self.appdata, self.centralWidget(), name)
                 mmap.show()
                 self.centralWidget().connect_map_view_signals(mmap)
             elif mmap["view"] == "escher":
@@ -1581,7 +1582,7 @@ class MainWindow(QMainWindow):
             self.dec_bg_size_action.setEnabled(True)
             self.save_box_positions_action.setEnabled(True)
             self.centralWidget().update_map(idx)
-            if isinstance(self.centralWidget().map_tabs.widget(idx), MapView):
+            if is_cnapy_map_view(self.centralWidget().map_tabs.widget(idx)):
                 self.escher_map_actions.setVisible(False)
                 self.cnapy_map_actions.setVisible(True)
                 self.colorings.setEnabled(True)

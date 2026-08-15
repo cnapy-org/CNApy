@@ -1,5 +1,8 @@
 """The central widget"""
 
+import importlib
+import os
+
 import numpy
 from enum import IntEnum
 import cobra
@@ -12,6 +15,26 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, 
 
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
+
+
+def create_cnapy_map_view(appdata, central_widget, name: str):
+    """Create the standard CNApy map view, optionally using Qt Quick.
+
+    Set CNAPY_QML_MAP_VIEW=1 to opt into the experimental hardware-
+    accelerated QML implementation while keeping the existing QGraphicsView
+    path as the default.
+    """
+    if os.environ.get("CNAPY_QML_MAP_VIEW") == "1":
+        qml_map_view = importlib.import_module("cnapy.gui_elements.qml_map_view")
+        return qml_map_view.QmlMapView(appdata, central_widget, name)
+    return MapView(appdata, central_widget, name)
+
+
+def is_cnapy_map_view(widget) -> bool:
+    """Return whether *widget* is a CNApy map, regardless of rendering backend."""
+    return isinstance(widget, MapView) or widget.__class__.__name__ == "QmlMapView"
+
+
 from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
 from cnapy.gui_elements.gene_list import GeneList
@@ -170,8 +193,9 @@ class CentralWidget(QWidget):
         self.update()
 
     def fit_mapview(self):
-        if isinstance(self.map_tabs.currentWidget(), MapView):
-            self.map_tabs.currentWidget().fit()
+        current = self.map_tabs.currentWidget()
+        if hasattr(current, "fit"):
+            current.fit()
 
     def show_bottom_of_console(self):
         (_, r) = self.splitter2.getRange(1)
@@ -333,7 +357,7 @@ class CentralWidget(QWidget):
             # self.appdata.qapp.processEvents() # does not help
             idx = self.map_tabs.addTab(mmap, m["name"])
         else:
-            mmap = MapView(self.appdata, self, name)
+            mmap = create_cnapy_map_view(self.appdata, self, name)
             self.connect_map_view_signals(mmap)
             idx = self.map_tabs.addTab(mmap, m["name"])
             self.update_maps() # only update mmap?
@@ -562,7 +586,7 @@ class CentralWidget(QWidget):
                                 update_cnapy_maps:bool=True, update_escher_maps:bool=False):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            if update_cnapy_maps and isinstance(m, MapView):
+            if update_cnapy_maps and is_cnapy_map_view(m):
                 m.update_reaction(old_reaction_id, new_reaction_id)
             elif update_escher_maps and isinstance(m, EscherMapView):
                 if old_reaction_id != new_reaction_id:
@@ -573,7 +597,7 @@ class CentralWidget(QWidget):
     def delete_reaction_on_maps(self, reation_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
-            if isinstance(m, MapView):
+            if is_cnapy_map_view(m):
                 m.delete_box(reation_id)
             else:
                 m.delete_reaction(reation_id)
