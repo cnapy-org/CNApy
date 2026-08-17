@@ -1,8 +1,8 @@
 """
 optlang interface for the HiGHS solver, using the highspy Python bindings.
 
-Supports LP and QP (Quadratic Programming).
-- Continuous variables only (no MILP).
+Supports LP, QP (Quadratic Programming), and MILP.
+- Continuous, integer, and binary variables.
 - Linear constraints.
 - Linear or Quadratic objectives.
 
@@ -44,6 +44,16 @@ _STATUSES_WITH_USABLE_SOLUTION = frozenset([
     interface.OPTIMAL, interface.SUBOPTIMAL, interface.TIME_LIMIT, interface.ITERATION_LIMIT,
     interface.INFEASIBLE # needed for cobrapy, see cobra/util/solver.has_primals
 ])
+
+_VTYPE_TO_HIGHS_VTYPE = {
+    "continuous": highspy.HighsVarType.kContinuous,
+    "integer": highspy.HighsVarType.kInteger,
+    "binary": highspy.HighsVarType.kInteger,
+}
+_HIGHS_VTYPE_TO_VTYPE = {
+    highspy.HighsVarType.kContinuous: "continuous",
+    highspy.HighsVarType.kInteger: "integer",
+}
 
 
 def _linear_expression_to_dict(expression):
@@ -177,12 +187,7 @@ def _get_quadratic_terms_from_expr(expression):
 
 class Variable(interface.Variable):
     def __init__(self, name, *args, **kwargs):
-        if kwargs.get("type", "continuous") != "continuous":
-            raise ValueError(
-                "This HiGHS interface only supports "
-                "continuous variables - LP/QP only, no MIP."
-            )
-        super(Variable, self).__init__(name, **kwargs)
+        super(Variable, self).__init__(name, *args, **kwargs)
         # The column index of this variable in the HiGHS problem it currently
         # belongs to (None if it isn't attached to a model). New columns are
         # always appended at the end, so Model._add_variables can just read
@@ -203,6 +208,13 @@ class Variable(interface.Variable):
         interface.Variable.ub.fset(self, value)
         if self.problem is not None:
             self.problem._highs_set_col_bounds(self)
+
+
+    @interface.Variable.type.setter
+    def type(self, value):
+        interface.Variable.type.fset(self, value)
+        if getattr(self, "problem", None) is not None:
+            self.problem._highs_set_col_type(self)
 
     @interface.Variable.name.setter
     def name(self, value):
@@ -904,10 +916,15 @@ class Model(interface.Model):
             name = problem.variableName(i)
             lb = float(lp.col_lower_[i])
             ub = float(lp.col_upper_[i])
+            integrality = getattr(lp, "integrality_", [])
+            var_type = _HIGHS_VTYPE_TO_VTYPE.get(integrality[i], "continuous") if len(integrality) else "continuous"
+            if var_type == "integer" and lb == 0 and ub == 1:
+                var_type = "binary"
             variable = Variable(
                 name,
                 lb=None if lb <= -inf else lb,
                 ub=None if ub >= inf else ub,
+                type=var_type,
             )
             # Raw assignment, not variable.problem = self: mirrors
             # _add_variables/the rest of this file, and (unlike Constraint's
@@ -1113,6 +1130,7 @@ class Model(interface.Model):
             # New columns are always appended at the end, so the newly added
             # variable's index is simply the last column.
             variable._solver_index = self.problem.getNumCol() - 1
+            self._highs_set_col_type(variable, flush=False)
 
     def _add_constraints(self, constraints, sloppy=False):
         super(Model, self)._add_constraints(constraints, sloppy=sloppy)
@@ -1262,6 +1280,16 @@ class Model(interface.Model):
 
         return coeffs, lb, ub
 
+    def _highs_set_col_type(self, variable, flush=True):
+        # Same flush rationale as _highs_set_col_bounds. During
+        # _add_variables the column has just been created, so re-entering
+        # update() is unnecessary.
+        if flush:
+            self.update()
+        self.problem.changeColIntegrality(
+            variable._solver_index, _VTYPE_TO_HIGHS_VTYPE[variable.type]
+        )
+
     def _highs_set_col_bounds(self, variable):
         # Flush any pending add()s first: a variable can have its lb/ub
         # setter (or set_bounds) called right after being added to a model,
@@ -1355,6 +1383,8 @@ class Model(interface.Model):
         return float(self._solution_col_value[variable._solver_index])
 
     def _variable_dual(self, variable):
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
         self._ensure_solution_arrays()
@@ -1367,6 +1397,8 @@ class Model(interface.Model):
         return float(self._solution_row_value[constraint._solver_index])
 
     def _constraint_dual(self, constraint):
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
         self._ensure_solution_arrays()
