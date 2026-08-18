@@ -43,7 +43,7 @@ from qtpy.QtWidgets import (
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
-from cnapy.gui_elements.solver_buttons import get_solver_buttons
+# from cnapy.gui_elements.solver_buttons import get_solver_buttons
 
 from cnapy.optmdfpathway import OptMDFAnalysis, OptMDFResult
 
@@ -98,6 +98,7 @@ class ThermodynamicDialog(QDialog):
         elif analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
             window_title = "Perform thermodynamic FBA"
         self.setWindowTitle(window_title)
+        self.setWindowModality(Qt.NonModal)
 
         self.appdata = appdata
         self.central_widget = central_widget
@@ -181,10 +182,10 @@ class ThermodynamicDialog(QDialog):
         target_mdf_layout.addWidget(self.target_mdf)
         self.layout.addItem(target_mdf_layout)
 
-        solver_group = QGroupBox("Solver:")
-        solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
-        solver_group.setLayout(solver_buttons_layout)
-        self.layout.addWidget(solver_group)
+        # solver_group = QGroupBox("Solver:")
+        # solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
+        # solver_group.setLayout(solver_buttons_layout)
+        # self.layout.addWidget(solver_group)
 
         l3 = QHBoxLayout()
         self.button_optmdf = QPushButton("Compute")
@@ -246,25 +247,25 @@ class ThermodynamicDialog(QDialog):
             scenario_constraints.append((stoichiometry, direction, float(rhs)))
         return scenario_constraints
 
-    def _apply_selected_solver(self, model: cobra.Model) -> None:
-        solver_name = self.solver_buttons["group"].checkedButton().property("cobrak_name")
-        if not solver_name:
-            return
-        try:
-            model.solver = solver_name.lower()
-        except Exception:
-            QMessageBox.warning(
-                self,
-                "Solver unavailable",
-                f"Could not switch to solver '{solver_name}'; using the model's "
-                "current default solver instead.",
-            )
+    # def _apply_selected_solver(self, model: cobra.Model) -> None:
+    #     solver_name = self.solver_buttons["group"].checkedButton().property("cobrak_name")
+    #     if not solver_name:
+    #         return
+    #     try:
+    #         model.solver = solver_name.lower()
+    #     except Exception:
+    #         QMessageBox.warning(
+    #             self,
+    #             "Solver unavailable",
+    #             f"Could not switch to solver '{solver_name}'; using the model's "
+    #             "current default solver instead.",
+    #         )
 
     # ------------------------------------------------------------------
     # computing / displaying a result
     # ------------------------------------------------------------------
 
-    def get_solution_from_thread(self, result: OptMDFResult) -> None:
+    def process_solution(self, result: OptMDFResult) -> None:
         if result.status != "optimal":
             warning_title, warning_text = self._status_message(result.status)
             QMessageBox.warning(self, warning_title, warning_text)
@@ -292,7 +293,7 @@ class ThermodynamicDialog(QDialog):
         model = cobra.io.from_json(modelstr)
         self.appdata.project.load_scenario_into_model(model)
 
-        self._apply_selected_solver(model)
+        # self._apply_selected_solver(model)
 
         try:
             min_default_conc = float(self.min_default_conc.text())
@@ -369,7 +370,7 @@ class ThermodynamicDialog(QDialog):
             result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 
-        self.get_solution_from_thread(result)
+        self.process_solution(result)
 
     # ------------------------------------------------------------------
     # iterative bottleneck relaxation (see optmdfpathway.py's __main__ demo,
@@ -400,7 +401,7 @@ class ThermodynamicDialog(QDialog):
             result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 
-        self.get_solution_from_thread(result)
+        self.process_solution(result)
 
     @Slot()
     def relax_to_target_mdf(self):
@@ -434,7 +435,7 @@ class ThermodynamicDialog(QDialog):
             n += 1
         self.current_result = result
 
-        self.get_solution_from_thread(result)
+        self.process_solution(result)
 
     # ------------------------------------------------------------------
     # writing a result into the CNApy project / console

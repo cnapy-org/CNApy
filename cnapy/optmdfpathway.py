@@ -130,9 +130,11 @@ from typing import (
     Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple,
     TYPE_CHECKING, Union,
 )
+import time
 
 import cobra
 from optlang.symbolics import Zero
+from cnapy.core import multi_threaded_HiGHS_FVA
 
 if TYPE_CHECKING:
     # cnapy.appdata.Scenario is duck-typed here (a dict-like reaction_id ->
@@ -512,6 +514,7 @@ def _find_minimal_bottleneck(
         rid: active_constraint(rid)
         for rid, df in driving_forces.items() if df <= mdf + tol
     }
+    print(tied_cons)
     tied_cons = {rid: con for rid, con in tied_cons.items() if con is not None}
     if not tied_cons:
         return []
@@ -695,6 +698,8 @@ class OptMDFAnalysis:
         """
         m = model.copy()
         solver = m.solver
+        if verbose:
+            m.problem.verbosity = 1
         # Use the solver-specific optlang classes (m.problem), not the generic
         # optlang.interface ones -- optlang models refuse to add variables /
         # constraints built from a different interface than their own backend.
@@ -726,45 +731,31 @@ class OptMDFAnalysis:
         #    _compress_for_fva) and the result is expanded back afterwards.
         fva_bounds: Optional[Dict[str, Tuple[float, float]]] = None
         if use_fva_preprocessing is not False:
-            try:
-                from core import multi_threaded_HiGHS_FVA
-            except ImportError as exc:
-                if use_fva_preprocessing is True:
-                    raise ImportError(
-                        "use_fva_preprocessing=True requires core.py (with its "
-                        "cnapy/highspy dependencies) to be importable; either "
-                        "make it available on the Python path or call "
-                        "optMDFpathway with use_fva_preprocessing=False."
-                    ) from exc
-                if verbose:
-                    print(f"FVA preprocessing unavailable ({exc}); "
-                          "falling back to static reaction bounds.")
-            else:
-                m_fva, fva_triples = _compress_for_fva(m, subset_ratio, scenario_triples)
-                fva_lb, fva_ub, n_bad = multi_threaded_HiGHS_FVA(m_fva, constraints=fva_triples)
-                fva_bounds_compressed = {rxn.id: (lo, hi) for rxn, lo, hi in zip(m_fva.reactions, fva_lb, fva_ub)}
-                # Expand back to every reaction of the (uncompressed) `m`: a
-                # representative (or any reaction outside reaction_subsets)
-                # reads its bound directly; a subset member derives it from its
-                # representative's bound scaled by their ratio.
-                fva_bounds = {}
-                for rxn in m.reactions:
-                    rep_id, ratio = subset_ratio.get(rxn.id, (rxn.id, 1.0))
-                    lo_rep, hi_rep = fva_bounds_compressed[rep_id]
-                    if math.isnan(lo_rep) or math.isnan(hi_rep):
-                        fva_bounds[rxn.id] = (lo_rep, hi_rep)
-                    elif ratio > 0:
-                        fva_bounds[rxn.id] = (ratio * lo_rep, ratio * hi_rep)
-                    else:
-                        fva_bounds[rxn.id] = (ratio * hi_rep, ratio * lo_rep)
-                if verbose:
-                    msg = (f"FVA preprocessing done "
-                           f"({n_bad} reaction(s) had solver trouble)" if n_bad
-                           else "FVA preprocessing done.")
-                    if m_fva is not m:
-                        msg += (f" [{len(m.reactions)} reactions compressed to "
-                                f"{len(m_fva.reactions)} via reaction_subsets]")
-                    print(msg)
+            m_fva, fva_triples = _compress_for_fva(m, subset_ratio, scenario_triples)
+            fva_lb, fva_ub, n_bad = multi_threaded_HiGHS_FVA(m_fva, constraints=fva_triples)
+            fva_bounds_compressed = {rxn.id: (lo, hi) for rxn, lo, hi in zip(m_fva.reactions, fva_lb, fva_ub)}
+            # Expand back to every reaction of the (uncompressed) `m`: a
+            # representative (or any reaction outside reaction_subsets)
+            # reads its bound directly; a subset member derives it from its
+            # representative's bound scaled by their ratio.
+            fva_bounds = {}
+            for rxn in m.reactions:
+                rep_id, ratio = subset_ratio.get(rxn.id, (rxn.id, 1.0))
+                lo_rep, hi_rep = fva_bounds_compressed[rep_id]
+                if math.isnan(lo_rep) or math.isnan(hi_rep):
+                    fva_bounds[rxn.id] = (lo_rep, hi_rep)
+                elif ratio > 0:
+                    fva_bounds[rxn.id] = (ratio * lo_rep, ratio * hi_rep)
+                else:
+                    fva_bounds[rxn.id] = (ratio * hi_rep, ratio * lo_rep)
+            if verbose:
+                msg = (f"FVA preprocessing done "
+                        f"({n_bad} reaction(s) had solver trouble)" if n_bad
+                        else "FVA preprocessing done.")
+                if m_fva is not m:
+                    msg += (f" [{len(m.reactions)} reactions compressed to "
+                            f"{len(m_fva.reactions)} via reaction_subsets]")
+                print(msg)
 
         # -- 1) log-concentration variables and the MDF variable B --------------
         # (logc is equivalent to c_vars in setup_driving_force_constraints.m)
@@ -1080,7 +1071,9 @@ class OptMDFAnalysis:
         OptMDFResult, exactly as optMDFpathway does. Appended to
         self.history.
         """
+        start_time = time.monotonic()
         status = self.solver.optimize()
+        print(time.monotonic() - start_time)
         result = self._extract_result(status)
         if status != "optimal":
             if self.verbose:
@@ -1244,9 +1237,11 @@ class OptMDFAnalysis:
                     print(f"Bottleneck-search LP resolve finished with status "
                           f"{lp_status!r} (expected 'optimal'); skipping.")
                 return []
+            start_time = time.monotonic()
             bottleneck = _find_minimal_bottleneck(
                 self.solver, self.df_constraints, result.fluxes,
                 driving_forces, result.mdf, tol=self.bottleneck_tol)
+            print(time.monotonic() - start_time)
         if self.verbose:
             print(f"Bottleneck: {bottleneck}" if bottleneck else
                   "No thermodynamic bottleneck (mdf isn't limited by any "

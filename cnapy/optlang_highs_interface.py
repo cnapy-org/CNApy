@@ -1,10 +1,14 @@
 """
 optlang interface for the HiGHS solver, using the highspy Python bindings.
 
-Supports LP, QP (Quadratic Programming), and MILP.
-- Continuous, integer, and binary variables.
+Supports LP, QP (Quadratic Programming) and MILP (Mixed Integer Linear
+Programming).
+- Continuous, integer and binary variables. Note: mixing integer/binary
+  variables with a quadratic objective (MIQP) is not supported by HiGHS;
+  use a linear objective whenever the model contains integer/binary
+  variables.
 - Linear constraints.
-- Linear or Quadratic objectives.
+- Linear or Quadratic objectives (continuous models only, see above).
 
 Install with:
     pip install highspy
@@ -36,6 +40,12 @@ _HIGHS_STATUS_TO_STATUS = {
     "Infeasible or unbounded": interface.INFEASIBLE_OR_UNBOUNDED,
     "Time limit reached": interface.TIME_LIMIT,
     "Iteration limit reached": interface.ITERATION_LIMIT,
+    # MIP-specific early-termination statuses (only ever returned once a
+    # model has integer/binary variables and HiGHS' branch-and-bound runs):
+    "Solution limit reached": interface.SOLUTION_LIMIT,
+    "Objective bound": interface.SUBOPTIMAL,
+    "Objective target": interface.SUBOPTIMAL,
+    "Interrupted by user callback": interface.ABORTED,
     "Solve error": interface.UNDEFINED,
     "Not Set": interface.UNDEFINED,
 }
@@ -44,16 +54,6 @@ _STATUSES_WITH_USABLE_SOLUTION = frozenset([
     interface.OPTIMAL, interface.SUBOPTIMAL, interface.TIME_LIMIT, interface.ITERATION_LIMIT,
     interface.INFEASIBLE # needed for cobrapy, see cobra/util/solver.has_primals
 ])
-
-_VTYPE_TO_HIGHS_VTYPE = {
-    "continuous": highspy.HighsVarType.kContinuous,
-    "integer": highspy.HighsVarType.kInteger,
-    "binary": highspy.HighsVarType.kInteger,
-}
-_HIGHS_VTYPE_TO_VTYPE = {
-    highspy.HighsVarType.kContinuous: "continuous",
-    highspy.HighsVarType.kInteger: "integer",
-}
 
 
 def _linear_expression_to_dict(expression):
@@ -187,7 +187,13 @@ def _get_quadratic_terms_from_expr(expression):
 
 class Variable(interface.Variable):
     def __init__(self, name, *args, **kwargs):
-        super(Variable, self).__init__(name, *args, **kwargs)
+        var_type = kwargs.get("type", "continuous")
+        if var_type not in ("continuous", "integer", "binary"):
+            raise ValueError(
+                "This HiGHS interface only supports continuous, integer "
+                "and binary variables (type=%r is not one of these)." % (var_type,)
+            )
+        super(Variable, self).__init__(name, **kwargs)
         # The column index of this variable in the HiGHS problem it currently
         # belongs to (None if it isn't attached to a model). New columns are
         # always appended at the end, so Model._add_variables can just read
@@ -209,13 +215,6 @@ class Variable(interface.Variable):
         if self.problem is not None:
             self.problem._highs_set_col_bounds(self)
 
-
-    @interface.Variable.type.setter
-    def type(self, value):
-        interface.Variable.type.fset(self, value)
-        if getattr(self, "problem", None) is not None:
-            self.problem._highs_set_col_type(self)
-
     @interface.Variable.name.setter
     def name(self, value):
         # getattr(self, 'problem', None), not self.problem: sympy's
@@ -225,6 +224,22 @@ class Variable(interface.Variable):
         interface.Variable.name.fset(self, value)
         if getattr(self, 'problem', None) is not None:
             self.problem._highs_set_col_name(self)
+
+    @interface.Variable.type.setter
+    def type(self, value):
+        # The base setter (interface.Variable.type.fset) may itself go
+        # through self.lb/self.ub (for type == 'integer', via the property
+        # setters above - which already sync bounds to HiGHS on their own)
+        # or bypass them entirely and poke self._lb/self._ub directly (for
+        # type == 'binary'). Either way, once the base setter returns,
+        # self.lb/self.ub/self.type all already reflect the final, settled
+        # state, so _highs_set_col_type below can simply push that settled
+        # state (bounds + integrality) to HiGHS in one go - no further
+        # self.lb=/self.ub=/self.type= assignments happen here, so there is
+        # no risk of this setter (transitively) re-entering itself.
+        interface.Variable.type.fset(self, value)
+        if self.problem is not None:
+            self.problem._highs_set_col_type(self)
 
     def set_bounds(self, lb, ub):
         super(Variable, self).set_bounds(lb, ub)
@@ -596,6 +611,12 @@ class Tolerances(object):
         # loosening it is often the fix for QPs that fail to converge for
         # purely numerical/scaling reasons.
         self._ipm_optimality = 1e-8
+        # Relative MIP optimality gap (HiGHS option 'mip_rel_gap'). Only
+        # meaningful once a model has integer/binary variables and its
+        # branch-and-bound actually runs; applying it unconditionally to
+        # every model (see _apply_tolerances) is harmless for pure LP/QP
+        # problems, since HiGHS simply ignores it there.
+        self._mip_gap = 1e-4
 
     @property
     def feasibility(self):
@@ -624,11 +645,21 @@ class Tolerances(object):
         self._ipm_optimality = value
         self._configuration._apply_tolerances()
 
+    @property
+    def mip_gap(self):
+        return self._mip_gap
+
+    @mip_gap.setter
+    def mip_gap(self, value):
+        self._mip_gap = value
+        self._configuration._apply_tolerances()
+
     def to_dict(self):
         return {
             "feasibility": self.feasibility,
             "optimality": self.optimality,
             "ipm_optimality": self.ipm_optimality,
+            "mip_gap": self.mip_gap,
         }
 
 
@@ -661,6 +692,7 @@ class Configuration(interface.MathematicalProgrammingConfiguration):
             h.setOptionValue("primal_feasibility_tolerance", self._tolerances.feasibility)
             h.setOptionValue("dual_feasibility_tolerance", self._tolerances.feasibility)
             h.setOptionValue("ipm_optimality_tolerance", self._tolerances.ipm_optimality)
+            h.setOptionValue("mip_rel_gap", self._tolerances.mip_gap)
 
     @property
     def tolerances(self):
@@ -910,16 +942,19 @@ class Model(interface.Model):
 
         inf = highspy.kHighsInf
 
-        # Variables: one wrapper per existing column, bounds and index taken
-        # straight from the live problem.
+        # Variables: one wrapper per existing column, bounds, integrality
+        # and index taken straight from the live problem.
+        integrality = getattr(lp, "integrality_", None)
         for i in range(problem.getNumCol()):
             name = problem.variableName(i)
             lb = float(lp.col_lower_[i])
             ub = float(lp.col_upper_[i])
-            integrality = getattr(lp, "integrality_", [])
-            var_type = _HIGHS_VTYPE_TO_VTYPE.get(integrality[i], "continuous") if len(integrality) else "continuous"
-            if var_type == "integer" and lb == 0 and ub == 1:
-                var_type = "binary"
+            is_integer = (integrality is not None and len(integrality) > i and
+                          int(integrality[i]) == int(highspy.HighsVarType.kInteger))
+            if is_integer:
+                var_type = "binary" if (lb == 0.0 and ub == 1.0) else "integer"
+            else:
+                var_type = "continuous"
             variable = Variable(
                 name,
                 lb=None if lb <= -inf else lb,
@@ -1122,15 +1157,16 @@ class Model(interface.Model):
         for variable in variables:
             lb = -inf if variable.lb is None else variable.lb
             ub = inf if variable.ub is None else variable.ub
+            vtype = (highspy.HighsVarType.kInteger if variable.type in ("integer", "binary")
+                     else highspy.HighsVarType.kContinuous)
             # name=... is required here: every read path (Constraint/Objective
             # .expression, _constraint_to_coeffs) maps a
             # HiGHS column index back to an optlang variable name via
             # variableName(idx), which raises if the column was never named.
-            self.problem.addVariable(lb, ub, name=variable.name)
+            self.problem.addVariable(lb, ub, type=vtype, name=variable.name)
             # New columns are always appended at the end, so the newly added
             # variable's index is simply the last column.
             variable._solver_index = self.problem.getNumCol() - 1
-            self._highs_set_col_type(variable, flush=False)
 
     def _add_constraints(self, constraints, sloppy=False):
         super(Model, self)._add_constraints(constraints, sloppy=sloppy)
@@ -1280,16 +1316,6 @@ class Model(interface.Model):
 
         return coeffs, lb, ub
 
-    def _highs_set_col_type(self, variable, flush=True):
-        # Same flush rationale as _highs_set_col_bounds. During
-        # _add_variables the column has just been created, so re-entering
-        # update() is unnecessary.
-        if flush:
-            self.update()
-        self.problem.changeColIntegrality(
-            variable._solver_index, _VTYPE_TO_HIGHS_VTYPE[variable.type]
-        )
-
     def _highs_set_col_bounds(self, variable):
         # Flush any pending add()s first: a variable can have its lb/ub
         # setter (or set_bounds) called right after being added to a model,
@@ -1302,6 +1328,29 @@ class Model(interface.Model):
         lb = -inf if variable.lb is None else variable.lb
         ub = inf if variable.ub is None else variable.ub
         self.problem.changeColBounds(variable._solver_index, lb, ub)
+
+    def _highs_set_col_type(self, variable):
+        # Flush any pending add()s first - same rationale as
+        # _highs_set_col_bounds: a variable's type can be changed right
+        # after it was added to a model, before update() has assigned it a
+        # _solver_index. update() only ever touches pending
+        # add/remove-variable/constraint bookkeeping here (variable type
+        # changes never go through self._pending_modifications - they are
+        # written straight through below, exactly like bounds/coefficients
+        # elsewhere in this file), so this can never trigger another call
+        # back into this method or into the type setter that called us.
+        inf = highspy.kHighsInf
+        # Push bounds too: interface.Variable.type.fset's 'binary' branch
+        # sets self._lb/self._ub directly (bypassing the lb/ub property
+        # setters and therefore _highs_set_col_bounds), so HiGHS would
+        # otherwise miss that change. Re-sending the (by now settled)
+        # bounds here is a cheap no-op for every other case.
+        lb = -inf if variable.lb is None else variable.lb
+        ub = inf if variable.ub is None else variable.ub
+        self.problem.changeColBounds(variable._solver_index, lb, ub)
+        vtype = (highspy.HighsVarType.kInteger if variable.type in ("integer", "binary")
+                 else highspy.HighsVarType.kContinuous)
+        self.problem.changeColIntegrality(variable._solver_index, vtype)
 
     def _highs_set_row_bounds(self, constraint):
         # See _highs_set_col_bounds -- same rationale, for constraint rows.
@@ -1383,8 +1432,8 @@ class Model(interface.Model):
         return float(self._solution_col_value[variable._solver_index])
 
     def _variable_dual(self, variable):
-        if self.is_integer:
-            raise ValueError("Dual values are not well-defined for integer problems")
+        # if self.is_integer:
+        #     raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
         self._ensure_solution_arrays()
@@ -1397,8 +1446,8 @@ class Model(interface.Model):
         return float(self._solution_row_value[constraint._solver_index])
 
     def _constraint_dual(self, constraint):
-        if self.is_integer:
-            raise ValueError("Dual values are not well-defined for integer problems")
+        # if self.is_integer:
+        #     raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
         self._ensure_solution_arrays()
@@ -1412,5 +1461,14 @@ class Model(interface.Model):
             self._objective_value = float(info.objective_function_value)
         return self._objective_value
     
+    # def update(self):
+    #     """Safely process pending modifications without endless recursion."""
+    #     if getattr(self, "_is_updating", False):
+    #         return
+    #     self._is_updating = True
+    #     try:
+    #         super(Model, self).update()
+    #     finally:
+    #         self._is_updating = False
 
 __all__ = ["Variable", "Constraint", "Objective", "Configuration", "Model", "_get_quadratic_terms"]
