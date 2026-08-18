@@ -7,6 +7,7 @@ from typing import Dict, Tuple, List
 from collections import Counter
 import threading as th
 import numpy
+import math
 import pandas
 import scipy.sparse as sp
 import cobra
@@ -835,6 +836,280 @@ def build_highs_fba_model(cobra_model: cobra.Model, constraints=None):
     )
     
     return lp, S
+
+YoptSolution = namedtuple('YoptSolution', ('status', 'objective_value', 'fluxes', 'scalable'))
+
+def _highs_fba_optimize(cobra_model: cobra.Model, obj: Dict[str, float], sense: str, constraints=None):
+    """Plain LP: optimize a linear combination of fluxes over the model's
+    feasible flux polytope, built via build_highs_fba_model. Returns
+    (status, objective_value, flux_array_or_None) with status in
+    {"optimal", "unbounded", "infeasible"}. Used both to determine which
+    sign(s) a denominator expression can take (see highs_yopt) and, as a
+    plain LP, to build fallback example flux distributions."""
+    lp, _ = build_highs_fba_model(cobra_model, constraints)
+    reaction_ids = cobra_model.reactions.list_attr("id")
+    idx = {rid: i for i, rid in enumerate(reaction_ids)}
+    lp.col_cost_[:] = 0.0
+    for rid, coeff in obj.items():
+        if rid in idx:
+            lp.col_cost_[idx[rid]] = coeff
+    lp.sense_ = highspy.ObjSense.kMaximize if sense == 'maximize' else highspy.ObjSense.kMinimize
+    h = highspy.Highs()
+    h.passModel(lp)
+    h.setOptionValue("output_flag", False)
+    h.run()
+    status = h.getModelStatus()
+    if status == highspy.HighsModelStatus.kOptimal:
+        x = numpy.asarray(h.getSolution().col_value)
+        return "optimal", h.getInfo().objective_function_value, x
+    elif status == highspy.HighsModelStatus.kUnbounded:
+        # HiGHS' simplex detects unboundedness from a feasible vertex, so
+        # col_value is still usually a genuine (if not very meaningful)
+        # feasible point -- good enough as a fallback example distribution.
+        try:
+            x = numpy.asarray(h.getSolution().col_value)
+        except Exception:
+            x = None
+        return "unbounded", (math.inf if sense == 'maximize' else -math.inf), x
+    else:
+        return "infeasible", float('nan'), None
+
+def build_highs_yopt_model(cobra_model: cobra.Model, obj_num: numpy.ndarray, obj_den: numpy.ndarray,
+                           denominator_sign: float, sense: str, constraints=None):
+    """
+    Build the Charnes-Cooper linearisation of a single yield-optimization
+    LP directly as a highspy.HighsLp -- same low-level construction style
+    as build_highs_fba_model, with one extra variable (a scaling factor t)
+    and every row made homogeneous in t.
+
+    Derivation
+    ----------
+    We want to optimize (obj_num . v) / (obj_den . v) over the feasible
+    flux polytope P = {v : S v = 0, lb <= v <= ub, extra constraints}.
+    Since the sign of obj_den . v isn't known a priori, fix it to a chosen
+    denominator_sign s in {-1, +1} (the caller tries every sign that is
+    actually achievable on P -- see highs_yopt) and introduce a scaling
+    factor t > 0 with x = t * v, so that obj_den . x = s. Then every
+    constraint on v becomes homogeneous in (x, t):
+        S v = 0            -> S x = 0
+        lb <= v <= ub       -> lb*t <= x <= ub*t
+        a . v {<=,=,>=} rhs -> a . x {<=,=,>=} rhs*t
+    and the ratio itself simplifies to a *linear* objective:
+        (obj_num.v)/(obj_den.v) = (obj_num.v)/(s/t) = s * (obj_num . (t*v))
+                                 = s * (obj_num . x)
+    So maximizing/minimizing the original ratio is exactly
+    optimize_{sense} s * (obj_num . x) subject to the above (plus t >= 0),
+    and the LP's optimal objective value *is* the yield -- no rescaling
+    needed afterwards.
+
+    Variables are [v_1..v_n, t] (t is the last column, x is just v scaled
+    by t so no separate x columns are needed).
+
+    Returns
+    -------
+    (highspy.HighsLp, reaction_ids)
+    """
+    reaction_ids = cobra_model.reactions.list_attr("id")
+    idx = {rid: i for i, rid in enumerate(reaction_ids)}
+    n = len(reaction_ids)
+    m = len(cobra_model.metabolites)
+    constraints = list(constraints or [])
+    n_extra = len(constraints)
+
+    lb_arr = numpy.array([r.lower_bound for r in cobra_model.reactions])
+    ub_arr = numpy.array([r.upper_bound for r in cobra_model.reactions])
+    real_lb = numpy.where(numpy.isfinite(lb_arr))[0]
+    real_ub = numpy.where(numpy.isfinite(ub_arr))[0]
+
+    n_rows = m + n_extra + len(real_lb) + len(real_ub) + 1
+    n_vars = n + 1  # + t
+
+    S = create_stoichiometric_matrix(cobra_model, array_type="lil")
+    A = sp.lil_matrix((n_rows, n_vars))
+    A[:m, :n] = S  # S x = 0, already homogeneous (no t term needed)
+    row_lower = numpy.zeros(n_rows)
+    row_upper = numpy.zeros(n_rows)
+
+    row = m
+    for expr, ctype, rhs in constraints:
+        for rid, coeff in expr.items():
+            if rid not in idx:
+                print(f"Skipping yield constraint referencing a reaction not in the model: {rid}")
+                continue
+            A[row, idx[rid]] += coeff
+        A[row, n] = -float(rhs)  # a.x - rhs*t {0}  <=>  a.v {rhs}
+        if ctype == '=':
+            row_lower[row] = row_upper[row] = 0.0
+        elif ctype == '<=':
+            row_lower[row], row_upper[row] = -math.inf, 0.0
+        else:  # '>='
+            row_lower[row], row_upper[row] = 0.0, math.inf
+        row += 1
+
+    for i in real_lb:  # x_i - lb_i*t >= 0  <=>  x_i >= lb_i*t
+        A[row, i] = 1.0
+        A[row, n] = -lb_arr[i]
+        row_lower[row], row_upper[row] = 0.0, math.inf
+        row += 1
+    for i in real_ub:  # x_i - ub_i*t <= 0  <=>  x_i <= ub_i*t
+        A[row, i] = 1.0
+        A[row, n] = -ub_arr[i]
+        row_lower[row], row_upper[row] = -math.inf, 0.0
+        row += 1
+
+    for i, c in enumerate(obj_den):  # obj_den . x == denominator_sign
+        if c != 0.0:
+            A[row, i] = c
+    row_lower[row] = row_upper[row] = float(denominator_sign)
+
+    col_lower = numpy.full(n_vars, -math.inf)
+    col_upper = numpy.full(n_vars, math.inf)
+    col_lower[n], col_upper[n] = 0.0, math.inf  # t >= 0
+
+    col_cost = numpy.zeros(n_vars)
+    col_cost[:n] = denominator_sign * obj_num
+
+    lp = highspy.HighsLp()
+    lp.a_matrix_.format_ = highspy.MatrixFormat.kRowwise
+    lp.num_col_ = n_vars
+    lp.num_row_ = n_rows
+    lp.col_cost_ = col_cost
+    lp.col_lower_ = col_lower
+    lp.col_upper_ = col_upper
+    lp.row_lower_ = row_lower
+    lp.row_upper_ = row_upper
+    A = A.tocsr()
+    lp.a_matrix_.start_ = A.indptr.astype(numpy.int32)
+    lp.a_matrix_.index_ = A.indices.astype(numpy.int32)
+    lp.a_matrix_.value_ = A.data.astype(numpy.double)
+    lp.sense_ = highspy.ObjSense.kMaximize if sense == 'maximize' else highspy.ObjSense.kMinimize
+
+    return lp, reaction_ids
+
+def highs_yopt(cobra_model: cobra.Model, obj_num: Dict[str, float], obj_den: Dict[str, float],
+               obj_sense: str = 'maximize', constraints=None,
+               denominator_tol: float = 1e-9) -> YoptSolution:
+    """
+    Yield optimization (YOpt), linear-fractional-programming approach directly on top of highspy
+    (see build_highs_yopt_model's docstring for the Charnes-Cooper derivation).
+
+    Parameters
+    ----------
+    obj_num, obj_den : dict {reaction_id: coefficient}
+        The linear numerator/denominator expressions of the yield.
+    obj_sense : 'maximize' or 'minimize'
+    constraints : optional list of (dict, str, float) triples
+        Same shape as multi_threaded_HiGHS_FVA's/cnapy Scenario
+        constraints (see thermodynamics_dialog.py); applied on top of the
+        model's own reaction bounds.
+    denominator_tol : float
+        Absolute tolerance below which obj_den . v is treated as
+        structurally forced to 0 in a given direction.
+
+    Returns
+    -------
+    YoptSolution
+        .status           "optimal", "unbounded", or "infeasible"
+        .objective_value  the optimal yield; +-inf if truly unbounded, nan
+                          if undefined (denominator can approach, but
+                          never reach, 0 while the numerator stays
+                          nonzero) or if infeasible
+        .fluxes           {reaction_id: flux}, an example flux
+                          distribution (empty if infeasible)
+        .scalable         True if the example flux distribution may be
+                          scaled by an arbitrary positive factor without
+                          changing the yield
+    """
+    reaction_ids = cobra_model.reactions.list_attr("id")
+    n = len(reaction_ids)
+    idx = {rid: i for i, rid in enumerate(reaction_ids)}
+    sense = 'minimize' if obj_sense in ('min', 'minimize') else 'maximize'
+
+    def to_vec(d):
+        v = numpy.zeros(n)
+        for rid, c in d.items():
+            if rid not in idx:
+                raise KeyError(f"Reaction {rid!r} referenced in the yield objective is not in the model")
+            v[idx[rid]] = c
+        return v
+
+    num_vec = to_vec(obj_num)
+    den_vec = to_vec(obj_den)
+
+    # -- which sign(s) can obj_den . v actually take on the feasible region? --
+    status_min, min_D, _ = _highs_fba_optimize(cobra_model, obj_den, 'minimize', constraints)
+    if status_min == "infeasible":
+        return YoptSolution("infeasible", float('nan'), {}, False)
+    status_max, max_D, _ = _highs_fba_optimize(cobra_model, obj_den, 'maximize', constraints)
+
+    achievable_signs = []
+    if status_min == "unbounded" or (status_min == "optimal" and min_D < -denominator_tol):
+        achievable_signs.append(-1.0)
+    if status_max == "unbounded" or (status_max == "optimal" and max_D > denominator_tol):
+        achievable_signs.append(1.0)
+
+    if not achievable_signs:
+        # obj_den . v is forced to 0 everywhere on the feasible region
+        return YoptSolution("infeasible", float('nan'), {}, False)
+
+    # -- solve the LFP for every achievable sign, keep the better result --
+    best = None
+    for s in achievable_signs:
+        lp, _ = build_highs_yopt_model(cobra_model, num_vec, den_vec, s, sense, constraints)
+        h = highspy.Highs()
+        h.passModel(lp)
+        h.setOptionValue("output_flag", False)
+        h.run()
+        status = h.getModelStatus()
+        if status == highspy.HighsModelStatus.kOptimal:
+            x = numpy.asarray(h.getSolution().col_value)
+            t = x[-1]
+            if t > denominator_tol:
+                fluxes = {rid: float(x[i] / t) for i, rid in enumerate(reaction_ids)}
+                scalable = False
+            else:
+                fluxes = {rid: float(x[i]) for i, rid in enumerate(reaction_ids)}
+                scalable = True
+            candidate = (h.getInfo().objective_function_value, fluxes, scalable, "optimal")
+        elif status == highspy.HighsModelStatus.kUnbounded:
+            candidate = (math.inf if sense == 'maximize' else -math.inf, None, True, "unbounded")
+        else:
+            continue
+
+        if best is None or (sense == 'maximize' and candidate[0] > best[0]) or \
+           (sense == 'minimize' and candidate[0] < best[0]):
+            best = candidate
+
+    if best is None:
+        return YoptSolution("infeasible", float('nan'), {}, False)
+
+    value, fluxes, scalable, status = best
+    if status == "optimal":
+        return YoptSolution("optimal", value, fluxes, scalable)
+
+    # -- status == "unbounded": distinguish a genuinely unbounded yield from
+    #    an *undefined* one (denominator can approach, but never reach, 0
+    #    while the numerator stays nonzero) by re-solving with obj_den . v
+    #    pinned to exactly 0. --
+    pinned = list(constraints or []) + [(dict(obj_den), '=', 0.0)]
+    num_obj_signed = obj_num if sense == 'maximize' else {k: -c for k, c in obj_num.items()}
+    status_p, val_p, x_p = _highs_fba_optimize(cobra_model, num_obj_signed, 'maximize', pinned)
+
+    if status_p == "unbounded":
+        # numerator is unbounded even with the denominator held at exactly
+        # 0 -- a genuinely unbounded ratio.
+        example = {rid: float(x_p[i]) for i, rid in enumerate(reaction_ids)} if x_p is not None else (fluxes or {})
+        return YoptSolution("unbounded", math.inf if sense == 'maximize' else -math.inf, example, True)
+
+    if status_p == "optimal" and abs(val_p) > denominator_tol:
+        # numerator stays finite and nonzero as the denominator -> 0: the
+        # ratio is undefined.
+        example = {rid: float(x_p[i]) for i, rid in enumerate(reaction_ids)}
+        return YoptSolution("unbounded", float('nan'), example, False)
+
+    # numerator also (forced to, or found at) 0 when denominator == 0
+    example = {rid: float(x_p[i]) for i, rid in enumerate(reaction_ids)} if status_p == "optimal" else (fluxes or {})
+    return YoptSolution("unbounded", float('nan'), example, False)
 
 def _build_reaction_adjacency(S: sp.spmatrix, lb: numpy.ndarray, ub: numpy.ndarray,
                                hub_degree_percentile: float = 95.0,
