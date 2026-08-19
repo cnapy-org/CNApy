@@ -367,6 +367,7 @@ class ThermodynamicDialog(QDialog):
 
         result = self._solve()
         if result.status == "optimal":
+            self.analysis.shadow_prices()
             result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 

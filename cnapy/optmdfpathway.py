@@ -696,6 +696,7 @@ class OptMDFAnalysis:
             Print setup information now, and progress information from
             solve()/find_bottleneck()/relax() later.
         """
+        start_time = time.monotonic()
         m = model.copy()
         solver = m.solver
         if verbose:
@@ -967,7 +968,8 @@ class OptMDFAnalysis:
         solver.objective = Objective(Zero, direction="max")
         solver.update()
         solver.objective.set_linear_coefficients({B: 1.0})
-
+        print(time.monotonic() - start_time)
+        
         if verbose:
             n_groups_used = len({subset_ratio.get(rid, (rid, 1.0))[0] for rid in stoich})
             subset_note = (f", sharing {n_groups_used} group(s)' binaries via "
@@ -1195,11 +1197,17 @@ class OptMDFAnalysis:
                           f"from the original {result.mdf:.6g} (likely "
                           "solution degeneracy); duals are still valid for "
                           "the LP that was actually solved.")
+                duals_sum = 0
                 for rid in self.stoich:
                     direction = "fwd" if result.fluxes[rid] >= 0 else "rev"
                     con = self.df_constraints.get(rid, {}).get(direction)
                     if con is not None:
                         duals[rid] = con.dual
+                        ad = abs(con.dual)
+                        if ad > 1e-6:
+                            print(rid, con.dual)
+                            duals_sum += ad
+                print("duals_sum", duals_sum)
             elif self.verbose:
                 print(f"Shadow-price LP resolve finished with status "
                       f"{lp_status!r} (expected 'optimal'); skipping shadow prices.")
