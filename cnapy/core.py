@@ -20,18 +20,19 @@ from cobra.exceptions import OptimizationError
 import highspy
 import osqp
 
-import efmtool_link.efmtool4cobra as efmtool4cobra
-import efmtool_link.efmtool_extern as efmtool_extern
 from cnapy.flux_vector_container import FluxVectorMemmap, FluxVectorContainer
 from cnapy.appdata import Scenario
 # from cnapy.conservation_relations import find_redundant_metabolites_qr
-import cnapy.optlang_highs_interface
+# import cnapy.optlang_highs_interface
 
 organic_elements = ['C', 'O', 'H', 'N', 'P', 'S']
 
 
 def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], constraints: bool,
                     print_progress_function=print, abort_callback=None):
+    # lazy import so that it is not necessary to start the JVM with CNApy
+    import efmtool_link.efmtool4cobra as efmtool4cobra
+    import efmtool_link.efmtool_extern as efmtool_extern
     stdf = create_stoichiometric_matrix(
         model, array_type='DataFrame')
     reversible, irrev_backwards_idx = efmtool4cobra.get_reversibility(
