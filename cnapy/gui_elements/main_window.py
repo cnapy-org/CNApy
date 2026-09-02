@@ -414,7 +414,7 @@ class MainWindow(QMainWindow):
 
         self.thermodynamic_menu = self.analysis_menu.addMenu("Thermodynamic analyses")
 
-        optmdf_action = QAction("OptMDFpathway...", self)
+        optmdf_action = QAction("OptMDFpathway with bottleneck analysis...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.thermodynamic_menu.addAction(optmdf_action)
 
@@ -422,9 +422,9 @@ class MainWindow(QMainWindow):
         tfba_action.triggered.connect(self.perform_thermodynamic_fba)
         self.thermodynamic_menu.addAction(tfba_action)
 
-        bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
-        bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
-        self.thermodynamic_menu.addAction(bottleneck_action)
+        # bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
+        # bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
+        # self.thermodynamic_menu.addAction(bottleneck_action)
 
         self.thermodynamic_menu.addSeparator()
 
@@ -2181,17 +2181,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        # Has to be in self to keep computation thread
         self.optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
         )
-        self.optmdfpathway_dialog.exec_()
+        self.optmdfpathway_dialog.show()
 
     @Slot()
     def perform_thermodynamic_fba(self):
-        # Has to be in self to keep computation thread
         self.thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
@@ -2199,15 +2197,15 @@ class MainWindow(QMainWindow):
         )
         self.thermodynamic_fba_dialog.exec_()
 
-    @Slot()
-    def perform_bottleneck_analysis(self):
-        # Has to be in self to keep computation thread
-        self.bottleneck_dialog = ThermodynamicDialog(
-            self.appdata,
-            self.centralWidget(),
-            analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
-        )
-        self.bottleneck_dialog.exec_()
+    # @Slot()
+    # def perform_bottleneck_analysis(self):
+    #     # Has to be in self to keep computation thread
+    #     self.bottleneck_dialog = ThermodynamicDialog(
+    #         self.appdata,
+    #         self.centralWidget(),
+    #         analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
+    #     )
+    #     self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)

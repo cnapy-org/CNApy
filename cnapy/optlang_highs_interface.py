@@ -217,13 +217,31 @@ class Variable(interface.Variable):
 
     @interface.Variable.name.setter
     def name(self, value):
+        # Reimplemented rather than delegating to interface.Variable.name's
+        # base setter (interface.Variable.name.fset): that base setter also
+        # updates problem._variables_to_constraints_mapping, which this
+        # interface no longer maintains -- HiGHS's own row/column data is the
+        # sole source of truth for constraint/variable membership (see
+        # Model._add_variables/_add_constraints/_remove_variables below).
+        #
         # getattr(self, 'problem', None), not self.problem: sympy's
         # Symbol.__new__ (via __xnew__) assigns .name during construction,
         # before Variable.__init__ has set self.problem at all - a direct
         # attribute access would raise AttributeError at that point.
-        interface.Variable.name.fset(self, value)
-        if getattr(self, 'problem', None) is not None:
-            self.problem._highs_set_col_name(self)
+        if len(value) < 1:
+            raise ValueError('Variable name must not be empty string')
+        for char in value:
+            if char.isspace():
+                raise ValueError(
+                    'Variable names cannot contain whitespace characters. "%s" contains whitespace character "%s".' % (
+                        value, char))
+        old_name = getattr(self, 'name', None)
+        self._name = value
+        problem = getattr(self, 'problem', None)
+        if problem is not None and value != old_name:
+            problem.variables.update_key(old_name)
+        if problem is not None:
+            problem._highs_set_col_name(self)
 
     @interface.Variable.type.setter
     def type(self, value):
@@ -1152,7 +1170,15 @@ class Model(interface.Model):
             self._sync_objective_to_solver()
 
     def _add_variables(self, variables):
-        super(Model, self)._add_variables(variables)
+        # Same as interface.Model._add_variables, minus its
+        # _variables_to_constraints_mapping bookkeeping: HiGHS's own row data
+        # is the sole source of truth for which constraints reference which
+        # variable (see Constraint._get_expression / get_linear_coefficients,
+        # and _remove_variables below), so no separate mapping is kept here.
+        for variable in variables:
+            self._variables.append(variable)
+            variable.problem = self
+
         inf = highspy.kHighsInf
         for variable in variables:
             lb = -inf if variable.lb is None else variable.lb
@@ -1169,7 +1195,20 @@ class Model(interface.Model):
             variable._solver_index = self.problem.getNumCol() - 1
 
     def _add_constraints(self, constraints, sloppy=False):
-        super(Model, self)._add_constraints(constraints, sloppy=sloppy)
+        # Same as interface.Model._add_constraints, minus its
+        # _variables_to_constraints_mapping bookkeeping -- not needed here
+        # for the same reason as in _add_variables above.
+        for constraint in constraints:
+            if sloppy is False:
+                variables = constraint.variables
+                if constraint.indicator_variable is not None:
+                    variables.add(constraint.indicator_variable)
+                missing_vars = [var for var in variables if var.problem is not self]
+                if len(missing_vars) > 0:
+                    self._add_variables(missing_vars)
+            self._constraints.append(constraint)
+            constraint._problem = self
+
         inf = highspy.kHighsInf
         for constraint in constraints:
             coeffs, lb, ub = self._constraint_to_coeffs(constraint)
@@ -1188,6 +1227,20 @@ class Model(interface.Model):
             # HighsConstraintsContainer.
             self.problem.passRowName(row_index, constraint.name)
 
+    @staticmethod
+    def _rows_referencing_columns(highs: "highspy.Highs", col_indices) -> set:
+        """Returns a sorted list of unique row indices containing any of the given variable indices."""
+        matching_rows = set()
+        
+        for col in col_indices:
+            # getColEntries abstracts away CSR/CSC storage formats
+            status, indices, _ = highs.getColEntries(col)
+            
+            if status == highspy.HighsStatus.kOk:
+                matching_rows.update(indices)
+                
+        return matching_rows
+
     def _remove_variables(self, variables):
         for variable in variables:
             try:
@@ -1198,6 +1251,12 @@ class Model(interface.Model):
         removed_names = set(variable.name for variable in variables)
         removed_indices = sorted(variable._solver_index for variable in variables)
         old_num_col = self.problem.getNumCol()
+
+        # Find exactly which constraints reference any of the columns about
+        # to be deleted -- must happen before deleteVars, since that call
+        # rewrites the matrix and invalidates these column indices. This
+        # replaces the old _variables_to_constraints_mapping lookup below.
+        affected_rows = self._rows_referencing_columns(self.problem, removed_indices)
 
         # Physically delete the columns from HiGHS, not just from our own
         # bookkeeping. This is essential under the ground-truth design:
@@ -1228,21 +1287,21 @@ class Model(interface.Model):
                 shift = sum(1 for r in removed_indices if r < variable._solver_index)
                 variable._solver_index -= shift
 
+        # Constraint caches its expression (_expression_expired) -- a
+        # constraint referencing a removed variable has a stale cache the
+        # moment that variable's column disappears from its row, so mark it
+        # expired. affected_rows (computed above, before deleteVars) already
+        # pins down exactly which rows those were; resolve each row index
+        # back to its constraint via getRowName + self._constraints (an O(1)
+        # dict lookup by name) rather than scanning every constraint in the
+        # model, and rather than any _variables_to_constraints_mapping.
+        for row_index in affected_rows:
+            _, row_name = self.problem.getRowName(row_index)
+            constraint = self._constraints.get(row_name)
+            if constraint is not None:
+                constraint._expression_expired = True
+
         for variable in variables:
-            # Constraint now caches its expression (_expression_expired) as
-            # of the sloppy-removal changes below - a constraint referencing
-            # this variable has a stale cache the moment the variable's
-            # column disappears from its row, so mark it expired before
-            # forgetting the mapping that's the only way to find it. (The
-            # comment this replaced predated that cache and was no longer
-            # accurate: it used to be true that there was nothing to
-            # invalidate here, back when Constraint.expression always read
-            # HiGHS live with no local cache at all.)
-            for constraint_name in self._variables_to_constraints_mapping.get(variable.name, ()):
-                constraint = self._constraints.get(constraint_name)
-                if constraint is not None:
-                    constraint._expression_expired = True
-            self._variables_to_constraints_mapping.pop(variable.name, None)
             variable.problem = None
             del self._variables[variable.name]
 
@@ -1416,26 +1475,59 @@ class Model(interface.Model):
 
         return status
 
+    @property
+    def is_integer(self):
+        return any(int_type != highspy.HighsVarType.kContinuous for int_type in self.problem.getLp().integrality_)
+
     def _ensure_solution_arrays(self):
         if self._solution_col_value is not None:
             return
         solution = self.problem.getSolution()
-        self._solution_col_value = np.asarray(list(solution.col_value))
-        self._solution_col_dual = np.asarray(list(solution.col_dual))
-        self._solution_row_value = np.asarray(list(solution.row_value))
-        self._solution_row_dual = np.asarray(list(solution.row_dual))
+        self._solution_col_value = list(solution.col_value)
+        self._solution_row_value = list(solution.row_value)
+        if not self.is_integer:
+            self._solution_row_dual = list(solution.row_dual)
+            self._solution_col_dual = list(solution.col_dual)
+
+    def _get_primal_values(self):
+        if not self._has_solution:
+            return None
+        self._ensure_solution_arrays()
+        return self._solution_col_value
+
+    def _get_reduced_costs(self):
+        if not self._has_solution:
+            return None
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
+        self._ensure_solution_arrays()
+        return self._solution_col_dual
+
+    def _get_constraint_values(self):
+        if not self._has_solution:
+            return None
+        self._ensure_solution_arrays()
+        return self._solution_row_value
+
+    def _get_shadow_prices(self):
+        if not self._has_solution:
+            return None
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
+        self._ensure_solution_arrays()
+        return self._solution_row_dual
 
     def _variable_primal(self, variable):
         if not self._has_solution:
             return None
         self._ensure_solution_arrays()
-        return float(self._solution_col_value[variable._solver_index])
+        return self._solution_col_value[variable._solver_index]
 
     def _variable_dual(self, variable):
-        # if self.is_integer:
-        #     raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
         self._ensure_solution_arrays()
         return float(self._solution_col_dual[variable._solver_index])
 
@@ -1446,10 +1538,10 @@ class Model(interface.Model):
         return float(self._solution_row_value[constraint._solver_index])
 
     def _constraint_dual(self, constraint):
-        # if self.is_integer:
-        #     raise ValueError("Dual values are not well-defined for integer problems")
         if not self._has_solution:
             return None
+        if self.is_integer:
+            raise ValueError("Dual values are not well-defined for integer problems")
         self._ensure_solution_arrays()
         return float(self._solution_row_dual[constraint._solver_index])
 
@@ -1460,15 +1552,5 @@ class Model(interface.Model):
             info = self.problem.getInfo()
             self._objective_value = float(info.objective_function_value)
         return self._objective_value
-    
-    # def update(self):
-    #     """Safely process pending modifications without endless recursion."""
-    #     if getattr(self, "_is_updating", False):
-    #         return
-    #     self._is_updating = True
-    #     try:
-    #         super(Model, self).update()
-    #     finally:
-    #         self._is_updating = False
 
 __all__ = ["Variable", "Constraint", "Objective", "Configuration", "Model", "_get_quadratic_terms"]

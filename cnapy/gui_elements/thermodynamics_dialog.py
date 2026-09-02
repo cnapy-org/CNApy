@@ -39,13 +39,11 @@ from qtpy.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QGroupBox,
-    QListWidget,
-    QListWidgetItem,
+    QGridLayout,
+    QCompleter,
     QAbstractItemView,
-    QComboBox,
-    QDoubleSpinBox,
-    QTableWidget,
-    QTableWidgetItem,
+    QListWidget,
+    QListWidgetItem
 )
 
 from cnapy.appdata import AppData
@@ -123,6 +121,7 @@ class ThermodynamicDialog(QDialog):
         self.current_result: Optional[OptMDFResult] = None
         self._solve = None  # bound to analysis.solve or analysis.solve_fba once built
         self._relaxed_so_far: Set[str] = set()
+        self._ratio_rows = []
 
         self.layout = QVBoxLayout()
         match analysis_type:
@@ -131,8 +130,8 @@ class ThermodynamicDialog(QDialog):
                     "Perform OptMDFpathway. ΔG'° values and metabolite concentration "
                     "ranges have to be given in relevant annotations.\n"
                     "After computing, the reaction(s) currently limiting the MDF (the "
-                    "thermodynamic bottleneck, if any) are shown in the console below, "
-                    "and can be relaxed -- one step at a time, or automatically down to "
+                    "thermodynamic bottleneck, if any) are shown in the console below,\n"
+                    "and can be relaxed -- one step at a time, or automatically up to "
                     "a target MDF -- to see how the optimum shifts as bottlenecks are "
                     "removed."
                 )
@@ -179,123 +178,214 @@ class ThermodynamicDialog(QDialog):
 
         self.layout.addItem(default_concs_layout)
 
-        # Optional metabolite concentration-ratio ranges.  OptMDFAnalysis
-        # accepts entries of the form (met_i, met_j, ratio_min, ratio_max),
-        # constraining c_i / c_j to that interval.  Keep this in the GUI so
-        # users can define cofactor-pair constraints before the first solve.
+        # Optional concentration-ratio ranges. These are supplied directly to
+        # OptMDFAnalysis(concentration_ratios=...) at the outset, so the ratio
+        # constraints are part of the initial optimisation problem rather than
+        # an after-the-fact bottleneck relaxation.
         ratio_group = QGroupBox("Metabolite concentration ratio ranges (optional)")
         ratio_layout = QVBoxLayout()
         ratio_layout.addWidget(
             QLabel(
-                "Constrain concentration ratios c_i / c_j. Add a row for each "
-                "ratio range; leave the table empty to impose no ratio constraints."
+                "Constrain c(metabolite 1) / c(metabolite 2) to a range. "
+                "Type the metabolite ID; matching IDs are suggested automatically."
             )
         )
-        self.ratio_table = QTableWidget(0, 4)
-        self.ratio_table.setHorizontalHeaderLabels(
-            ["Metabolite i", "Metabolite j", "Minimum ratio", "Maximum ratio"]
-        )
-        self.ratio_table.horizontalHeader().setStretchLastSection(True)
-        self.ratio_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.ratio_table.setMinimumHeight(100)
-        ratio_layout.addWidget(self.ratio_table)
+
+        self._ratio_grid = QGridLayout()
+        self._ratio_grid.addWidget(QLabel("Metabolite 1"), 0, 0)
+        self._ratio_grid.addWidget(QLabel("Metabolite 2"), 0, 1)
+        self._ratio_grid.addWidget(QLabel("Minimum ratio"), 0, 2)
+        self._ratio_grid.addWidget(QLabel("Maximum ratio"), 0, 3)
+        self._ratio_grid.addWidget(QLabel(""), 0, 4)
+        ratio_layout.addLayout(self._ratio_grid)
 
         ratio_buttons = QHBoxLayout()
-        self.button_add_ratio = QPushButton("Add ratio")
-        self.button_remove_ratio = QPushButton("Remove selected")
+        self.button_add_ratio = QPushButton("Add ratio range")
         self.button_add_ratio.clicked.connect(self._add_ratio_row)
-        self.button_remove_ratio.clicked.connect(self._remove_ratio_rows)
         ratio_buttons.addWidget(self.button_add_ratio)
-        ratio_buttons.addWidget(self.button_remove_ratio)
-        ratio_layout.addItem(ratio_buttons)
+        ratio_buttons.addStretch()
+        ratio_layout.addLayout(ratio_buttons)
         ratio_group.setLayout(ratio_layout)
         self.layout.addWidget(ratio_group)
+        self._add_ratio_row()
 
-        target_mdf_text = QLabel(
-            "Target MDF for the optional iterative bottleneck relaxation [in kJ/mol]:"
-        )
-        self.layout.addWidget(target_mdf_text)
-        target_mdf_layout = QHBoxLayout()
-        self.target_mdf = QLineEdit()
-        self.target_mdf.setText("0.0")
-        target_mdf_layout.addWidget(self.target_mdf)
-        self.layout.addItem(target_mdf_layout)
+        if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            target_mdf_text = QLabel(
+                "Target MDF for the optional iterative bottleneck relaxation [in kJ/mol]:"
+            )
+            self.layout.addWidget(target_mdf_text)
+            target_mdf_layout = QHBoxLayout()
+            self.target_mdf = QLineEdit()
+            self.target_mdf.setText("0.0")
+            target_mdf_layout.addWidget(self.target_mdf)
+            self.layout.addItem(target_mdf_layout)
 
-        # Let the user choose which member(s) of the current bottleneck set
-        # should actually be relaxed.  This is important for multi-reaction
-        # bottlenecks: relaxing the whole set is sufficient to remove the
-        # current bottleneck, but it is often unnecessarily aggressive.
-        if analysis_type in (
-            ThermodynamicAnalysisTypes.OPTMDFPATHWAY,
-            ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA,
-        ):
-            relax_group = QGroupBox("Reactions to relax in the next round")
-            relax_layout = QVBoxLayout()
+        # Current MDF is shown persistently while the dialog remains open.
+        self.current_mdf_label = QLabel("Current MDF: — kJ/mol")
+        self.current_mdf_label.setStyleSheet("font-weight: bold;")
+        self.layout.addWidget(self.current_mdf_label)
 
-            relax_layout.addWidget(
+        if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            # Keep the bottleneck-selection pane visible: the user can choose
+            # exactly which member(s) of the current bottleneck are relaxed in the
+            # next iteration.
+            bottleneck_group = QGroupBox("Bottleneck reactions to relax in the next round")
+            bottleneck_layout = QVBoxLayout()
+            bottleneck_layout.addWidget(
                 QLabel(
-                    "Select one or more reactions from the current bottleneck. "
-                    "Only checked reactions will be relaxed when the next-round "
-                    "button is pressed."
+                    "Check the reaction(s) to relax. A bottleneck can contain multiple "
+                    "reactions, but relaxing all of them is not required."
                 )
             )
-
             self.bottleneck_reaction_list = QListWidget()
             self.bottleneck_reaction_list.setSelectionMode(QAbstractItemView.NoSelection)
-            relax_layout.addWidget(self.bottleneck_reaction_list)
-
-            reaction_select_layout = QHBoxLayout()
-            self.button_select_all_bottlenecks = QPushButton("Select all")
-            self.button_select_no_bottlenecks = QPushButton("Select none")
-            self.button_select_all_bottlenecks.clicked.connect(
-                self._select_all_bottleneck_reactions
-            )
-            self.button_select_no_bottlenecks.clicked.connect(
-                self._select_no_bottleneck_reactions
-            )
             self.bottleneck_reaction_list.itemChanged.connect(
                 lambda _item: self._update_iteration_buttons()
             )
-            reaction_select_layout.addWidget(self.button_select_all_bottlenecks)
-            reaction_select_layout.addWidget(self.button_select_no_bottlenecks)
-            reaction_select_layout.addStretch()
-            relax_layout.addLayout(reaction_select_layout)
-            relax_group.setLayout(relax_layout)
-            self.layout.addWidget(relax_group)
-        else:
-            self.bottleneck_reaction_list = None
-            self.button_select_all_bottlenecks = None
-            self.button_select_no_bottlenecks = None
-
-        # solver_group = QGroupBox("Solver:")
-        # solver_buttons_layout, self.solver_buttons = get_solver_buttons(appdata)
-        # solver_group.setLayout(solver_buttons_layout)
-        # self.layout.addWidget(solver_group)
+            bottleneck_layout.addWidget(self.bottleneck_reaction_list)
+            bottleneck_buttons = QHBoxLayout()
+            self.button_select_all_bottlenecks = QPushButton("Select all")
+            self.button_select_no_bottlenecks = QPushButton("Select none")
+            self.button_select_all_bottlenecks.clicked.connect(self._select_all_bottleneck_reactions)
+            self.button_select_no_bottlenecks.clicked.connect(self._select_no_bottleneck_reactions)
+            bottleneck_buttons.addWidget(self.button_select_all_bottlenecks)
+            bottleneck_buttons.addWidget(self.button_select_no_bottlenecks)
+            bottleneck_buttons.addStretch()
+            bottleneck_layout.addLayout(bottleneck_buttons)
+            bottleneck_group.setLayout(bottleneck_layout)
+            self.layout.addWidget(bottleneck_group)
 
         l3 = QHBoxLayout()
         self.button_optmdf = QPushButton("Compute")
-        self.button_relax_once = QPushButton("Relax selected reaction(s) and resolve")
-        self.button_relax_once.setEnabled(False)
-        self.button_relax_to_target = QPushButton("Iterate to target MDF")
-        self.button_relax_to_target.setEnabled(False)
-        self.cancel = QPushButton("Close")
         l3.addWidget(self.button_optmdf)
-        l3.addWidget(self.button_relax_once)
-        l3.addWidget(self.button_relax_to_target)
+        if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            self.button_relax_once = QPushButton("Relax selected reaction(s) and resolve")
+            self.button_relax_once.setEnabled(False)
+            self.button_relax_to_target = QPushButton("Iterate to target MDF")
+            self.button_relax_to_target.setEnabled(False)
+            l3.addWidget(self.button_relax_once)
+            l3.addWidget(self.button_relax_to_target)
+            self.button_relax_once.clicked.connect(self.relax_bottleneck_once)
+            self.button_relax_to_target.clicked.connect(self.relax_to_target_mdf)
+        self.cancel = QPushButton("Close")
         l3.addWidget(self.cancel)
         self.layout.addItem(l3)
 
         self.setLayout(self.layout)
 
-        # Connecting the signals
         self.cancel.clicked.connect(self.reject)
-        self.button_optmdf.clicked.connect(self.compute_optmdf)
-        self.button_relax_once.clicked.connect(self.relax_bottleneck_once)
-        self.button_relax_to_target.clicked.connect(self.relax_to_target_mdf)
-
+        self.button_optmdf.clicked.connect(self.compute)
+ 
     # ------------------------------------------------------------------
     # small helpers
     # ------------------------------------------------------------------
+
+    def _make_metabolite_completer(self) -> QCompleter:
+        completer = QCompleter(self.metabolite_ids, self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchStartsWith)
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+        return completer
+
+    def _add_ratio_row(self) -> None:
+        row = len(self._ratio_rows) + 1
+        met1 = QLineEdit()
+        met2 = QLineEdit()
+        met1.setPlaceholderText("metabolite ID")
+        met2.setPlaceholderText("metabolite ID")
+        met1.setCompleter(self._make_metabolite_completer())
+        met2.setCompleter(self._make_metabolite_completer())
+
+        ratio_min = QLineEdit()
+        ratio_min.setPlaceholderText("> 0")
+        ratio_max = QLineEdit()
+        ratio_max.setPlaceholderText("> 0")
+
+        remove = QPushButton("Remove")
+        remove.clicked.connect(lambda _checked=False, widgets=(met1, met2, ratio_min, ratio_max, remove): self._remove_ratio_row(widgets))
+
+        self._ratio_grid.addWidget(met1, row, 0)
+        self._ratio_grid.addWidget(met2, row, 1)
+        self._ratio_grid.addWidget(ratio_min, row, 2)
+        self._ratio_grid.addWidget(ratio_max, row, 3)
+        self._ratio_grid.addWidget(remove, row, 4)
+        self._ratio_rows.append((met1, met2, ratio_min, ratio_max, remove))
+
+    def _remove_ratio_row(self, widgets) -> None:
+        try:
+            idx = self._ratio_rows.index(widgets)
+        except ValueError:
+            return
+        for widget in widgets:
+            self._ratio_grid.removeWidget(widget)
+            widget.deleteLater()
+        self._ratio_rows.pop(idx)
+        # Rebuild row positions so rows stay compact.
+        for row, row_widgets in enumerate(self._ratio_rows, start=1):
+            for col, widget in enumerate(row_widgets):
+                self._ratio_grid.addWidget(widget, row, col)
+
+    def _get_concentration_ratios(self):
+        ratios = []
+        for row_number, (met1, met2, ratio_min, ratio_max, _remove) in enumerate(self._ratio_rows, start=1):
+            mi = met1.text().strip()
+            mj = met2.text().strip()
+            lo_text = ratio_min.text().strip()
+            hi_text = ratio_max.text().strip()
+            if not mi and not mj and not lo_text and not hi_text:
+                continue
+            if mi not in self.metabolite_ids or mj not in self.metabolite_ids:
+                raise ValueError(
+                    f"Ratio row {row_number}: both metabolite IDs must be selected "
+                    "from the model's metabolites."
+                )
+            if mi == mj:
+                raise ValueError(f"Ratio row {row_number}: choose two different metabolites.")
+            try:
+                lo = float(lo_text)
+                hi = float(hi_text)
+            except ValueError:
+                raise ValueError(f"Ratio row {row_number}: minimum and maximum ratios must be valid numbers.") from None
+            if lo <= 0 or hi <= 0:
+                raise ValueError(f"Ratio row {row_number}: ratio bounds must be positive.")
+            if lo > hi:
+                raise ValueError(f"Ratio row {row_number}: minimum ratio cannot exceed maximum ratio.")
+            ratios.append((mi, mj, lo, hi))
+        return ratios
+
+    def _selected_bottleneck_reactions(self):
+        return [
+            self.bottleneck_reaction_list.item(i).text()
+            for i in range(self.bottleneck_reaction_list.count())
+            if self.bottleneck_reaction_list.item(i).checkState() == Qt.Checked
+        ]
+
+    def _set_bottleneck_reaction_choices(self, reactions) -> None:
+        old_checked = set(self._selected_bottleneck_reactions())
+        reactions = list(reactions or [])
+        self.bottleneck_reaction_list.blockSignals(True)
+        try:
+            self.bottleneck_reaction_list.clear()
+            preserve = bool(old_checked.intersection(reactions))
+            for rid in reactions:
+                item = QListWidgetItem(rid)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Checked if (rid in old_checked if preserve else True) else Qt.Unchecked)
+                self.bottleneck_reaction_list.addItem(item)
+        finally:
+            self.bottleneck_reaction_list.blockSignals(False)
+
+    @Slot()
+    def _select_all_bottleneck_reactions(self):
+        for i in range(self.bottleneck_reaction_list.count()):
+            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Checked)
+        self._update_iteration_buttons()
+
+    @Slot()
+    def _select_no_bottleneck_reactions(self):
+        for i in range(self.bottleneck_reaction_list.count()):
+            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Unchecked)
+        self._update_iteration_buttons()
 
     def _update_iteration_buttons(self) -> None:
         has_bottleneck = (
@@ -306,130 +396,7 @@ class ThermodynamicDialog(QDialog):
         )
         has_selection = bool(self._selected_bottleneck_reactions())
         self.button_relax_once.setEnabled(has_bottleneck and has_selection)
-        self.button_relax_to_target.setEnabled(has_bottleneck)
-
-    def _selected_bottleneck_reactions(self):
-        """Return the currently checked bottleneck reactions."""
-        if self.bottleneck_reaction_list is None:
-            return []
-        selected = []
-        for i in range(self.bottleneck_reaction_list.count()):
-            item = self.bottleneck_reaction_list.item(i)
-            if item.checkState() == Qt.Checked:
-                selected.append(item.text())
-        return selected
-
-    def _set_bottleneck_reaction_choices(self, reactions):
-        """Refresh the checkable bottleneck list without losing useful choices.
-
-        Reactions that were checked in the previous bottleneck remain checked
-        when they are still present. For a newly discovered bottleneck set,
-        all reactions are checked by default so the GUI preserves its previous
-        behaviour until the user deliberately narrows the selection.
-        """
-        if self.bottleneck_reaction_list is None:
-            return
-
-        old_checked = set(self._selected_bottleneck_reactions())
-        reactions = list(reactions or [])
-        self.bottleneck_reaction_list.blockSignals(True)
-        try:
-            self.bottleneck_reaction_list.clear()
-            preserve_old = bool(old_checked.intersection(reactions))
-            for rid in reactions:
-                item = QListWidgetItem(rid)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(
-                    Qt.Checked if (rid in old_checked if preserve_old else True)
-                    else Qt.Unchecked
-                )
-                self.bottleneck_reaction_list.addItem(item)
-        finally:
-            self.bottleneck_reaction_list.blockSignals(False)
-        self._update_iteration_buttons()
-
-    @Slot()
-    def _select_all_bottleneck_reactions(self):
-        if self.bottleneck_reaction_list is None:
-            return
-        for i in range(self.bottleneck_reaction_list.count()):
-            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Checked)
-        self._update_iteration_buttons()
-
-    @Slot()
-    def _select_no_bottleneck_reactions(self):
-        if self.bottleneck_reaction_list is None:
-            return
-        for i in range(self.bottleneck_reaction_list.count()):
-            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Unchecked)
-        self._update_iteration_buttons()
-
-    def _new_metabolite_combo(self) -> QComboBox:
-        combo = QComboBox()
-        combo.addItems(self.metabolite_ids)
-        return combo
-
-    def _add_ratio_row(
-        self, met_i: Optional[str] = None, met_j: Optional[str] = None,
-        ratio_min: float = 1.0, ratio_max: float = 1.0,
-    ) -> None:
-        row = self.ratio_table.rowCount()
-        self.ratio_table.insertRow(row)
-
-        combo_i = self._new_metabolite_combo()
-        combo_j = self._new_metabolite_combo()
-        if met_i in self.metabolite_ids:
-            combo_i.setCurrentText(met_i)
-        if met_j in self.metabolite_ids:
-            combo_j.setCurrentText(met_j)
-        self.ratio_table.setCellWidget(row, 0, combo_i)
-        self.ratio_table.setCellWidget(row, 1, combo_j)
-
-        min_spin = QDoubleSpinBox()
-        max_spin = QDoubleSpinBox()
-        for spin, value in ((min_spin, ratio_min), (max_spin, ratio_max)):
-            spin.setDecimals(8)
-            spin.setRange(1e-12, 1e12)
-            spin.setSingleStep(0.1)
-            spin.setValue(float(value))
-        self.ratio_table.setCellWidget(row, 2, min_spin)
-        self.ratio_table.setCellWidget(row, 3, max_spin)
-
-    @Slot()
-    def _remove_ratio_rows(self) -> None:
-        rows = sorted(
-            {index.row() for index in self.ratio_table.selectionModel().selectedRows()},
-            reverse=True,
-        )
-        for row in rows:
-            self.ratio_table.removeRow(row)
-
-    def _build_concentration_ratios(self):
-        ratios = []
-        for row in range(self.ratio_table.rowCount()):
-            combo_i = self.ratio_table.cellWidget(row, 0)
-            combo_j = self.ratio_table.cellWidget(row, 1)
-            min_spin = self.ratio_table.cellWidget(row, 2)
-            max_spin = self.ratio_table.cellWidget(row, 3)
-            if not all((combo_i, combo_j, min_spin, max_spin)):
-                continue
-
-            met_i = combo_i.currentText()
-            met_j = combo_j.currentText()
-            ratio_min = float(min_spin.value())
-            ratio_max = float(max_spin.value())
-            if not met_i or not met_j:
-                continue
-            if ratio_min > ratio_max:
-                raise ValueError(
-                    f"Ratio minimum must not exceed its maximum in row {row + 1}."
-                )
-            if met_i == met_j:
-                raise ValueError(
-                    f"Metabolite i and metabolite j must differ in ratio row {row + 1}."
-                )
-            ratios.append((met_i, met_j, ratio_min, ratio_max))
-        return ratios
+        self.button_relax_to_target.setEnabled(has_bottleneck and has_selection)
 
     def _status_message(self, status: str):
         return self._STATUS_MESSAGES.get(
@@ -476,26 +443,32 @@ class ThermodynamicDialog(QDialog):
 
     def process_solution(self, result: OptMDFResult) -> None:
         if result.status != "optimal":
+            self.current_mdf_label.setText("Current MDF: — kJ/mol")
             warning_title, warning_text = self._status_message(result.status)
             QMessageBox.warning(self, warning_title, warning_text)
         else:
             self.set_boxes(result)
-            self._set_bottleneck_reaction_choices(result.bottleneck_reactions)
+            self.current_mdf_label.setText(f"Current MDF: {result.mdf:.6g} kJ/mol")
+            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+                self._set_bottleneck_reaction_choices(result.bottleneck_reactions)
+                self._update_iteration_buttons()
 
         self.setCursor(Qt.ArrowCursor)
-        self._update_iteration_buttons()
         # Deliberately not calling self.accept()/self.reject() here: the
         # dialog stays open so the bottleneck-relaxation buttons above stay
         # usable. The user closes the dialog explicitly via "Close".
 
     @Slot()
-    def compute_optmdf(self):
+    def compute(self):
         self.setCursor(Qt.BusyCursor)
 
         self.analysis = None
         self.current_result = None
         self._relaxed_so_far = set()
-        self._update_iteration_buttons()
+        self.current_mdf_label.setText("Current MDF: — kJ/mol")
+        if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+            self._set_bottleneck_reaction_choices([])
+            self._update_iteration_buttons()
 
         # Decouple models ("with" and "deepcopy" do not work) so that no
         # scenario bounds spill into the original model.
@@ -508,11 +481,15 @@ class ThermodynamicDialog(QDialog):
         try:
             min_default_conc = float(self.min_default_conc.text())
             max_default_conc = float(self.max_default_conc.text())
-        except ValueError:
+            if min_default_conc <= 0 or max_default_conc <= 0 or min_default_conc > max_default_conc:
+                raise ValueError
+            concentration_ratios = self._get_concentration_ratios()
+        except ValueError as exc:
+            message = str(exc) or "Default Cmin/Cmax must be valid positive numbers with Cmin <= Cmax."
             QMessageBox.warning(
                 self,
-                "Invalid default concentration",
-                "Default Cmin/Cmax must be valid numbers (such as, e.g., 1e-6).",
+                "Invalid concentration / ratio settings",
+                message,
             )
             self.setCursor(Qt.ArrowCursor)
             return
@@ -533,6 +510,13 @@ class ThermodynamicDialog(QDialog):
         else:
             B_bounds = (-1e4, 1e4)
 
+        try:
+            concentration_ratios = self._get_concentration_ratios()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Invalid concentration ratio", str(exc))
+            self.setCursor(Qt.ArrowCursor)
+            return
+
         if not any(rxn.annotation.get("dG0") is not None for rxn in model.reactions):
             QMessageBox.warning(
                 self,
@@ -550,7 +534,7 @@ class ThermodynamicDialog(QDialog):
                 Cmin=min_default_conc,
                 Cmax=max_default_conc,
                 scenarios=self._build_scenario_constraints(),
-                concentration_ratios=self._build_concentration_ratios(),
+                concentration_ratios=concentration_ratios,
                 B_bounds=B_bounds,
                 verbose=True,
             )
@@ -578,8 +562,9 @@ class ThermodynamicDialog(QDialog):
 
         result = self._solve()
         if result.status == "optimal":
-            #self.analysis.shadow_prices()
-            result.bottleneck_reactions = self.analysis.find_bottleneck()
+            self.analysis.shadow_prices()
+            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+                result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 
         self.process_solution(result)
@@ -609,7 +594,7 @@ class ThermodynamicDialog(QDialog):
             QMessageBox.information(
                 self,
                 "No reaction selected",
-                "Select at least one bottleneck reaction to relax before resolving.",
+                "Select at least one bottleneck reaction to relax.",
             )
             return
 
@@ -619,6 +604,7 @@ class ThermodynamicDialog(QDialog):
 
         result = self._solve()
         if result.status == "optimal":
+            self.analysis.shadow_prices()
             result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 
@@ -647,7 +633,6 @@ class ThermodynamicDialog(QDialog):
             bottleneck = result.bottleneck_reactions
             if not bottleneck or (result.mdf is not None and result.mdf >= target_mdf):
                 break
-
             selected = self._selected_bottleneck_reactions()
             if not selected:
                 QMessageBox.information(
@@ -658,7 +643,6 @@ class ThermodynamicDialog(QDialog):
                     "the operation again.",
                 )
                 break
-
             self.analysis.relax(selected)
             self._relaxed_so_far.update(selected)
             result = self._solve()
@@ -666,12 +650,11 @@ class ThermodynamicDialog(QDialog):
                 break
             result.bottleneck_reactions = self.analysis.find_bottleneck()
             self._set_bottleneck_reaction_choices(result.bottleneck_reactions)
-            # A target iteration is intentionally conservative after a bottleneck
-            # changes: the user must explicitly choose the next reaction(s),
-            # rather than having the GUI silently relax the entire new set.
-            if result.bottleneck_reactions and n + 1 < max_iterations:
-                break
             n += 1
+            # Do not silently carry the previous selection into a newly found
+            # bottleneck; the user should explicitly choose the next relaxation.
+            if result.bottleneck_reactions and result.mdf is not None and result.mdf < target_mdf:
+                break
         self.current_result = result
 
         self.process_solution(result)
@@ -708,26 +691,24 @@ class ThermodynamicDialog(QDialog):
             lines.append(f"Reached MDF @ optimum of objective: {result.mdf} kJ/mol")
         else:
             lines.append(f"OptMDF: {result.mdf} kJ/mol")
+            if result.bottleneck_reactions:
+                lines.append("Thermodynamic bottleneck reaction(s) currently limiting the MDF:")
+                for rid in result.bottleneck_reactions:
+                    lines.append(f"* {rid}")
+                lines.append(
+                    "Use 'Relax bottleneck and resolve' or 'Iterate to target MDF' "
+                    "to relax them and see how the MDF improves."
+                )
+            else:
+                lines.append(
+                    "No thermodynamic bottleneck currently limits the MDF further."
+                )
 
-        if result.bottleneck_reactions:
-            lines.append("Thermodynamic bottleneck reaction(s) currently limiting the MDF:")
-            for rid in result.bottleneck_reactions:
-                lines.append(f"* {rid}")
-            lines.append(
-                "Use 'Relax bottleneck and resolve' or 'Iterate to target MDF' "
-                "to relax them and see how the MDF improves."
-            )
-        else:
-            lines.append(
-                "No thermodynamic bottleneck currently limits the MDF further."
-            )
-
-        if self._relaxed_so_far:
-            lines.append(
-                f"Reaction(s) relaxed so far this session: {sorted(self._relaxed_so_far)}"
-            )
+            if self._relaxed_so_far:
+                lines.append(
+                    f"Reaction(s) relaxed so far this session: {sorted(self._relaxed_so_far)}"
+                )
 
         console_text = "\n".join(lines)
         self.central_widget.console._append_plain_text(console_text, before_prompt=True)
-        self.central_widget.kernel_client.execute(console_text)
         self.central_widget.show_bottom_of_console()

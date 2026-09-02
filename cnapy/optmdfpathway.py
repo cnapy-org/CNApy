@@ -536,7 +536,7 @@ def _find_minimal_bottleneck(
 
     def set_state(rids, relaxed: bool) -> None:
         for rid in rids:
-            tied_cons[rid].lb = -1e9 if relaxed else orig_lb[rid]
+            tied_cons[rid].lb = None if relaxed else orig_lb[rid]
 
     def current_mdf() -> Optional[float]:
         status = solver.optimize()
@@ -570,7 +570,7 @@ def _find_minimal_bottleneck(
             # down on its own -- shouldn't normally happen (re-enforcing
             # all of them reproduces the fully-enforced problem), but stop
             # defensively rather than loop forever.
-            break
+            raise RuntimeError("Inconsistent MDFs calculated during bottleneck analysis, aborting.")
 
         # -- Step 4 (Shrink): keep the trigger enforced; relax the others
         #    (reverse order of addition) one at a time, re-enforcing any
