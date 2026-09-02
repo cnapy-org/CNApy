@@ -23,6 +23,7 @@ from configparser import NoOptionError, NoSectionError
 from pathlib import Path
 
 import cobra
+import cnapy.optlang_highs_interface
 from qtpy.QtCore import Qt, QLocale
 from qtpy.QtGui import QColor, QPalette
 from qtpy.QtWidgets import QApplication
@@ -299,6 +300,8 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find is_in_dark_mode in cnapy-config.txt")
 
+            self.appdata.save_model_as_json = config_parser.getboolean('cnapy-config',
+                 'save_model_as_json', fallback=self.appdata.save_model_as_json)
             self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
                     'use_results_cache', fallback=self.appdata.use_results_cache)
             self.appdata.results_cache_dir = Path(config_parser.get('cnapy-config',
@@ -316,7 +319,11 @@ class Application:
                 print("No cobrapy-config.txt file found, using COBRApy base settings.")
                 return
             try:
-                cobra.Configuration().solver = config_parser.get('cobrapy-config', 'solver')
+                solver_name = config_parser.get('cobrapy-config', 'solver')
+                if solver_name == "highs":
+                    cobra.Configuration().solver = cnapy.optlang_highs_interface
+                else:
+                    cobra.Configuration().solver = solver_name
             except Exception as e:
                 print("Cannot set solver from cobrapy-config.txt file because:", e,
                       "\nReverting solver to COBRApy base setting.")

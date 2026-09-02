@@ -1,7 +1,6 @@
 """The cnapy yield optimization dialog"""
 from random import randint
 from numpy import isnan, isinf
-import re
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
                             QMessageBox, QPushButton, QVBoxLayout, QFrame)
@@ -9,8 +8,8 @@ from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QComboBox,
 from cnapy.appdata import AppData
 from cnapy.gui_elements.central_widget import CentralWidget
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
-from straindesign import yopt, linexpr2dict, linexprdict2str, avail_solvers
-from straindesign.names import *
+from straindesign import linexpr2dict, linexprdict2str
+from cnapy.core import highs_yopt
 
 class YieldOptimizationDialog(QDialog):
     """A dialog to perform yield optimization"""
@@ -87,43 +86,43 @@ class YieldOptimizationDialog(QDialog):
 
     def compute(self):
         self.setCursor(Qt.BusyCursor)
-        if self.sense_combo.currentText() == 'maximize':
-            sense = 'Maximum'
-        else:
-            sense = 'Minimum'
+        obj_sense = self.sense_combo.currentText()  # 'maximize' or 'minimize'
+        sense_label = 'Maximum' if obj_sense == 'maximize' else 'Minimum'
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
-            solver = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
-            if solver is not None:
-                solver = solver[0]
-            sol = yopt(model,
-                       obj_num=self.numerator.text(),
-                       obj_den=self.denominator.text(),
-                       obj_sense=self.sense_combo.currentText(),
-                       solver=solver)
-            if sol.status == UNBOUNDED and isinf(sol.objective_value):
+            obj_num = linexpr2dict(self.numerator.text(), self.reac_ids)
+            obj_den = linexpr2dict(self.denominator.text(), self.reac_ids)
+            # scen_values.constraints is already a list of (dict, str, float)
+            # triples -- exactly what highs_yopt/build_highs_fba_model expect.
+            constraints = list(self.appdata.project.scen_values.constraints)
+
+            sol = highs_yopt(model, obj_num=obj_num, obj_den=obj_den,
+                             obj_sense=obj_sense, constraints=constraints)
+
+            if sol.status == 'unbounded' and isinf(sol.objective_value):
                 self.set_boxes(sol)
-                QMessageBox.warning(self, sense+' yield is unbounded. ',
+                QMessageBox.warning(self, sense_label+' yield is unbounded. ',
                                     'Yield unbounded. \n'+\
                                     'Parts of the shown example flux distribution can be scaled indefinitely. The numerator "'+\
-                                     linexprdict2str(linexpr2dict(self.numerator.text(),self.reac_ids))+'" is unbounded.',)
-            elif sol.status == UNBOUNDED and isnan(sol.objective_value):
+                                     linexprdict2str(obj_num)+'" is unbounded.',)
+            elif sol.status == 'unbounded' and isnan(sol.objective_value):
                 self.set_boxes(sol)
-                QMessageBox.warning(self, sense+' yield is undefined. ',
+                QMessageBox.warning(self, sense_label+' yield is undefined. ',
                                     'Yield undefined. \n'+\
                                     'The denominator "'+\
-                                     linexprdict2str(linexpr2dict(self.denominator.text(),self.reac_ids))+\
+                                     linexprdict2str(obj_den)+\
                                     '" can take the value 0, as shown in the example flux distibution.',)
-            elif sol.status == OPTIMAL:
+            elif sol.status == 'optimal':
                 self.set_boxes(sol)
                 if sol.scalable:
                     txt_scalable = '\nThe shown example flux distribution can be scaled indefinitely.'
                 else:
                     txt_scalable = ''
-                QMessageBox.information(self, 'Solution',
-                                    'Maximum yield ('+linexprdict2str(linexpr2dict(self.numerator.text(),self.reac_ids))+\
-                                    ') / ('+linexprdict2str(linexpr2dict(self.denominator.text(),self.reac_ids))+\
-                                    '): '+str(round(sol.objective_value,9)) + \
+                display_text = sense_label+' yield ('+linexprdict2str(obj_num)+\
+                                                    ') / ('+linexprdict2str(obj_den)+\
+                                                    '): '+str(round(sol.objective_value,9))
+                self.central_widget.console._append_plain_text("\n"+display_text, before_prompt=True)
+                QMessageBox.information(self, 'Solution', display_text + \
                                     '\nShowing yield-optimal example flux distribution.' + txt_scalable)
             else:
                 QMessageBox.warning(self, 'Problem infeasible.',
@@ -132,12 +131,10 @@ class YieldOptimizationDialog(QDialog):
         self.setCursor(Qt.ArrowCursor)
         self.accept()
 
-    def set_boxes(self,sol):
+    def set_boxes(self, sol):
         # write results into comp_values
-        idx = 0
         for r in self.reac_ids:
-            self.appdata.project.comp_values[r] = (
-                float(sol.fluxes[r]), float(sol.fluxes[r]))
-            idx = idx+1
+            flux = sol.fluxes.get(r, 0.0)
+            self.appdata.project.comp_values[r] = (float(flux), float(flux))
         self.appdata.project.comp_values_type = 0
         self.central_widget.update()
