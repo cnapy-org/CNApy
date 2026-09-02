@@ -70,6 +70,7 @@ class AppData(QObject):
         self.recent_cna_files = []
         self.auto_fba = False
         self.is_in_dark_mode = False
+        self.save_model_as_json: bool=False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
@@ -169,6 +170,7 @@ class AppData(QObject):
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
         parser.set('cnapy-config', 'recent_cna_files', str(self.recent_cna_files))
         parser.set('cnapy-config', 'is_in_dark_mode', str(self.is_in_dark_mode))
+        parser.set('cnapy-config', 'save_model_as_json', str(self.save_model_as_json))
         parser.write(fp)
         fp.close()
 

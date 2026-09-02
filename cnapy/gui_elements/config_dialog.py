@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from qtpy.QtGui import QDoubleValidator, QIntValidator, QPalette
-from qtpy.QtWidgets import (QColorDialog, QDialog, QFileDialog,
+from qtpy.QtWidgets import (QColorDialog, QComboBox, QDialog, QFileDialog,
                             QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
                             QVBoxLayout, QCheckBox)
 from cnapy.appdata import AppData
@@ -130,6 +130,15 @@ class ConfigDialog(QDialog):
         self.abs_tol.setValidator(validator)
         h8.addWidget(self.abs_tol)
         self.layout.addItem(h8)
+
+        h9 = QHBoxLayout()
+        label_model_format = QLabel("Default model format for saving CNApy projects:")
+        h9.addWidget(label_model_format)
+        self.model_format = QComboBox()
+        self.model_format.addItems(["SBML (.sbml)", "COBRApy JSON (.json)"])
+        self.model_format.setCurrentIndex(int(self.appdata.save_model_as_json))
+        h9.addWidget(self.model_format)
+        self.layout.addItem(h9)
 
         h = QHBoxLayout()
         self.use_results_cache = QCheckBox("Cache results (e.g. FVA) in ")
@@ -268,6 +277,7 @@ class ConfigDialog(QDialog):
         self.appdata.box_width = int(self.box_width.text())
         self.appdata.rounding = int(self.rounding.text())
         self.appdata.abs_tol = float(self.abs_tol.text())
+        self.appdata.save_model_as_json = bool(self.model_format.currentIndex())
         self.appdata.results_cache_dir = Path(self.results_cache_directory.text())
         if not self.appdata.results_cache_dir.exists():
             self.use_results_cache.setChecked(False)

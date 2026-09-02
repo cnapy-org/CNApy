@@ -300,6 +300,8 @@ class Application:
             except (KeyError, NoOptionError):
                 print("Could not find is_in_dark_mode in cnapy-config.txt")
 
+            self.appdata.save_model_as_json = config_parser.getboolean('cnapy-config',
+                 'save_model_as_json', fallback=self.appdata.save_model_as_json)
             self.appdata.use_results_cache = config_parser.getboolean('cnapy-config',
                     'use_results_cache', fallback=self.appdata.use_results_cache)
             self.appdata.results_cache_dir = Path(config_parser.get('cnapy-config',
