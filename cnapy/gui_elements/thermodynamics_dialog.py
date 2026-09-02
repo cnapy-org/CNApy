@@ -174,12 +174,12 @@ class ThermodynamicDialog(QDialog):
         else:
             self.set_boxes(solution=solution)
 
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.accept()
 
     @Slot()
     def compute_optmdf(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
 
         # Decouple models ("with" and "deepcopy" do not work) so that no
         # extra COBRA-k annotation spills into the original model
@@ -265,7 +265,7 @@ class ThermodynamicDialog(QDialog):
                 "To run a thermodynamic calculation, your model needs at least one reaction with a ΔG'° (annotation 'dG0')."
                 "Check out CNApy's documentation for more",
             )
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
             return
         if self.analysis_type in (ThermodynamicAnalysisTypes.OPTMDFPATHWAY, ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA):
             solution = perform_lp_optimization(

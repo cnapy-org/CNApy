@@ -3,7 +3,8 @@
 import cobra
 import cobra.manipulation
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QLabel,
+from qtpy.QtGui import QAction
+from qtpy.QtWidgets import (QHBoxLayout, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
                             QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
@@ -25,11 +26,11 @@ class GeneList(QWidget):
         self.gene_list = QTreeWidget()
         self.gene_list.setHeaderLabels(["Id", "Name"])
         self.gene_list.setSortingEnabled(True)
-        self.gene_list.sortByColumn(0, Qt.AscendingOrder)
+        self.gene_list.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
-        self.gene_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.gene_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.gene_list.customContextMenuRequested.connect(
             self.on_context_menu)
 
@@ -41,7 +42,7 @@ class GeneList(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Vertical)
+        self.splitter.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.gene_list)
         self.splitter.addWidget(self.gene_mask)
         self.layout.addWidget(self.splitter)
@@ -69,7 +70,7 @@ class GeneList(QWidget):
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.genes) > 0:
-            self.pop_menu.exec_(self.mapToGlobal(point))
+            self.pop_menu.exec(self.mapToGlobal(point))
 
     def handle_changed_gene(self, gene: cobra.Gene):
         # Update gene item in list
@@ -128,7 +129,7 @@ class GeneList(QWidget):
             self.gene_list.setCurrentItem(None)
         else:
             items = self.gene_list.findItems(
-                self.last_selected, Qt.MatchExactly)
+                self.last_selected, Qt.MatchFlag.MatchExactly)
 
             for i in items:
                 self.gene_list.setCurrentItem(i)
@@ -177,7 +178,7 @@ class GenesMask(QWidget):
             "Delete this gene and remove it from associated reactions."
         )
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
 

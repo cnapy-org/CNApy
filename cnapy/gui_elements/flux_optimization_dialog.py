@@ -79,7 +79,7 @@ class FluxOptimizationDialog(QDialog):
             self.button.setEnabled(False)
 
     def compute(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         if self.sense_combo.currentText() == 'maximize':
             sense = 'Maximum'
         else:
@@ -107,7 +107,7 @@ class FluxOptimizationDialog(QDialog):
                 QMessageBox.warning(self, 'Problem infeasible.',
                                     'The scenario seems to be infeasible.',)
                 return
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.accept()
 
     def set_boxes(self,sol):

@@ -13,7 +13,7 @@ def except_likely_community_model_error() -> None:
     msgBox = QMessageBox()
     msgBox.setWindowTitle("Error")
     msgBox.setText(community_error_text)
-    msgBox.setIcon(QMessageBox.Warning)
+    msgBox.setIcon(QMessageBox.Icon.Warning)
     msgBox.exec()
 
 

@@ -49,7 +49,7 @@ class YieldSpaceDialog(QDialog):
         self.x_denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         x_num_den_layout.addWidget(self.x_numerator)
         sep = QHSeperationLine()
-        sep.setFrameShadow(QFrame.Plain)
+        sep.setFrameShadow(QFrame.Shadow.Plain)
         sep.setLineWidth(3)
         x_num_den_layout.addWidget(sep)
         x_num_den_layout.addWidget(self.x_denominator)
@@ -64,7 +64,7 @@ class YieldSpaceDialog(QDialog):
         self.y_denominator.setPlaceholderText('denominator (e.g. '+r4+')')
         y_num_den_layout.addWidget(self.y_numerator)
         sep = QHSeperationLine()
-        sep.setFrameShadow(QFrame.Plain)
+        sep.setFrameShadow(QFrame.Shadow.Plain)
         sep.setLineWidth(3)
         y_num_den_layout.addWidget(sep)
         y_num_den_layout.addWidget(self.y_denominator)
@@ -85,7 +85,7 @@ class YieldSpaceDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             solver = re.search('('+'|'.join(avail_solvers)+')',model.solver.interface.__name__)
@@ -140,4 +140,4 @@ class YieldSpaceDialog(QDialog):
 
         self.appdata.window.centralWidget().show_bottom_of_console()
 
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
