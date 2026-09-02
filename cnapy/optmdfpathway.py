@@ -472,39 +472,53 @@ def _find_minimal_bottleneck(
     tol: float = 1e-6,
 ) -> List[str]:
     """
-    Deletion-filter search for a minimal thermodynamic bottleneck set: a
-    smallest set of reactions such that relaxing exactly their
-    driving-force constraints (removing the requirement df_r >= mdf
-    entirely, as if that reaction's own thermodynamics didn't matter)
-    allows mdf to improve, and no proper subset of the set suffices. This
-    is the LP analogue of finding an Irreducible Infeasible Subsystem, just
-    for an optimality bound instead of infeasibility.
+    Grow-Shrink (additive-deletion) search for the complete minimal
+    thermodynamic bottleneck set(s): every reaction whose driving-force
+    constraint must be jointly relaxed to allow mdf to improve.
+
+    A naive one-at-a-time deletion filter is not enough here: reactions
+    tied at mdf can be coupled through a shared limiting metabolite, so
+    relaxing just one of them can already permit *some* improvement even
+    though it doesn't capture the full achievable improvement -- masking
+    that the others are equally necessary. Grow-Shrink avoids this:
+
+      1. Candidates = reactions tied exactly at mdf (df_r <= mdf + tol).
+      2. Relax every candidate at once and confirm this improves mdf at
+         all (otherwise mdf isn't thermodynamically limited here -- e.g.
+         it's capped by B_bounds or a scenario constraint instead).
+      3. Grow: re-enforce candidates one at a time (in a fixed order),
+         re-solving after each, until mdf drops back to (at or below) the
+         original value. The reaction whose re-enforcement causes that
+         drop is the "trigger": the set enforced at that point contains at
+         least one complete bottleneck set, possibly plus bystanders that
+         were enforced along the way but aren't actually necessary.
+      4. Shrink: keeping the trigger enforced, walk backward through the
+         other reactions enforced during Grow, relaxing each in turn --
+         if mdf pops back up, that reaction was necessary (re-enforce it
+         and keep it in the set); if mdf stays at the original value, it
+         was a bystander (leave it relaxed, it's not part of this set).
+      5. The reactions left enforced after Shrink form one irreducible
+         bottleneck set. Relax all of them for real, drop them from the
+         candidate pool, and repeat from step 3 with whatever candidates
+         remain, until either none remain or relaxing everything found so
+         far already exceeds the original mdf (nothing further to find at
+         this mdf level).
+
+    Returns the union of every bottleneck set found this way -- relaxing
+    this whole list is what's needed to guarantee mdf actually improves,
+    which is what OptMDFAnalysis.relax()/step() rely on.
 
     Must be called with `solver` already solved as a fixed-binary LP at its
     optimum (see optMDFpathway) -- duals/constraint-removal comparisons
     aren't meaningful while the solver could still restructure which
     reactions are active.
 
-    Only reactions tied exactly at the current mdf (df_r <= mdf + tol) are
-    ever candidates: anything with real slack (df_r > mdf) cannot be part
-    of any minimal bottleneck, since its constraint isn't currently
-    limiting anything. A reaction with a nonzero shadow-price dual is not
-    on its own a reliable indicator here -- with redundant/parallel tied
-    reactions (e.g. isozymes), LP duality can attribute all the "credit" to
-    an arbitrary one of them, but relaxing that one alone may do nothing;
-    only an explicit relax-and-resolve check like this one can confirm
-    which reactions truly are (jointly) necessary.
-
-    Uses |tied| + 2 LP re-solves: one to confirm relaxing every tied
-    reaction at once even helps at all (if not, mdf isn't limited by
-    thermodynamics here -- e.g. it's capped by B_bounds or a scenario
-    constraint instead, and an empty list is returned), then one per
-    candidate to test whether it can be dropped from the relaxed set while
-    the improvement persists.
-
-    Every constraint's bound is restored to its original value before
-    returning (whether or not it ended up in the reported set), leaving
-    `solver` back at the original optimum.
+    Note: reactions whose driving-force constraints are algebraically
+    redundant with each other (e.g. literal isozymes: identical
+    stoichiometry and dG0) are a known edge case this can still
+    under-report on, since Grow can trigger on a strict subset that
+    happens to numerically reproduce the original mdf on its own, before
+    the redundant partner is ever tested.
     """
     def active_constraint(rid: str):
         direction = "fwd" if fluxes[rid] >= 0 else "rev"
@@ -514,48 +528,279 @@ def _find_minimal_bottleneck(
         rid: active_constraint(rid)
         for rid, df in driving_forces.items() if df <= mdf + tol
     }
-    print(tied_cons)
     tied_cons = {rid: con for rid, con in tied_cons.items() if con is not None}
     if not tied_cons:
         return []
 
     orig_lb = {rid: con.lb for rid, con in tied_cons.items()}
 
-    def relax(rids):
+    def set_state(rids, relaxed: bool) -> None:
         for rid in rids:
-            tied_cons[rid].lb = -1e9
+            tied_cons[rid].lb = -1e9 if relaxed else orig_lb[rid]
 
-    def restore(rids):
-        for rid in rids:
-            tied_cons[rid].lb = orig_lb[rid]
-
-    def improves() -> bool:
+    def current_mdf() -> Optional[float]:
         status = solver.optimize()
-        return status == "optimal" and solver.objective.value > mdf + tol
+        return solver.objective.value if status == "optimal" else None
 
-    # Step 1: relax every tied reaction at once -- confirm an improvement is
-    # even achievable before searching for a minimal subset of it.
-    relax(tied_cons)
-    if not improves():
-        restore(tied_cons)
+    # -- Step 2: relax every candidate; bail out if that doesn't even help --
+    set_state(tied_cons, relaxed=True)
+    m0 = current_mdf()
+    if m0 is None or m0 <= mdf + tol:
+        set_state(tied_cons, relaxed=False)
         solver.optimize()
         return []
 
-    # Step 2: deletion filter. Try re-enforcing each candidate in turn; if
-    # the (still-partly-relaxed) set keeps improving without it, it wasn't
-    # needed -- leave it re-enforced permanently. Otherwise it's necessary
-    # -- relax it again before moving on.
-    necessary = set(tied_cons)
-    for rid, con in tied_cons.items():
-        con.lb = orig_lb[rid]
-        if improves():
-            necessary.discard(rid)
-        else:
-            con.lb = -1e9
+    found: List[str] = []
+    remaining = list(tied_cons.keys())
 
-    restore(tied_cons)
+    while remaining:
+        # -- Step 3 (Grow): re-enforce remaining candidates one at a time
+        #    until mdf drops back to the original value.
+        enforced_so_far: List[str] = []
+        trigger: Optional[str] = None
+        for rid in remaining:
+            tied_cons[rid].lb = orig_lb[rid]
+            enforced_so_far.append(rid)
+            m = current_mdf()
+            if m is None or m <= mdf + tol:
+                trigger = rid
+                break
+        if trigger is None:
+            # Re-enforcing every remaining candidate never dropped mdf back
+            # down on its own -- shouldn't normally happen (re-enforcing
+            # all of them reproduces the fully-enforced problem), but stop
+            # defensively rather than loop forever.
+            break
+
+        # -- Step 4 (Shrink): keep the trigger enforced; relax the others
+        #    (reverse order of addition) one at a time, re-enforcing any
+        #    whose absence lets mdf rise again.
+        necessary = {trigger}
+        for rid in reversed(enforced_so_far):
+            if rid == trigger:
+                continue
+            tied_cons[rid].lb = -1e9
+            m = current_mdf()
+            if m is not None and m > mdf + tol:
+                tied_cons[rid].lb = orig_lb[rid]
+                necessary.add(rid)
+            # else: bystander -- stays relaxed, left in `remaining` in case
+            # it's needed by a later, independent bottleneck set.
+
+        # -- Step 5: log this set, relax it for real, continue with the rest.
+        found.extend(sorted(necessary))
+        set_state(necessary, relaxed=True)
+        remaining = [rid for rid in remaining if rid not in necessary]
+        if not remaining:
+            break
+        m = current_mdf()
+        if m is None or m > mdf + tol:
+            break  # already past the original mdf; nothing further to find
+
+    set_state(tied_cons, relaxed=False)
     solver.optimize()  # leave the solver back at the original optimum
-    return sorted(necessary)
+    return found
+
+# ---------------------------------------------------------------------------
+# thermodynamic bottleneck search (reset / grow / shrink)
+# ---------------------------------------------------------------------------
+
+def _find_minimal_bottleneck2(
+    solver,
+    df_constraints: Dict[str, Dict[str, Any]],
+    fluxes: Dict[str, float],
+    driving_forces: Dict[str, float],
+    mdf: float,
+    tol: float = 1e-6,
+    flux_tol: float = 1e-9,
+) -> List[str]:
+    """Find one inclusion-minimal thermodynamic bottleneck set.
+
+    The search is performed on the LP obtained by fixing the current MILP
+    binary decisions.  It follows a reset/grow/shrink scheme:
+
+    1. Candidate set: active reactions whose current driving force is within
+       ``tol`` of the current MDF.
+    2. Reset: relax all candidate driving-force constraints.  If the MDF does
+       not improve, the current MDF is not thermodynamically limited.
+    3. Grow: re-enforce candidate constraints one at a time until the MDF
+       returns to the original optimum (within ``tol``).  The last reaction
+       added is the trigger; the enforced set contains at least one complete
+       bottleneck.
+    4. Shrink: repeatedly test removal of every non-trigger member.  Keep a
+       reaction only when its removal lets the MDF rise above the original
+       optimum.  Iterate to a fixed point so the returned set is inclusion
+       minimal.
+
+    The returned set is *one* inclusion-minimal bottleneck set; its composition
+    can depend on the order in which candidates are grown.  Reactions that
+    were already permanently relaxed by the caller should be excluded before
+    entering this function.
+
+    The solver is restored to the original constraints and solved at the end,
+    regardless of whether the search succeeds or raises.
+    """
+
+    def active_constraint(rid: str):
+        flux = fluxes.get(rid, 0.0)
+        if abs(flux) <= flux_tol:
+            return None
+        direction = "fwd" if flux > 0 else "rev"
+        return df_constraints.get(rid, {}).get(direction)
+
+    # Only genuinely active reactions tied at the MDF are candidates.  This
+    # matters for zero-flux reactions, whose inactive-direction thermodynamic
+    # constraint is gated off and therefore cannot be part of the bottleneck.
+    candidate_constraints = {}
+    for rid, df in driving_forces.items():
+        if df <= mdf + tol:
+            con = active_constraint(rid)
+            if con is not None:
+                candidate_constraints[rid] = con
+
+    if not candidate_constraints:
+        return []
+
+    original_lb = {rid: con.lb for rid, con in candidate_constraints.items()}
+    relaxed_lb = -1e9
+
+    def set_relaxed(rids: Iterable[str]) -> None:
+        for rid in rids:
+            candidate_constraints[rid].lb = relaxed_lb
+
+    def set_enforced(rids: Iterable[str]) -> None:
+        for rid in rids:
+            candidate_constraints[rid].lb = original_lb[rid]
+
+    def optimize_mdf() -> Optional[float]:
+        status = solver.optimize()
+        if status != "optimal":
+            return None
+        return float(solver.objective.value)
+
+    def improved(value: Optional[float]) -> bool:
+        return value is not None and value > mdf + tol
+
+    def restored(value: Optional[float]) -> bool:
+        # The original feasible solution guarantees the MDF of a subset of
+        # the original constraints cannot be below mdf except for numerical
+        # noise.  Use a symmetric tolerance around the original value.
+        return value is not None and value <= mdf + tol
+
+    try:
+        candidates = list(candidate_constraints)
+
+        # ------------------------------------------------------------------
+        # 1) RESET: remove every candidate thermodynamic constraint.
+        # ------------------------------------------------------------------
+        set_relaxed(candidates)
+        reset_mdf = optimize_mdf()
+        if not improved(reset_mdf):
+            # The MDF is capped elsewhere (or numerically unchanged).
+            return []
+
+        # ------------------------------------------------------------------
+        # 2) GROW: restore constraints until the MDF returns to the original
+        #    optimum.  The last restored reaction is the trigger.
+        # ------------------------------------------------------------------
+        enforced: List[str] = []
+        trigger: Optional[str] = None
+        for rid in candidates:
+            set_enforced([rid])
+            enforced.append(rid)
+            current_mdf = optimize_mdf()
+            if restored(current_mdf):
+                trigger = rid
+                break
+
+        # This should only be possible because of numerical tolerance / an
+        # unexpected solver status: all candidates restored must reproduce the
+        # original model.  Treat the full candidate set as the working set if
+        # no trigger was detected.
+        if trigger is None:
+            enforced = candidates[:]
+            set_enforced(enforced)
+            current_mdf = optimize_mdf()
+            if not restored(current_mdf):
+                return []
+
+        # ------------------------------------------------------------------
+        # 3) SHRINK: remove bystanders while keeping the trigger enforced.
+        #    Iterate until no further member can be removed.
+        # ------------------------------------------------------------------
+        kept = list(dict.fromkeys(enforced))
+        if trigger not in kept:
+            kept.append(trigger)
+
+        # Ensure the working state corresponds exactly to the current kept set.
+        set_relaxed(candidates)
+        set_enforced(kept)
+        optimize_mdf()
+
+        changed = True
+        while changed:
+            changed = False
+            for rid in list(kept):
+                if rid == trigger:
+                    continue
+
+                # Temporarily remove this member.  If the MDF rises above the
+                # original optimum, this reaction is necessary for this set and
+                # must be restored.  Otherwise it is a bystander and stays out.
+                candidate_kept = [x for x in kept if x != rid]
+                set_relaxed([rid])
+                trial_mdf = optimize_mdf()
+                if improved(trial_mdf):
+                    # Necessary: restore it immediately.
+                    set_enforced([rid])
+                else:
+                    # Redundant: leave it relaxed and permanently discard it
+                    # from this candidate bottleneck set.
+                    kept = candidate_kept
+                changed = changed or (rid not in kept)
+
+        # A final direct check makes the mathematical contract explicit: every
+        # returned member must be necessary, i.e. deleting it must recover an
+        # MDF strictly above the original value.  This also catches unusual
+        # solver degeneracy where a single pass can be misleading.
+        for rid in list(kept):
+            if rid == trigger:
+                continue
+            set_relaxed([rid])
+            trial_mdf = optimize_mdf()
+            if improved(trial_mdf):
+                set_enforced([rid])
+            else:
+                kept.remove(rid)
+
+        # If the trigger itself can be removed without improving the MDF, the
+        # grow order encountered a different sufficient subset.  Re-run the
+        # shrink condition without privileging it so that the result remains
+        # inclusion-minimal.
+        if trigger in kept:
+            set_relaxed([trigger])
+            trial_mdf = optimize_mdf()
+            if not improved(trial_mdf):
+                kept.remove(trigger)
+
+        set_relaxed(candidates)
+        set_enforced(kept)
+        final_mdf = optimize_mdf()
+        if final_mdf is None or not restored(final_mdf):
+            # Defensive fallback: if numerical degeneracy made the final set
+            # fail to reproduce the original optimum, return the last enforced
+            # working set rather than a false claim of a bottleneck.
+            set_enforced(candidates)
+            optimize_mdf()
+            return []
+
+        return kept
+
+    finally:
+        # Always restore every candidate constraint exactly and return the LP
+        # to the original optimum state.
+        set_enforced(candidate_constraints)
+        solver.optimize()
 
 
 # ---------------------------------------------------------------------------
@@ -1025,8 +1270,8 @@ class OptMDFAnalysis:
         if not self.bin_vars:
             yield self.history[-1].status if self.history else None
             return
-        for z in self.bin_vars:
-            z_val = round(z.primal)
+        z_values = [round(z.primal) for z in self.bin_vars] # read all before making modifications
+        for z, z_val in zip(self.bin_vars, z_values):
             z.type = "continuous"
             z.lb = z.ub = z_val
         status = self.solver.optimize()
@@ -1217,10 +1462,17 @@ class OptMDFAnalysis:
         """
         A minimal thermodynamic bottleneck set for the most recent solve()
         result -- see _find_minimal_bottleneck for the algorithm (a
-        deletion-filter search: relax every reaction currently tied at mdf
-        at once to confirm improvement is possible, then re-enforce each
-        one at a time, keeping it re-enforced whenever the rest still
-        improve without it). An empty list means mdf isn't currently
+        Grow-Shrink search: relax every reaction currently tied at mdf,
+        confirm that helps at all, then re-enforce them one at a time
+        until mdf drops back down -- trapping one complete bottleneck set
+        -- before relaxing bystanders back out one at a time to isolate
+        exactly the necessary members; repeats over any remaining tied
+        reactions to find further independent bottleneck sets at this same
+        mdf). This correctly handles reactions coupled through a shared
+        limiting metabolite, where relaxing just one of them can already
+        permit some improvement without capturing the full achievable
+        improvement -- a plain one-at-a-time deletion filter would
+        under-report in that case. An empty list means mdf isn't currently
         limited by any reaction's thermodynamics (e.g. it's capped by
         B_bounds or a scenario constraint instead), or -- after enough
         relax() calls -- that nothing thermodynamically limiting remains.
