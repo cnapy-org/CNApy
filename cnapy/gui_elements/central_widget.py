@@ -6,9 +6,9 @@ import cobra
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
-from qtpy.QtGui import QColor, QBrush
+from qtpy.QtGui import QAction, QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame)
+                            QTabWidget, QVBoxLayout, QWidget, QApplication, QComboBox, QFrame)
 
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
@@ -47,8 +47,8 @@ class CentralWidget(QWidget):
         self.search_annotations.setChecked(False)
         searchbar_layout.addWidget(self.search_annotations)
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         searchbar_layout.addWidget(line)
         searchbar_layout.addSpacing(10)
         self.model_item_history = QComboBox()
@@ -120,7 +120,7 @@ class CentralWidget(QWidget):
         self.mode_navigator = ModeNavigator(self.appdata, self)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
-        self.splitter2.setOrientation(Qt.Vertical)
+        self.splitter2.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.splitter2)
         self.splitter.addWidget(self.tabs)
         self.console.show()
@@ -354,7 +354,7 @@ class CentralWidget(QWidget):
         map_idx = self.map_tabs.currentIndex()
 
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
         if idx == ModelTabIndex.Reactions:
             found_ids = self.reaction_list.update_selected(string, with_annotations)
@@ -444,11 +444,8 @@ class CentralWidget(QWidget):
                 idx = self.appdata.window.centralWidget().tabs.currentIndex()
                 if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
                     view = self.appdata.window.centralWidget().reaction_list
-                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-                    root = view.reaction_list.invisibleRootItem()
-                    child_count = root.childCount()
-                    for i in range(child_count):
-                        item = root.child(i)
+                    view.reaction_list.blockSignals(True) # block selection signals while recoloring
+                    for item in view.reaction_model.items:
                         if item.text(0) in bnd_dict:
                             v = bnd_dict[item.text(0)]
                             if numpy.any(numpy.isnan(v)):
@@ -613,12 +610,9 @@ class CentralWidget(QWidget):
     def __set_onoff_reaction_list(self):
         # do coloring of LB/UB columns in this case?
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
@@ -656,12 +650,9 @@ class CentralWidget(QWidget):
     def __set_heaton_reaction_list(self, low, high):
         # TODO: coloring of LB/UB columns
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
@@ -732,7 +723,7 @@ class CentralWidget(QWidget):
             if index >= 0:
                 index = self.model_item_history.removeItem(index)
             self.model_item_history.insertItem(0, item_id + " (" + ModelItemType(item_type).name + ")", item_data)
-            self.model_item_history.setItemData(0, item_name, Qt.ToolTipRole)
+            self.model_item_history.setItemData(0, item_name, Qt.ItemDataRole.ToolTipRole)
             self.model_item_history.setCurrentIndex(0)
 
     def update_item_in_history(self, previous_id: str, new_id: str, new_name: str, item_type: ModelItemType):

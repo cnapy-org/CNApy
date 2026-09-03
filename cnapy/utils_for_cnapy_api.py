@@ -14,7 +14,7 @@ class IdentifiersOrgResult:
 
 
 def check_in_identifiers_org(widget: QTreeWidgetItem):
-        widget.setCursor(Qt.BusyCursor)
+        widget.setCursor(Qt.CursorShape.BusyCursor)
         rows = widget.annotation_widget.annotation.rowCount()
         invalid_red = QColor(255, 0, 0)
         for i in range(0, rows):
@@ -42,9 +42,9 @@ def check_in_identifiers_org(widget: QTreeWidgetItem):
                 if identifiers_org_result.connection_error:
                     msgBox = QMessageBox()
                     msgBox.setWindowTitle("Connection error!")
-                    msgBox.setTextFormat(Qt.RichText)
+                    msgBox.setTextFormat(Qt.TextFormat.RichText)
                     msgBox.setText("<p>identifiers.org could not be accessed. Either the internet connection isn't working or the server is currently down.</p>")
-                    msgBox.setIcon(QMessageBox.Warning)
+                    msgBox.setIcon(QMessageBox.Icon.Warning)
                     msgBox.exec()
                     break
 
@@ -61,7 +61,7 @@ def check_in_identifiers_org(widget: QTreeWidgetItem):
 
                 if not identifiers_org_result.is_key_value_pair_valid:
                     break
-        widget.setCursor(Qt.ArrowCursor)
+        widget.setCursor(Qt.CursorShape.ArrowCursor)
 
 
 def check_identifiers_org_entry(key: str, value: str) -> IdentifiersOrgResult:

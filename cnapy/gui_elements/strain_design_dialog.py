@@ -106,7 +106,7 @@ class SDDialog(QDialog):
         self.current_module = 0
         self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
-        # self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        # self.layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
@@ -122,10 +122,10 @@ class SDDialog(QDialog):
         self.module_list.setFixedWidth(195)
         self.module_list.setMinimumHeight(40)
         self.module_list.setHorizontalHeaderLabels(["Module Type",""])
-        # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # self.module_list.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         # self.module_list.verticalHeader().setVisible(False)
-        self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.module_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.module_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.module_list.horizontalHeader().resizeSection(0, 115)
         self.module_list.horizontalHeader().resizeSection(1, 60)
         # -> first entry in module list
@@ -155,7 +155,7 @@ class SDDialog(QDialog):
         self.module_spec_box.setObjectName("EditModule")
         self.module_spec_box.setStyleSheet(BORDER_COLOR("#b0b0b0"))
         module_spec_layout = QVBoxLayout()
-        module_spec_layout.setAlignment(Qt.AlignTop)
+        module_spec_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.module_edit = {}
 
         # module sense
@@ -213,7 +213,7 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
         module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
         constr_list_layout = QHBoxLayout()
-        constr_list_layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        constr_list_layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
         module_spec_layout.addItem(constr_list_layout)
 
         # layout for constraint list and buttons
@@ -222,7 +222,7 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS].setMinimumHeight(40)
         self.module_edit[CONSTRAINTS].verticalHeader().setDefaultSectionSize(18)
         self.module_edit[CONSTRAINTS].verticalHeader().setVisible(False)
-        self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.module_edit[CONSTRAINTS].horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.module_edit[CONSTRAINTS].horizontalHeader().setVisible(False)
         # -> first entry in constraint list
         # constr_entry = ComplReceivLineEdit(self,self.reac_wordlist)
@@ -379,7 +379,7 @@ class SDDialog(QDialog):
         self.regulatory_box.setObjectName("reg")
 
         self.regulatory_layout = QVBoxLayout()
-        self.regulatory_layout.setAlignment(Qt.AlignLeft)
+        self.regulatory_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         # self.regulatory_itv_list_label = QLabel("")
         # self.regulatory_layout.addWidget(self.regulatory_itv_list_label)
 
@@ -390,8 +390,8 @@ class SDDialog(QDialog):
         # self.regulatory_itv_list.horizontalHeader().setVisible(False)
         self.regulatory_itv_list.setHorizontalHeaderLabels(["Regulatory constraint","Cost"])
         self.regulatory_itv_list.setMinimumWidth(110)
-        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.regulatory_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.regulatory_itv_list.horizontalHeader().resizeSection(0, 50)
         self.regulatory_itv_list.horizontalHeader().resizeSection(1, 40)
         # # -> first entry in constraint list
@@ -423,7 +423,7 @@ class SDDialog(QDialog):
         self.ko_ki_box.setHidden(True)
         self.ko_ki_box.setObjectName("ko_ki")
         ko_ki_layout = QVBoxLayout()
-        ko_ki_layout.setAlignment(Qt.AlignLeft)
+        ko_ki_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         # ko_ki_lists_layout.addWidget(self.reaction_itv_list_widget)
 
@@ -441,7 +441,7 @@ class SDDialog(QDialog):
 
         # reaction list
         reaction_interventions_layout = QVBoxLayout()
-        reaction_interventions_layout.setAlignment(Qt.AlignTop)
+        reaction_interventions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.reaction_itv_list_widget = QWidget()
         self.reaction_itv_list_widget.setFixedWidth(270)
         self.reaction_itv_list = QTableCopyable(0, 3)
@@ -452,9 +452,9 @@ class SDDialog(QDialog):
         self.reaction_itv_list.setMinimumHeight(35)
         self.reaction_itv_list.setMaximumHeight(150)
         self.reaction_itv_list.setHorizontalHeaderLabels(["Reaction","KO N/A KI ","Cost"])
-        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.reaction_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.reaction_itv_list.horizontalHeader().resizeSection(0, 80)
         self.reaction_itv_list.horizontalHeader().resizeSection(1, 80)
         self.reaction_itv_list.horizontalHeader().resizeSection(2, 40)
@@ -472,15 +472,15 @@ class SDDialog(QDialog):
             self.reaction_itv[r]['cost'].setEditable(True)
             r_ko_ki_button_widget = QWidget()
             r_ko_ki_button_layout = QHBoxLayout()
-            r_ko_ki_button_layout.setAlignment(Qt.AlignCenter)
+            r_ko_ki_button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             r_ko_ki_button_layout.setContentsMargins(0,0,0,0)
             r_ko_button = QRadioButton()
             r_na_button = QRadioButton()
             r_ki_button = QRadioButton()
             r_ko_button.setChecked(True)
-            r_ko_ki_button_widget.setFocusPolicy(Qt.NoFocus)
-            # self.reaction_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
-            # self.reaction_itv_list.setFocusPolicy(Qt.NoFocus)
+            r_ko_ki_button_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # self.reaction_itv_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers);
+            # self.reaction_itv_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             # self.reaction_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
             self.reaction_itv[r]['button_group'].addButton(r_ko_button,1)
             self.reaction_itv[r]['button_group'].addButton(r_na_button,2)
@@ -513,22 +513,22 @@ class SDDialog(QDialog):
 
         # gene list
         gene_interventions_layout = QVBoxLayout()
-        gene_interventions_layout.setAlignment(Qt.AlignTop)
+        gene_interventions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.gene_itv_list_widget = QWidget()
         self.gene_itv_list_widget.setHidden(True)
         self.gene_itv_list_widget.setFixedWidth(270)
         self.gene_itv_list = QTableCopyable(0, 3)
-        # self.gene_itv_list.setEditTriggers(QAbstractItemView.NoEditTriggers);
-        # self.gene_itv_list.setFocusPolicy(Qt.NoFocus)
+        # self.gene_itv_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers);
+        # self.gene_itv_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         # self.gene_itv_list.setSelectionMode(QAbstractItemView.NoSelection)
         self.gene_itv_list.verticalHeader().setDefaultSectionSize(18)
         self.gene_itv_list.verticalHeader().setVisible(False)
         self.gene_itv_list.setFixedWidth(220)
         self.gene_itv_list.setMinimumHeight(50)
         self.gene_itv_list.setHorizontalHeaderLabels(["Gene","KO N/A KI ","Cost"])
-        self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.gene_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.gene_itv_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.gene_itv_list.horizontalHeader().resizeSection(0, 80)
         self.gene_itv_list.horizontalHeader().resizeSection(1, 80)
         self.gene_itv_list.horizontalHeader().resizeSection(2, 40)
@@ -549,7 +549,7 @@ class SDDialog(QDialog):
                                          'button_group': QButtonGroup()}})
             g_ko_ki_button_widget = QWidget()
             g_ko_ki_button_layout = QHBoxLayout()
-            g_ko_ki_button_layout.setAlignment(Qt.AlignCenter)
+            g_ko_ki_button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             g_ko_ki_button_layout.setContentsMargins(0,0,0,0)
             g_ko_button = QRadioButton()
             g_na_button = QRadioButton()
@@ -613,7 +613,7 @@ class SDDialog(QDialog):
         # Connecting signals
         try:
             self.appdata.window.centralWidget().broadcastReactionID.connect(self.receive_input)
-            self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.QueuedConnection)
+            self.launch_computation_signal.connect(self.appdata.window.compute_strain_design,Qt.ConnectionType.QueuedConnection)
         except:
             print('Signals to main window could not be connected.')
 
@@ -908,7 +908,7 @@ class SDDialog(QDialog):
         self.update_global_objective()
 
     def verify_module(self,*args):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         if not self.modules:
             return True, None
         module_no = args[0]
@@ -950,14 +950,14 @@ class SDDialog(QDialog):
                     module = SDModule(model,module_type=OPTCOUPLE, inner_objective=inner_objective,\
                                         inner_opt_sense=MAXIMIZE, prod_id=prod_id,\
                                         min_gcp=min_gcp, constraints=constraints)
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
             return True, module
         except Exception as e:
             QMessageBox.warning(self,"Module invalid",\
                 "The current module is either infeasible or "+\
                 "syntactic errors persist in the module's specificaiton. \n\n"+\
                 "Exception details: \n\n"+str(e))
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
             return False, None
 
     @Slot(bool)
@@ -1056,7 +1056,7 @@ class SDDialog(QDialog):
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
 
     def ko_ki_filter_text_changed(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         txt = self.ko_ki_filter.text().lower().strip()
         hide_reacs = [True if txt not in r.lower() else False for r in self.reac_ids]
         for i,h in enumerate(hide_reacs):
@@ -1065,7 +1065,7 @@ class SDDialog(QDialog):
                         for g,n in zip(self.gene_ids,self.gene_names)]
         for i,h in enumerate(hide_genes):
             self.gene_itv_list.setRowHidden(i,h)
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def knock_changed(self,id,gene_or_reac):
         if gene_or_reac == 'reac':
@@ -1158,7 +1158,7 @@ class SDDialog(QDialog):
             self.knock_changed(r,'gene')
 
     def parse_dialog_inputs(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         sd_setup = {} # strain design setup
         sd_setup.update({MODEL_ID : self.appdata.project.cobra_py_model.id})
         # Save modules. Therefore, first remove cobra model from all modules. It is reinserted afterwards
@@ -1206,16 +1206,16 @@ class SDDialog(QDialog):
                         gkiCost.update({self.gene_names[i]:float(self.gene_itv[g]['cost'].text())})
                 sd_setup.update({GKOCOST : gkoCost})
                 sd_setup.update({GKICOST : gkiCost})
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         return sd_setup
 
     def save(self):
         # if current module is invalid, abort
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         valid = self.module_apply()
         if not valid:
             return
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         # open file dialog
         dialog = QFileDialog(self)
         filename: str = dialog.getSaveFileName(
@@ -1346,7 +1346,7 @@ class SDDialog(QDialog):
         self.compute_sd_button.setFocus()
 
     def compute(self):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents()
         valid = self.module_apply()
         if not valid:
@@ -1384,13 +1384,13 @@ class SDDialog(QDialog):
                 if QMessageBox.information(self, "Regulatory interventions not supported",
                                         "optlang_enumerator does not support regulatory " +\
                                         "interventions.\nAll regulatory interventions will be ignored.",
-                                        QMessageBox.Ok | QMessageBox.Cancel) == QMessageBox.Cancel:
+                                        QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel) == QMessageBox.StandardButton.Cancel:
                     return
             if any(m[INNER_OBJECTIVE] is not None for m in sd_setup[MODULES]):
                 if QMessageBox.information(self, "Inner objectives not supported",
                                         "optlang_enumerator does not support inner objectives.\n" +\
                                         "All inner objectives will be ignored.",
-                                        QMessageBox.Ok | QMessageBox.Cancel) == QMessageBox.Cancel:
+                                        QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel) == QMessageBox.StandardButton.Cancel:
                     return
 
             close_sd_dialog = self.compute_optlang(sd_setup)
@@ -1572,7 +1572,7 @@ class SDComputationViewer(QDialog):
     @Slot(bytes)
     def conclude_computation(self,results):
         self.solutions = pickle.loads(results)
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         if self.solutions.get_num_sols() > 0:
             self.explore.setEnabled(True)
 
@@ -1683,8 +1683,8 @@ class SDViewer(QDialog):
                 self.close()
                 return
         self.setWindowTitle("Strain Design Solutions")
-        self.setWindowModality(Qt.NonModal)
-        self.setWindowFlags((self.windowFlags() | Qt.Window) & ~Qt.WindowStaysOnTopHint)
+        self.setWindowModality(Qt.WindowModality.NonModal)
+        self.setWindowFlags((self.windowFlags() | Qt.WindowType.Window) & ~Qt.WindowType.WindowStaysOnTopHint)
         self.setMinimumWidth(620)
         self.appdata = appdata
         appdata.project.sd_solutions = self.solutions
@@ -1696,7 +1696,7 @@ class SDViewer(QDialog):
         else:
             self.sd_table = QTableCopyable(0, 2)
         palette = QPalette()
-        palette.setColor(QPalette.Text, Qt.black) # Text color in widgets
+        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.black) # Text color in widgets
         self.sd_table.setPalette(palette)
         self.sd_table.verticalHeader().setDefaultSectionSize(20)
         self.sd_table.verticalHeader().setVisible(False)
@@ -1739,10 +1739,10 @@ class SDViewer(QDialog):
             self.sd_table.setMinimumHeight(150)
             self.sd_table.setHorizontalHeaderLabels(["Equiv. class","Intervention set",\
                                                      "Reaction-phenotype interventions"])
-            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
             self.sd_table.horizontalHeader().resizeSection(0, 90)
-            self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+            self.sd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
             self.rsd = ["" for _ in range(len(rsd))]
             for i,s in enumerate(rsd):
                 for k,v in s.items():
@@ -1769,7 +1769,7 @@ class SDViewer(QDialog):
                 self.sd_table.insertRow(i)
                 item = QTableItem(str(a+1))
                 item.setEditable(False)
-                item.setTextAlignment(Qt.AlignCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sd_table.setItem(i, 0, item)
                 # set non-editable
                 item = QTableItem(g)
@@ -1792,15 +1792,15 @@ class SDViewer(QDialog):
                 self.rsd[i] = self.rsd[i][0:-2]
             self.sd_table.setMinimumWidth(320)
             self.sd_table.setMinimumHeight(150)
-            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.sd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+            self.sd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
             self.sd_table.horizontalHeader().resizeSection(0, 90)
             self.sd_table.setHorizontalHeaderLabels(["Equiv. class","Intervention set"])
             for i,s in enumerate(self.rsd):
                 self.sd_table.insertRow(i)
                 item = QTableItem(str(i+1))
                 item.setEditable(False)
-                item.setTextAlignment(Qt.AlignCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sd_table.setItem(i, 0, item)
                 item = QTableItem(s)
                 item.setEditable(False)

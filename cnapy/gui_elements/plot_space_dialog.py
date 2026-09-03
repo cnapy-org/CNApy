@@ -31,7 +31,7 @@ class PlotSpaceDialog(QDialog):
             self.r[5] = 'r_substrate_z'
 
         self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.Alignment(Qt.AlignTop^Qt.AlignLeft))
+        self.layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         text = QLabel('Specify the yield terms that should be used for the different axes.\n'+
                       'Keep in mind that exchange reactions are often defined in the direction of export.\n'+
@@ -41,7 +41,7 @@ class PlotSpaceDialog(QDialog):
         self.third_axis.clicked.connect(self.box_3d_clicked)
         self.layout.addWidget(self.third_axis)
         points_layout = QHBoxLayout()
-        points_layout.setAlignment(Qt.AlignLeft)
+        points_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         numpoints_text = QLabel('Number of datapoints:')
         self.numpoints = QLineEdit('20')
         self.numpoints.setMaximumWidth(50)
@@ -65,12 +65,12 @@ class PlotSpaceDialog(QDialog):
         x_num_den_layout.addWidget(self.x_numerator)
         self.x_denominator.setHidden(True)
         self.x_sep = QHSeperationLine()
-        self.x_sep.setFrameShadow(QFrame.Plain)
+        self.x_sep.setFrameShadow(QFrame.Shadow.Plain)
         self.x_sep.setLineWidth(2)
         self.x_sep.setHidden(True)
         x_num_den_layout.addWidget(self.x_sep)
         x_num_den_layout.addWidget(self.x_denominator)
-        x_num_den_layout.setAlignment(Qt.AlignTop)
+        x_num_den_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         x_groupbox.setLayout(x_num_den_layout)
         x_groupbox.setMinimumWidth(230)
         editor_layout.addWidget(x_groupbox)
@@ -89,14 +89,14 @@ class PlotSpaceDialog(QDialog):
         y_num_den_layout.addWidget(self.y_numerator)
         self.y_denominator.setHidden(True)
         self.y_sep = QHSeperationLine()
-        self.y_sep.setFrameShadow(QFrame.Plain)
+        self.y_sep.setFrameShadow(QFrame.Shadow.Plain)
         self.y_sep.setLineWidth(2)
         self.y_sep.setHidden(True)
         y_num_den_layout.addWidget(self.y_sep)
         y_num_den_layout.addWidget(self.y_denominator)
         y_groupbox.setLayout(y_num_den_layout)
         y_groupbox.setMinimumWidth(230)
-        y_num_den_layout.setAlignment(Qt.AlignTop)
+        y_num_den_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         editor_layout.addWidget(y_groupbox)
         # Define for longitudinal axis
         self.z_groupbox = QGroupBox('z-axis')
@@ -113,14 +113,14 @@ class PlotSpaceDialog(QDialog):
         z_num_den_layout.addWidget(self.z_numerator)
         self.z_denominator.setHidden(True)
         self.z_sep = QHSeperationLine()
-        self.z_sep.setFrameShadow(QFrame.Plain)
+        self.z_sep.setFrameShadow(QFrame.Shadow.Plain)
         self.z_sep.setLineWidth(2)
         self.z_sep.setHidden(True)
         z_num_den_layout.addWidget(self.z_sep)
         z_num_den_layout.addWidget(self.z_denominator)
         self.z_groupbox.setLayout(z_num_den_layout)
         self.z_groupbox.setMinimumWidth(230)
-        z_num_den_layout.setAlignment(Qt.AlignTop)
+        z_num_den_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.z_groupbox.setHidden(True)
         editor_layout.addWidget(self.z_groupbox)
         self.layout.addItem(editor_layout)
@@ -138,7 +138,7 @@ class PlotSpaceDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         with self.appdata.project.cobra_py_model as model:
             self.appdata.project.load_scenario_into_model(model)
             if self.third_axis.isChecked():
@@ -168,7 +168,7 @@ class PlotSpaceDialog(QDialog):
                     f"{e}"
                 )
         self.appdata.window.centralWidget().show_bottom_of_console()
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def box_3d_clicked(self):
         if self.third_axis.isChecked():

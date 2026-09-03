@@ -54,7 +54,7 @@ class YieldOptimizationDialog(QDialog):
         self.denominator.setPlaceholderText('denominator (e.g. 1.0 '+r2+')')
         num_den_layout.addWidget(self.numerator)
         sep = QHSeperationLine()
-        sep.setFrameShadow(QFrame.Plain)
+        sep.setFrameShadow(QFrame.Shadow.Plain)
         sep.setLineWidth(2)
         num_den_layout.addWidget(sep)
         num_den_layout.addWidget(self.denominator)
@@ -128,7 +128,7 @@ class YieldOptimizationDialog(QDialog):
                 QMessageBox.warning(self, 'Problem infeasible.',
                                     'The scenario seems to be infeasible.',)
                 return
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.accept()
 
     def set_boxes(self, sol):

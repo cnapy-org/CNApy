@@ -1,10 +1,10 @@
 from math import copysign
 from qtpy.QtCore import Qt, Slot, QSignalBlocker, QStringListModel, QSize
 from qtpy.QtWidgets import (QDialog, QGroupBox, QHBoxLayout, QTableWidget, QCheckBox, QMainWindow,
-                            QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView, QAction,
+                            QLabel, QLineEdit, QMessageBox, QPushButton, QAbstractItemView,
                             QRadioButton, QVBoxLayout, QTableWidgetItem, QButtonGroup, QWidget,
                             QStyledItemDelegate, QTableWidgetSelectionRange, QCompleter, QApplication)
-from qtpy.QtGui import QGuiApplication, QDoubleValidator
+from qtpy.QtGui import QAction, QGuiApplication, QDoubleValidator
 
 from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException, element_exchange_balance
@@ -99,8 +99,8 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_constituents.setHorizontalHeaderLabels(["   ", "Component", "Formula", "Coefficient", "Adjustment", "Change [%]"])
         self.bm_constituents.setSortingEnabled(True)
         self.bm_constituents.verticalHeader().setVisible(False)
-        self.bm_constituents.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.bm_constituents.setSelectionMode(QAbstractItemView.ContiguousSelection)
+        self.bm_constituents.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.bm_constituents.setSelectionMode(QAbstractItemView.SelectionMode.ContiguousSelection)
         self.bm_constituents.resizeColumnsToContents()
         coefficient_delegate = CoefficientDelegate()
         self.bm_constituents.setItemDelegateForColumn(3, coefficient_delegate)
@@ -225,7 +225,7 @@ class FluxFeasibilityDialog(QDialog):
                 for i in range(self.bm_constituents.rowCount()):
                     checkbox = self.bm_constituents.cellWidget(i, 0)
                     if checkbox is not None and checkbox.isChecked():
-                        bm_constituent = self.bm_constituents.item(i, 1).data(Qt.UserRole)
+                        bm_constituent = self.bm_constituents.item(i, 1).data(Qt.ItemDataRole.UserRole)
                         if bm_constituent not in self.bm_reac.metabolites:
                             QMessageBox.critical(self, "Invalid biomass constituent encountered",
                                 bm_constituent.id + " is not in the current biomass reaction, it appears to have been modified.\nReset the currently selected biomass reaction.")
@@ -296,17 +296,17 @@ class FluxFeasibilityDialog(QDialog):
                     if len(bm_mod) > 0:
                         self.bm_constituents.setSortingEnabled(False)
                         for i in range(self.bm_constituents.rowCount()):
-                            met = self.bm_constituents.item(i, 1).data(Qt.UserRole)
+                            met = self.bm_constituents.item(i, 1).data(Qt.ItemDataRole.UserRole)
                             if met in bm_mod:
                                 mod = bm_mod[met]
                                 item = QTableWidgetItem()
-                                item.setData(Qt.DisplayRole, mod)
+                                item.setData(Qt.ItemDataRole.DisplayRole, mod)
                                 self.bm_constituents.setItem(i, 4, item)
                                 ref = self.bm_reac.metabolites[met]
                                 if met in gam_mets:
                                     ref -= copysign(gam_base, ref)
                                 item = QTableWidgetItem()
-                                item.setData(Qt.DisplayRole, 100 * mod/ref)
+                                item.setData(Qt.ItemDataRole.DisplayRole, 100 * mod/ref)
                                 self.bm_constituents.setItem(i, 5, item)
                         self.bm_constituents.setSortingEnabled(True)
                         bm_reac_mod.add_metabolites(bm_mod)
@@ -358,11 +358,11 @@ class FluxFeasibilityDialog(QDialog):
                 checkbox.setToolTip("cannot be adjusted because it has no formula")
             item = QTableWidgetItem(met.id)
             item.setToolTip(met.name)
-            item.setData(Qt.UserRole, met)
+            item.setData(Qt.ItemDataRole.UserRole, met)
             self.bm_constituents.setItem(i, 1, item)
             self.bm_constituents.setItem(i, 2, QTableWidgetItem(met.formula))
             item = QTableWidgetItem()
-            item.setData(Qt.DisplayRole, coeff)
+            item.setData(Qt.ItemDataRole.DisplayRole, coeff)
             self.bm_constituents.setItem(i, 3, item)
             # clear possible previous results
             self.bm_constituents.setItem(i, 4, None)
@@ -432,7 +432,7 @@ class FluxFeasibilityDialog(QDialog):
         self.adjust_gam.setEnabled(enable)
 
     def enable_gam_mets_parts(self):
-        for widget in self.adjust_gam.findChildren(QWidget, options=Qt.FindDirectChildrenOnly):
+        for widget in self.adjust_gam.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
             widget.setEnabled(True)
 
     @Slot(bool)
@@ -457,7 +457,7 @@ class FluxFeasibilityDialog(QDialog):
                     if item is None:
                         row.append("")
                     else:
-                        row.append(str(item.data(Qt.DisplayRole)))
+                        row.append(str(item.data(Qt.ItemDataRole.DisplayRole)))
                 c += 1
             table.append('\t'.join(row))
             r += 1
@@ -551,7 +551,7 @@ class MultiCompleter(QCompleter):
     def __init__(self, parent=None):
         QCompleter.__init__(self, parent)
         self.setModel(QStringListModel())
-        self.setCaseSensitivity(Qt.CaseInsensitive)
+        self.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
 
     def pathFromIndex(self, index): # overrides Qcompleter method
         path = QCompleter.pathFromIndex(self, index)

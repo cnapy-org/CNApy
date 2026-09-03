@@ -40,7 +40,7 @@ class AppData(QObject):
         # more scencolors
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_warn = QColor(255, 200, 0)
-        self.scen_color_bad = Qt.red
+        self.scen_color_bad = Qt.GlobalColor.red
 
         font = QFont()
         font.setFamily(font.defaultFamily())
@@ -127,9 +127,9 @@ class AppData(QObject):
         if isclose(vl, vu, abs_tol=self.abs_tol):
             if self.modes_coloring:
                 if vl == 0:
-                    background_color = Qt.red
+                    background_color = Qt.GlobalColor.red
                 else:
-                    background_color = Qt.green
+                    background_color = Qt.GlobalColor.green
             else:
                 background_color = self.comp_color
             as_one = True
@@ -423,7 +423,7 @@ class ProjectData:
                 "it under 'Config->Configure cobrapy').\n"+\
                 "Right now, GLPK is set as alternative solver instead of Gurobi."
             )
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
 
         self.cobra_py_model = CNApyModel()

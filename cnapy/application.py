@@ -33,11 +33,12 @@ from qtpy.QtWidgets import QMessageBox
 import nest_asyncio
 nest_asyncio.apply()
 
-# ensuring compatibility with high resolution displays
-if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+# Ensuring compatibility with high resolution displays. These attributes are
+# Qt 5-only, so look them up through ApplicationAttribute for Qt 6 safety.
+for attribute_name in ("AA_EnableHighDpiScaling", "AA_UseHighDpiPixmaps"):
+    attribute = getattr(Qt.ApplicationAttribute, attribute_name, None)
+    if attribute is not None:
+        QApplication.setAttribute(attribute, True)
 
 from cnapy.appdata import AppData
 from cnapy.gui_elements.main_window import MainWindow
@@ -83,15 +84,15 @@ def make_dark_palette() -> QPalette:
     palette.setColor(QPalette.ColorRole.Button, QColor(66, 66, 66))          # medium‑dark gray
 
     # ---- Text colours ----
-    palette.setColor(QPalette.ColorRole.WindowText, Qt.white)               # normal text
-    palette.setColor(QPalette.ColorRole.ButtonText, Qt.white)               # button labels
-    palette.setColor(QPalette.ColorRole.Text, Qt.white)                     # line‑edit / plain‑text
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)               # normal text
+    palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)               # button labels
+    palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)                     # line‑edit / plain‑text
     palette.setColor(QPalette.ColorRole.PlaceholderText,
                      QColor(150, 150, 150))                                 # a softer gray for placeholders
 
     # ---- Highlight (selection) colours ----
     palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
-    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.black)         # black text on the blue highlight
+    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)         # black text on the blue highlight
 
     # ---- Disabled state (optional) ----
     disabled = QColor(120, 120, 120)   # lighter than the normal text gray so it is still visible
@@ -100,7 +101,7 @@ def make_dark_palette() -> QPalette:
 
     # ---- Other states ----
     palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 220))
-    palette.setColor(QPalette.ColorRole.ToolTipText, Qt.black)
+    palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.black)
 
     palette.setColor(QPalette.ColorRole.Link, QColor(86, 156, 214))          # a light‑blue link colour
     palette.setColor(QPalette.ColorRole.LinkVisited, QColor(150, 150, 255))
@@ -114,26 +115,26 @@ def make_light_palette():
 
     # ---- Base colours (backgrounds) ----
     # Window background (main window, dialogs, etc.)
-    palette.setColor(QPalette.Window, QColor(240, 240, 240))          # light gray
+    palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))          # light gray
     # General widget background (e.g. QLineEdit, QTextEdit)
-    palette.setColor(QPalette.Base, QColor(255, 255, 255))           # white
+    palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))           # white
     # Button background
-    palette.setColor(QPalette.Button, QColor(230, 230, 230))
+    palette.setColor(QPalette.ColorRole.Button, QColor(230, 230, 230))
 
     # ---- Text colours ----
-    palette.setColor(QPalette.WindowText, Qt.black)
-    palette.setColor(QPalette.ButtonText, Qt.black)
-    palette.setColor(QPalette.Text, Qt.black)
-    palette.setColor(QPalette.PlaceholderText, QColor(120, 120, 120))
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.black)
+    palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.black)
+    palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.black)
+    palette.setColor(QPalette.ColorRole.PlaceholderText, QColor(120, 120, 120))
 
     # ---- Highlight (selection) colours ----
-    palette.setColor(QPalette.Highlight, QColor(0, 120, 215))        # classic Windows blue
-    palette.setColor(QPalette.HighlightedText, Qt.white)
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))        # classic Windows blue
+    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
 
     # ---- Disabled state (optional) ----
     disabled = QColor(150, 150, 150)
-    palette.setColor(QPalette.Disabled, QPalette.Text, disabled)
-    palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, disabled)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, disabled)
 
     return palette
 
@@ -183,7 +184,7 @@ class Application:
         self.qapp.aboutToQuit.connect(
             self.window.centralWidget().shutdown_kernel
         )
-        sys.exit(self.qapp.exec_())
+        sys.exit(self.qapp.exec())
 
     def first_start_up_message(self):
         msgBox = QMessageBox()
@@ -195,7 +196,7 @@ class Application:
             "Also, should CNApy's font size be too small or too large, you can change\n"
             "it under 'Config->Configure CNApy...'."
         )
-        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setIcon(QMessageBox.Icon.Information)
         msgBox.exec()
 
         self.window.show_config_dialog(first_start=True)
