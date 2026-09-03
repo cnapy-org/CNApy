@@ -27,7 +27,7 @@ from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QS
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, CnaMap
+from cnapy.appdata import AppData, Scenario, CnaMap
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -887,8 +887,9 @@ class MainWindow(QMainWindow):
         self.load_scenario_file(filename, merge=merge)
 
     def load_scenario_file(self, filename, merge=False):
-        self.appdata.scenario_past.clear()
-        self.appdata.scenario_future.clear()
+        # self.appdata.scenario_past.clear()
+        # self.appdata.scenario_future.clear()
+        AppData.clear_scenario_history()
         self.appdata.project.comp_values.clear()
         try:
             missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
@@ -1179,23 +1180,31 @@ class MainWindow(QMainWindow):
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
-        if len(self.appdata.scenario_past) > 0:
-            last = self.appdata.scenario_past.pop()
-            self.appdata.scenario_future.append(last)
-            self.appdata.recreate_scenario_from_history()
+        if AppData.current_scenario_index >= 1:
+            AppData.current_scenario_index -= 1
+            self.appdata.project.scen_values = AppData.scenario_history[AppData.current_scenario_index]
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
+            self.centralWidget().scenario_tab.recreate_scenario_items()
+        # if len(self.appdata.scenario_past) > 0:
+        #     last = self.appdata.scenario_past.pop()
+        #     self.appdata.scenario_future.append(last)
+        #     self.appdata.recreate_scenario_from_history()
 
     def redo_scenario_edit(self):
         ''' redo last undo of scenario history '''
-        if len(self.appdata.scenario_future) > 0:
-            nex = self.appdata.scenario_future.pop()
-            self.appdata.scenario_past.append(nex)
-            self.appdata.recreate_scenario_from_history()
+        if AppData.current_scenario_index < len(AppData.scenario_history) - 1:
+            AppData.current_scenario_index += 1
+            self.appdata.project.scen_values = AppData.scenario_history[AppData.current_scenario_index]
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
+            self.centralWidget().scenario_tab.recreate_scenario_items()
+        # if len(self.appdata.scenario_future) > 0:
+        #     nex = self.appdata.scenario_future.pop()
+        #     self.appdata.scenario_past.append(nex)
+        #     self.appdata.recreate_scenario_from_history()
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
@@ -1251,8 +1260,9 @@ class MainWindow(QMainWindow):
         self.close_project_dialogs()
 
         self.appdata.project.scen_values.clear()
-        self.appdata.scenario_past.clear()
-        self.appdata.scenario_future.clear()
+        # self.appdata.scenario_past.clear()
+        # self.appdata.scenario_future.clear()
+        AppData.clear_scenario_history()
 
         self.set_current_filename("Untitled project")
         self.nounsaved_changes()
@@ -1354,13 +1364,16 @@ class MainWindow(QMainWindow):
                 self.appdata.project.scen_values.clear()
                 self.appdata.project.comp_values.clear()
                 self.appdata.project.fva_values.clear()
-                self.appdata.scenario_past.clear()
-                self.appdata.scenario_future.clear()
+                # self.appdata.scenario_past.clear()
+                # self.appdata.scenario_future.clear()
+                AppData.clear_scenario_history()
                 self.clear_status_bar()
                 self.update_scenario_file_name()
                 (reactions, values) = self.appdata.project.collect_default_scenario_values()
                 if len(reactions) > 0:
                     self.appdata.scen_values_set_multiple(reactions, values)
+                else:
+                    AppData.add_scenario_to_history(Scenario())
                 self.nounsaved_changes()
 
                 # if project contains maps move splitter and fit mapview
@@ -1898,29 +1911,33 @@ class MainWindow(QMainWindow):
             self.appdata.project.scen_values.constraints = []
             self.appdata.project.load_scenario_into_model(model)
             self.appdata.project.scen_values.constraints = constraints
-            if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
-                update_stoichiometry_hash = True
-            else:
-                update_stoichiometry_hash = False
+            # if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
+            #     update_stoichiometry_hash = True
+            # else:
+            #     update_stoichiometry_hash = False
             for r in self.appdata.project.cobra_py_model.reactions:
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
-                    if self.appdata.use_results_cache:
-                        r.set_hash_value()
-                        update_stoichiometry_hash = True
+                    # if self.appdata.use_results_cache:
+                        # r.set_hash_value()
+                        # update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
-                    if self.appdata.use_results_cache:
-                        r.set_hash_value()
-                        update_stoichiometry_hash = True
+                    # if self.appdata.use_results_cache:
+                    #     r.set_hash_value()
+                    #     update_stoichiometry_hash = True
             if self.appdata.use_results_cache:
-                if update_stoichiometry_hash:
-                    model.set_stoichiometry_hash_object()
-                fva_hash = model.stoichiometry_hash_object.copy()
-                if len(self.appdata.project.scen_values.constraints) > 0:
-                    fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
-                fva_hash.update(pickle.dumps(model.tolerance))
-                file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+fva_hash.hexdigest()+".pkl")
+                # if update_stoichiometry_hash:
+                #     model.set_stoichiometry_hash_object()
+                # fva_hash = model.stoichiometry_hash_object.copy()
+                # if len(self.appdata.project.scen_values.constraints) > 0:
+                #     fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
+                # fva_hash.update(pickle.dumps(model.tolerance))
+                # file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+fva_hash.hexdigest()+".pkl")
+                self.appdata.project.scen_values.set_hash_value() # call here for simplicity, but should in the long term be directly executed after scenario modification 
+                fva_hash = hash((int(model.stoichiometry_hash_object.hexdigest(), 16),
+                                 hash(self.appdata.project.scen_values), hash(model.tolerance)))
+                file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+str(fva_hash)+".pkl")
 
                 if Path.exists(file_path):
                     try:

@@ -365,7 +365,9 @@ class ReactionList(QWidget):
     def handle_item_changed(self, item: ReactionListItem, column: int):
         if column == ReactionListColumn.Scenario:
             scen_text = item.text(column).strip()
-            if len(scen_text) == 0 or validate_value(scen_text):
+            new_value = validate_value(scen_text)
+            if (len(scen_text) == 0 and item.reaction.id in self.appdata.project.scen_values) or \
+                new_value != self.appdata.project.scen_values.get(item.reaction.id, None):
                 self.central_widget.update_reaction_value(item.reaction.id, scen_text,
                     update_reaction_list=False) # not necessary to update the whole reaction list
                 if self.appdata.auto_fba:

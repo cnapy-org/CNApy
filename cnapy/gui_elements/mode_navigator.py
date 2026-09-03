@@ -209,14 +209,14 @@ class ModeNavigator(QWidget):
         self.central_widget.mode_normalization_reaction = ""
         self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
-        self.appdata.recreate_scenario_from_history()
+        # self.appdata.recreate_scenario_from_history() # what to do instead?
         self.selector.accept_signal_input = False
         self.hide()
         self.modeNavigatorClosed.emit()
 
     def display_mode(self):
         # if the last scenario change comes from a previous apply undo it
-        if len(self.appdata.scenario_past) > 0 and self.modified_scenario is self.appdata.scenario_past[-1]:
+        if len(AppData.scenario_history) > 0 and self.modified_scenario is AppData.scenario_history[-1]:
             print("Resetting scenario")
             self.central_widget.parent.undo_scenario_edit()
             self.modified_scenario = None
@@ -252,7 +252,7 @@ class ModeNavigator(QWidget):
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
                                               list(self.current_flux_values.values()))
-        self.modified_scenario = self.appdata.scenario_past[-1]
+        # self.modified_scenario = self.appdata.scenario_past[-1]
         if self.appdata.auto_fba:
             self.central_widget.parent.fba()
         else:
