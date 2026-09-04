@@ -124,6 +124,11 @@ def test_fva_bounds_are_internally_consistent(ecc2_model):
 
     for i, rxn in enumerate(model.reactions):
         assert not math.isnan(lb[i]) and not math.isnan(ub[i])
-        assert lb[i] <= ub[i] + 1e-7
+        # 1e-6, not 1e-7: matches the tolerance used for the two checks
+        # below, and blocked/near-zero-flux reactions can come back as e.g.
+        # -1.5e-07 instead of exactly 0.0 depending on the solver's own
+        # feasibility tolerance and platform-specific floating-point noise
+        # (observed on Linux but not Windows/macOS for this exact model).
+        assert lb[i] <= ub[i] + 1e-6
         assert lb[i] >= rxn.lower_bound - 1e-6
         assert ub[i] <= rxn.upper_bound + 1e-6
