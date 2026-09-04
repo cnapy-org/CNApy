@@ -601,6 +601,24 @@ class CentralWidget(QWidget):
         for idx in range(0, self.map_tabs.count()):
             self.map_tabs.widget(idx).select_single_reaction(reac_id)
 
+    def set_default_colors(self):
+        ''' fast path for "Default Coloring": recolor the reaction list via its
+        already-lightweight, lazy update() (it only clears the per-item Flux
+        background override and lets the model/view re-query visible cells),
+        and recolor the map via MapView.recolor_all() -- instead of routing
+        through the full central_widget.update(), which additionally rebuilds
+        whichever tab is active and rescales/repositions/re-texts every box
+        on the map before it gets around to recoloring it. '''
+        idx = self.tabs.currentIndex()
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
+            self.reaction_list.update()
+        idx = self.map_tabs.currentIndex()
+        if idx < 0:
+            return
+        map_view = self.map_tabs.widget(idx)
+        if isinstance(map_view, MapView):
+            map_view.recolor_all()
+
     def set_onoff(self):
         idx = self.tabs.currentIndex()
         if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:

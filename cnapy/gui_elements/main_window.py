@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
 
         update_action = QAction("Default Coloring", self)
         update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(self.central_widget.update)
+        update_action.triggered.connect(self.centralWidget().set_default_colors)
 
         self.scenario_menu.addAction(self.heaton_action)
         self.scenario_menu.addAction(self.onoff_action)
