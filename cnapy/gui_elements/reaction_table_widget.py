@@ -16,14 +16,14 @@ class ReactionString(QPlainTextEdit):
         self.setPlainText(reaction_string)
         self.text_width = self.fontMetrics().horizontalAdvance(reaction_string)
         self.setReadOnly(True)
-        self.setFrameStyle(QFrame.NoFrame)
+        self.setFrameStyle(QFrame.Shape.NoFrame)
         self.model = reaction.model
         self.metabolite_list = metabolite_list
 
     jumpToMetabolite = Signal(str)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             text_cursor: QTextCursor = self.textCursor()
             if not text_cursor.hasSelection():
                 start: int = text_cursor.position()
@@ -48,11 +48,11 @@ class ReactionTableWidget(QTableWidget):
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["Id", "Reaction"])
         self.horizontalHeader().setStretchLastSection(True)
-        self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.horizontalHeader().sectionResized.connect(self.section_resized)
 
     def update_state(self, id_text, metabolite_list):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
         self.clearContents()
         self.setRowCount(0) # also resets manually changed row heights
@@ -89,10 +89,10 @@ class ReactionTableWidget(QTableWidget):
                 margins = reaction_string_widget.contentsMargins()
                 height_margin = 12
                 if reaction_string_widget.text_width + margins.left() + margins.right() > new_size:
-                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
                     self.setRowHeight(row, base_height*2 + font_metrics.leading() + height_margin) # font_metrics.leading(): space between two lines
                 else:
-                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+                    reaction_string_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
                     self.setRowHeight(row, base_height + height_margin)
 
     jumpToMetabolite = Signal(str)

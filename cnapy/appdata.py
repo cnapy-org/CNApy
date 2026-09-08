@@ -40,7 +40,7 @@ class AppData(QObject):
         # more scencolors
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_warn = QColor(255, 200, 0)
-        self.scen_color_bad = Qt.red
+        self.scen_color_bad = Qt.GlobalColor.red
 
         font = QFont()
         font.setFamily(font.defaultFamily())
@@ -70,6 +70,7 @@ class AppData(QObject):
         self.recent_cna_files = []
         self.auto_fba = False
         self.is_in_dark_mode = False
+        self.save_model_as_json: bool=False
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
         if self.project.scen_values.get(reaction, None) != values: # record only real changes
@@ -126,9 +127,9 @@ class AppData(QObject):
         if isclose(vl, vu, abs_tol=self.abs_tol):
             if self.modes_coloring:
                 if vl == 0:
-                    background_color = Qt.red
+                    background_color = Qt.GlobalColor.red
                 else:
-                    background_color = Qt.green
+                    background_color = Qt.GlobalColor.green
             else:
                 background_color = self.comp_color
             as_one = True
@@ -169,6 +170,7 @@ class AppData(QObject):
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
         parser.set('cnapy-config', 'recent_cna_files', str(self.recent_cna_files))
         parser.set('cnapy-config', 'is_in_dark_mode', str(self.is_in_dark_mode))
+        parser.set('cnapy-config', 'save_model_as_json', str(self.save_model_as_json))
         parser.write(fp)
         fp.close()
 
@@ -421,7 +423,7 @@ class ProjectData:
                 "it under 'Config->Configure cobrapy').\n"+\
                 "Right now, GLPK is set as alternative solver instead of Gurobi."
             )
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
 
         self.cobra_py_model = CNApyModel()

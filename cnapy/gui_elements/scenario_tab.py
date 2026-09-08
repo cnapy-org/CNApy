@@ -73,7 +73,7 @@ class ScenarioTab(QWidget):
         upper_layout.addLayout(hbox)
         self.reactions = QTableWidget(0, len(ScenarioReactionColumn))
         self.reactions.setHorizontalHeaderLabels([ScenarioReactionColumn(i).name for i in range(len(ScenarioReactionColumn))])
-        self.reactions.setEditTriggers(QAbstractItemView.CurrentChanged | QAbstractItemView.SelectedClicked)
+        self.reactions.setEditTriggers(QAbstractItemView.EditTrigger.CurrentChanged | QAbstractItemView.EditTrigger.SelectedClicked)
         upper_layout.addWidget(self.reactions)
 
         upper_layout.addWidget(QLabel("Reaction equation"))
@@ -114,7 +114,7 @@ class ScenarioTab(QWidget):
         annotations_layout.addLayout(hbox)
         self.annotations = QTableWidget(0, len(ScenarioAnnotationColumn))
         self.annotations.setHorizontalHeaderLabels([ScenarioAnnotationColumn(i).name for i in range(len(ScenarioAnnotationColumn))])
-        self.annotations.setEditTriggers(QAbstractItemView.CurrentChanged | QAbstractItemView.SelectedClicked)
+        self.annotations.setEditTriggers(QAbstractItemView.EditTrigger.CurrentChanged | QAbstractItemView.EditTrigger.SelectedClicked)
         annotations_layout.addWidget(self.annotations)
 
         bottom = QWidget()
@@ -125,7 +125,7 @@ class ScenarioTab(QWidget):
         self.description.setPlaceholderText("Enter a description for this scenario")
         bottom_layout.addWidget(self.description)
 
-        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
         self.splitter.addWidget(upper)
         self.splitter.addWidget(lower)
         self.splitter.addWidget(scenario_annotations)
@@ -160,13 +160,13 @@ class ScenarioTab(QWidget):
             self.scenario_opt_direction.setCurrentIndex(OptimizationDirection[self.appdata.project.scen_values.objective_direction])
 
         for row in range(self.reactions.rowCount()):
-            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
+            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
             if reac_id in self.appdata.project.comp_values:
                 (vl, vu) = self.appdata.project.comp_values[reac_id]
                 flux_text, background_color, _ = self.appdata.flux_value_display(vl, vu)
             else:
                 flux_text = ''
-                background_color = Qt.white
+                background_color = Qt.GlobalColor.white
             item = self.reactions.item(row, ScenarioReactionColumn.Flux)
             item.setText(flux_text)
             item.setBackground(QBrush(background_color))
@@ -204,14 +204,14 @@ class ScenarioTab(QWidget):
 
     @Slot(int, int)
     def cell_content_changed(self, row: int, column: int):
-        reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
+        reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
         if column == ScenarioReactionColumn.Id:
             new_reac_id = self.reactions.currentItem().text().strip()
             with QSignalBlocker(self.reactions):
                 if len(new_reac_id) == 0:
                     self.reactions.item(row, ScenarioReactionColumn.Id).setText(reac_id)
                 elif self.verify_scenario_reaction_id(new_reac_id):
-                        self.reactions.item(row, ScenarioReactionColumn.Id).setData(Qt.UserRole, new_reac_id)
+                        self.reactions.item(row, ScenarioReactionColumn.Id).setData(Qt.ItemDataRole.UserRole, new_reac_id)
                         self.appdata.project.scen_values.reactions[new_reac_id] = self.appdata.project.scen_values.reactions[reac_id]
                         del self.appdata.project.scen_values.reactions[reac_id]
                 else:
@@ -267,7 +267,7 @@ class ScenarioTab(QWidget):
         if self.equation.isModified():
             self.equation.setModified(False)
             row: int = self.reactions.currentRow()
-            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
+            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
             existing_metabolites = set(self.appdata.project.cobra_py_model.metabolites.list_attr('id'))
             if reac_id in self.appdata.project.cobra_py_model.reactions: # overwrite existing reaction
                 reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(reac_id)
@@ -319,7 +319,7 @@ class ScenarioTab(QWidget):
         else:
             self.equation.setEnabled(True)
             if row != previous_row:
-                self.update_reaction_equation(self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole))
+                self.update_reaction_equation(self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole))
                 turn_white(self.equation, self.appdata.is_in_dark_mode)
 
     def update_reaction_equation(self, reac_id: str):
@@ -363,7 +363,7 @@ class ScenarioTab(QWidget):
     def delete_scenario_reaction(self):
         row: int = self.reactions.currentRow()
         if row >= 0:
-            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.UserRole)
+            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
             self.reactions.removeRow(row)
             del self.appdata.project.scen_values.reactions[reac_id]
             self.appdata.project.update_reaction_id_lists()
@@ -401,7 +401,7 @@ class ScenarioTab(QWidget):
         item = QTableWidgetItem()
         self.reactions.setItem(row, ScenarioReactionColumn.Id, item)
         flux_item = QTableWidgetItem()
-        flux_item.setFlags(Qt.ItemIsSelectable) # not editable
+        flux_item.setFlags(Qt.ItemFlag.ItemIsSelectable) # not editable
         flux_item.setForeground(item.foreground()) # to keep text color black
         self.reactions.setItem(row, ScenarioReactionColumn.Flux, flux_item)
         self.reactions.setItem(row, ScenarioReactionColumn.LB, QTableWidgetItem())
@@ -412,7 +412,7 @@ class ScenarioTab(QWidget):
         reac_id_item = self.reactions.item(row, ScenarioReactionColumn.Id)
         reac_id_item.setText(reac_id)
         reac_id_item.setToolTip(reac_id)
-        reac_id_item.setData(Qt.UserRole, reac_id)
+        reac_id_item.setData(Qt.ItemDataRole.UserRole, reac_id)
         _, lb, ub = self.appdata.project.scen_values.reactions[reac_id]
         self.reactions.item(row, ScenarioReactionColumn.LB).setText(str(lb))
         self.reactions.item(row, ScenarioReactionColumn.UB).setText(str(ub))
@@ -500,9 +500,9 @@ class ScenarioTab(QWidget):
     def use_scenario_objective_changed(self, state: int):
         self.validate_objective()
         if self.use_scenario_objective.isEnabled():
-            if state == Qt.Checked:
+            if state == Qt.CheckState.Checked:
                 self.appdata.project.scen_values.use_scenario_objective = True
-            elif state == Qt.Unchecked:
+            elif state == Qt.CheckState.Unchecked:
                 self.appdata.project.scen_values.use_scenario_objective = False
             self.objectiveSetupChanged.emit()
 

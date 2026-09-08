@@ -6,10 +6,10 @@ import importlib.resources as resources
 from typing import Dict, Tuple
 
 from qtpy.QtCore import QMimeData, QRectF, Qt, Signal, Slot
-from qtpy.QtGui import QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
-from qtpy.QtSvg import QGraphicsSvgItem
-from qtpy.QtWidgets import (QApplication, QAction, QGraphicsItem, QGraphicsScene,
-                            QGraphicsSceneDragDropEvent, QTreeWidget,
+from qtpy.QtGui import QAction, QPalette, QPen, QColor, QDrag, QMouseEvent, QKeyEvent, QPainter, QFont
+from qtpy.QtSvgWidgets import QGraphicsSvgItem
+from qtpy.QtWidgets import (QApplication, QGraphicsItem, QGraphicsScene,
+                            QGraphicsSceneDragDropEvent, QAbstractItemView,
                             QGraphicsSceneMouseEvent, QGraphicsView,
                             QLineEdit, QMenu, QWidget, QGraphicsProxyWidget)
 
@@ -29,12 +29,12 @@ class MapView(QGraphicsView):
         self.background: QGraphicsSvgItem = None
         palette = self.palette()
         if appdata.is_in_dark_mode:
-            palette.setColor(QPalette.Base, QColor(90, 90, 90)) # Map etc. backgrounds
+            palette.setColor(QPalette.ColorRole.Base, QColor(90, 90, 90)) # Map etc. backgrounds
         else:
-            palette.setColor(QPalette.Base, QColor(250, 250, 250)) # Map etc. backgrounds
+            palette.setColor(QPalette.ColorRole.Base, QColor(250, 250, 250)) # Map etc. backgrounds
         self.setPalette(palette)
         self.setInteractive(True)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.appdata = appdata
         self.central_widget = central_widget
         self.name: str = name
@@ -80,7 +80,7 @@ class MapView(QGraphicsView):
         r_id = event.mimeData().text()
 
         if r_id in self.appdata.project.maps[self.name]["boxes"].keys():
-            if isinstance(event.source(), QTreeWidget): # existing/continued drag from reaction list
+            if isinstance(event.source(), QAbstractItemView): # existing/continued drag from reaction list
                 self.appdata.project.maps[self.name]["boxes"][r_id] = (point_item.x(), point_item.y())
                 self.mapChanged.emit(r_id)
             else:
@@ -108,12 +108,12 @@ class MapView(QGraphicsView):
         identifier = event.mimeData().text()
         self.mapChanged.emit(identifier)
         self.scene.setSceneRect(self.scene.itemsBoundingRect())
-        self.viewport().setCursor(Qt.OpenHandCursor)
+        self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
         self.update()
 
     def wheelEvent(self, event):
         modifiers = QApplication.queryKeyboardModifiers()
-        if modifiers == Qt.ControlModifier:
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
             if event.angleDelta().y() > 0:
                 self.appdata.project.maps[self.name]["box-size"] *= INCREASE_FACTOR
             else:
@@ -128,7 +128,7 @@ class MapView(QGraphicsView):
                 self.zoom_out()
 
     def fit(self):
-        self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+        self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def zoom_in(self):
         self._zoom += 1
@@ -143,15 +143,15 @@ class MapView(QGraphicsView):
         self.scale(DECREASE_FACTOR, DECREASE_FACTOR)
 
     def keyPressEvent(self, event: QKeyEvent):
-        if not self.drag_map and event.key() in (Qt.Key_Control, Qt.Key_Shift):
-            self.viewport().setCursor(Qt.ArrowCursor)
+        if not self.drag_map and event.key() in (Qt.Key.Key_Control, Qt.Key.Key_Shift):
+            self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
             self.select = True
         else:
             super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event: QKeyEvent):
-        if self.select and QApplication.mouseButtons() != Qt.LeftButton and event.key() in (Qt.Key_Control, Qt.Key_Shift):
-            self.viewport().setCursor(Qt.OpenHandCursor)
+        if self.select and QApplication.mouseButtons() != Qt.MouseButton.LeftButton and event.key() in (Qt.Key.Key_Control, Qt.Key.Key_Shift):
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
             self.select = False
         else:
             super().keyReleaseEvent(event)
@@ -159,22 +159,22 @@ class MapView(QGraphicsView):
     def mousePressEvent(self, event: QMouseEvent):
         if self.hasFocus():
             if self.select: # select multiple boxes
-                self.setDragMode(QGraphicsView.RubberBandDrag) # switches to ArrowCursor
+                self.setDragMode(QGraphicsView.DragMode.RubberBandDrag) # switches to ArrowCursor
                 self.select_start = self.mapToScene(event.pos())
             else: # drag entire map
-                self.viewport().setCursor(Qt.ClosedHandCursor)
-                self.setDragMode(QGraphicsView.ScrollHandDrag)
+                self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+                self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
                 self.drag_map = True
             super(MapView, self).mousePressEvent(event) # generates events for the graphics scene items
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if self.drag_map:
-            self.viewport().setCursor(Qt.OpenHandCursor)
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
             self.drag_map = False
         if self.select:
             modifiers = QApplication.keyboardModifiers()
-            if modifiers != Qt.ControlModifier and modifiers != Qt.ShiftModifier:
-                self.viewport().setCursor(Qt.OpenHandCursor)
+            if modifiers != Qt.KeyboardModifier.ControlModifier and modifiers != Qt.KeyboardModifier.ShiftModifier:
+                self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
                 self.select = False
             point = self.mapToScene(event.pos())
 
@@ -195,7 +195,7 @@ class MapView(QGraphicsView):
 
     def focusOutEvent(self, event):
         super(MapView, self).focusOutEvent(event)
-        self.viewport().setCursor(Qt.OpenHandCursor)
+        self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
         self.select = False
 
     def enterEvent(self, event) -> None:
@@ -433,7 +433,7 @@ class ReactionBox(QGraphicsItem):
         point_size = font.pointSize()
         font.setPointSizeF(point_size+13.0)
         self.item.setFont(font)
-        self.item.setAttribute(Qt.WA_TranslucentBackground)
+        self.item.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         self.item.setFixedWidth(self.map.appdata.box_width)
         self.item.setMaximumHeight(self.map.appdata.box_height)
@@ -451,12 +451,12 @@ class ReactionBox(QGraphicsItem):
 
         self.set_default_style()
 
-        self.setCursor(Qt.OpenHandCursor)
-        self.setAcceptedMouseButtons(Qt.LeftButton)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.item.textEdited.connect(self.value_changed)
         self.item.returnPressed.connect(self.returnPressed)
 
-        self.item.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.item.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.item.customContextMenuRequested.connect(self.on_context_menu)
 
         # create context menu
@@ -491,20 +491,20 @@ class ReactionBox(QGraphicsItem):
             else:
                 self.setSelected(True)
         else:
-            self.setCursor(Qt.ClosedHandCursor)
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         event.accept()
         self.ungrabMouse()
         if not self.map.select:
-            self.setCursor(Qt.OpenHandCursor)
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
             super().mouseReleaseEvent(event) # here deselection of the other boxes occurs
 
     def hoverEnterEvent(self, event):
         if self.map.select:
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
         else:
-            self.setCursor(Qt.OpenHandCursor)
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
         super().hoverEnterEvent(event)
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
@@ -513,7 +513,7 @@ class ReactionBox(QGraphicsItem):
         mime = QMimeData()
         mime.setText(str(self.id))
         drag.setMimeData(mime)
-        drag.exec_()
+        drag.exec()
 
     def add_line_widget(self):
         self.proxy = self.map.scene.addWidget(self.item)
@@ -560,14 +560,14 @@ class ReactionBox(QGraphicsItem):
         color.setAlphaF(0.4)
         palette.setColor(role, color)
         role = self.item.foregroundRole()
-        palette.setColor(role, Qt.black)
+        palette.setColor(role, Qt.GlobalColor.black)
         self.item.setPalette(palette)
 
         self.set_font_style(QFont.StyleNormal)
 
     def set_error_style(self):
         ''' set the reaction box to error style'''
-        self.set_color(Qt.white)
+        self.set_color(Qt.GlobalColor.white)
         self.set_fg_color(self.map.appdata.scen_color_bad)
         self.set_font_style(QFont.StyleOblique)
 
@@ -604,9 +604,9 @@ class ReactionBox(QGraphicsItem):
                 if math.isclose(vl, vu, abs_tol=self.map.appdata.abs_tol):
                     if self.map.appdata.modes_coloring:
                         if vl == 0:
-                            self.set_color(Qt.red)
+                            self.set_color(Qt.GlobalColor.red)
                         else:
-                            self.set_color(Qt.green)
+                            self.set_color(Qt.GlobalColor.green)
                     else:
                         self.set_comp_style()
                 else:
@@ -626,7 +626,7 @@ class ReactionBox(QGraphicsItem):
         role = self.item.backgroundRole()
         palette.setColor(role, color)
         role = self.item.foregroundRole()
-        palette.setColor(role, Qt.black)
+        palette.setColor(role, Qt.GlobalColor.black)
         self.item.setPalette(palette)
 
     def set_font_style(self, style: QFont.Style):
@@ -679,10 +679,10 @@ class ReactionBox(QGraphicsItem):
             painter.drawEllipse(-15, -15, 20, 20)
 
         else:
-            painter.setPen(Qt.darkGray)
+            painter.setPen(Qt.GlobalColor.darkGray)
             painter.drawEllipse(-15, -15, 20, 20)
 
-        painter.setPen(Qt.darkGray)
+        painter.setPen(Qt.GlobalColor.darkGray)
         painter.drawLine(-5, 0, -5, -10)
         painter.drawLine(0, -5, -10,  -5)
 
@@ -694,7 +694,7 @@ class ReactionBox(QGraphicsItem):
 
     def on_context_menu(self, point):
         # show context menu
-        self.pop_menu.exec_(self.item.mapToGlobal(point))
+        self.pop_menu.exec(self.item.mapToGlobal(point))
 
     def position(self):
         position_dialog = BoxPositionDialog(self, self.map)

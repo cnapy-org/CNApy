@@ -4,6 +4,7 @@ import sys
 import traceback
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
@@ -20,10 +21,10 @@ import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
-from qtpy.QtGui import QColor, QIcon, QKeySequence
-from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
-                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
+from qtpy.QtCore import Qt, Slot, QTimer, QSignalBlocker, QSize
+from qtpy.QtGui import QAction, QActionGroup, QColor, QIcon, QKeySequence, QShortcut
+from qtpy.QtWidgets import (QApplication, QFileDialog, QStyle,
+                            QMainWindow, QMessageBox, QToolBar, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, CnaMap
@@ -203,7 +204,7 @@ class MainWindow(QMainWindow):
 
         update_action = QAction("Default Coloring", self)
         update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(self.central_widget.update)
+        update_action.triggered.connect(self.centralWidget().set_default_colors)
 
         self.scenario_menu.addAction(self.heaton_action)
         self.scenario_menu.addAction(self.onoff_action)
@@ -414,7 +415,7 @@ class MainWindow(QMainWindow):
 
         self.thermodynamic_menu = self.analysis_menu.addMenu("Thermodynamic analyses")
 
-        optmdf_action = QAction("OptMDFpathway...", self)
+        optmdf_action = QAction("OptMDFpathway with bottleneck analysis...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.thermodynamic_menu.addAction(optmdf_action)
 
@@ -422,9 +423,9 @@ class MainWindow(QMainWindow):
         tfba_action.triggered.connect(self.perform_thermodynamic_fba)
         self.thermodynamic_menu.addAction(tfba_action)
 
-        bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
-        bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
-        self.thermodynamic_menu.addAction(bottleneck_action)
+        # bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
+        # bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
+        # self.thermodynamic_menu.addAction(bottleneck_action)
 
         self.thermodynamic_menu.addSeparator()
 
@@ -500,27 +501,27 @@ class MainWindow(QMainWindow):
         self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
         config_action = QAction("Configure COBRApy...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
         config_action = QAction("Configure IBM CPLEX Full Version (up to CPLEX version 22.1.1)...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_cplex_configuration_dialog)
 
         config_action = QAction("Configure IBM CPLEX Full Version (for CPLEX versions >=22.1.2)...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_new_cplex_configuration_dialog)
 
         config_action = QAction("Configure Gurobi Full Version...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_gurobi_configuration_dialog)
 
@@ -537,7 +538,7 @@ class MainWindow(QMainWindow):
         show_model_view_action.triggered.connect(self.show_model_view)
 
         about_action = QAction("About CNApy...", self)
-        about_action.setMenuRole(QAction.NoRole)
+        about_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
@@ -622,17 +623,17 @@ class MainWindow(QMainWindow):
             msgBox.setText("The project has been modified.")
             msgBox.setInformativeText("Do you want to save your changes?")
             msgBox.setStandardButtons(
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msgBox.setDefaultButton(QMessageBox.Save)
-            ret = msgBox.exec_()
-            if ret == QMessageBox.Save:
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel)
+            msgBox.setDefaultButton(QMessageBox.StandardButton.Save)
+            ret = msgBox.exec()
+            if ret == QMessageBox.StandardButton.Save:
                 # Save was clicked
                 self.save_project_as()
                 return True
-            if ret == QMessageBox.Discard:
+            if ret == QMessageBox.StandardButton.Discard:
                 # Don't save was clicked
                 return True
-            if ret == QMessageBox.Cancel:
+            if ret == QMessageBox.StandardButton.Cancel:
                 return False
         return True
 
@@ -643,7 +644,7 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name + ' - unsaved changes')
 
@@ -654,7 +655,7 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name)
 
@@ -674,14 +675,14 @@ class MainWindow(QMainWindow):
         if len(self.appdata.project.name) == 0:
             shown_name = "Untitled project"
         else:
-            shown_name = QFileInfo(self.appdata.project.name).fileName()
+            shown_name = os.path.basename(filename)
 
         self.setWindowTitle("CNApy - " + shown_name)
 
     @Slot()
     def show_about(self):
         dialog = AboutDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def plot_space(self):
@@ -702,11 +703,11 @@ class MainWindow(QMainWindow):
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
         self.sd_viewer = SDComputationViewer(self, self.appdata, sd_setup)
-        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.QueuedConnection)
+        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.ConnectionType.QueuedConnection)
         # connect signals to update progress
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
-        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.ConnectionType.QueuedConnection)
+        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.ConnectionType.QueuedConnection)
         self.sd_viewer.cancel_computation.connect(self.terminate_strain_design_computation)
         # show dialog and launch process
         # self.sd_viewer.exec()
@@ -779,18 +780,18 @@ class MainWindow(QMainWindow):
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def optimize_flux(self):
         dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_config_dialog(self, first_start=False):
         dialog = ConfigDialog(self, first_start)
         if not first_start:
-            dialog.exec_()
+            dialog.exec()
 
     @Slot()
     def show_config_cobrapy_dialog(self):
@@ -801,22 +802,22 @@ class MainWindow(QMainWindow):
         if self.sd_dialog is not None:
             dialog.optlang_solver_set.connect(self.sd_dialog.set_optlang_solver_text)
             dialog.optlang_solver_set.connect(self.sd_dialog.configure_solver_options)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_cplex_configuration_dialog(self):
         dialog = CplexConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_new_cplex_configuration_dialog(self):
         dialog = CplexNewConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_gurobi_configuration_dialog(self):
         dialog = GurobiConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def export_sbml(self):
@@ -826,19 +827,19 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0:
             return
 
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         try:
-            self.save_sbml(filename)
+            self.save_model(filename)
         except ValueError:
             exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     @Slot()
     def download_examples(self):
         dialog = DownloadDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def load_box_positions(self):
@@ -1086,7 +1087,7 @@ class MainWindow(QMainWindow):
         '''Execute RenameMapDialog'''
         dialog = RenameMapDialog(
             self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def inc_box_size(self):
@@ -1266,7 +1267,7 @@ class MainWindow(QMainWindow):
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
 
-            self.setCursor(Qt.BusyCursor)
+            self.setCursor(Qt.CursorShape.BusyCursor)
             try:
                 cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
@@ -1285,18 +1286,19 @@ class MainWindow(QMainWindow):
             self.update_scenario_file_name()
             self.update_recently_used_models(filename)
 
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def open_project(self, filename):
         self.close_project_dialogs()
         temp_dir = TemporaryDirectory()
-
-        self.setCursor(Qt.BusyCursor)
+        base_path = Path(temp_dir.name)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
         try:
             with ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir.name)
+                zip_ref.extractall(base_path)
 
-                box_positions_path = temp_dir.name+"/box_positions.json"
+                box_positions_path = base_path / "box_positions.json"
                 if not os.path.exists(box_positions_path):
                     QMessageBox.critical(
                         self,
@@ -1304,7 +1306,7 @@ class MainWindow(QMainWindow):
                         "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
                         "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
                     )
-                    self.setCursor(Qt.ArrowCursor)
+                    self.setCursor(Qt.CursorShape.ArrowCursor)
                     return
 
                 with open(box_positions_path, 'r') as fp:
@@ -1312,16 +1314,26 @@ class MainWindow(QMainWindow):
 
                     count = 1
                     for _name, m in maps.items():
-                        m["background"] = temp_dir.name + \
-                            "/map" + str(count) + ".svg"
+                        m["background"] = str(base_path / ("map" + str(count) + ".svg"))
                         count += 1
                 # load meta_data
-                with open(temp_dir.name+"/meta.json", 'r') as fp:
+                with open(base_path / "meta.json", 'r') as fp:
                     meta_data = json.load(fp)
 
                 try:
-                    cobra_py_model = CNApyModel.read_sbml_model(
-                        temp_dir.name + "/model.sbml")
+                    json_model_path = base_path / "model.json"
+                    sbml_model_path = base_path / "model.sbml"
+
+                    if json_model_path.exists():
+                        cobra_py_model = cobra.io.load_json_model(json_model_path)
+                        # the following calls are copied from CNApyModel.read_sbml_model
+                        cobra_py_model.set_reaction_hashes()
+                        cobra_py_model.set_stoichiometry_hash_object()
+                        cobra_py_model.__class__ = CNApyModel
+                    elif sbml_model_path.exists():
+                        cobra_py_model = CNApyModel.read_sbml_model(sbml_model_path)
+                    else:
+                        raise FileNotFoundError("Project does not contain a model.json or model.sbml file.")
                 except cobra.io.sbml.CobraSBMLError:
                     exstr = get_last_exception_string()
                     QMessageBox.warning(
@@ -1332,6 +1344,7 @@ class MainWindow(QMainWindow):
                 self.appdata.project.meta_data = meta_data
                 self.appdata.project.cobra_py_model = cobra_py_model
                 self.set_current_filename(filename)
+                self.appdata.last_scen_directory = os.path.dirname(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
                 self.centralWidget().clear_model_item_history()
@@ -1370,7 +1383,7 @@ class MainWindow(QMainWindow):
                 "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
             )
 
-        self.setCursor(Qt.ArrowCursor)
+        QApplication.restoreOverrideCursor()
 
     @Slot()
     def open_project_dialog(self):
@@ -1397,7 +1410,7 @@ class MainWindow(QMainWindow):
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
 
-    def save_sbml(self, filename):
+    def save_model(self, filename, save_as_json: bool = False):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
@@ -1426,8 +1439,10 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.cobra_py_model = clean_model
 
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, filename)
+        if save_as_json:
+            cobra.io.save_json_model(self.appdata.project.cobra_py_model, filename)
+        else:
+            cobra.io.write_sbml_model(self.appdata.project.cobra_py_model, filename)
 
     @Slot()
     def save_project(self):
@@ -1457,59 +1472,60 @@ class MainWindow(QMainWindow):
         else:
             self.continue_save_project()
 
-    @Slot()
     def continue_save_project(self):
         ''' Save the project '''
-        tmp_dir = TemporaryDirectory().name
-        filename: str = self.appdata.project.name
+        with TemporaryDirectory() as tmp_dir:
+            base_path = Path(tmp_dir)
+            filename: str = self.appdata.project.name
+            model_file: str = "model.json" if self.appdata.save_model_as_json else "model.sbml"
 
-        self.setCursor(Qt.BusyCursor)
-        try:
-            self.save_sbml(tmp_dir + "model.sbml")
-        except ValueError:
-            exstr = get_last_exception_string()
-            utils.show_unknown_error_box(exstr)
+            self.setCursor(Qt.CursorShape.BusyCursor)
+            try:
+                self.save_model(base_path / model_file, save_as_json=self.appdata.save_model_as_json)
+            except ValueError:
+                exstr = get_last_exception_string()
+                utils.show_unknown_error_box(exstr)
 
-            return
+                return
 
-        svg_files = {}
-        count = 1
-        for name, m in self.appdata.project.maps.items():
-            if m.get('view', 'cnapy') == 'cnapy':
-                arc_name = "map" + str(count) + ".svg"
-                svg_files[m["background"]] = arc_name
-                m["background"] = arc_name
-            count += 1
-
-        # Save maps information
-        # also contains the Escher map JSONs
-        with open(tmp_dir + "box_positions.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp, skipkeys=True)
-
-        # Save meta data
-        self.appdata.project.meta_data["format version"] = self.appdata.format_version
-        with open(tmp_dir + "meta.json", 'w') as fp:
-            json.dump(self.appdata.project.meta_data, fp)
-
-        with ZipFile(filename, 'w') as zip_obj:
-            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zip_obj.write(tmp_dir + "box_positions.json",
-                          arcname="box_positions.json")
-            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
-            for name, m in svg_files.items():
-                zip_obj.write(name, arcname=m)
-
-        # put svgs into temporary directory and update references
-        with ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(self.appdata.temp_dir.name)
+            svg_files = {}
             count = 1
             for name, m in self.appdata.project.maps.items():
-                m["background"] = self.appdata.temp_dir.name + \
-                    "/map" + str(count) + ".svg"
+                if m.get('view', 'cnapy') == 'cnapy':
+                    arc_name = "map" + str(count) + ".svg"
+                    svg_files[m["background"]] = arc_name
+                    m["background"] = arc_name
                 count += 1
 
+            # Save maps information
+            # also contains the Escher map JSONs
+            with open(base_path / "box_positions.json", 'w') as fp:
+                json.dump(self.appdata.project.maps, fp, skipkeys=True)
+
+            # Save meta data
+            self.appdata.project.meta_data["format version"] = self.appdata.format_version
+            with open(base_path / "meta.json", 'w') as fp:
+                json.dump(self.appdata.project.meta_data, fp)
+
+            with ZipFile(filename, 'w') as zip_obj:
+                zip_obj.write(base_path / model_file, arcname=model_file)
+                zip_obj.write(base_path / "box_positions.json",
+                            arcname="box_positions.json")
+                zip_obj.write(base_path / "meta.json", arcname="meta.json")
+                for name, m in svg_files.items():
+                    zip_obj.write(name, arcname=m)
+
+            # put svgs into temporary directory and update references
+            with ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(self.appdata.temp_dir.name)
+                count = 1
+                for name, m in self.appdata.project.maps.items():
+                    m["background"] = self.appdata.temp_dir.name + \
+                        "/map" + str(count) + ".svg"
+                    count += 1
+
         self.nounsaved_changes()
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     @Slot()
     def save_project_as(self):
@@ -1556,7 +1572,7 @@ class MainWindow(QMainWindow):
         elif len(filename) <= 4 or filename[-4:] != ".png":
             filename += ".png"
 
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         scale_factor = 10.0
         view = self.centralWidget().map_tabs.currentWidget()
         original_size = QSize(view.size())
@@ -1569,7 +1585,7 @@ class MainWindow(QMainWindow):
 
         view.setTransform(view.transform().scale(1/scale_factor, 1/scale_factor))
         view.resize(original_size)
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def on_tab_change(self, idx):
         if idx >= 0:
@@ -1624,7 +1640,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def clipboard_arithmetics(self):
         dialog = ClipboardCalculator(self.appdata)
-        dialog.exec_()
+        dialog.exec()
         self.centralWidget().update()
 
     def add_values_to_scenario(self):
@@ -1704,6 +1720,8 @@ class MainWindow(QMainWindow):
         else:
             self.make_scenario_feasible_dialog.modified_scenario = None
         self.make_scenario_feasible_dialog.show()
+        # have bm_reac_id_select always enabled even if the parent is not
+        self.make_scenario_feasible_dialog.bm_reac_id_select.setEnabled(True)
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:
@@ -1871,7 +1889,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def fva(self):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents()
         fva_result = None
         with self.appdata.project.cobra_py_model as model:
@@ -1942,12 +1960,12 @@ class MainWindow(QMainWindow):
     # def efm(self):
     #     self.efm_dialog = EFMDialog(
     #         self.appdata, self.centralWidget())
-    #     self.efm_dialog.exec_()
+    #     self.efm_dialog.exec()
 
     def in_out_flux(self):
         in_out_flux_dialog = InOutFluxDialog(
             self.appdata)
-        in_out_flux_dialog.exec_()
+        in_out_flux_dialog.exec()
 
     def all_in_out_fluxes(self):
         filename = self._get_filename("xlsx")
@@ -2080,7 +2098,7 @@ class MainWindow(QMainWindow):
     def efmtool(self):
         self.efmtool_dialog = EFMtoolDialog(
             self.appdata, self.centralWidget())
-        self.efmtool_dialog.exec_()
+        self.efmtool_dialog.exec()
 
     def mcs(self):
         if self.mcs_dialog is None:
@@ -2178,33 +2196,31 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        # Has to be in self to keep computation thread
         self.optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
         )
-        self.optmdfpathway_dialog.exec_()
+        self.optmdfpathway_dialog.show()
 
     @Slot()
     def perform_thermodynamic_fba(self):
-        # Has to be in self to keep computation thread
         self.thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
             analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
         )
-        self.thermodynamic_fba_dialog.exec_()
+        self.thermodynamic_fba_dialog.exec()
 
-    @Slot()
-    def perform_bottleneck_analysis(self):
-        # Has to be in self to keep computation thread
-        self.bottleneck_dialog = ThermodynamicDialog(
-            self.appdata,
-            self.centralWidget(),
-            analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
-        )
-        self.bottleneck_dialog.exec_()
+    # @Slot()
+    # def perform_bottleneck_analysis(self):
+    #     # Has to be in self to keep computation thread
+    #     self.bottleneck_dialog = ThermodynamicDialog(
+    #         self.appdata,
+    #         self.centralWidget(),
+    #         analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
+    #     )
+    #     self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)
