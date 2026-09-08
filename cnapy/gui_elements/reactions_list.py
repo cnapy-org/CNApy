@@ -6,11 +6,13 @@ from typing_extensions import Annotated
 import cobra
 import copy
 import re
-from qtpy.QtCore import QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint, QSignalBlocker, QEvent
+from qtpy.QtCore import (QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint,
+                         QSignalBlocker, QEvent, QTimer)
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
 from qtpy.QtWidgets import (QHBoxLayout, QTableView, QTableWidget, QTableWidgetItem, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter, QStyledItemDelegate,
-                            QVBoxLayout, QWidget, QMenu, QAbstractItemView, QHeaderView)
+                            QVBoxLayout, QWidget, QMenu, QAbstractItemView, QHeaderView, QStackedWidget,
+                            QToolButton, QFrame, QPlainTextEdit)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
@@ -499,8 +501,10 @@ class ReactionList(QWidget):
         # heuristic initial column widths
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Scenario)
         self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
-        width = self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.Scenario) + \
-                self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.LB)
+        self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
+        width = self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.Scenario)
+        self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Flux, width)
+        width +=  self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.LB)
         self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Id, width)
         self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Name, width)
         self.visible_column = [True]*len(self.header_labels)
@@ -608,8 +612,7 @@ class ReactionList(QWidget):
 
             self.reaction_mask.id.setText(reaction.id)
             self.reaction_mask.name.setText(reaction.name)
-            self.reaction_mask.equation.setText(
-                reaction.build_reaction_string())
+            self.reaction_mask.set_equation_from_reaction(reaction)
             self.reaction_mask.lower_bound.setText(str(reaction.lower_bound))
             self.reaction_mask.upper_bound.setText(str(reaction.upper_bound))
             self.reaction_mask.coefficent.setText(
@@ -914,6 +917,119 @@ class JumpList(QWidget):
     jumpToMap = Signal(str)
 
 
+class ClickableEquationLabel(QLabel):
+    """A read-only label used to display a reaction equation with clickable
+    metabolite links (see ReactionMask.build_equation_html).
+
+    Clicking a link is handled through the inherited linkActivated signal.
+    Clicking anywhere else on the label emits `clicked`, which
+    ReactionMask uses to switch back to the editable QLineEdit.
+    """
+
+    clicked = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._hovering_link = False
+        self._metabolite_names = {}
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
+        self.setWordWrap(False)
+        self.setMouseTracking(True)
+        # Ignored so the layout can shrink this label below its content's
+        # sizeHint instead of growing the whole mask to fit a long equation;
+        # Qt still clips the painted rich text to the label's actual
+        # geometry, so an over-long equation is simply cut off here (the
+        # expand button/overlay is how the full text stays reachable).
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.linkHovered.connect(self._on_link_hovered)
+
+    def set_metabolite_names(self, reaction: cobra.Reaction):
+        self._metabolite_names = {metabolite.id: metabolite.name for metabolite in reaction.metabolites}
+
+    def _on_link_hovered(self, link: str):
+        self._hovering_link = bool(link)
+        self.setCursor(Qt.CursorShape.PointingHandCursor if link else Qt.CursorShape.IBeamCursor)
+        self.setToolTip(self._metabolite_names.get(link, ""))
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        if not self._hovering_link:
+            self.clicked.emit()
+
+
+class EquationTextEdit(QPlainTextEdit):
+    """A word-wrapping text editor used to edit the *whole* reaction
+    equation inside the overlay, filling its entire area rather than a
+    single cramped line.
+
+    The underlying reaction string is logically single-line, so Enter
+    commits (emits editingFinished) instead of inserting a newline;
+    losing focus also commits, mirroring QLineEdit's editingFinished so
+    ReactionMask can run the exact same commit pipeline
+    (reaction_data_changed) it already uses for self.equation. Escape
+    discards the edit instead (emits cancelled).
+    """
+
+    editingFinished = Signal()
+    cancelled = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.setTabChangesFocus(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            # Commit via the same path as a normal focus-out, rather than
+            # inserting a newline: the reaction string this editor stands
+            # in for has no line breaks of its own.
+            self.clearFocus()
+            event.accept()
+            return
+        if event.key() == Qt.Key.Key_Escape:
+            self.cancelled.emit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self.editingFinished.emit()
+
+
+class EquationOverlay(QFrame):
+    """Popup used by ReactionMask.show_equation_overlay() to display (and,
+    via EquationTextEdit, edit) the full reaction equation.
+
+    A Qt::Popup can be dismissed in more than one way (a click outside it,
+    Escape, the toggle button, or a metabolite link), so both closeEvent
+    and hideEvent are used to make sure any edit still in progress in the
+    overlay's (throwaway) EquationTextEdit gets committed before the
+    overlay is destroyed (WA_DeleteOnClose), no matter which path
+    triggered the dismissal.
+    """
+
+    def __init__(self, mask: "ReactionMask"):
+        super().__init__(mask, Qt.WindowType.Popup)
+        self._mask = mask
+        self._closing_handled = False
+
+    def _handle_closing_once(self):
+        if not self._closing_handled:
+            self._closing_handled = True
+            self._mask.handle_overlay_closing()
+
+    def closeEvent(self, event):
+        self._handle_closing_once()
+        super().closeEvent(event)
+
+    def hideEvent(self, event):
+        self._handle_closing_once()
+        super().hideEvent(event)
+
+
 class ReactionMask(QWidget):
     """The input mask for a reaction"""
 
@@ -923,8 +1039,19 @@ class ReactionMask(QWidget):
         self.parent: ReactionList = parent
         self.reaction = None
         self.is_valid = True
+        self.equation_valid = True
         self.fba_relevant_change = False
         self.setAcceptDrops(False)
+        # State for the equation overlay opened by equation_expand_button
+        # (see show_equation_overlay/handle_overlay_closing): the overlay
+        # itself while open (None otherwise); its current content, which is
+        # either a read-only ClickableEquationLabel or -- while the user is
+        # editing -- a throwaway EquationTextEdit (self.equation itself is
+        # never moved into the overlay, so there is nothing shared to keep
+        # track of or reclaim).
+        self._equation_overlay = None
+        self._overlay_label = None
+        self._overlay_editor = None
 
         layout = QVBoxLayout()
 
@@ -950,10 +1077,51 @@ class ReactionMask(QWidget):
         layout.addItem(l)
 
         l = QHBoxLayout()
-        label = QLabel("Equation:")
+        label = QLabel("Equation: ")
         self.equation = QLineEdit()
-        l.addWidget(label)
-        l.addWidget(self.equation)
+        # Read-only view of the equation with clickable metabolite links,
+        # shown in place of the plain QLineEdit whenever it is not being
+        # edited (see set_equation_from_reaction/enter_equation_edit_mode).
+        self.equation_link_label = ClickableEquationLabel()
+        self.equation_link_label.linkActivated.connect(self.jump_to_metabolite_by_id)
+        self.equation_link_label.clicked.connect(self.enter_equation_edit_mode)
+        # Match font and height to self.equation exactly, so that switching
+        # between the two stack pages never changes the row's geometry and
+        # both widgets vertically center their text within the identical
+        # box (this is also why build_equation_html renders cobra's own
+        # ASCII arrows rather than Unicode ones: a Unicode arrow glyph the
+        # active font lacks would fall back to a different font just for
+        # that character and can shift the whole line's vertical centering).
+        self.equation_link_label.setFont(self.equation.font())
+        self.equation_link_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.equation_link_label.setFixedHeight(self.equation.sizeHint().height())
+        self.equation_stack = QStackedWidget()
+        self.equation_stack.addWidget(self.equation)
+        self.equation_stack.addWidget(self.equation_link_label)
+        self.equation_stack.setCurrentWidget(self.equation_link_label)
+        # Only shown once the equation no longer fits in the field; opens an
+        # overlay with the full, multi-line, link-ified equation, and acts
+        # as a close button for as long as that overlay is open.
+        self.equation_expand_button = QToolButton()
+        self.equation_expand_button.setText("\u25be")
+        self.equation_expand_button.setToolTip("Show full reaction equation")
+        self.equation_expand_button.setVisible(False)
+        self.equation_expand_button.clicked.connect(self.show_equation_overlay)
+        # Explicit AlignVCenter on every item in this row: QBoxLayout's
+        # default behavior for an item that can't grow to fill the row
+        # (like equation_link_label's fixed height, or a QLabel/QToolButton
+        # at their natural size) is to pin it to the *top* of the row, not
+        # center it. That's invisible as long as every item is roughly the
+        # same height, but equation_expand_button is only shown for long
+        # equations, and a QToolButton's natural height varies a lot by
+        # style -- notably taller under Linux's Fusion/GTK-based styles
+        # than under Windows' native one. Once it's the tallest item and
+        # sets the row's height, the shorter equation text would otherwise
+        # get shoved to the top of that taller row instead of staying
+        # vertically centered in it.
+        l.addWidget(label, 0, Qt.AlignmentFlag.AlignVCenter)
+        l.addWidget(self.equation_stack, 0, Qt.AlignmentFlag.AlignVCenter)
+        l.addWidget(self.equation_expand_button, 0, Qt.AlignmentFlag.AlignVCenter)
         layout.addItem(l)
 
         l = QHBoxLayout()
@@ -986,24 +1154,24 @@ class ReactionMask(QWidget):
         self.annotation_widget = AnnotationWidget(self)
         layout.addItem(self.annotation_widget)
 
-        l = QVBoxLayout()
-        label = QLabel("Metabolites involved in this reaction:")
-        l.addWidget(label)
-        l2 = QHBoxLayout()
-        self.metabolites = QTableWidget()
-        self.metabolites.setColumnCount(2)
-        self.metabolites.setHorizontalHeaderLabels(["Id", "Name"])
-        self.metabolites.setWordWrap(False)
-        self.metabolites.verticalHeader().setVisible(False)
-        self.metabolites.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        self.metabolites.verticalHeader().setMinimumSectionSize(self.metabolites.fontMetrics().lineSpacing())
-        self.metabolites.verticalHeader().setDefaultSectionSize(self.metabolites.fontMetrics().lineSpacing())
-        self.metabolites.setSortingEnabled(True)
-        l2.addWidget(self.metabolites)
-        l.addItem(l2)
-        self.metabolites.itemDoubleClicked.connect(
-            self.emit_jump_to_metabolite)
-        layout.addItem(l)
+        # l = QVBoxLayout()
+        # label = QLabel("Metabolites involved in this reaction:")
+        # l.addWidget(label)
+        # l2 = QHBoxLayout()
+        # self.metabolites = QTableWidget()
+        # self.metabolites.setColumnCount(2)
+        # self.metabolites.setHorizontalHeaderLabels(["Id", "Name"])
+        # self.metabolites.setWordWrap(False)
+        # self.metabolites.verticalHeader().setVisible(False)
+        # self.metabolites.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        # self.metabolites.verticalHeader().setMinimumSectionSize(self.metabolites.fontMetrics().lineSpacing())
+        # self.metabolites.verticalHeader().setDefaultSectionSize(self.metabolites.fontMetrics().lineSpacing())
+        # self.metabolites.setSortingEnabled(True)
+        # l2.addWidget(self.metabolites)
+        # l.addItem(l2)
+        # self.metabolites.itemDoubleClicked.connect(
+        #     self.emit_jump_to_metabolite)
+        # layout.addItem(l)
 
         self.jump_list = JumpList(self)
         layout.addWidget(self.jump_list)
@@ -1288,6 +1456,11 @@ class ReactionMask(QWidget):
         valid_lb = self.validate_lowerbound()
         valid_ub = self.validate_upperbound()
         valid_coefficient = self.validate_coefficient()
+        # Tracked separately so refresh_equation_view() can decide whether to
+        # collapse the equation field back to the link view -- that's only
+        # sensible once the equation itself parses correctly, independent of
+        # whether some other field (id, name, bounds, ...) is invalid.
+        self.equation_valid = valid_equation
         if valid_id & valid_name & valid_equation & valid_lb & valid_ub & valid_coefficient:
             self.is_valid = True
         else:
@@ -1298,6 +1471,7 @@ class ReactionMask(QWidget):
         if self.is_valid:
             self.apply()
             self.update_state()
+        self.refresh_equation_view()
 
     def update_state(self):
         self.jump_list.clear()
@@ -1309,22 +1483,22 @@ class ReactionMask(QWidget):
                 if self.id.text() in mmap["boxes"]:
                     self.jump_list.add(name)
 
-        self.metabolites.setSortingEnabled(False)
-        self.metabolites.setRowCount(0)
-        if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
-            reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
-                self.id.text())
-            for row, m in enumerate(reaction.metabolites):
-                self.metabolites.insertRow(row)
-                id_item = QTableWidgetItem(m.id)
-                name_item = QTableWidgetItem(m.name)
-                id_item.setData(Qt.ItemDataRole.UserRole, m)
-                text = "Id: " + m.id + "\nName: " + m.name
-                id_item.setToolTip(text)
-                name_item.setToolTip(text)
-                self.metabolites.setItem(row, 0, id_item)
-                self.metabolites.setItem(row, 1, name_item)
-        self.metabolites.setSortingEnabled(True)
+        # self.metabolites.setSortingEnabled(False)
+        # self.metabolites.setRowCount(0)
+        # if self.parent.appdata.project.cobra_py_model.reactions.has_id(self.id.text()):
+        #     reaction = self.parent.appdata.project.cobra_py_model.reactions.get_by_id(
+        #         self.id.text())
+        #     for row, m in enumerate(reaction.metabolites):
+        #         self.metabolites.insertRow(row)
+        #         id_item = QTableWidgetItem(m.id)
+        #         name_item = QTableWidgetItem(m.name)
+        #         id_item.setData(Qt.ItemDataRole.UserRole, m)
+        #         text = "Id: " + m.id + "\nName: " + m.name
+        #         id_item.setToolTip(text)
+        #         name_item.setToolTip(text)
+        #         self.metabolites.setItem(row, 0, id_item)
+        #         self.metabolites.setItem(row, 1, name_item)
+        # self.metabolites.setSortingEnabled(True)
 
     def emit_jump_to_map(self, name):
         self.jumpToMap.emit(name, self.id.text())
@@ -1336,7 +1510,281 @@ class ReactionMask(QWidget):
     @Slot()
     def update_reaction_string(self):
         if self.reaction is not None:
-            self.equation.setText(self.reaction.build_reaction_string())
+            self.set_equation_from_reaction(self.reaction)
+
+    def build_equation_html(self, reaction: cobra.Reaction, multiline: bool = False) -> str:
+        """Build a rich-text version of the reaction equation in which every
+        metabolite id is a clickable link (href = metabolite id).
+
+        Reactants/products are always ' + '-separated (breakable spaces),
+        matching reaction.build_reaction_string() and letting word-wrap lay
+        out several metabolites per line when there's room, rather than
+        forcing one per line. With multiline=True (used for the expanded
+        overlay) the arrow additionally gets its own line, visually
+        separating the reactant and product sides.
+
+        The arrow itself is rendered using cobra's own ASCII notation
+        ('-->' / '<=>', HTML-escaped) rather than a Unicode arrow glyph:
+        besides matching what the plain QLineEdit shows, this avoids a
+        Unicode glyph missing from the active font falling back to a
+        different font just for that character, which can shift the
+        vertical centering of the whole line.
+        """
+        def format_side(metabolites, sign):
+            parts = []
+            for m, coeff in metabolites.items():
+                coeff = coeff * sign
+                factor = "" if isclose(abs(coeff), 1.0) else f"{abs(coeff):g} "
+                parts.append(f'{factor}<a href="{m.id}">{m.id}</a>')
+            return " + ".join(parts)
+
+        reactants = {m: c for m, c in reaction.metabolites.items() if c < 0}
+        products = {m: c for m, c in reaction.metabolites.items() if c > 0}
+        lhs = format_side(reactants, -1)
+        rhs = format_side(products, 1)
+        arrow = "&lt;=&gt;" if reaction.reversibility else "--&gt;"
+        arrow_html = f"<br>{arrow}<br>" if multiline else f" {arrow} "
+        return f"{lhs}{arrow_html}{rhs}"
+
+    def set_equation_from_reaction(self, reaction: cobra.Reaction):
+        """Populate both the editable equation field and its link-ified
+        display counterpart from `reaction`, and show the display view."""
+        self.equation.setText(reaction.build_reaction_string())
+        self.equation.setModified(False)
+        self.equation_link_label.setText(self.build_equation_html(reaction))
+        self.equation_link_label.set_metabolite_names(reaction)
+        self.equation_stack.setCurrentWidget(self.equation_link_label)
+        self.equation_valid = True
+        self.update_equation_expand_button()
+
+    def refresh_equation_view(self):
+        """Called after every edit attempt on the mask (successful or not).
+
+        Collapses the equation field back to the read-only link view once it
+        holds a valid equation; otherwise leaves it in edit mode so the red
+        highlight from validate_equation() stays visible to the user. Never
+        interrupts an edit that is currently in progress.
+        """
+        if self.equation_stack.currentWidget() is self.equation and self.equation.hasFocus():
+            return
+        if self.equation_valid and self.reaction is not None:
+            self.set_equation_from_reaction(self.reaction)
+        else:
+            self.equation_stack.setCurrentWidget(self.equation)
+
+    def enter_equation_edit_mode(self):
+        """Switch the equation field from the link view to the plain,
+        editable QLineEdit (triggered by clicking the link view anywhere
+        that isn't itself a metabolite link)."""
+        self.equation_stack.setCurrentWidget(self.equation)
+        self.equation.setFocus()
+        #self.equation.selectAll()
+
+    def jump_to_metabolite_by_id(self, metabolite_id: str):
+        """Handle a click on a metabolite link, whether in the inline
+        equation view or in the expanded overlay."""
+        self.jumpToMetabolite.emit(metabolite_id)
+
+    def update_equation_expand_button(self):
+        """Show the dropdown/expand button only once the equation is too
+        wide to fit in the field at its current size."""
+        if self.reaction is None:
+            self.equation_expand_button.setVisible(False)
+            return
+        metrics = self.equation_link_label.fontMetrics()
+        text_width = metrics.horizontalAdvance(self.reaction.build_reaction_string())
+        available_width = self.equation_link_label.width()
+        self.equation_expand_button.setVisible(text_width > available_width)
+
+    def build_overlay_label(self, overlay: "EquationOverlay") -> "ClickableEquationLabel":
+        """Build the read-only, word-wrapped, link-ified equation view used
+        to fill the overlay, sized (and the overlay resized) to fit its
+        content exactly. Shared by show_equation_overlay (initial open) and
+        restore_overlay_to_link_view (after committing an edit), so the two
+        never drift out of sync.
+        """
+        margin = 8
+        content_width = max(200, self.width() - 2 * margin)
+
+        label = ClickableEquationLabel(overlay)
+        # Reset to a plain Preferred policy for this instance: the
+        # "Ignored" horizontal policy set by ClickableEquationLabel's
+        # constructor (needed so the compact inline view can shrink below
+        # its sizeHint instead of stretching the mask's layout) confuses
+        # Qt's heightForWidth bookkeeping once word-wrap is turned on here,
+        # which left a large empty band above the text instead of sizing
+        # the overlay to the actual wrapped content.
+        label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        label.setWordWrap(True)
+        label.setText(self.build_equation_html(self.reaction, multiline=True))
+        label.set_metabolite_names(self.reaction)
+        label.linkActivated.connect(self.jump_to_metabolite_by_id)
+        # Closing on link-click as well as on focus-out (default Popup
+        # behavior) keeps the overlay from lingering after it's served its
+        # purpose.
+        label.linkActivated.connect(overlay.close)
+        # Clicking anywhere else in the overlay's equation view switches it
+        # into an editable one (see enter_equation_edit_mode_in_overlay).
+        label.clicked.connect(self.enter_equation_edit_mode_in_overlay)
+
+        # Compute the wrapped height directly for the fixed content width
+        # instead of going through a layout + adjustSize(), and position
+        # the label explicitly -- see the size-policy note above for why.
+        label.setFixedWidth(content_width)
+        label.setFixedHeight(label.heightForWidth(content_width))
+        label.move(margin, margin)
+        overlay.setFixedSize(content_width + 2 * margin, label.height() + 2 * margin)
+        return label
+
+    def enter_equation_edit_mode_in_overlay(self):
+        """Triggered by clicking the overlay's read-only equation view
+        anywhere except a metabolite link: replaces it with a throwaway
+        EquationTextEdit that fills the *entire* overlay, so the whole
+        (possibly very long) equation is editable at once with proper word
+        wrap, rather than shrinking down to a single cramped line.
+
+        self.equation itself is never touched here -- it stays put in
+        equation_stack the whole time -- so there is nothing shared that
+        could be left dangling if the overlay closes mid-edit; see
+        commit_overlay_equation_edit/handle_overlay_closing for how the
+        result gets written back into it.
+        """
+        overlay = self._equation_overlay
+        if overlay is None or self._overlay_editor is not None:
+            return
+        self._overlay_label.hide()
+
+        margin = 8
+        editor = EquationTextEdit(overlay)
+        editor.setPlainText(self.equation.text())
+        editor.editingFinished.connect(self.commit_overlay_equation_edit)
+        editor.cancelled.connect(self.cancel_overlay_equation_edit)
+        editor.move(margin, margin)
+        editor.resize(overlay.width() - 2 * margin, overlay.height() - 2 * margin)
+        editor.show()
+        editor.setFocus()
+        #editor.selectAll()
+        self._overlay_editor = editor
+
+    def commit_overlay_equation_edit(self, closing: bool = False):
+        """Write the overlay editor's text back into self.equation and run
+        it through the normal validation/apply pipeline. Called on Enter,
+        on focus-out (blur), and -- with closing=True -- when the overlay
+        itself is being dismissed while an edit is still in progress.
+        """
+        if self._overlay_editor is None:
+            return
+        # Collapse any wrapping/whitespace introduced by the multi-line
+        # display back into the single-line string self.equation expects.
+        new_text = " ".join(self._overlay_editor.toPlainText().split())
+        if new_text != self.equation.text():
+            self.equation.setText(new_text)
+            self.equation.setModified(True)
+        if self.equation.isModified():
+            self.reaction_data_changed()  # validates, applies and calls refresh_equation_view()
+        if not closing:
+            if self.equation_valid:
+                self.restore_overlay_to_link_view()
+            else:
+                turn_red(self._overlay_editor)
+
+    def cancel_overlay_equation_edit(self):
+        """Escape in the overlay editor: discard whatever was typed and go
+        back to the read-only view without touching self.equation at all."""
+        self.restore_overlay_to_link_view()
+
+    def restore_overlay_to_link_view(self):
+        """Swap the overlay's editor back out for the read-only, link-ified
+        view, resizing the overlay to fit the (possibly just-changed)
+        equation."""
+        overlay = self._equation_overlay
+        if overlay is None or self._overlay_editor is None:
+            return
+        editor = self._overlay_editor
+        self._overlay_editor = None  # cleared first: see commit_overlay_equation_edit's guard
+        editor.hide()
+        editor.deleteLater()
+        self._overlay_label = self.build_overlay_label(overlay)
+        self._overlay_label.show()
+
+    def handle_overlay_closing(self):
+        """Called by EquationOverlay before it is destroyed, however it was
+        dismissed (outside click, Escape closing the whole overlay, a
+        metabolite link, or the toggle button). Commits any edit still in
+        progress in the overlay's editor before it goes away, and schedules
+        equation_expand_button's click handler to be reconnected -- see
+        show_equation_overlay for why a short real delay is used rather
+        than reconnecting immediately or via a queued (0 ms) call.
+        """
+        if self._overlay_editor is not None:
+            self.commit_overlay_equation_edit(closing=True)
+        self._equation_overlay = None
+        self._overlay_label = None
+        self._overlay_editor = None
+        self.equation_expand_button.setText("\u25be")
+        self.equation_expand_button.setToolTip("Show full reaction equation")
+        QTimer.singleShot(200, self._reconnect_equation_expand_button)
+
+    @Slot()
+    def _reconnect_equation_expand_button(self):
+        self.equation_expand_button.clicked.connect(self.show_equation_overlay)
+
+    def show_equation_overlay(self):
+        """Show the full reaction equation, formatted with word-wrap and
+        clickable metabolite links, in a popup overlay spanning the width
+        of the Reactions tab.
+
+        equation_expand_button's own clicked signal is disconnected for as
+        long as the overlay stays open, and only reconnected -- after a
+        short delay, see handle_overlay_closing -- once it's fully closed
+        again. This is what makes the button double as a close button
+        without any risk of it immediately reopening what it just closed:
+        a Qt::Popup's automatic outside-click dismissal can redeliver that
+        same closing click to the button underneath as an ordinary second
+        click, but since nothing is connected to react to it for the
+        entire time the overlay is open, that redelivered click (however
+        many times it happens to fire) simply does nothing.
+
+        The reconnect uses a short (200 ms) QTimer rather than a queued
+        (0 ms) call: a queued call's ordering relative to the redelivered
+        click turned out to be platform-dependent -- on Windows, hiding
+        the popup appears to pump the native event queue as part of tearing
+        the window down, which can drain even a 0 ms queued call before
+        the redelivered click is dispatched, reconnecting too early; on
+        Linux it does not. A real, if brief, delay reconnects reliably
+        after both have settled on either platform, while still being far
+        too short to affect a genuine, deliberate next click.
+        """
+        if self.reaction is None or self._equation_overlay is not None:
+            return
+        self.equation_expand_button.clicked.disconnect(self.show_equation_overlay)
+
+        overlay = EquationOverlay(self)
+        overlay.setFrameShape(QFrame.Shape.StyledPanel)
+        overlay.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        # overlay.setAttribute(Qt.WidgetAttribute.WA_NoMouseReplay)
+        # overlay.setAttribute(Qt.WidgetAttribute.WA_NoMousePropagation)
+        self._equation_overlay = overlay
+
+        # This mask sits in a vertical splitter above/below the reaction
+        # list, so it already spans the Reactions tab's full width; using
+        # that width (instead of a narrow fixed-size popup that can run off
+        # the right edge of the window) gives word-wrap enough room to lay
+        # out several metabolites per line, which is what long equations
+        # like biomass reactions need.
+        self._overlay_label = self.build_overlay_label(overlay)
+
+        top_left = self.mapToGlobal(QPoint(0, 0))
+        button_bottom = self.equation_expand_button.mapToGlobal(
+            QPoint(0, self.equation_expand_button.height())).y()
+        overlay.move(top_left.x(), button_bottom)
+        self.equation_expand_button.setText("\u25b4")
+        self.equation_expand_button.setToolTip("Hide full reaction equation")
+        overlay.show()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_equation_expand_button()
 
     jumpToMap = Signal(str, str)
     jumpToMetabolite = Signal(str)

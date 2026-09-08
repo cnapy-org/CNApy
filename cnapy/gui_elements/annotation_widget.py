@@ -32,6 +32,7 @@ class AnnotationWidget(QVBoxLayout):
         self.annotation.setHorizontalHeaderLabels(
             ["key", "value"])
         self.annotation.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.annotation.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         lh2.addWidget(self.annotation)
 
         lh3 = QVBoxLayout()
