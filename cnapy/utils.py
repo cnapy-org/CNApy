@@ -12,6 +12,10 @@ def format_scenario_constraint(constraint):
 
 
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
+    ''' element_list is expected to be a QTableWidget whose column 0 holds the
+    element's id in each row. '''
+    row_count = element_list.rowCount()
+    element_list.setUpdatesEnabled(False)
     if len(string) >= 2:
         regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
         found_ids = []
@@ -20,25 +24,20 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
                 (any(regex.search(x) for x in el.annotation.keys()) or any(regex.search(str(x)) for x in el.annotation.values()))):
                 found_ids.append(el.id)
 
-        root = element_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            item.setHidden(True)
-
-        for found_id in found_ids:
-            for item in element_list.findItems(found_id, Qt.MatchFlag.MatchExactly, 0):
-                item.setHidden(False)
+        found_id_set = set(found_ids)
+        for row in range(row_count):
+            id_item = element_list.item(row, 0)
+            is_found = id_item is not None and id_item.text() in found_id_set
+            element_list.setRowHidden(row, not is_found)
     else:
         found_ids = [x.id for x in model_elements]
-        root = element_list.invisibleRootItem()
-        for child_counter in range(root.childCount()):
-             root.child(child_counter).setHidden(False)
+        for row in range(row_count):
+            element_list.setRowHidden(row, False)
 
     current_item = element_list.currentItem()
-    if current_item is not None and not current_item.isHidden():
+    if current_item is not None and not element_list.isRowHidden(current_item.row()):
         element_list.scrollToItem(current_item)
-
+    element_list.setUpdatesEnabled(True)
     return found_ids
 
 

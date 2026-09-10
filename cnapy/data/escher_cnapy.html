@@ -30,6 +30,9 @@
                   search_field.value = value;
                   search_field.dispatchEvent(new Event('input'));
                 })
+                cnapy_bridge.highlightSearchResults.connect(function(reactionIds, metaboliteIds) {
+                  highlightSearchResults(reactionIds, metaboliteIds);
+                })
                 cnapy_bridge.setCobraModel.connect(function (model_data) {
                   builder.load_model(JSON.parse(model_data))
                 })
@@ -139,6 +142,23 @@
     }
   </script>
 
+  <style>
+    /* Additive, multi-result highlighting for CNApy's tab-specific search
+       bars (see central_widget.py CentralWidget.update_selected). Kept
+       separate from Escher's own single-selection highlight_reaction(),
+       which clears previous highlights on each call and is therefore not
+       suitable for multi-result search. */
+    .cnapy-search-match .line,
+    .cnapy-search-match .reaction-label {
+      stroke: #ff9800 !important;
+      fill: #ff9800 !important;
+    }
+    .node.cnapy-search-match circle {
+      stroke: #ff9800 !important;
+      stroke-width: 3px;
+    }
+  </style>
+
   <meta charset="utf-8"/>
   <body>
     <div id="map_container"></div>
@@ -177,6 +197,62 @@
             builder.map.highlight_reaction(record.reaction_id);
           }
         }
+      }
+
+      // --- Additive multi-result search highlighting (CNApy tab search bars) ---
+      //
+      // NOTE: the selectors and bound-datum field names below
+      // ('.reaction', '.reaction-label', '.node', d.reaction_id, d.node_id)
+      // are inferred from Escher's general public source conventions, not
+      // verified against this specific minified escher.min.js bundle. If
+      // highlighting doesn't appear after wiring this up, open the page's
+      // JS console (if devtools are reachable from the QWebEngineView) and
+      // run:
+      //   builder.map.sel.selectAll('.reaction').data()[0]
+      //   builder.map.sel.selectAll('.node').data()[0]
+      // then adjust the selector strings / '.reaction_id' / '.node_id'
+      // property names below to match whatever those print.
+
+      function resolveReactionInternalIds(biggIds) {
+        var ids = new Set();
+        biggIds.forEach(function(biggId) {
+          var records = builder.map.search_index.find(biggId);
+          records.forEach(function(record) {
+            if (record.type === "reaction" && builder.map.reactions[record.reaction_id].bigg_id === biggId)
+              ids.add(record.reaction_id);
+          });
+        });
+        return ids;
+      }
+
+      function resolveMetaboliteInternalIds(biggIds) {
+        var ids = new Set();
+        biggIds.forEach(function(biggId) {
+          var records = builder.map.search_index.find(biggId);
+          records.forEach(function(record) {
+            if (record.type === "metabolite" && builder.map.nodes[record.node_id].bigg_id === biggId)
+              ids.add(record.node_id);
+          });
+        });
+        return ids;
+      }
+
+      function highlightSearchResults(reactionBiggIds, metaboliteBiggIds) {
+        // clear any previous cnapy-driven highlight first (additive
+        // toggling, unlike builder.map.highlight_reaction which clears
+        // on every call and only supports a single highlighted element)
+        builder.map.sel.selectAll(".cnapy-search-match").classed("cnapy-search-match", false);
+
+        var reactionIds = resolveReactionInternalIds(reactionBiggIds || []);
+        var metaboliteIds = resolveMetaboliteInternalIds(metaboliteBiggIds || []);
+
+        if (reactionIds.size === 0 && metaboliteIds.size === 0) return;
+
+        builder.map.sel.selectAll(".reaction,.reaction-label")
+          .classed("cnapy-search-match", function(d) { return d && reactionIds.has(d.reaction_id); });
+
+        builder.map.sel.selectAll(".node")
+          .classed("cnapy-search-match", function(d) { return d && metaboliteIds.has(d.node_id); });
       }
 
       function changeReacId(oldReacId, newReacId) {

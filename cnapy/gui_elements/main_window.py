@@ -20,10 +20,10 @@ import cnapy.resources  # Do not delete this import - it seems to be unused but 
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import Qt, Slot, QTimer, QSignalBlocker, QSize
-from qtpy.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QShortcut
-from qtpy.QtWidgets import (QApplication, QFileDialog, QStyle,
-                            QMainWindow, QMessageBox, QToolBar, QStatusBar, QLabel)
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
+from qtpy.QtGui import QColor, QIcon, QKeySequence
+from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
+                            QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
 from cnapy.appdata import AppData, Scenario, CnaMap
@@ -1149,7 +1149,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def focus_search_box(self):
-        self.centralWidget().searchbar.setFocus()
+        self.centralWidget().current_searchbar().setFocus()
 
     @Slot()
     def save_box_positions(self):

@@ -6,13 +6,13 @@ from typing_extensions import Annotated
 import cobra
 import copy
 import re
-from qtpy.QtCore import (QAbstractTableModel, QModelIndex, QMimeData, Qt, Signal, Slot, QPoint,
-                         QSignalBlocker, QEvent, QTimer)
+from qtpy.QtCore import (QAbstractTableModel, QModelIndex, QMimeData, QSortFilterProxyModel, Qt,
+                         Signal, Slot, QPoint, QSignalBlocker, QEvent, QTimer, QStringListModel)
 from qtpy.QtGui import QColor, QDrag, QIcon, QGuiApplication
 from qtpy.QtWidgets import (QHBoxLayout, QTableView, QTableWidget, QTableWidgetItem, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QSizePolicy, QSplitter, QStyledItemDelegate,
                             QVBoxLayout, QWidget, QMenu, QAbstractItemView, QHeaderView, QStackedWidget,
-                            QToolButton, QFrame, QPlainTextEdit)
+                            QToolButton, QFrame, QPlainTextEdit, QCompleter)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
@@ -79,7 +79,6 @@ class ReactionListItem:
         self.foregrounds = [None] * len(ReactionListColumn)
         self.tooltips = [""] * len(ReactionListColumn)
         self.pin_at_top = False
-        self.hidden = False
 
     def flags(self):
         # Vestigial QTreeWidgetItem-compatibility shim: ReactionListModel.flags()
@@ -112,16 +111,6 @@ class ReactionListItem:
     def setSelected(self, selected):
         if self.model is not None and selected:
             self.model.view.setCurrentItem(self)
-
-    def setHidden(self, hidden):
-        self.hidden = hidden
-        if self.model is not None:
-            row = self.model.indexOfTopLevelItem(self)
-            if row >= 0:
-                self.model.view.setRowHidden(row, hidden)
-
-    def isHidden(self):
-        return self.hidden
 
     def update_tooltips(self):
         text = "Id: " + self.reaction.id + "\nName: " + self.reaction.name \
@@ -362,6 +351,54 @@ class ReactionListModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
 
+class ReactionSearchFilterProxyModel(QSortFilterProxyModel):
+    """Filters ReactionListModel rows down to a precomputed set of matching
+    reaction ids (see ReactionList.update_selected/_apply_visibility).
+
+    Sorting is deliberately left to the source model: ReactionListModel.sort()
+    has pinned-row handling and per-column custom sort values (sort_value)
+    that don't map onto QSortFilterProxyModel's own lessThan()-based sorting,
+    so dynamicSortFilter is disabled here and this proxy only ever filters.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._found_ids = None  # None = no filter applied, i.e. show everything
+        self._exempt_ids = set()  # ids to show regardless of the active filter
+        self.setDynamicSortFilter(False)
+
+    def set_found_ids(self, found_ids):
+        self._found_ids = found_ids
+        self._exempt_ids.clear()  # a fresh search should apply cleanly, no stale exemptions
+        self.invalidateFilter()
+
+    def exempt_from_filter(self, reaction_id):
+        """Keep a specific reaction visible regardless of the active search
+        filter. Used when a reaction is added or edited: a search still being
+        active at that point is far more likely to be something the user
+        forgot to clear than something they meant to apply to a reaction
+        they're actively working on -- so don't let it disappear on them."""
+        if self._found_ids is not None and reaction_id not in self._found_ids:
+            self._exempt_ids.add(reaction_id)
+            self.invalidateFilter()
+
+    def sort(self, column, order=Qt.SortOrder.AscendingOrder):
+        # QTableView routes both explicit sortByColumn() calls and its internal
+        # sortingEnabled-header-click mechanism through self.model().sort(...),
+        # which after inserting this proxy means QSortFilterProxyModel's own
+        # sort() would otherwise run instead of the source model's -- silently
+        # dropping the pinned-row handling and custom per-column sort_value
+        # logic in ReactionListModel.sort(). Delegate instead of calling
+        # super().sort(), so those paths keep behaving exactly as before.
+        self.sourceModel().sort(column, order)
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        if self._found_ids is None:
+            return True
+        reaction_id = self.sourceModel().items[source_row].reaction.id
+        return reaction_id in self._found_ids or reaction_id in self._exempt_ids
+
+
 class ScenarioValueDelegate(QStyledItemDelegate):
     """Editor delegate for the Scenario column.
 
@@ -381,23 +418,14 @@ class ScenarioValueDelegate(QStyledItemDelegate):
     leaves the editor, sidesteps that reentrancy entirely.
     """
 
-    @staticmethod
-    def _next_visible_row(view, row, step):
-        """Row index one step away in the given direction, skipping rows
-        hidden by the search filter (see ReactionList.update_selected).
-        Returns -1 if there is no visible row in that direction."""
-        row_count = view.model().rowCount()
-        row += step
-        while 0 <= row < row_count and view.isRowHidden(row):
-            row += step
-        return row if 0 <= row < row_count else -1
-
     def eventFilter(self, editor, event):
         if event.type() == QEvent.KeyPress and event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
             view = self.parent()
             index = view.currentIndex()
-            step = 1 if event.key() == Qt.Key.Key_Down else -1
-            new_row = self._next_visible_row(view, index.row(), step)
+            row_count = view.model().rowCount()
+            row = index.row()
+            row += 1 if event.key() == Qt.Key.Key_Down else -1
+            new_row = row if 0 <= row < row_count else -1
             # Commit unconditionally, even at the boundary (no row to move to):
             # otherwise a value typed into the first/last row is silently lost
             # instead of saved, since there's nowhere left to arrow away to.
@@ -431,9 +459,27 @@ class DragableTableView(QTableView):
 
     def setModel(self, model):
         super().setModel(model)
-        model.view = self
+        # `model` may be the ReactionListModel directly, or a
+        # ReactionSearchFilterProxyModel wrapping it -- unwrap down to the
+        # real source model, since that's what items/indexOfTopLevelItem/etc.
+        # below need to operate on regardless of which one is currently set.
+        source_model = model
+        while isinstance(source_model, QSortFilterProxyModel):
+            source_model = source_model.sourceModel()
+        self._source_model = source_model
+        source_model.view = self
         self.selectionModel().currentChanged.connect(self._current_changed)
         self.clicked.connect(self._clicked)
+
+    def _to_source(self, index):
+        """Translate an index from self.model() (proxy or source) to the source model."""
+        model = self.model()
+        return model.mapToSource(index) if isinstance(model, QSortFilterProxyModel) else index
+
+    def _from_source(self, index):
+        """Translate a source-model index to self.model()'s index space (proxy or source)."""
+        model = self.model()
+        return model.mapFromSource(index) if isinstance(model, QSortFilterProxyModel) else index
 
     def mouseMoveEvent(self, _event):
         item = self.currentItem()
@@ -451,8 +497,9 @@ class DragableTableView(QTableView):
         self.itemClicked.emit(self.itemFromIndex(index), index.column())
 
     def itemFromIndex(self, index):
-        if index.isValid():
-            return self.model().items[index.row()]
+        source_index = self._to_source(index)
+        if source_index.isValid():
+            return self._source_model.items[source_index.row()]
         return None
 
     def currentItem(self):
@@ -462,7 +509,7 @@ class DragableTableView(QTableView):
         return self.currentIndex().column()
 
     def clear(self):
-        self.model().clear()
+        self._source_model.clear()
 
     def clearSelection(self):
         super().clearSelection()
@@ -472,45 +519,136 @@ class DragableTableView(QTableView):
         if item is None:
             self.clearSelection()
             return
-        row = self.model().indexOfTopLevelItem(item)
+        row = self._source_model.indexOfTopLevelItem(item)
         if row >= 0:
-            self.setCurrentIndex(self.model().index(row, 0))
+            proxy_index = self._from_source(self._source_model.index(row, 0))
+            if proxy_index.isValid():  # invalid if `item` is currently filtered out
+                self.setCurrentIndex(proxy_index)
 
     def scrollToItem(self, item):
-        row = self.model().indexOfTopLevelItem(item)
+        row = self._source_model.indexOfTopLevelItem(item)
         if row >= 0:
-            self.scrollTo(self.model().index(row, 0))
+            proxy_index = self._from_source(self._source_model.index(row, 0))
+            if proxy_index.isValid():
+                self.scrollTo(proxy_index)
 
     def editItem(self, item, column):
-        row = self.model().indexOfTopLevelItem(item)
+        row = self._source_model.indexOfTopLevelItem(item)
         if row >= 0:
-            self.edit(self.model().index(row, int(column)))
+            proxy_index = self._from_source(self._source_model.index(row, int(column)))
+            if proxy_index.isValid():
+                self.edit(proxy_index)
 
     def topLevelItemCount(self):
-        return len(self.model().items)
+        return len(self._source_model.items)
 
     def topLevelItem(self, row):
-        return self.model().items[row]
+        return self._source_model.items[row]
 
     def findItems(self, text, _flags, column=ReactionListColumn.Id):
-        model = self.model()
-        return [item for item in model.items if model.cell_data(item, column)[0] == text]
+        return [item for item in self._source_model.items
+                if self._source_model.cell_data(item, column)[0] == text]
 
     def sortItems(self, column, order):
-        self.model().sort(column, order)
+        self._source_model.sort(column, order)
 
     def sortColumn(self):
-        return self.model().sort_column
+        return self._source_model.sort_column
 
     def setSortingEnabled(self, enable):
-        self.model().sorting_enabled = enable
+        self._source_model.sorting_enabled = enable
         super().setSortingEnabled(enable)
 
     def indexOfTopLevelItem(self, item):
-        return self.model().indexOfTopLevelItem(item)
+        return self._source_model.indexOfTopLevelItem(item)
 
     def takeTopLevelItem(self, row):
-        return self.model().takeTopLevelItem(row)
+        return self._source_model.takeTopLevelItem(row)
+
+
+class ReactionAndMetaboliteCompleter(QCompleter):
+    """Completer for ReactionSearchLineEdit. Completes the last
+    whitespace-separated token only, leaving earlier tokens in place
+    (same pattern as MultiCompleter/CustomCompleter used elsewhere in
+    this codebase, e.g. flux_feasibility_dialog.py / mode_navigator.py).
+
+    For strings that are ambiguous (i.e. match both a metabolite id and
+    a reaction id/name), the wordlist contains two explicitly tagged
+    variants ('<token>#met', '<token>#rxn') so the user can pick one
+    interpretation from the dropdown; unambiguous strings appear
+    untagged. See ReactionList.update_selected for how the tags (or
+    their absence, for ambiguous-but-untagged tokens) are interpreted.
+    """
+
+    def __init__(self, parent=None):
+        QCompleter.__init__(self, parent)
+        self.setModel(QStringListModel())
+        self.setCaseSensitivity(Qt.CaseInsensitive)
+
+    def pathFromIndex(self, index):  # overrides QCompleter method
+        path = QCompleter.pathFromIndex(self, index)
+        lst = str(self.widget().text()).split()
+        if len(lst) > 1:
+            path = '%s %s' % (" ".join(lst[:-1]), path)
+        return path
+
+    def splitPath(self, path):  # overrides QCompleter method
+        if not path.strip():
+            return [""]
+        path = str(path.split()[-1]).lstrip(' ')
+        return [path]
+
+
+class ReactionSearchLineEdit(QLineEdit):
+    """Reaction-tab search box.
+
+    Supports plain substring search over reaction id/name(/annotations)
+    same as before, PLUS space-separated metabolite id tokens: a token
+    that is a valid metabolite id restricts results to reactions that
+    contain ALL such metabolites (AND logic across tokens).
+
+    A token that happens to be both a valid metabolite id and also
+    matches some reaction's id/name/annotation text is ambiguous. Left
+    untagged, both interpretations are unioned (OR) for that token, so
+    nothing is hidden that either interpretation would have shown; the
+    completer offers '<token>#met' / '<token>#rxn' tagged entries so the
+    user can commit to one interpretation, after which only that
+    interpretation is used for that token going forward (their choice is
+    encoded directly in the search text, so it persists as long as the
+    tag stays in the text box).
+    """
+
+    def __init__(self, central_widget, parent=None):
+        super().__init__(parent)
+        self.central_widget = central_widget
+        self.completer_model = QStringListModel()
+        completer = ReactionAndMetaboliteCompleter(self)
+        completer.setModel(self.completer_model)
+        self.setCompleter(completer)
+        self.refresh_wordlist()
+
+    def refresh_wordlist(self):
+        """Rebuild the autocomplete wordlist from the current model. Call
+        this whenever reactions or metabolites are added, removed, or
+        renamed (e.g. from CentralWidget.update(rebuild_all_tabs=True),
+        and after individual reaction/metabolite id changes)."""
+        model = self.central_widget.appdata.project.cobra_py_model
+        reac_ids = set(model.reactions.list_attr("id"))
+        reac_names = {n for n in model.reactions.list_attr("name") if n}
+        met_ids = set(model.metabolites.list_attr("id"))
+
+        reaction_strings = reac_ids | reac_names
+        ambiguous = reaction_strings & met_ids
+
+        wordlist = set()
+        for s in (reaction_strings | met_ids):
+            if s not in ambiguous:
+                wordlist.add(s)
+        for s in ambiguous:
+            wordlist.add(s + "#met")
+            wordlist.add(s + "#rxn")
+
+        self.completer_model.setStringList(sorted(wordlist))
 
 
 class ReactionList(QWidget):
@@ -533,7 +671,9 @@ class ReactionList(QWidget):
         self.reaction_list.setDragEnabled(True)
         self.header_labels = [ReactionListColumn(i).name for i in range(len(ReactionListColumn))]
         self.reaction_model = ReactionListModel(self.header_labels, self.appdata, self.reaction_list)
-        self.reaction_list.setModel(self.reaction_model)
+        self.filter_proxy = ReactionSearchFilterProxyModel(self.reaction_list)
+        self.filter_proxy.setSourceModel(self.reaction_model)
+        self.reaction_list.setModel(self.filter_proxy)
         self.reaction_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.reaction_list.customContextMenuRequested.connect(self.context_menu)
         # heuristic initial column widths
@@ -599,6 +739,7 @@ class ReactionList(QWidget):
         item.setText(ReactionListColumn.Id, reaction.id)
         item.setText(ReactionListColumn.Name, reaction.name)
         item.update_tooltips()
+        self.filter_proxy.exempt_from_filter(reaction.id)
         return item
 
     def update_item(self, item: ReactionListItem):
@@ -627,6 +768,7 @@ class ReactionList(QWidget):
         self.reaction_list.blockSignals(False)
         self.reaction_selected(item)
         self.appdata.window.unsaved_changes()
+        self.central_widget.reaction_searchbar.refresh_wordlist()
 
     def update_annotations(self, annotation):
         self.reaction_mask.annotation_widget.update_annotations(annotation)
@@ -688,8 +830,10 @@ class ReactionList(QWidget):
                 item.update_tooltips()
                 break
 
+        self.filter_proxy.exempt_from_filter(reaction.id)
         self.last_selected = self.reaction_mask.id.text()
         self.reactionChanged.emit(old_id, reaction)
+        self.central_widget.reaction_searchbar.refresh_wordlist()
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         '''Remove reaction item from reaction list'''
@@ -703,6 +847,7 @@ class ReactionList(QWidget):
 
         self.last_selected = self.reaction_mask.id.text()
         self.reactionDeleted.emit(reaction)
+        self.central_widget.reaction_searchbar.refresh_wordlist()
 
     @Slot(object, int)
     def handle_item_clicked(self, item: ReactionListItem, column):
@@ -728,33 +873,105 @@ class ReactionList(QWidget):
                 item.setBackground(column, Qt.GlobalColor.red)
 
     def update_selected(self, string, with_annotations):
-        if len(string) >= 2:
-            regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
-            found_ids = [
-                reaction.id
-                for reaction in self.appdata.project.cobra_py_model.reactions
-                if regex.search(reaction.id)
-                or regex.search(reaction.name)
-                or (
-                    with_annotations
-                    and (
-                        any(regex.search(key) for key in reaction.annotation.keys())
-                        or any(regex.search(str(value)) for value in reaction.annotation.values())
-                    )
-                )
-            ]
+        """Resolve the reaction search bar's text into a set of matching
+        reaction ids, applying tab-specific rules on top of the plain
+        substring/annotation matcher below:
+
+        - Tokens ending in '#met' / '#rxn' are explicitly tagged by the
+          user (via the completer) to mean "this token is a metabolite
+          id" / "this token is reaction text", respectively.
+        - An untagged token that is a valid metabolite id AND also
+          matches some reaction's id/name/annotation text is ambiguous;
+          both interpretations are unioned for that token.
+        - An untagged token that is a valid metabolite id but matches no
+          reaction text is treated purely as a metabolite filter.
+        - All other tokens (and any remaining free text) are batched
+          together and passed through as one text query, so annotation
+          search and the '*' wildcard behave exactly as before.
+        - Multiple tokens are AND'ed together (must all be satisfied by
+          the same reaction).
+        """
+        model = self.appdata.project.cobra_py_model
+        metabolite_ids = set(model.metabolites.list_attr("id"))
+
+        tokens = string.split()
+        if not tokens:
+            found_ids = self._reactions_matching_text("", with_annotations)
+            self._apply_visibility(found_ids)
+            return list(found_ids)
+
+        per_token_matches = []
+        plain_text_tokens = []
+
+        for token in tokens:
+            if token.endswith("#met"):
+                met_id = token[:-4]
+                per_token_matches.append(self._reactions_containing_metabolite(met_id))
+            elif token.endswith("#rxn"):
+                text = token[:-4]
+                per_token_matches.append(self._reactions_matching_text(text, with_annotations))
+            elif token in metabolite_ids:
+                text_hits = self._reactions_matching_text(token, with_annotations)
+                if text_hits:
+                    # ambiguous and not disambiguated -> union of both interpretations
+                    per_token_matches.append(self._reactions_containing_metabolite(token) | text_hits)
+                else:
+                    per_token_matches.append(self._reactions_containing_metabolite(token))
+            else:
+                plain_text_tokens.append(token)
+
+        if plain_text_tokens:
+            per_token_matches.append(
+                self._reactions_matching_text(" ".join(plain_text_tokens), with_annotations)
+            )
+
+        if per_token_matches:
+            found_ids = set.intersection(*per_token_matches)
         else:
-            found_ids = [reaction.id for reaction in self.appdata.project.cobra_py_model.reactions]
+            found_ids = set(model.reactions.list_attr("id"))
 
-        found_id_set = set(found_ids)
-        for item in self.reaction_model.items:
-            item.setHidden(item.reaction.id not in found_id_set)
-
-        current_item = self.reaction_list.currentItem()
-        if current_item is not None and not current_item.isHidden():
-            self.reaction_list.scrollToItem(current_item)
-
+        self._apply_visibility(found_ids)
         return found_ids
+
+    def _reactions_containing_metabolite(self, met_id: str) -> set:
+        model = self.appdata.project.cobra_py_model
+        if not model.metabolites.has_id(met_id):
+            return set()
+        return {r.id for r in model.metabolites.get_by_id(met_id).reactions}
+
+    def _reactions_matching_text(self, text: str, with_annotations: bool) -> set:
+        """Same substring/annotation matching rules as the previous
+        single-query search: case-insensitive, '*' as a glob wildcard,
+        matches id/name and (optionally) annotations; strings under 2
+        characters match everything (pre-existing behavior, kept as-is
+        here -- see chat history for why this is a known, accepted
+        edge case rather than a bug)."""
+        if len(text) < 2:
+            return set(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
+        regex = re.compile(".*".join(map(re.escape, text.split("*"))), re.IGNORECASE)
+        return {
+            reaction.id
+            for reaction in self.appdata.project.cobra_py_model.reactions
+            if regex.search(reaction.id)
+            or regex.search(reaction.name)
+            or (
+                with_annotations
+                and (
+                    any(regex.search(key) for key in reaction.annotation.keys())
+                    or any(regex.search(str(value)) for value in reaction.annotation.values())
+                )
+            )
+        }
+
+    def _apply_visibility(self, found_ids: set):
+        self.filter_proxy.set_found_ids(found_ids)
+
+        # If the previously-current item got filtered out, currentItem() now
+        # comes back None (its proxy index is invalid), so there's nothing
+        # to scroll to -- this replaces the old isHidden() check.
+        current_item = self.reaction_list.currentItem()
+        if current_item is not None:
+            self.reaction_list.scrollToItem(current_item)
 
     def update(self, rebuild=False):
         if len(self.appdata.project.df_values.keys()) > 0:

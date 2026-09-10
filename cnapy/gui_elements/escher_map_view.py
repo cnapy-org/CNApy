@@ -136,7 +136,7 @@ class EscherMapView(QWebEngineView):
 
     def focus_reaction(self, reac_id: str):
         # Escher allows the same reaction to be multiple times on a map, so we abuse its search bar here
-        self.central_widget.searchbar.setText(reac_id)
+        self.central_widget.reaction_searchbar.setText(reac_id)
 
     def highlight_reaction(self, reac_id: str):
         # highlights and focuses on the first reatcion with reac_id
@@ -160,11 +160,36 @@ class EscherMapView(QWebEngineView):
         self.cnapy_bridge.updateReactionStoichiometry.emit(reac_id,
                 {m.id: round(c, 4) for m,c in reaction.metabolites.items()}, reaction.reversibility)
 
-    def update_selected(self, find):
-        if len(find) == 0:
+    def update_selected(self, reaction_ids, metabolite_ids=None, current_reaction_id=None):
+        """Highlight the given reaction/metabolite ids (by bigg_id/id) on
+        the map. Called from CentralWidget.update_selected with the
+        already-resolved id sets for whichever tab/search-bar is active
+        (not the raw search text), so that AND-logic / tagged tokens in
+        the reaction search bar are already applied before reaching here.
+
+        current_reaction_id, when given (reaction-tab search only), is
+        the id of whichever reaction is currently selected in the
+        reaction list. On top of the additive orange highlighting of all
+        search matches above, that one reaction also gets Escher's
+        native single-reaction highlight and the map zooms/pans to it.
+        """
+        if not reaction_ids and not metabolite_ids:
             self.cnapy_bridge.hideSearchBar.emit()
         else:
-            self.cnapy_bridge.displaySearchBarFor.emit(find)
+            self.cnapy_bridge.highlightSearchResults.emit(list(reaction_ids), list(metabolite_ids or []))
+        if current_reaction_id is not None:
+            self.highlight_reaction(current_reaction_id)
+
+    def search_metabolite(self, search_string: str):
+        """Route a metabolite-tab search into Escher's own search bar
+        instead of the additive multi-result highlighting used for
+        reactions, so the user can use Escher's built-in next/previous
+        controls to step through the individual instances of a
+        metabolite on the map."""
+        if len(search_string) == 0:
+            self.cnapy_bridge.hideSearchBar.emit()
+        else:
+            self.cnapy_bridge.displaySearchBarFor.emit(search_string)
 
     def dragEnterEvent(self, event):
         event.ignore()
@@ -189,6 +214,7 @@ class CnapyBridge(QObject):
     addMapToJumpListIfReactionPresent = Signal(str, str)
     hideSearchBar = Signal()
     displaySearchBarFor = Signal(str)
+    highlightSearchResults = Signal('QVariantList', 'QVariantList')  # (reaction bigg_ids, metabolite bigg_ids)
     setCobraModel = Signal(str) # cannot get passing the model dictionary as QVariantMap to work
     enableEditing = Signal(bool)
     visualizeCompValues = Signal('QVariantMap', bool)

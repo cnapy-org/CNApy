@@ -4,9 +4,9 @@ import cobra
 import cobra.manipulation
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QAction
-from qtpy.QtWidgets import (QHBoxLayout, QLabel,
+from qtpy.QtWidgets import (QAbstractItemView, QHBoxLayout, QLabel, QHeaderView,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter,
-                            QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                            QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.utils import SignalThrottler, turn_red, turn_white, update_selected
@@ -23,13 +23,20 @@ class GeneList(QWidget):
         self.central_widget = central_widget
         self.last_selected = None
 
-        self.gene_list = QTreeWidget()
-        self.gene_list.setHeaderLabels(["Id", "Name"])
-        self.gene_list.setSortingEnabled(True)
-        self.gene_list.sortByColumn(0, Qt.SortOrder.AscendingOrder)
+        self.gene_list = QTableWidget()
+        self.gene_list.setColumnCount(2)
+        self.gene_list.setHorizontalHeaderLabels(["Id", "Name"])
+        self.gene_list.verticalHeader().setVisible(False)
+        self.gene_list.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.gene_list.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.gene_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.gene_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
+        self.gene_list.setSortingEnabled(False)
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
+        self.gene_list.setSortingEnabled(True)
+        self.gene_list.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.gene_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.gene_list.customContextMenuRequested.connect(
             self.on_context_menu)
@@ -59,14 +66,17 @@ class GeneList(QWidget):
         )
 
     def clear(self):
-        self.gene_list.clear()
+        self.gene_list.setRowCount(0)
         self.gene_mask.hide()
 
     def add_gene(self, gene):
-        item = QTreeWidgetItem(self.gene_list)
-        item.setText(0, gene.id)
-        item.setText(1, gene.name)
-        item.setData(2, 0, gene)
+        row = self.gene_list.rowCount()
+        self.gene_list.insertRow(row)
+        id_item = QTableWidgetItem(gene.id)
+        name_item = QTableWidgetItem(gene.name)
+        id_item.setData(Qt.ItemDataRole.UserRole, gene)
+        self.gene_list.setItem(row, 0, id_item)
+        self.gene_list.setItem(row, 1, name_item)
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.genes) > 0:
@@ -74,14 +84,14 @@ class GeneList(QWidget):
 
     def handle_changed_gene(self, gene: cobra.Gene):
         # Update gene item in list
-        root = self.gene_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            if item.data(2, 0) == gene:
-                old_id = item.text(0)
-                item.setText(0, gene.id)
-                item.setText(1, gene.name)
+        old_id = None
+        row_count = self.gene_list.rowCount()
+        for row in range(row_count):
+            id_item = self.gene_list.item(row, 0)
+            if id_item.data(Qt.ItemDataRole.UserRole) == gene:
+                old_id = id_item.text()
+                id_item.setText(gene.id)
+                self.gene_list.item(row, 1).setText(gene.name)
                 break
 
         for reaction_x in self.appdata.project.cobra_py_model.reactions:
@@ -106,7 +116,8 @@ class GeneList(QWidget):
             self.gene_mask.hide()
         else:
             self.gene_mask.show()
-            gene: cobra.Gene = item.data(2, 0)
+            row = item.row()
+            gene: cobra.Gene = self.gene_list.item(row, 0).data(Qt.ItemDataRole.UserRole)
 
             self.gene_mask.gene = gene
 
@@ -121,9 +132,11 @@ class GeneList(QWidget):
             self.central_widget.add_model_item_to_history(gene.id, gene.name, ModelItemType.Gene)
 
     def update(self):
-        self.gene_list.clear()
+        self.gene_list.setSortingEnabled(False)
+        self.gene_list.setRowCount(0)
         for m in self.appdata.project.cobra_py_model.genes:
             self.add_gene(m)
+        self.gene_list.setSortingEnabled(True)
 
         if self.last_selected is None:
             self.gene_list.setCurrentItem(None)
@@ -132,9 +145,10 @@ class GeneList(QWidget):
                 self.last_selected, Qt.MatchFlag.MatchExactly)
 
             for i in items:
-                self.gene_list.setCurrentItem(i)
-                self.gene_list.scrollToItem(i)
-                break
+                if i.column() == 0:
+                    self.gene_list.setCurrentItem(i)
+                    self.gene_list.scrollToItem(i)
+                    break
 
     def set_current_item(self, key):
         self.last_selected = key
@@ -243,11 +257,10 @@ class GenesMask(QWidget):
         )
         self.appdata.window.unsaved_changes()
         self.hide()
-        current_row_index = self.gene_list.gene_list.currentIndex().row()
+        current_row_index = self.gene_list.gene_list.currentRow()
         self.gene_list.gene_list.setCurrentItem(None)
         self.gene_list.last_selected = None
-        self.gene_list.gene_list.takeTopLevelItem(
-            current_row_index)
+        self.gene_list.gene_list.removeRow(current_row_index)
         self.appdata.window.setFocus()
 
     def delete_selected_annotation(self, identifier_key):
