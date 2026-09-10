@@ -10,7 +10,7 @@ from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException, element_exchange_balance
 from cnapy.core_gui import get_last_exception_string, has_community_error_substring, except_likely_community_model_error
 from cnapy.gui_elements.central_widget import ModelTabIndex
-from cnapy.appdata import Scenario
+from cnapy.appdata import AppData, Scenario
 import cobra
 
 coefficient_format: str = "{:.4g}"
@@ -254,7 +254,7 @@ class FluxFeasibilityDialog(QDialog):
             bm_reac_id = ""
 
         # if the last scenario change comes from the previous computation undo it
-        if len(self.appdata.scenario_past) > 0 and self.modified_scenario is self.appdata.scenario_past[-1]:
+        if len(AppData.scenario_history) > 0 and self.modified_scenario is AppData.scenario_history[-1]:
             print("Resetting scenario")
             self.main_window.undo_scenario_edit()
             self.modified_scenario = None

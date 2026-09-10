@@ -212,6 +212,7 @@ class ScenarioTab(QWidget):
                     self.reactions.item(row, ScenarioReactionColumn.Id).setText(reac_id)
                 elif self.verify_scenario_reaction_id(new_reac_id):
                         self.reactions.item(row, ScenarioReactionColumn.Id).setData(Qt.ItemDataRole.UserRole, new_reac_id)
+                        self.appdata.record_current_scenario()
                         self.appdata.project.scen_values.reactions[new_reac_id] = self.appdata.project.scen_values.reactions[reac_id]
                         del self.appdata.project.scen_values.reactions[reac_id]
                 else:
@@ -228,6 +229,7 @@ class ScenarioTab(QWidget):
             ub, ub_brush = self.verify_bound(self.reactions.item(row, ScenarioReactionColumn.UB))
             if not (isnan(lb) or isnan(ub)):
                 if lb <= ub:
+                    self.appdata.record_current_scenario()
                     self.appdata.project.scen_values.reactions[reac_id][1] = lb
                     self.appdata.project.scen_values.reactions[reac_id][2] = ub
                     self.update_reaction_equation(reac_id)
@@ -250,6 +252,7 @@ class ScenarioTab(QWidget):
             "key": key,
             "value": value,
         }
+        self.appdata.record_current_scenario()
         self.appdata.project.scen_values.annotations[row] = changed_annotation
         self.scenario_changed()
 
@@ -281,6 +284,7 @@ class ScenarioTab(QWidget):
                 if len(eqtxt) > 0 and eqtxt[-1] == '+':
                     raise ValueError
                 reaction.build_reaction_from_string(eqtxt)
+                self.appdata.record_current_scenario()
                 self.appdata.project.scen_values.reactions[reac_id][0] = {m.id: c for m,c in reaction.metabolites.items()}
                 if (self.appdata.project.scen_values.reactions[reac_id][1] < 0 and reaction.lower_bound >= 0) or \
                     (self.appdata.project.scen_values.reactions[reac_id][1] > 0 and reaction.lower_bound <= 0):
@@ -365,6 +369,7 @@ class ScenarioTab(QWidget):
         if row >= 0:
             reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
             self.reactions.removeRow(row)
+            self.appdata.record_current_scenario()
             del self.appdata.project.scen_values.reactions[reac_id]
             self.appdata.project.update_reaction_id_lists()
             self.check_constraints_and_objective()
@@ -386,6 +391,7 @@ class ScenarioTab(QWidget):
         row: int = self.annotations.currentRow()
         if row >= 0:
             del(self.appdata.project.scen_values.annotations[row])
+            self.appdata.record_current_scenario()
             self.annotations.removeRow(row)
             self.annotations.setCurrentCell(self.annotations.currentRow(), 0) # to make the cell appear selected in the GUI
             self.scenario_changed()
@@ -448,6 +454,7 @@ class ScenarioTab(QWidget):
         if row >= 0:
             with QSignalBlocker(self.constraints): # does not appear to suppress the focus out event
                 self.constraints.removeRow(row)
+            self.appdata.record_current_scenario()
             del self.appdata.project.scen_values.constraints[row]
             self.scenario_changed()
             if self.appdata.auto_fba:
@@ -459,6 +466,7 @@ class ScenarioTab(QWidget):
         if row >= 0: # in case this is triggered when nothing is selected
             constraint_edit: QComplReceivLineEdit = self.constraints.cellWidget(row, 0)
             if text_correct:
+                self.appdata.record_current_scenario()
                 self.appdata.project.scen_values.constraints[row] = lineq2list([constraint_edit.text()],
                     self.appdata.project.reaction_ids.id_list)[0]
             else:
@@ -479,6 +487,7 @@ class ScenarioTab(QWidget):
             if text_correct:
                 new_objective = linexpr2dict(self.scenario_objective.text(), self.appdata.project.reaction_ids.id_list)
                 if new_objective != self.appdata.project.scen_values.objective_coefficients:
+                    self.appdata.record_current_scenario()
                     self.appdata.project.scen_values.objective_coefficients = new_objective
                     self.scenario_changed()
                     if self.appdata.project.scen_values.use_scenario_objective:

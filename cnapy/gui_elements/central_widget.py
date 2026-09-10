@@ -201,6 +201,7 @@ class CentralWidget(QWidget):
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
+        self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.appdata.project.scen_values.pop(reaction.id, None)
         self.appdata.project.scen_values.objective_coefficients.pop(reaction.id, None)
         self.remove_top_item_history_entry()

@@ -533,24 +533,28 @@ class ReactionBox(QGraphicsItem):
     def value_changed(self):
         test = self.item.text().replace(" ", "")
         if test == "":
-            if not self.item.accept_next_change_into_history:
-                if len(self.map.appdata.scenario_past) > 0:
-                    self.map.appdata.scenario_past.pop() # replace previous change
-            self.item.accept_next_change_into_history = False
-            self.map.value_changed(self.id, test)
+            if self.id in self.map.appdata.project.scen_values:
+                if not self.item.accept_next_change_into_history:
+                    if len(AppData.scenario_history) > 0:
+                        AppData.current_scenario_index -= 1 # replace previous change
+                self.item.accept_next_change_into_history = False
+                self.map.value_changed(self.id, test)
             self.set_default_style()
-        elif validate_value(self.item.text()):
-            if not self.item.accept_next_change_into_history:
-                if len(self.map.appdata.scenario_past) > 0:
-                    self.map.appdata.scenario_past.pop() # replace previous change
-            self.item.accept_next_change_into_history = False
-            self.map.value_changed(self.id, self.item.text())
-            if self.id in self.map.appdata.project.scen_values.keys():
-                self.set_scen_style()
-            else:
-                self.set_comp_style()
         else:
-            self.set_error_style()
+            new_value = validate_value(self.item.text())
+            if new_value:
+                if new_value != self.map.appdata.project.scen_values.get(self.id, None):
+                    if not self.item.accept_next_change_into_history:
+                        if len(AppData.scenario_history) > 0:
+                            AppData.current_scenario_index -= 1 # replace previous change
+                    self.item.accept_next_change_into_history = False
+                    self.map.value_changed(self.id, self.item.text())
+                if self.id in self.map.appdata.project.scen_values.keys():
+                    self.set_scen_style()
+                else:
+                    self.set_comp_style()
+            else:
+                self.set_error_style()
 
     def set_default_style(self):
         ''' set the reaction box to error style'''
@@ -732,10 +736,10 @@ def validate_value(value):
         try:
             (vl, vh) = make_tuple(value)
             if isinstance(vl, (int, float)) and isinstance(vh, (int, float)) and vl <= vh:
-                return True
+                return (vl, vh)
             else:
                 return False
         except (ValueError, SyntaxError, TypeError):
             return False
     else:
-        return True
+        return (_x, _x)
