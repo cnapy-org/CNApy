@@ -10,7 +10,7 @@ from cnapy.utils import QComplReceivLineEdit
 from cnapy.core import make_scenario_feasible, QPnotSupportedException, element_exchange_balance
 from cnapy.core_gui import get_last_exception_string, has_community_error_substring, except_likely_community_model_error
 from cnapy.gui_elements.central_widget import ModelTabIndex
-from cnapy.appdata import AppData, Scenario
+from cnapy.appdata import Scenario
 import cobra
 
 coefficient_format: str = "{:.4g}"
@@ -254,15 +254,11 @@ class FluxFeasibilityDialog(QDialog):
             bm_reac_id = ""
 
         # if the last scenario change comes from the previous computation undo it
-        if len(AppData.scenario_history) > 0 and self.modified_scenario is AppData.scenario_history[-1]:
-            print("Resetting scenario")
+        if self.appdata.current_scenario_index >= 0 and \
+                self.modified_scenario is self.appdata.scenario_history[self.appdata.current_scenario_index]:
+            if self.bm_mod_reac_id in self.appdata.project.scen_values.reactions:
+                    self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
             self.main_window.undo_scenario_edit()
-            self.modified_scenario = None
-        if self.bm_mod_reac_id in self.appdata.project.scen_values.reactions:
-            print("Removing scenario BM")
-            del self.appdata.project.scen_values.reactions[self.bm_mod_reac_id]
-            self.bm_mod_reac_id = ""
-            self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
 
         QApplication.setOverrideCursor(Qt.BusyCursor)
         QApplication.processEvents()
@@ -290,7 +286,7 @@ class FluxFeasibilityDialog(QDialog):
                         self.appdata.scen_values_set_multiple(reactions_in_objective+[bm_reac_id], scenario_fluxes+[(0, 0)])
                     else:
                         self.appdata.scen_values_set_multiple(reactions_in_objective, scenario_fluxes)
-                    self.modified_scenario = self.appdata.scenario_past[-1]
+                    self.modified_scenario = self.appdata.scenario_history[self.appdata.current_scenario_index]
                 if bm_is_modified:
                     bm_reac_mod = self.bm_reac.copy()
                     if len(bm_mod) > 0:
@@ -315,6 +311,7 @@ class FluxFeasibilityDialog(QDialog):
                             +bm_reac_mod.build_reaction_string(), before_prompt=True)
                     if self.bm_mod_scenario.isChecked():
                         self.bm_mod_reac_id = "adjusted_" + bm_reac_id
+                        #self.appdata.record_current_scenario()
                         self.appdata.project.scen_values.reactions[self.bm_mod_reac_id] = \
                             [{met.id: coeff for met, coeff in bm_reac_mod.metabolites.items()}, fixed_growth_rate, fixed_growth_rate]
                         self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
@@ -388,7 +385,7 @@ class FluxFeasibilityDialog(QDialog):
         verified = False
         if correct:
             with QSignalBlocker(self.bm_reac_id_select):
-                self.bm_group.setFocus(True) # remove focus from self.bm_reac_id_select to suppress further signals
+                self.bm_group.setFocus() # remove focus from self.bm_reac_id_select to suppress further signals
             self.bm_reac_id = self.bm_reac_id_select.text().strip()
             if self.growth_rate_fixed():
                 verified = True

@@ -535,8 +535,8 @@ class ReactionBox(QGraphicsItem):
         if test == "":
             if self.id in self.map.appdata.project.scen_values:
                 if not self.item.accept_next_change_into_history:
-                    if len(AppData.scenario_history) > 0:
-                        AppData.current_scenario_index -= 1 # replace previous change
+                    if len(self.map.appdata.scenario_history) > 0:
+                        self.map.appdata.current_scenario_index -= 1 # replace previous change
                 self.item.accept_next_change_into_history = False
                 self.map.value_changed(self.id, test)
             self.set_default_style()
@@ -545,8 +545,8 @@ class ReactionBox(QGraphicsItem):
             if new_value:
                 if new_value != self.map.appdata.project.scen_values.get(self.id, None):
                     if not self.item.accept_next_change_into_history:
-                        if len(AppData.scenario_history) > 0:
-                            AppData.current_scenario_index -= 1 # replace previous change
+                        if len(self.map.appdata.scenario_history) > 0:
+                            self.map.appdata.current_scenario_index -= 1 # replace previous change
                     self.item.accept_next_change_into_history = False
                     self.map.value_changed(self.id, self.item.text())
                 if self.id in self.map.appdata.project.scen_values.keys():

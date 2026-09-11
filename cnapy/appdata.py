@@ -29,25 +29,23 @@ class ModelItemType(IntEnum):
 
 class AppData(QObject):
     ''' The application data '''
-    scenario_history: list = []
-    current_scenario_index: int = -1
 
-    @staticmethod
-    def add_scenario_to_history(scenario):
-        AppData.current_scenario_index += 1
-        if AppData.current_scenario_index == len(AppData.scenario_history):
-            AppData.scenario_history.append(scenario)
-        else:
-            AppData.scenario_history[AppData.current_scenario_index] = scenario
-        print(AppData.current_scenario_index, AppData.scenario_history)
+    def add_scenario_to_history(self, scenario):
+        self.current_scenario_index += 1
+        # if we branched off after an undo, drop the now-obsolete redo tail
+        # instead of only overwriting the single slot at current_scenario_index
+        if self.current_scenario_index < len(self.scenario_history):
+            del self.scenario_history[self.current_scenario_index:]
+        self.scenario_history.append(scenario)
 
-    @staticmethod
-    def clear_scenario_history():
-        AppData.scenario_history.clear()
-        AppData.current_scenario_index = -1
+    def clear_scenario_history(self):
+        self.scenario_history.clear()
+        self.current_scenario_index = -1
 
     def __init__(self):
         QObject.__init__(self)
+        self.scenario_history: list = []
+        self.current_scenario_index: int = -1
         self.version = "cnapy-1.2.8"
         self.format_version = 2
         self.unsaved = False

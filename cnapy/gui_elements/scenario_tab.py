@@ -173,6 +173,9 @@ class ScenarioTab(QWidget):
 
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid
+        focus_widget: QWidget = self.focusWidget()
+        if focus_widget:
+            focus_widget.clearFocus() # make sure no focusOut events are triggered while the destruction of the previous widgets proceeds
         with QSignalBlocker(self.scenario_objective):
             self.scenario_objective.setText(linexprdict2str(self.appdata.project.scen_values.objective_coefficients))
         with QSignalBlocker(self.use_scenario_objective):

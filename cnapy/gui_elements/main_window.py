@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import traceback
+#from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from pathlib import Path
@@ -887,9 +888,7 @@ class MainWindow(QMainWindow):
         self.load_scenario_file(filename, merge=merge)
 
     def load_scenario_file(self, filename, merge=False):
-        # self.appdata.scenario_past.clear()
-        # self.appdata.scenario_future.clear()
-        AppData.clear_scenario_history()
+        self.appdata.record_current_scenario()
         self.appdata.project.comp_values.clear()
         try:
             missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
@@ -1180,31 +1179,23 @@ class MainWindow(QMainWindow):
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
-        if AppData.current_scenario_index >= 1:
-            AppData.current_scenario_index -= 1
-            self.appdata.project.scen_values = AppData.scenario_history[AppData.current_scenario_index]
+        if self.appdata.current_scenario_index >= 1:
+            self.appdata.current_scenario_index -= 1
+            self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
             self.centralWidget().scenario_tab.recreate_scenario_items()
-        # if len(self.appdata.scenario_past) > 0:
-        #     last = self.appdata.scenario_past.pop()
-        #     self.appdata.scenario_future.append(last)
-        #     self.appdata.recreate_scenario_from_history()
 
     def redo_scenario_edit(self):
         ''' redo last undo of scenario history '''
-        if AppData.current_scenario_index < len(AppData.scenario_history) - 1:
-            AppData.current_scenario_index += 1
-            self.appdata.project.scen_values = AppData.scenario_history[AppData.current_scenario_index]
+        if self.appdata.current_scenario_index < len(self.appdata.scenario_history) - 1:
+            self.appdata.current_scenario_index += 1
+            self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
             self.centralWidget().scenario_tab.recreate_scenario_items()
-        # if len(self.appdata.scenario_future) > 0:
-        #     nex = self.appdata.scenario_future.pop()
-        #     self.appdata.scenario_past.append(nex)
-        #     self.appdata.recreate_scenario_from_history()
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
@@ -1260,9 +1251,8 @@ class MainWindow(QMainWindow):
         self.close_project_dialogs()
 
         self.appdata.project.scen_values.clear()
-        # self.appdata.scenario_past.clear()
-        # self.appdata.scenario_future.clear()
-        AppData.clear_scenario_history()
+        self.appdata.clear_scenario_history()
+        self.appdata.add_scenario_to_history(Scenario())
 
         self.set_current_filename("Untitled project")
         self.nounsaved_changes()
@@ -1364,16 +1354,14 @@ class MainWindow(QMainWindow):
                 self.appdata.project.scen_values.clear()
                 self.appdata.project.comp_values.clear()
                 self.appdata.project.fva_values.clear()
-                # self.appdata.scenario_past.clear()
-                # self.appdata.scenario_future.clear()
-                AppData.clear_scenario_history()
+                self.appdata.clear_scenario_history()
                 self.clear_status_bar()
                 self.update_scenario_file_name()
                 (reactions, values) = self.appdata.project.collect_default_scenario_values()
                 if len(reactions) > 0:
                     self.appdata.scen_values_set_multiple(reactions, values)
                 else:
-                    AppData.add_scenario_to_history(Scenario())
+                    self.appdata.add_scenario_to_history(Scenario())
                 self.nounsaved_changes()
 
                 # if project contains maps move splitter and fit mapview
@@ -1639,8 +1627,10 @@ class MainWindow(QMainWindow):
         try:
             self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
 
-            for key in (self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys()):
-                self.appdata.project.scen_values[key] = self.appdata.clipboard_comp_values[key]
+            common_keys = list(self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys())
+            if len(common_keys) > 0:
+                self.appdata.scen_values_set_multiple(
+                    common_keys, [self.appdata.clipboard_comp_values[key] for key in common_keys])
         except AttributeError:
             QMessageBox.warning(
                 self,

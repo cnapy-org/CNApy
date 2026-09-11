@@ -216,8 +216,8 @@ class ModeNavigator(QWidget):
 
     def display_mode(self):
         # if the last scenario change comes from a previous apply undo it
-        if len(AppData.scenario_history) > 0 and self.modified_scenario is AppData.scenario_history[-1]:
-            print("Resetting scenario")
+        if self.appdata.current_scenario_index >= 0 and \
+                self.modified_scenario is self.appdata.scenario_history[self.appdata.current_scenario_index]:
             self.central_widget.parent.undo_scenario_edit()
             self.modified_scenario = None
         self.appdata.modes_coloring = True
@@ -252,7 +252,7 @@ class ModeNavigator(QWidget):
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
                                               list(self.current_flux_values.values()))
-        # self.modified_scenario = self.appdata.scenario_past[-1]
+        self.modified_scenario = self.appdata.scenario_history[self.appdata.current_scenario_index]
         if self.appdata.auto_fba:
             self.central_widget.parent.fba()
         else:
