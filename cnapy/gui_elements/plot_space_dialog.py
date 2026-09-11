@@ -31,7 +31,7 @@ class PlotSpaceDialog(QDialog):
             self.r[5] = 'r_substrate_z'
 
         self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         text = QLabel('Specify the yield terms that should be used for the different axes.\n'+
                       'Keep in mind that exchange reactions are often defined in the direction of export.\n'+

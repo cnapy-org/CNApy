@@ -1,6 +1,7 @@
 """The dialog for calculating minimal cut sets"""
 
 from contextlib import redirect_stdout, redirect_stderr
+from functools import partial
 import io
 import json
 import os
@@ -106,7 +107,7 @@ class SDDialog(QDialog):
         self.current_module = 0
         self.scrollArea = QScrollArea()
         self.layout = QVBoxLayout()
-        # self.layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.layout.setSizeConstraint(QLayout.SetFixedSize)
         self.layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
         self.modules_box = QGroupBox("Strain design module(s)")
@@ -213,7 +214,7 @@ class SDDialog(QDialog):
         self.module_edit[CONSTRAINTS+"_label"] = QLabel("Constraints")
         module_spec_layout.addWidget(self.module_edit[CONSTRAINTS+"_label"])
         constr_list_layout = QHBoxLayout()
-        constr_list_layout.setAlignment(Qt.Alignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
+        constr_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         module_spec_layout.addItem(constr_list_layout)
 
         # layout for constraint list and buttons
@@ -249,7 +250,7 @@ class SDDialog(QDialog):
         self.module_edit["module_apply_button"] = QPushButton("Check module")
         self.module_edit["module_apply_button"].clicked.connect(self.module_apply)
         self.module_edit["module_del_button"] = QPushButton("Delete module")
-        self.module_edit["module_del_button"].clicked.connect(self.rem_module,True)
+        self.module_edit["module_del_button"].clicked.connect(partial(self.rem_module, True))
         module_buttons_layout.addWidget(self.module_edit["module_apply_button"])
         module_buttons_layout.addWidget(self.module_edit["module_del_button"])
         module_spec_layout.addItem(module_buttons_layout)
@@ -678,12 +679,13 @@ class SDDialog(QDialog):
             self.update_module_edit()
         self.update_global_objective()
 
-    def rem_module(self,*args):
+    @Slot(bool)
+    def rem_module(self, arg: bool):
         if self.module_list.rowCount() == 0:
             self.modules = []
             self.current_module = -1
             return
-        if args:
+        if arg:
             i = self.current_module
         if self.module_list.selectedIndexes():
             i = self.module_list.selectedIndexes()[0].row()
