@@ -660,8 +660,8 @@ class MainWindow(QMainWindow):
 
             self.setWindowTitle("CNApy - " + shown_name)
 
-    def disable_enable_dependent_actions(self):
-        self.efm_action.setEnabled(False)
+    # def disable_enable_dependent_actions(self):
+    #     self.efm_action.setEnabled(False)
 
     @Slot()
     def exit_app(self):
@@ -1240,6 +1240,7 @@ class MainWindow(QMainWindow):
     def new_project(self):
         if self.checked_unsaved():
             self.new_project_unchecked()
+            self.centralWidget().clear_model_item_history()
             self.recreate_maps()
 
     def new_project_unchecked(self):
@@ -1277,6 +1278,7 @@ class MainWindow(QMainWindow):
                 return
             self.new_project_unchecked()
             self.appdata.project.cobra_py_model = cobra_py_model
+            self.centralWidget().prune_model_item_history()
             self.set_current_filename(filename)
 
             default_map = CnaMap("Map")
@@ -1347,7 +1349,7 @@ class MainWindow(QMainWindow):
                 self.appdata.last_scen_directory = os.path.dirname(filename)
                 self.recreate_maps()
                 self.centralWidget().mode_navigator.clear()
-                self.centralWidget().clear_model_item_history()
+                self.centralWidget().prune_model_item_history()
                 self.centralWidget().reaction_list.last_selected = None
                 self.centralWidget().metabolite_list.last_selected = None
                 self.centralWidget().gene_list.last_selected = None
@@ -1655,11 +1657,17 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def set_model_bounds_to_scenario(self):
+        changed = False
         for reaction in self.appdata.project.cobra_py_model.reactions:
             if reaction.id in self.appdata.project.scen_values:
                 (vl, vu) = self.appdata.project.scen_values[reaction.id]
                 reaction.lower_bound = vl
                 reaction.upper_bound = vu
+                # bounds changed persistently -> keep the FVA-result-cache hash in sync
+                reaction.set_hash_value()
+                changed = True
+        if changed:
+            self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.centralWidget().update()
 
     @Slot()

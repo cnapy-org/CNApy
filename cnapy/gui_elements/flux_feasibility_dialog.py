@@ -461,7 +461,7 @@ class FluxFeasibilityDialog(QDialog):
         clipboard = QGuiApplication.clipboard()
         clipboard.setText('\r'.join(table))
 
-    def get_gam_removal_parameters(self, bm_reac: cobra.Reaction()):
+    def get_gam_removal_parameters(self, bm_reac: cobra.Reaction):
         valid, gam_mets = self.validate_gam_mets([met.id for met in bm_reac.metabolites])
         if valid:
             valid, gam_base = self.validate_gam_remove(gam_mets)

@@ -763,6 +763,26 @@ class CentralWidget(QWidget):
         with QSignalBlocker(self.model_item_history):
             self.model_item_history.clear()
 
+    def prune_model_item_history(self):
+        ''' Remove model item history entries that no longer occur in the current
+        model (e.g. after loading a project/SBML file), while keeping those entries
+        that are still present in the newly loaded model. '''
+        model = self.appdata.project.cobra_py_model
+        with QSignalBlocker(self.model_item_history):
+            for idx in range(self.model_item_history.count() - 1, -1, -1):
+                item_id, item_type = self.model_item_history.itemData(idx)
+                if item_type == ModelItemType.Reaction:
+                    still_exists = model.reactions.has_id(item_id)
+                elif item_type == ModelItemType.Metabolite:
+                    still_exists = model.metabolites.has_id(item_id)
+                elif item_type == ModelItemType.Gene:
+                    still_exists = model.genes.has_id(item_id)
+                else:
+                    still_exists = False
+                if not still_exists:
+                    self.model_item_history.removeItem(idx)
+            self.model_item_history.setCurrentIndex(-1)
+
     def in_out_fluxes(self, metabolite):
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
         self.show_bottom_of_console()

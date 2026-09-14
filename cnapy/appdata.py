@@ -368,13 +368,17 @@ class Scenario(Dict[str, Tuple[float, float]]):
         """Calculates and stores an integer hash based on participating attributes."""
         
         # Sort items or canonicalize structures to ensure deterministic serialization
+        def _constraint_sort_key(constraint):
+            expression, constraint_type, rhs = constraint
+            expression_key = tuple(sorted(expression.items())) if expression else ()
+            return (expression_key, constraint_type, rhs)
         serialized_data = (
             sorted(self.items()),
             sorted(self._objective_coefficients.items()) if self._objective_coefficients else [],
             self._objective_direction,
             self._use_scenario_objective,
             sorted(self._reactions.items()) if isinstance(self._reactions, dict) else self._reactions,
-            self._constraints,
+            sorted(self._constraints, key=_constraint_sort_key)
         )
 
         raw_bytes = pickle.dumps(serialized_data)

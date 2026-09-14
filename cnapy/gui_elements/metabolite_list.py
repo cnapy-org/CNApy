@@ -336,6 +336,9 @@ class MetabolitesMask(QWidget):
         self.metabolite_list.metabolite_list.setCurrentItem(None)
         affected_reactions = self.metabolite.reactions  # remember these before removal
         self.metabolite.remove_from_model()
+        for reaction in affected_reactions:
+            reaction.set_hash_value()
+        self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.metabolite_list.last_selected = None
         self.metabolite_list.metabolite_list.takeTopLevelItem(
             current_row_index)
