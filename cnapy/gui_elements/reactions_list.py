@@ -21,6 +21,44 @@ from cnapy.utils_for_cnapy_api import check_identifiers_org_entry, check_in_iden
 from cnapy.gui_elements.map_view import validate_value
 from cnapy.gui_elements.escher_map_view import EscherMapView
 
+def build_reaction_equation_html(reaction: cobra.Reaction, multiline: bool = False) -> str:
+    """Build a rich-text version of a reaction equation in which every
+    metabolite id is a clickable link (href = metabolite id).
+
+    Shared between ReactionMask's Equation field and ReactionTableWidget's
+    reaction column so that both display equations the exact same way.
+
+    Reactants/products are always ' + '-separated (breakable spaces),
+    matching reaction.build_reaction_string() and letting word-wrap lay
+    out several metabolites per line when there's room, rather than
+    forcing one per line. With multiline=True (used for ReactionMask's
+    expanded overlay) the arrow additionally gets its own line, visually
+    separating the reactant and product sides.
+
+    The arrow itself is rendered using cobra's own ASCII notation
+    ('-->' / '<=>', HTML-escaped) rather than a Unicode arrow glyph:
+    besides matching what the plain QLineEdit shows, this avoids a
+    Unicode glyph missing from the active font falling back to a
+    different font just for that character, which can shift the
+    vertical centering of the whole line.
+    """
+    def format_side(metabolites, sign):
+        parts = []
+        for m, coeff in metabolites.items():
+            coeff = coeff * sign
+            factor = "" if isclose(abs(coeff), 1.0) else f"{abs(coeff):g} "
+            parts.append(f'{factor}<a href="{m.id}">{m.id}</a>')
+        return " + ".join(parts)
+
+    reactants = {m: c for m, c in reaction.metabolites.items() if c < 0}
+    products = {m: c for m, c in reaction.metabolites.items() if c > 0}
+    lhs = format_side(reactants, -1)
+    rhs = format_side(products, 1)
+    arrow = "&lt;=&gt;" if reaction.reversibility else "--&gt;"
+    arrow_html = f"<br>{arrow}<br>" if multiline else f" {arrow} "
+    return f"{lhs}{arrow_html}{rhs}"
+
+
 class ReactionListColumn(IntEnum):
     Id = 0
     Name = 1
@@ -1514,38 +1552,10 @@ class ReactionMask(QWidget):
             self.set_equation_from_reaction(self.reaction)
 
     def build_equation_html(self, reaction: cobra.Reaction, multiline: bool = False) -> str:
-        """Build a rich-text version of the reaction equation in which every
-        metabolite id is a clickable link (href = metabolite id).
-
-        Reactants/products are always ' + '-separated (breakable spaces),
-        matching reaction.build_reaction_string() and letting word-wrap lay
-        out several metabolites per line when there's room, rather than
-        forcing one per line. With multiline=True (used for the expanded
-        overlay) the arrow additionally gets its own line, visually
-        separating the reactant and product sides.
-
-        The arrow itself is rendered using cobra's own ASCII notation
-        ('-->' / '<=>', HTML-escaped) rather than a Unicode arrow glyph:
-        besides matching what the plain QLineEdit shows, this avoids a
-        Unicode glyph missing from the active font falling back to a
-        different font just for that character, which can shift the
-        vertical centering of the whole line.
-        """
-        def format_side(metabolites, sign):
-            parts = []
-            for m, coeff in metabolites.items():
-                coeff = coeff * sign
-                factor = "" if isclose(abs(coeff), 1.0) else f"{abs(coeff):g} "
-                parts.append(f'{factor}<a href="{m.id}">{m.id}</a>')
-            return " + ".join(parts)
-
-        reactants = {m: c for m, c in reaction.metabolites.items() if c < 0}
-        products = {m: c for m, c in reaction.metabolites.items() if c > 0}
-        lhs = format_side(reactants, -1)
-        rhs = format_side(products, 1)
-        arrow = "&lt;=&gt;" if reaction.reversibility else "--&gt;"
-        arrow_html = f"<br>{arrow}<br>" if multiline else f" {arrow} "
-        return f"{lhs}{arrow_html}{rhs}"
+        """Thin wrapper around the shared build_reaction_equation_html, kept
+        as a method so existing call sites in this class don't need to
+        change."""
+        return build_reaction_equation_html(reaction, multiline=multiline)
 
     def set_equation_from_reaction(self, reaction: cobra.Reaction):
         """Populate both the editable equation field and its link-ified
