@@ -30,8 +30,8 @@ from qtpy.QtWidgets import QApplication
 from qtpy.QtWidgets import QMessageBox
 
 # Necessary on some systems so that, e.g., the in/put metabolite flux visualization in the ipython console can run
-import nest_asyncio
-nest_asyncio.apply()
+import nest_asyncio2
+nest_asyncio2.apply()
 
 # Ensuring compatibility with high resolution displays. These attributes are
 # Qt 5-only, so look them up through ApplicationAttribute for Qt 6 safety.

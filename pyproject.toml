@@ -37,7 +37,8 @@ dependencies = [
     "setuptools",
     "cobrak==0.0.10",
     "highspy>=1.14.0",
-    "osqp>=1.1.3"
+    "osqp>=1.1.3",
+    "nest-asyncio2>=1.7.0"
 ]
 
 [project.scripts]
