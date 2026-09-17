@@ -6,12 +6,12 @@ import cobra
 from IPython.core.interactiveshell import InteractiveShell
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
+from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker, QEvent
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame,
                             QStackedWidget, QSizePolicy)
-
+from urllib.parse import unquote
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
