@@ -3,13 +3,14 @@
 import numpy
 from enum import IntEnum
 import cobra
+from IPython.core.interactiveshell import InteractiveShell
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
+from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker, QEvent
 from qtpy.QtGui import QAction, QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
                             QTabWidget, QVBoxLayout, QWidget, QApplication, QComboBox, QFrame)
-
+from urllib.parse import unquote
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
@@ -27,6 +28,48 @@ class ModelTabIndex(IntEnum):
     Genes = 2
     Scenario = 3
     Model = 4
+
+
+class CnaRichJupyterWidget(RichJupyterWidget):
+    """RichJupyterWidget subclass that turns anchors of the form
+    'cnapy-reaction:<id>' / 'cnapy-metabolite:<id>' -- e.g. as produced by
+    build_reaction_equation_html() in reactions_list.py, or by any HTML
+    displayed in the console via IPython.display.display(HTML(...)) -- into
+    clickable links that jump to the corresponding reaction/metabolite in
+    CNApy, instead of just being inert rich text.
+    """
+
+    reactionClicked = Signal(str)
+    metaboliteClicked = Signal(str)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # RichJupyterWidget stores its actual rich-text control here.
+        self._control.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self._control and event.type() == QEvent.Type.MouseButtonRelease:
+            if event.button() == Qt.MouseButton.LeftButton:
+                pos = event.position().toPoint()
+                href = self._control.anchorAt(pos)
+
+                if href.startswith("cnapy-reaction:"):
+                    reaction_id = unquote(
+                        href[len("cnapy-reaction:"):]
+                    )
+                    self.reactionClicked.emit(reaction_id)
+                    return True
+
+                if href.startswith("cnapy-metabolite:"):
+                    metabolite_id = unquote(
+                        href[len("cnapy-metabolite:"):]
+                    )
+                    self.metaboliteClicked.emit(metabolite_id)
+                    return True
+
+        return super().eventFilter(obj, event)
+
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
@@ -93,6 +136,16 @@ class CentralWidget(QWidget):
         myglobals = globals()
         myglobals["cna"] = self.parent
         self.kernel_shell = kernel_manager.kernel.shell
+        # The kernel's shell is an InProcessInteractiveShell, a subclass of
+        # InteractiveShell; qtconsole/ipykernel registers the singleton on
+        # that subclass via InProcessInteractiveShell.instance(), not on
+        # InteractiveShell itself. IPython.display.display() (and
+        # get_ipython()) check InteractiveShell.initialized(), which only
+        # looks at InteractiveShell's own _instance -- so without this line
+        # they see no active shell and silently fall back to printing the
+        # object's repr instead of rendering it (e.g. "<IPython.core.
+        # display.HTML object>" instead of the actual HTML).
+        InteractiveShell._instance = self.kernel_shell
         self.kernel_shell.push(myglobals)
         self.kernel_client = kernel_manager.client()
         self.kernel_client.start_channels()
@@ -105,8 +158,19 @@ class CentralWidget(QWidget):
         self.kernel_client.execute('%matplotlib qt', store_history=False)
         self.kernel_client.execute(
             "%config InlineBackend.figure_format = 'svg'", store_history=False)
-        self.console = RichJupyterWidget()
-        
+        self.console = CnaRichJupyterWidget()
+
+        if parent.appdata.is_in_dark_mode:
+            self.console.set_default_style("linux")
+        else:
+            self.console.set_default_style("lightbg")
+
+        self.console.kernel_manager = kernel_manager
+        self.console.kernel_client = self.kernel_client
+
+        self.console.reactionClicked.connect(self.jump_to_reaction)
+        self.console.metaboliteClicked.connect(self.jump_to_metabolite)
+
         if parent.appdata.is_in_dark_mode:
             self.console.set_default_style("linux")  # A more 'classic' dark theme :3
         else:
@@ -784,8 +848,14 @@ class CentralWidget(QWidget):
             self.model_item_history.setCurrentIndex(-1)
 
     def in_out_fluxes(self, metabolite):
+        # Note: kernel_client.execute() only queues the code for the kernel;
+        # by the time it returns, the plot has not actually been rendered or
+        # inserted into the console yet. Calling show_bottom_of_console()
+        # here used to race against that, scrolling based on the console's
+        # *old* (pre-plot) content. Scrolling is now handled directly by
+        # InOutFluxConsolePlot once the plot/legend are actually inserted
+        # (see _append_clickable_flux_plot), so no extra call is needed here.
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
-        self.show_bottom_of_console()
 
     broadcastReactionID = Signal(str)
 

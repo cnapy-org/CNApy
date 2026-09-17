@@ -5,7 +5,6 @@ import traceback
 #from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 import pickle
 import xml.etree.ElementTree as ET
@@ -18,12 +17,11 @@ from optlang_enumerator.cobra_cnapy import CNApyModel
 from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
-import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
 
 from qtpy.QtCore import Qt, Slot, QTimer, QSignalBlocker, QSize
-from qtpy.QtGui import QAction, QActionGroup, QColor, QIcon, QKeySequence, QShortcut
+from qtpy.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QShortcut
 from qtpy.QtWidgets import (QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
@@ -51,6 +49,7 @@ from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_cplex_new import CplexNewConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
+from cnapy.gui_elements.in_out_flux_console_plot import InOutFluxConsolePlot
 import cnapy.utils as utils
 
 SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
@@ -74,6 +73,12 @@ class MainWindow(QMainWindow):
 
         self.central_widget = CentralWidget(self)
         self.setCentralWidget(self.central_widget)
+
+        # Owns the clickable, inline in/out-flux plot feature (computing the
+        # plot, inserting it with a clickable legend into the console, and
+        # the event filter that keeps old plots in the scrollback
+        # interactive). See in_out_flux_console_plot.py.
+        self._in_out_flux_console_plot = InOutFluxConsolePlot(self.appdata, self.central_widget)
 
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("&Project")
@@ -2127,56 +2132,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().set_heaton()
 
     def in_out_fluxes(self, metabolite_id, soldict):
-        self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
-        with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.scen_values.add_scenario_reactions_to_model(model)
-            met = model.metabolites.get_by_id(metabolite_id)
-            fig, ax = plt.subplots()
-            ax.set_xticks([1, 2])
-            ax.set_xticklabels(['In', 'Out'])
-            cons = []
-            prod = []
-            sum_cons = 0
-            sum_prod = 0
-            for rxn in met.reactions:
-                flux = soldict.get(rxn.id, 0.0)
-                if abs(flux) > model.tolerance:
-                    flux *= rxn.get_coefficient(metabolite_id)
-                    if flux < 0:
-                        cons.append((rxn, -flux))
-                    elif flux > 0:
-                        prod.append((rxn, flux))
-            cons = sorted(cons, key=lambda x: x[1], reverse=True)
-            prod = sorted(prod, key=lambda x: x[1], reverse=True)
-            for rxn, flux in prod:
-                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn.id+": "+rxn.build_reaction_string())
-                sum_prod += flux
-            for rxn, flux in cons:
-                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn.id+": "+rxn.build_reaction_string())
-                sum_cons += flux
-            ax.set_ylabel('Flux')
-            ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
-            ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
-
-            # Print plot in CNApy's console
-            plt.show()
-
-            # Pretty print cons and prod lists of tuples
-            pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
-                x[0].id: x[1]
-                for x in prod
-            }, indent=2)
-            pretty_cons_dict = f"\nConsuming reactions of {metabolite_id}:\n"+json.dumps({
-                x[0].id: x[1]
-                for x in cons
-            }, indent=2)
-            # The next print statements are directly executed in CNApy's Jupyter console
-            print(pretty_prod_dict)
-            print(pretty_cons_dict)
-
-        self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
-
-        return prod, cons
+        return self._in_out_flux_console_plot.in_out_fluxes(metabolite_id, soldict)
 
     def show_console(self):
         print("show model view")
