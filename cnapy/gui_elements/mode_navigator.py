@@ -75,11 +75,11 @@ class ModeNavigator(QWidget):
         self.completion_list = QStringListModel()
         self.completer = CustomCompleter(self)
         self.completer.setModel(self.completion_list)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.selector.setCompleter(self.completer)
 
         l12 = QHBoxLayout()
-        l12.setAlignment(Qt.AlignRight)
+        l12.setAlignment(Qt.AlignmentFlag.AlignRight)
         l12.addWidget(self.save_button)
         l12.addWidget(self.clear_button)
         l1.addWidget(self.title)
@@ -209,15 +209,15 @@ class ModeNavigator(QWidget):
         self.central_widget.mode_normalization_reaction = ""
         self.mode_type = 0 # EFM or some sort of flux vector
         self.appdata.project.modes.clear()
-        self.appdata.recreate_scenario_from_history()
+        # self.appdata.recreate_scenario_from_history() # what to do instead?
         self.selector.accept_signal_input = False
         self.hide()
         self.modeNavigatorClosed.emit()
 
     def display_mode(self):
         # if the last scenario change comes from a previous apply undo it
-        if len(self.appdata.scenario_past) > 0 and self.modified_scenario is self.appdata.scenario_past[-1]:
-            print("Resetting scenario")
+        if self.appdata.current_scenario_index >= 0 and \
+                self.modified_scenario is self.appdata.scenario_history[self.appdata.current_scenario_index]:
             self.central_widget.parent.undo_scenario_edit()
             self.modified_scenario = None
         self.appdata.modes_coloring = True
@@ -252,7 +252,7 @@ class ModeNavigator(QWidget):
     def apply(self):
         self.appdata.scen_values_set_multiple(list(self.current_flux_values.keys()),
                                               list(self.current_flux_values.values()))
-        self.modified_scenario = self.appdata.scenario_past[-1]
+        self.modified_scenario = self.appdata.scenario_history[self.appdata.current_scenario_index]
         if self.appdata.auto_fba:
             self.central_widget.parent.fba()
         else:
@@ -352,7 +352,7 @@ class ModeNavigator(QWidget):
 
     def normalization(self):
         dialog = NormalizationDialog(self.appdata, self)
-        dialog.exec_()
+        dialog.exec()
 
     def __del__(self):
         self.central_widget.mode_normalization_reaction = ""
@@ -452,8 +452,8 @@ class NormalizationDialog(QDialog):
 
     @Slot()
     def normalize(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         self.parent.central_widget.mode_normalization_reaction = self.expr.text().strip()
         self.parent.central_widget.update_mode()
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.accept()

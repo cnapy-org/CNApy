@@ -11,6 +11,7 @@ from ast import literal_eval as make_tuple
 from math import isclose
 import appdirs
 from enum import IntEnum
+from copy import deepcopy
 
 import cobra
 from optlang.symbolics import Zero
@@ -29,8 +30,22 @@ class ModelItemType(IntEnum):
 class AppData(QObject):
     ''' The application data '''
 
+    def add_scenario_to_history(self, scenario):
+        self.current_scenario_index += 1
+        # if we branched off after an undo, drop the now-obsolete redo tail
+        # instead of only overwriting the single slot at current_scenario_index
+        if self.current_scenario_index < len(self.scenario_history):
+            del self.scenario_history[self.current_scenario_index:]
+        self.scenario_history.append(scenario)
+
+    def clear_scenario_history(self):
+        self.scenario_history.clear()
+        self.current_scenario_index = -1
+
     def __init__(self):
         QObject.__init__(self)
+        self.scenario_history: list = []
+        self.current_scenario_index: int = -1
         self.version = "cnapy-1.2.8"
         self.format_version = 2
         self.unsaved = False
@@ -40,7 +55,7 @@ class AppData(QObject):
         # more scencolors
         self.scen_color_good = QColor(130, 190, 0)
         self.scen_color_warn = QColor(255, 200, 0)
-        self.scen_color_bad = Qt.red
+        self.scen_color_bad = Qt.GlobalColor.red
 
         font = QFont()
         font.setFamily(font.defaultFamily())
@@ -65,36 +80,48 @@ class AppData(QObject):
             "cnapy", roaming=True, appauthor=False), "cnapy-config.txt")
         self.cobrapy_conf_path = os.path.join(appdirs.user_config_dir(
             "cnapy", roaming=True, appauthor=False), "cobrapy-config.txt")
-        self.scenario_past = []
-        self.scenario_future = []
+        # self.scenario_past = []
+        # self.scenario_future = []
         self.recent_cna_files = []
         self.auto_fba = False
         self.is_in_dark_mode = False
+        self.save_model_as_json: bool=False
+
+    def record_current_scenario(self):
+        self.project.scen_values = deepcopy(self.project.scen_values)
+        self.add_scenario_to_history(self.project.scen_values)
 
     def scen_values_set(self, reaction: str, values: Tuple[float, float]):
-        if self.project.scen_values.get(reaction, None) != values: # record only real changes
-            self.project.scen_values[reaction] = values
-            self.scenario_past.append(("set", reaction, values))
-            self.scenario_future.clear()
-            self.unsaved_scenario_changes()
+        self.record_current_scenario()
+        self.project.scen_values[reaction] = values
+        self.project.scen_values.set_hash_value()
+        # self.scenario_past.append(("set", reaction, values))
+        # self.scenario_future.clear()
+        self.unsaved_scenario_changes()
 
     def scen_values_set_multiple(self, reactions: List[str], values: List[Tuple[float, float]]):
+        self.record_current_scenario()
         for r, v in zip(reactions, values):
             self.project.scen_values[r] = v
-        self.scenario_past.append(("set", reactions, values))
-        self.scenario_future.clear()
+        self.project.scen_values.set_hash_value()
+        # self.scenario_past.append(("set", reactions, values))
+        # self.scenario_future.clear()
         self.unsaved_scenario_changes()
 
     def scen_values_pop(self, reaction: str):
+        self.record_current_scenario()
         self.project.scen_values.pop(reaction, None)
-        self.scenario_past.append(("pop", reaction, 0))
-        self.scenario_future.clear()
+        self.project.scen_values.set_hash_value()
+        # self.scenario_past.append(("pop", reaction, 0))
+        # self.scenario_future.clear()
         self.unsaved_scenario_changes()
 
     def scen_values_clear(self):
+        self.record_current_scenario()
         self.project.scen_values.clear_flux_values()
-        self.scenario_past.append(("clear", "all", 0))
-        self.scenario_future.clear()
+        self.project.scen_values.set_hash_value()
+        # self.scenario_past.append(("clear", "all", 0))
+        # self.scenario_future.clear()
         self.unsaved_scenario_changes()
 
     def set_comp_value_as_scen_value(self, reaction: str):
@@ -103,20 +130,20 @@ class AppData(QObject):
             self.scen_values_set(reaction, val)
         self.unsaved_scenario_changes()
 
-    def recreate_scenario_from_history(self):
-        self.project.scen_values.clear_flux_values()
-        for (tag, reaction, values) in self.scenario_past:
-            if tag == "set":
-                if isinstance(reaction, list):
-                    for r, v in zip(reaction, values):
-                        self.project.scen_values[r] = v
-                else:
-                    self.project.scen_values[reaction] = values
-            elif tag == "pop":
-                self.project.scen_values.pop(reaction, None)
-            elif tag == "clear":
-                self.project.scen_values.clear_flux_values()
-        self.unsaved_scenario_changes()
+    # def recreate_scenario_from_history(self):
+    #     self.project.scen_values.clear_flux_values()
+    #     for (tag, reaction, values) in self.scenario_past:
+    #         if tag == "set":
+    #             if isinstance(reaction, list):
+    #                 for r, v in zip(reaction, values):
+    #                     self.project.scen_values[r] = v
+    #             else:
+    #                 self.project.scen_values[reaction] = values
+    #         elif tag == "pop":
+    #             self.project.scen_values.pop(reaction, None)
+    #         elif tag == "clear":
+    #             self.project.scen_values.clear_flux_values()
+    #     self.unsaved_scenario_changes()
 
     def format_flux_value(self, flux_value) -> str:
         return str(round(float(flux_value), self.rounding)).rstrip("0").rstrip(".")
@@ -126,9 +153,9 @@ class AppData(QObject):
         if isclose(vl, vu, abs_tol=self.abs_tol):
             if self.modes_coloring:
                 if vl == 0:
-                    background_color = Qt.red
+                    background_color = Qt.GlobalColor.red
                 else:
-                    background_color = Qt.green
+                    background_color = Qt.GlobalColor.green
             else:
                 background_color = self.comp_color
             as_one = True
@@ -169,6 +196,7 @@ class AppData(QObject):
         parser.set('cnapy-config', 'results_cache_directory', str(self.results_cache_dir))
         parser.set('cnapy-config', 'recent_cna_files', str(self.recent_cna_files))
         parser.set('cnapy-config', 'is_in_dark_mode', str(self.is_in_dark_mode))
+        parser.set('cnapy-config', 'save_model_as_json', str(self.save_model_as_json))
         parser.write(fp)
         fp.close()
 
@@ -224,27 +252,141 @@ class AppData(QObject):
 
     unsavedScenarioChanges = Signal()
 
+import hashlib
+import pickle
+
 class Scenario(Dict[str, Tuple[float, float]]):
     empty_constraint = (None, "", "")
 
-    # cannot do this because of the import problem
-    # @staticmethod
-    # def format_constraint(constraint):
-    #     return linexprdict2str(constraint[0])+" "+constraint[1]+" "+str(constraint[2])
-
     def __init__(self):
         super().__init__() # this dictionary contains the flux values
-        self.objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
-        self.objective_direction: str = "max"
-        self.use_scenario_objective: bool = False
+        self._objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
+        self._objective_direction: str = "max"
+        self._use_scenario_objective: bool = False
         self.pinned_reactions: Set[str] = set()
         self.description: str = ""
-        self.constraints: List[List(Dict, str, float)] = [] # [reaction_id: coefficient dictionary, type, rhs]
-        self.reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
+        self._constraints: List[List[Dict, str, float]] = [] # [reaction_id: coefficient dictionary, type, rhs]
+        self._reactions = {} # reaction_id: (coefficient dictionary, lb, ub), can overwrite existing reactions
         self.annotations = [] # List of dicts with: { "id": $reac_id, "key": $key_value, "value": $value_at_key }
         self.file_name: str = ""
         self.has_unsaved_changes = False
         self.version: int = 4
+        self.hash_value: int = 0
+        self.set_hash_value()
+
+    # --- Property Getters and Setters to auto-update hash value ---
+
+    @property
+    def objective_coefficients(self) -> Dict[str, float]:
+        return self._objective_coefficients
+
+    @objective_coefficients.setter
+    def objective_coefficients(self, value: Dict[str, float]):
+        self._objective_coefficients = value
+        self.set_hash_value()
+
+    @property
+    def objective_direction(self) -> str:
+        return self._objective_direction
+
+    @objective_direction.setter
+    def objective_direction(self, value: str):
+        self._objective_direction = value
+        self.set_hash_value()
+
+    @property
+    def use_scenario_objective(self) -> bool:
+        return self._use_scenario_objective
+
+    @use_scenario_objective.setter
+    def use_scenario_objective(self, value: bool):
+        self._use_scenario_objective = value
+        self.set_hash_value()
+
+    @property
+    def reactions(self) -> dict:
+        return self._reactions
+
+    @reactions.setter
+    def reactions(self, value: dict):
+        self._reactions = value
+        self.set_hash_value()
+
+    @property
+    def constraints(self) -> List:
+        return self._constraints
+
+    @constraints.setter
+    def constraints(self, value: List):
+        self._constraints = value
+        self.set_hash_value()
+
+    # --- Overridden Dict Methods to detect updates to parent dictionary ---
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self.set_hash_value()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.set_hash_value()
+
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        self.set_hash_value()
+
+    def setdefault(self, key, default=None):
+        result = super().setdefault(key, default)
+        self.set_hash_value()
+        return result
+
+    def pop(self, *args):
+        result = super().pop(*args)
+        self.set_hash_value()
+        return result
+
+    def popitem(self):
+        result = super().popitem()
+        self.set_hash_value()
+        return result
+
+    def clear_flux_values(self):
+        super().clear()
+        self.set_hash_value()
+
+    def clear(self):
+        super().clear()
+        self.__init__()
+
+    """In-Place Mutability Caveat: If you modify nested mutable structures in-place 
+    (e.g., doing scenario.constraints.append(...), Python's property setters will 
+    not detect the change automatically. Whenever you mutate a list or dict in-place 
+    without explicit assignment, call scenario.set_hash_value() manually.
+    Also: use the hash value only when values from the annotation do not influence the
+    calculation, same as for regular reactions hashes."""
+    def set_hash_value(self):
+        """Calculates and stores an integer hash based on participating attributes."""
+        
+        # Sort items or canonicalize structures to ensure deterministic serialization
+        def _constraint_sort_key(constraint):
+            expression, constraint_type, rhs = constraint
+            expression_key = tuple(sorted(expression.items())) if expression else ()
+            return (expression_key, constraint_type, rhs)
+        serialized_data = (
+            sorted(self.items()),
+            sorted(self._objective_coefficients.items()) if self._objective_coefficients else [],
+            self._objective_direction,
+            self._use_scenario_objective,
+            sorted(self._reactions.items()) if isinstance(self._reactions, dict) else self._reactions,
+            sorted(self._constraints, key=_constraint_sort_key)
+        )
+
+        raw_bytes = pickle.dumps(serialized_data)
+        # Convert MD5 digest to an integer hash compatible with Python's hash format
+        self.hash_value = int(hashlib.md5(raw_bytes).hexdigest(), 16)
+
+    def __hash__(self) -> int:
+        return self.hash_value
 
     def save(self, filename: str):
         json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
@@ -421,7 +563,7 @@ class ProjectData:
                 "it under 'Config->Configure cobrapy').\n"+\
                 "Right now, GLPK is set as alternative solver instead of Gurobi."
             )
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
 
         self.cobra_py_model = CNApyModel()
