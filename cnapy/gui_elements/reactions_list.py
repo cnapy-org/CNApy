@@ -41,6 +41,11 @@ def build_reaction_equation_html(reaction: cobra.Reaction, multiline: bool = Fal
     Unicode glyph missing from the active font falling back to a
     different font just for that character, which can shift the
     vertical centering of the whole line.
+
+    A reaction that is irreversible "backwards" (upper_bound <= 0, so
+    it can only run from products to reactants) is shown with the
+    arrow reversed ('<--') even though the reactant/product sides
+    keep their usual left/right positions.
     """
     def format_side(metabolites, sign):
         parts = []
@@ -54,7 +59,12 @@ def build_reaction_equation_html(reaction: cobra.Reaction, multiline: bool = Fal
     products = {m: c for m, c in reaction.metabolites.items() if c > 0}
     lhs = format_side(reactants, -1)
     rhs = format_side(products, 1)
-    arrow = "&lt;=&gt;" if reaction.reversibility else "--&gt;"
+    if reaction.reversibility:
+        arrow = "&lt;=&gt;"
+    elif reaction.upper_bound <= 0:
+        arrow = "&lt;--"
+    else:
+        arrow = "--&gt;"
     arrow_html = f"<br>{arrow}<br>" if multiline else f" {arrow} "
     return f"{lhs}{arrow_html}{rhs}"
 

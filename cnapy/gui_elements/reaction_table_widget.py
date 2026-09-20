@@ -1,6 +1,6 @@
 from enum import Enum
 from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QTextEdit, QFrame
+from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QTextEdit, QFrame, QToolTip
 from qtpy.QtGui import QMouseEvent
 
 from cnapy.gui_elements.reactions_list import build_reaction_equation_html
@@ -42,13 +42,16 @@ class ReactionString(QTextEdit):
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
         link = self.anchorAt(event.pos())
-        self.viewport().setCursor(
-            Qt.CursorShape.PointingHandCursor if link else Qt.CursorShape.IBeamCursor
-        )
+        if link and self.model.metabolites.has_id(link):
+            self.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
+            QToolTip.showText(event.globalPos(), self.model.metabolites.get_by_id(link).name, self)
+        else:
+            self.viewport().setCursor(Qt.CursorShape.IBeamCursor)
+            QToolTip.hideText()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton and not self.textCursor().hasSelection():
             metabolite_id = self.anchorAt(event.pos())
             if metabolite_id and self.model.metabolites.has_id(metabolite_id):
                 self.jumpToMetabolite.emit(metabolite_id)

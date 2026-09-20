@@ -366,7 +366,13 @@ class InOutFluxConsolePlot(QObject):
             reactants = {met: c for met, c in rxn.metabolites.items() if c < 0}
             products = {met: c for met, c in rxn.metabolites.items() if c > 0}
             segments = side_segments(reactants, -1)
-            segments.append((" " + ("<=>" if rxn.reversibility else "-->") + " ", None))
+            if rxn.reversibility:
+                arrow = "<=>"
+            elif rxn.upper_bound <= 0:
+                arrow = "<--"
+            else:
+                arrow = "-->"
+            segments.append((" " + arrow + " ", None))
             segments.extend(side_segments(products, 1))
 
             used_px = 0

@@ -512,10 +512,7 @@ class ScenarioTab(QWidget):
     def use_scenario_objective_changed(self, state: int):
         self.validate_objective()
         if self.use_scenario_objective.isEnabled():
-            if state == Qt.CheckState.Checked:
-                self.appdata.project.scen_values.use_scenario_objective = True
-            elif state == Qt.CheckState.Unchecked:
-                self.appdata.project.scen_values.use_scenario_objective = False
+            self.appdata.project.scen_values.use_scenario_objective = self.use_scenario_objective.isChecked()
             self.objectiveSetupChanged.emit()
 
     @Slot(int)
