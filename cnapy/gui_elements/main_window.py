@@ -1904,73 +1904,96 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
+    def compute_fva_result(self, model, constraints=None): # -> Optional[Dict[str, Tuple[float, float]]]:
+        """Run (multi-threaded HiGHS) FVA on `model` and return
+        {reaction_id: (min_flux, max_flux)}, or None if the computation
+        didn't succeed (infeasible / solver error -- a message box is shown
+        to the user in that case).
+
+        `model` is expected to already have the current scenario loaded
+        into it (via load_scenario_into_model), with the exception of
+        `constraints` (linear constraints), which multi_threaded_HiGHS_FVA
+        handles separately and must therefore be passed in here rather than
+        loaded into the model beforehand. Defaults to the project's current
+        scenario constraints if not given.
+
+        This is the shared core of fva() (which runs it against the
+        project's own model/scenario and stores the result into
+        appdata.project.fva_values) and is also reused by ThermodynamicDialog
+        so that OptMDFpathway can be given the same FVA result -- including
+        the infinite-bound clipping and results-cache lookup below -- instead
+        of computing its own.
+        """
+        if constraints is None:
+            constraints = []
+
+        fva_result = None
+        update_stoichiometry_hash = False
+        for r in model.reactions:
+            if r.lower_bound == -float('inf'):
+                r.lower_bound = cobra.Configuration().lower_bound
+                if self.appdata.use_results_cache:
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+            if r.upper_bound == float('inf'):
+                r.upper_bound = cobra.Configuration().upper_bound
+                if self.appdata.use_results_cache:
+                    r.set_hash_value()
+                    update_stoichiometry_hash = True
+        if self.appdata.use_results_cache:
+            if update_stoichiometry_hash:
+                model.set_stoichiometry_hash_object()
+            self.appdata.project.scen_values.set_hash_value() # call here for simplicity, but should in the long term be directly executed after scenario modification
+            fva_hash = hash((int(model.stoichiometry_hash_object.hexdigest(), 16),
+                                hash(self.appdata.project.scen_values), hash(model.tolerance)))
+            file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+str(fva_hash)+".pkl")
+
+            if Path.exists(file_path):
+                try:
+                    with open(file_path, 'rb') as file:
+                        fva_result = pickle.load(file)
+                    self.statusBar().showMessage("Loaded FVA result from " + str(file_path))
+                except:
+                    self.statusBar().showMessage("Loading FVA result from " + str(file_path) + " failed, running FVA.")
+
+        if not fva_result:
+            try:
+                lb, ub, dud = multi_threaded_HiGHS_FVA(model, constraints)
+                fva_result = (lb, ub)
+                if dud > 0:
+                    QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
+                elif self.appdata.use_results_cache:
+                    with open(file_path, 'wb') as file:
+                        pickle.dump(fva_result, file)
+                        self.statusBar().showMessage("Saved FVA result to " + str(file_path))
+            except cobra.exceptions.Infeasible:
+                QMessageBox.information(
+                    self, 'FVA not possible', 'The scenario is infeasible.')
+                return None
+            except Exception:
+                exstr = get_last_exception_string()
+                print(exstr)
+                utils.show_unknown_error_box(exstr)
+                return None
+
+        if fva_result:
+            return {model.reactions[i].id: (fva_result[0][i], fva_result[1][i]) for i in range(len(model.reactions))}
+        return None
+
     def fva(self):
         QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents()
-        fva_result = None
+        fva_result_dict = None
         with self.appdata.project.cobra_py_model as model:
             constraints = self.appdata.project.scen_values.constraints
             # do not load constraints into model, they are processed separately in multi_threaded_HiGHS_FVA
             self.appdata.project.scen_values.constraints = []
             self.appdata.project.load_scenario_into_model(model)
             self.appdata.project.scen_values.constraints = constraints
-            # if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
-            #     update_stoichiometry_hash = True
-            # else:
-            #     update_stoichiometry_hash = False
-            for r in self.appdata.project.cobra_py_model.reactions:
-                if r.lower_bound == -float('inf'):
-                    r.lower_bound = cobra.Configuration().lower_bound
-                    # if self.appdata.use_results_cache:
-                        # r.set_hash_value()
-                        # update_stoichiometry_hash = True
-                if r.upper_bound == float('inf'):
-                    r.upper_bound = cobra.Configuration().upper_bound
-                    # if self.appdata.use_results_cache:
-                    #     r.set_hash_value()
-                    #     update_stoichiometry_hash = True
-            if self.appdata.use_results_cache:
-                # if update_stoichiometry_hash:
-                #     model.set_stoichiometry_hash_object()
-                # fva_hash = model.stoichiometry_hash_object.copy()
-                # if len(self.appdata.project.scen_values.constraints) > 0:
-                #     fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
-                # fva_hash.update(pickle.dumps(model.tolerance))
-                # file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+fva_hash.hexdigest()+".pkl")
-                self.appdata.project.scen_values.set_hash_value() # call here for simplicity, but should in the long term be directly executed after scenario modification 
-                fva_hash = hash((int(model.stoichiometry_hash_object.hexdigest(), 16),
-                                 hash(self.appdata.project.scen_values), hash(model.tolerance)))
-                file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+str(fva_hash)+".pkl")
+            fva_result_dict = self.compute_fva_result(model, constraints)
 
-                if Path.exists(file_path):
-                    try:
-                        with open(file_path, 'rb') as file:
-                            fva_result = pickle.load(file)
-                        self.statusBar().showMessage("Loaded FVA result from " + str(file_path))
-                    except:
-                        self.statusBar().showMessage("Loading FVA result from " + str(file_path) + " failed, running FVA.")
-
-            if not fva_result:
-                try:
-                    lb, ub, dud = multi_threaded_HiGHS_FVA(model, self.appdata.project.scen_values.constraints)
-                    fva_result = (lb, ub)
-                    if dud > 0:
-                        QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
-                    elif self.appdata.use_results_cache:
-                        with open(file_path, 'wb') as file:
-                            pickle.dump(fva_result, file)
-                            self.statusBar().showMessage("Saved FVA result to " + str(file_path))
-                except cobra.exceptions.Infeasible:
-                    QMessageBox.information(
-                        self, 'FVA not possible', 'The scenario is infeasible.')
-                except Exception:
-                    exstr = get_last_exception_string()
-                    print(exstr)
-                    utils.show_unknown_error_box(exstr)
-
-        if fva_result:
-            self.appdata.project.comp_values = {
-                model.reactions[i].id: (fva_result[0][i], fva_result[1][i]) for i in range(len(model.reactions))}
+        if fva_result_dict:
+            self.appdata.project.comp_values = fva_result_dict
             self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
             self.appdata.project.comp_values_type = 1
 
@@ -2170,6 +2193,7 @@ class MainWindow(QMainWindow):
         self.optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
+            self,
             analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
         )
         self.optmdfpathway_dialog.show()
@@ -2179,6 +2203,7 @@ class MainWindow(QMainWindow):
         self.thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
+            self,
             analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
         )
         self.thermodynamic_fba_dialog.exec()

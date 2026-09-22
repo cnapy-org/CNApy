@@ -494,14 +494,8 @@ class Scenario(Dict[str, Tuple[float, float]]):
                     reaction = cobra.Reaction(reac_id, lower_bound=lb, upper_bound=ub)
                     model.add_reactions([reaction])
                 reaction.add_metabolites(metabolites)
-                reaction.set_hash_value()
+                # reaction.set_hash_value() # now covered by Scenario.hash_value
 
-    def clear_flux_values(self):
-        super().clear()
-
-    def clear(self):
-        super().clear()
-        self.__init__()
 
 class IDList(object):
     """
@@ -590,7 +584,7 @@ class ProjectData:
                 print('reaction', x, 'not found!')
             else:
                 y.bounds = self.scen_values[x]
-                y.set_hash_value()
+                # y.set_hash_value() # now covered by Scenario.hash_value
 
         self.scen_values.add_scenario_reactions_to_model(model)
 
