@@ -193,22 +193,13 @@ def fake_main_window(appdata, mainwindow_cls):
 
     One important wrinkle: fba() (and fba_optimize_reaction()) don't
     populate comp_values themselves - they delegate to
-    `self.process_fba_solution()`. Since `self` here is a bare MagicMock
-    rather than a real MainWindow instance, leaving that attribute
-    auto-mocked would make `self.process_fba_solution()` a silent no-op:
-    fba() would appear to "run" and set appdata.project.solution correctly,
-    but the comp_values-populating logic (which lives in
-    process_fba_solution, not fba itself) would never execute. fva(), by
-    contrast, populates comp_values inline and has no such delegation, which
-    is why it works against a plain MagicMock without this.
+    `self.process_fba_solution()`. Similarly, fva() delegates to
+    `self.compute_fva_result()`. Since `self` here is a MagicMock instance,
+    leaving those attributes auto-mocked would make them return un-bound
+    MagicMock objects instead of executing real logic.
 
-    So the real, unbound `process_fba_solution` is explicitly bound onto
-    this fake via `types.MethodType` - it only touches `self.appdata` (real)
-    and the mocked UI attributes above, so it's safe to run for real here.
-    Any other MainWindow method that a slot under test calls via
-    `self.<method>()` rather than inlining its own logic needs the same
-    treatment; check the slot's source before assuming a bare MagicMock is
-    enough.
+    Therefore, `process_fba_solution` and `compute_fva_result` are explicitly
+    bound onto this fake instance via `types.MethodType`.
     """
     fake = MagicMock(name="FakeMainWindow")
     fake.appdata = appdata
@@ -221,5 +212,7 @@ def fake_main_window(appdata, mainwindow_cls):
     fake.solver_status_display = MagicMock(name="solver_status_display")
 
     fake.process_fba_solution = types.MethodType(mainwindow_cls.process_fba_solution, fake)
+    fake.compute_fva_result = types.MethodType(mainwindow_cls.compute_fva_result, fake)
 
     return fake
+    
