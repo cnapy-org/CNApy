@@ -3,13 +3,15 @@
 import numpy
 from enum import IntEnum
 import cobra
+from IPython.core.interactiveshell import InteractiveShell
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker
+from qtpy.QtCore import Qt, Signal, Slot, QSignalBlocker, QEvent
 from qtpy.QtGui import QColor, QBrush
 from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSplitter,
-                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame)
-
+                            QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame,
+                            QStackedWidget, QSizePolicy)
+from urllib.parse import unquote
 from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
@@ -18,7 +20,7 @@ from cnapy.gui_elements.gene_list import GeneList
 from cnapy.gui_elements.mode_navigator import ModeNavigator
 from cnapy.gui_elements.model_info import ModelInfo
 from cnapy.gui_elements.scenario_tab import ScenarioTab
-from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn
+from cnapy.gui_elements.reactions_list import ReactionList, ReactionListColumn, ReactionSearchLineEdit
 from cnapy.utils import SignalThrottler
 
 class ModelTabIndex(IntEnum):
@@ -27,6 +29,48 @@ class ModelTabIndex(IntEnum):
     Genes = 2
     Scenario = 3
     Model = 4
+
+
+class CnaRichJupyterWidget(RichJupyterWidget):
+    """RichJupyterWidget subclass that turns anchors of the form
+    'cnapy-reaction:<id>' / 'cnapy-metabolite:<id>' -- e.g. as produced by
+    build_reaction_equation_html() in reactions_list.py, or by any HTML
+    displayed in the console via IPython.display.display(HTML(...)) -- into
+    clickable links that jump to the corresponding reaction/metabolite in
+    CNApy, instead of just being inert rich text.
+    """
+
+    reactionClicked = Signal(str)
+    metaboliteClicked = Signal(str)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # RichJupyterWidget stores its actual rich-text control here.
+        self._control.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self._control and event.type() == QEvent.Type.MouseButtonRelease:
+            if event.button() == Qt.MouseButton.LeftButton:
+                pos = event.position().toPoint()
+                href = self._control.anchorAt(pos)
+
+                if href.startswith("cnapy-reaction:"):
+                    reaction_id = unquote(
+                        href[len("cnapy-reaction:"):]
+                    )
+                    self.reactionClicked.emit(reaction_id)
+                    return True
+
+                if href.startswith("cnapy-metabolite:"):
+                    metabolite_id = unquote(
+                        href[len("cnapy-metabolite:"):]
+                    )
+                    self.metaboliteClicked.emit(metabolite_id)
+                    return True
+
+        return super().eventFilter(obj, event)
+
 
 class CentralWidget(QWidget):
     """The PyNetAnalyzer central widget"""
@@ -38,17 +82,33 @@ class CentralWidget(QWidget):
         self.map_counter = 0
 
         searchbar_layout = QHBoxLayout()
-        self.searchbar = QLineEdit()
-        self.searchbar.setPlaceholderText("Enter search term")
-        self.searchbar.setClearButtonEnabled(True)
-        searchbar_layout.addWidget(self.searchbar)
+
+        # Independent, tab-specific search bars. Only one is visible at a
+        # time (kept in sync with the currently active list tab), so each
+        # tab's search text and highlighting persists across tab switches.
+        self.search_bars = QStackedWidget()
+        self.search_bars.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        self.reaction_searchbar = ReactionSearchLineEdit(self)
+        self.reaction_searchbar.setPlaceholderText(
+            "Search reactions, or enter metabolite id(s) for reactions containing all of them")
+        self.metabolite_searchbar = QLineEdit()
+        self.metabolite_searchbar.setPlaceholderText("Enter search term")
+        self.gene_searchbar = QLineEdit()
+        self.gene_searchbar.setPlaceholderText("Enter search term")
+
+        for bar in (self.reaction_searchbar, self.metabolite_searchbar, self.gene_searchbar):
+            bar.setClearButtonEnabled(True)
+            self.search_bars.addWidget(bar)
+
+        searchbar_layout.addWidget(self.search_bars)
         searchbar_layout.addSpacing(1)
         self.search_annotations = QCheckBox("+Annotations")
         self.search_annotations.setChecked(False)
         searchbar_layout.addWidget(self.search_annotations)
         line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         searchbar_layout.addWidget(line)
         searchbar_layout.addSpacing(10)
         self.model_item_history = QComboBox()
@@ -64,7 +124,9 @@ class CentralWidget(QWidget):
         model_item_history_clear.clicked.connect(self.clear_model_item_history)
 
         self.throttler = SignalThrottler(300)
-        self.searchbar.textChanged.connect(self.throttler.throttle)
+        self.reaction_searchbar.textChanged.connect(self.throttler.throttle)
+        self.metabolite_searchbar.textChanged.connect(self.throttler.throttle)
+        self.gene_searchbar.textChanged.connect(self.throttler.throttle)
         self.throttler.triggered.connect(self.update_selected)
         self.search_annotations.clicked.connect(self.update_selected)
 
@@ -93,6 +155,16 @@ class CentralWidget(QWidget):
         myglobals = globals()
         myglobals["cna"] = self.parent
         self.kernel_shell = kernel_manager.kernel.shell
+        # The kernel's shell is an InProcessInteractiveShell, a subclass of
+        # InteractiveShell; qtconsole/ipykernel registers the singleton on
+        # that subclass via InProcessInteractiveShell.instance(), not on
+        # InteractiveShell itself. IPython.display.display() (and
+        # get_ipython()) check InteractiveShell.initialized(), which only
+        # looks at InteractiveShell's own _instance -- so without this line
+        # they see no active shell and silently fall back to printing the
+        # object's repr instead of rendering it (e.g. "<IPython.core.
+        # display.HTML object>" instead of the actual HTML).
+        InteractiveShell._instance = self.kernel_shell
         self.kernel_shell.push(myglobals)
         self.kernel_client = kernel_manager.client()
         self.kernel_client.start_channels()
@@ -105,8 +177,19 @@ class CentralWidget(QWidget):
         self.kernel_client.execute('%matplotlib qt', store_history=False)
         self.kernel_client.execute(
             "%config InlineBackend.figure_format = 'svg'", store_history=False)
-        self.console = RichJupyterWidget()
-        
+        self.console = CnaRichJupyterWidget()
+
+        if parent.appdata.is_in_dark_mode:
+            self.console.set_default_style("linux")
+        else:
+            self.console.set_default_style("lightbg")
+
+        self.console.kernel_manager = kernel_manager
+        self.console.kernel_client = self.kernel_client
+
+        self.console.reactionClicked.connect(self.jump_to_reaction)
+        self.console.metaboliteClicked.connect(self.jump_to_metabolite)
+
         if parent.appdata.is_in_dark_mode:
             self.console.set_default_style("linux")  # A more 'classic' dark theme :3
         else:
@@ -120,7 +203,7 @@ class CentralWidget(QWidget):
         self.mode_navigator = ModeNavigator(self.appdata, self)
         self.splitter2.addWidget(self.mode_navigator)
         self.splitter2.addWidget(self.console)
-        self.splitter2.setOrientation(Qt.Vertical)
+        self.splitter2.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.splitter2)
         self.splitter.addWidget(self.tabs)
         self.console.show()
@@ -134,6 +217,7 @@ class CentralWidget(QWidget):
         self.layout().setContentsMargins(margins)
 
         self.tabs.currentChanged.connect(self.tabs_changed)
+        self.tabs.currentChanged.connect(self.switch_search_bar)
         self.reaction_list.jumpToMap.connect(self.jump_to_map)
         self.reaction_list.jumpToMetabolite.connect(self.jump_to_metabolite)
         self.reaction_list.reactionChanged.connect(
@@ -143,6 +227,7 @@ class CentralWidget(QWidget):
         self.metabolite_list.metaboliteChanged.connect(
             self.handle_changed_metabolite)
         self.metabolite_list.jumpToReaction.connect(self.jump_to_reaction)
+        self.metabolite_list.metaboliteSelected.connect(self.metabolite_row_selected)
         self.metabolite_list.computeInOutFlux.connect(self.in_out_fluxes)
         self.metabolite_list.metabolite_mask.metaboliteChanged.connect(
                 self.reaction_list.reaction_mask.update_reaction_string)
@@ -197,10 +282,12 @@ class CentralWidget(QWidget):
         if reaction.id != previous_id:
             self.appdata.project.reaction_ids.replace_entry(previous_id, reaction.id)
         self.update_item_in_history(previous_id, reaction.id, reaction.name, ModelItemType.Reaction)
+        self.reaction_searchbar.refresh_wordlist()
 
     def handle_deleted_reaction(self, reaction: cobra.Reaction):
         self.appdata.project.cobra_py_model.remove_reactions(
             [reaction], remove_orphans=True)
+        self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.appdata.project.scen_values.pop(reaction.id, None)
         self.appdata.project.scen_values.objective_coefficients.pop(reaction.id, None)
         self.remove_top_item_history_entry()
@@ -211,6 +298,7 @@ class CentralWidget(QWidget):
                 self.appdata.project.maps[mmap]["boxes"].pop(reaction.id)
         self.delete_reaction_on_maps(reaction.id)
         self.appdata.project.update_reaction_id_lists()
+        self.reaction_searchbar.refresh_wordlist()
 
         if self.appdata.auto_fba:
             self.parent.fba()
@@ -225,6 +313,7 @@ class CentralWidget(QWidget):
             if isinstance(m, EscherMapView):
                 m.change_metabolite_id(previous_id, metabolite.id)
         self.update_item_in_history(previous_id, metabolite.id, metabolite.name, ModelItemType.Metabolite)
+        self.reaction_searchbar.refresh_wordlist()
 
     def handle_changed_gene(self, previous_id: str, gene: cobra.Gene):
         self.parent.unsaved_changes()
@@ -250,6 +339,7 @@ class CentralWidget(QWidget):
     def switch_to_reaction(self, reaction: str):
         with QSignalBlocker(self.tabs): # set_current_item will update
             self.tabs.setCurrentIndex(ModelTabIndex.Reactions)
+        self.switch_search_bar(ModelTabIndex.Reactions)
         if self.tabs.width() == 0:
             (left, _) = self.splitter.sizes()
             self.splitter.setSizes([left, 1])
@@ -347,36 +437,49 @@ class CentralWidget(QWidget):
         diag = ConfirmMapDeleteDialog(self, idx, name)
         diag.exec()
 
+    def current_searchbar(self) -> QLineEdit:
+        """Search bar belonging to the currently active list tab."""
+        return self.search_bars.currentWidget()
+
+    def switch_search_bar(self, idx):
+        """Show the search bar matching the newly active tab, and re-apply
+        it so the map (and list) highlighting reflects the shown bar
+        instead of whatever was last searched."""
+        mapping = {
+            ModelTabIndex.Reactions: self.reaction_searchbar,
+            ModelTabIndex.Metabolites: self.metabolite_searchbar,
+            ModelTabIndex.Genes: self.gene_searchbar,
+        }
+        bar = mapping.get(idx)
+        if bar is not None:
+            self.search_bars.setCurrentWidget(bar)
+        self.update_selected()
+
     def update_selected(self):
-        string = self.searchbar.text()
+        string = self.current_searchbar().text()
 
         idx = self.tabs.currentIndex()
         map_idx = self.map_tabs.currentIndex()
 
         with_annotations = self.search_annotations.isChecked() and self.search_annotations.isEnabled()
-        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QApplication.processEvents() # to put the change above into effect
+
+        found_metabolite_ids = []  # only populated when the Metabolites tab is active
         if idx == ModelTabIndex.Reactions:
-            found_ids = self.reaction_list.update_selected(string, with_annotations)
-            found_reaction_ids = found_ids
+            found_reaction_ids = set(self.reaction_list.update_selected(string, with_annotations))
         elif idx == ModelTabIndex.Metabolites:
-            found_ids = self.metabolite_list.update_selected(string, with_annotations)
-            if map_idx >= 0:
-                found_reaction_ids = []
-                for found_id in found_ids:
-                    metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(found_id)
-                    found_reaction_ids += [x.id for x in metabolite.reactions]
-            else:
-                found_reaction_ids = found_ids
+            found_metabolite_ids = self.metabolite_list.update_selected(string, with_annotations)
+            found_reaction_ids = set()
+            for found_id in found_metabolite_ids:
+                metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(found_id)
+                found_reaction_ids |= {x.id for x in metabolite.reactions}
         elif idx == ModelTabIndex.Genes:
             found_ids = self.gene_list.update_selected(string, with_annotations)
-            if map_idx >= 0:
-                found_reaction_ids = []
-                for found_id in found_ids:
-                    gene = self.appdata.project.cobra_py_model.genes.get_by_id(found_id)
-                    found_reaction_ids += [x.id for x in gene.reactions]
-            else:
-                found_reaction_ids = found_ids
+            found_reaction_ids = set()
+            for found_id in found_ids:
+                gene = self.appdata.project.cobra_py_model.genes.get_by_id(found_id)
+                found_reaction_ids |= {x.id for x in gene.reactions}
         else:
             if len(string) == 0:
                 # needed to reset selection on map
@@ -388,10 +491,38 @@ class CentralWidget(QWidget):
         if map_idx >= 0:
             m = self.map_tabs.widget(map_idx)
             if isinstance(m, EscherMapView):
-                m.update_selected(string)
+                if not string:
+                    # An empty search resets the list filters but is not a
+                    # search match. In particular, do not turn the list's
+                    # "all reactions" result into map highlighting.
+                    m.update_selected([], [])
+                elif idx == ModelTabIndex.Metabolites:                    # Let the user step through the individual instances of
+                    # the metabolite on the map via Escher's own search bar
+                    # instead of the additive multi-result highlighting.
+                    m.search_metabolite(string)
+                else:
+                    current_reaction_id = None
+                    if idx == ModelTabIndex.Reactions:
+                        current_item = self.reaction_list.reaction_list.currentItem()
+                        if current_item is not None:
+                            current_reaction_id = current_item.text(0)
+                    m.update_selected(list(found_reaction_ids), list(found_metabolite_ids), current_reaction_id)
             else:
                 m.update_selected(found_reaction_ids)
         QApplication.restoreOverrideCursor()
+
+    def metabolite_row_selected(self, metabolite_id: str):
+        """Forward the metabolite the user just clicked in the metabolite
+        table to an open Escher map's own search bar, so they can step
+        through that metabolite's instances on the map."""
+        if self.tabs.currentIndex() != ModelTabIndex.Metabolites:
+            return
+        map_idx = self.map_tabs.currentIndex()
+        if map_idx < 0:
+            return
+        m = self.map_tabs.widget(map_idx)
+        if isinstance(m, EscherMapView):
+            m.search_metabolite(metabolite_id)
 
     def update_mode(self):
         if self.mode_navigator.mode_type <= 1:
@@ -444,11 +575,8 @@ class CentralWidget(QWidget):
                 idx = self.appdata.window.centralWidget().tabs.currentIndex()
                 if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
                     view = self.appdata.window.centralWidget().reaction_list
-                    view.reaction_list.blockSignals(True) # block itemChanged while recoloring
-                    root = view.reaction_list.invisibleRootItem()
-                    child_count = root.childCount()
-                    for i in range(child_count):
-                        item = root.child(i)
+                    view.reaction_list.blockSignals(True) # block selection signals while recoloring
+                    for item in view.reaction_model.items:
                         if item.text(0) in bnd_dict:
                             v = bnd_dict[item.text(0)]
                             if numpy.any(numpy.isnan(v)):
@@ -535,6 +663,7 @@ class CentralWidget(QWidget):
                 self.scenario_tab.recreate_scenario_items_needed = True
                 self.scenario_tab.update()
                 self.model_info.update()
+                self.reaction_searchbar.refresh_wordlist()
         else:
             idx = self.tabs.currentIndex()
             if idx == ModelTabIndex.Reactions:
@@ -604,6 +733,24 @@ class CentralWidget(QWidget):
         for idx in range(0, self.map_tabs.count()):
             self.map_tabs.widget(idx).select_single_reaction(reac_id)
 
+    def set_default_colors(self):
+        ''' fast path for "Default Coloring": recolor the reaction list via its
+        already-lightweight, lazy update() (it only clears the per-item Flux
+        background override and lets the model/view re-query visible cells),
+        and recolor the map via MapView.recolor_all() -- instead of routing
+        through the full central_widget.update(), which additionally rebuilds
+        whichever tab is active and rescales/repositions/re-texts every box
+        on the map before it gets around to recoloring it. '''
+        idx = self.tabs.currentIndex()
+        if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
+            self.reaction_list.update()
+        idx = self.map_tabs.currentIndex()
+        if idx < 0:
+            return
+        map_view = self.map_tabs.widget(idx)
+        if isinstance(map_view, MapView):
+            map_view.recolor_all()
+
     def set_onoff(self):
         idx = self.tabs.currentIndex()
         if idx == ModelTabIndex.Reactions and self.appdata.project.comp_values_type == 0:
@@ -613,12 +760,9 @@ class CentralWidget(QWidget):
     def __set_onoff_reaction_list(self):
         # do coloring of LB/UB columns in this case?
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
@@ -656,12 +800,9 @@ class CentralWidget(QWidget):
     def __set_heaton_reaction_list(self, low, high):
         # TODO: coloring of LB/UB columns
         view = self.reaction_list
-        # block itemChanged while recoloring
+        # block selection signals while recoloring
         view.reaction_list.blockSignals(True)
-        root = view.reaction_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        for item in view.reaction_model.items:
             key = item.text(0)
             if key in self.appdata.project.scen_values:
                 value = self.appdata.project.scen_values[key]
@@ -732,7 +873,7 @@ class CentralWidget(QWidget):
             if index >= 0:
                 index = self.model_item_history.removeItem(index)
             self.model_item_history.insertItem(0, item_id + " (" + ModelItemType(item_type).name + ")", item_data)
-            self.model_item_history.setItemData(0, item_name, Qt.ToolTipRole)
+            self.model_item_history.setItemData(0, item_name, Qt.ItemDataRole.ToolTipRole)
             self.model_item_history.setCurrentIndex(0)
 
     def update_item_in_history(self, previous_id: str, new_id: str, new_name: str, item_type: ModelItemType):
@@ -753,9 +894,35 @@ class CentralWidget(QWidget):
         with QSignalBlocker(self.model_item_history):
             self.model_item_history.clear()
 
+    def prune_model_item_history(self):
+        ''' Remove model item history entries that no longer occur in the current
+        model (e.g. after loading a project/SBML file), while keeping those entries
+        that are still present in the newly loaded model. '''
+        model = self.appdata.project.cobra_py_model
+        with QSignalBlocker(self.model_item_history):
+            for idx in range(self.model_item_history.count() - 1, -1, -1):
+                item_id, item_type = self.model_item_history.itemData(idx)
+                if item_type == ModelItemType.Reaction:
+                    still_exists = model.reactions.has_id(item_id)
+                elif item_type == ModelItemType.Metabolite:
+                    still_exists = model.metabolites.has_id(item_id)
+                elif item_type == ModelItemType.Gene:
+                    still_exists = model.genes.has_id(item_id)
+                else:
+                    still_exists = False
+                if not still_exists:
+                    self.model_item_history.removeItem(idx)
+            self.model_item_history.setCurrentIndex(-1)
+
     def in_out_fluxes(self, metabolite):
+        # Note: kernel_client.execute() only queues the code for the kernel;
+        # by the time it returns, the plot has not actually been rendered or
+        # inserted into the console yet. Calling show_bottom_of_console()
+        # here used to race against that, scrolling based on the console's
+        # *old* (pre-plot) content. Scrolling is now handled directly by
+        # InOutFluxConsolePlot once the plot/legend are actually inserted
+        # (see _append_clickable_flux_plot), so no extra call is needed here.
         self.kernel_client.execute("cna.print_in_out_fluxes('"+metabolite+"')")
-        self.show_bottom_of_console()
 
     broadcastReactionID = Signal(str)
 

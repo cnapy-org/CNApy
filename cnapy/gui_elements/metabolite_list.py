@@ -2,11 +2,11 @@
 
 import cobra
 from qtpy.QtCore import Qt, QPoint, Signal, Slot
-from qtpy.QtGui import QColor, QGuiApplication, QIcon
-from qtpy.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel,
+from qtpy.QtGui import QAction, QColor, QGuiApplication, QIcon
+from qtpy.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QLabel,
                             QLineEdit, QMenu, QMessageBox, QPushButton, QSizePolicy,
                             QSplitter, QTableWidget, QTableWidgetItem,
-                            QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                            QVBoxLayout, QWidget)
 
 from cnapy.appdata import AppData, ModelItemType
 from cnapy.gui_elements.annotation_widget import AnnotationWidget
@@ -21,30 +21,26 @@ class MetaboliteListColumn(IntEnum):
     Concentration = 2
 
 
-class MetaboliteListItem(QTreeWidgetItem):
+class MetaboliteListItem(QTableWidgetItem):
     """ For custom sorting of columns """
 
-    def __init__(self, parent: QTreeWidget):
-        # although QTreeWidgetItem is constructed with the metabolite_list as parent this
-        # will not be its parent() which is None because it is a top-level item
-        QTreeWidgetItem.__init__(self, parent)
-
     def __lt__(self, other):
-        """ overrides QTreeWidgetItem::operator< """
-        column = self.treeWidget().sortColumn()
-        if column == MetaboliteListColumn.Concentration:
+        """ overrides QTableWidgetItem::operator< """
+        # unlike QTreeWidgetItem (one item per row), a QTableWidgetItem is a single
+        # cell, so its own column already tells us which column is being sorted
+        if self.column() == MetaboliteListColumn.Concentration:
             try:
-                current_value = float(self.text(column))
+                current_value = float(self.text())
             except ValueError:
                 current_value = -float("inf")
             try:
-                other_value = float(other.text(column))
+                other_value = float(other.text())
             except ValueError:
                 other_value = -float("inf")
             return current_value < other_value
         else:  # use Qt default comparison for the other columns
-#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTreeWidgetItem
-            return self.text(column) < other.text(column)
+#            return super().__lt__(other) # infinite recursion with PySide2, __lt__ is a virtual function of QTableWidgetItem
+            return self.text() < other.text()
 
 
 class MetaboliteList(QWidget):
@@ -56,17 +52,24 @@ class MetaboliteList(QWidget):
         self.central_widget = central_widget
         self.last_selected = None
 
-        self.metabolite_list = QTreeWidget()
+        self.metabolite_list = QTableWidget()
 
         self.header_labels = [MetaboliteListColumn(i).name for i in range(len(MetaboliteListColumn))]
-        self.metabolite_list.setHeaderLabels(self.header_labels)
+        self.metabolite_list.setColumnCount(len(self.header_labels))
+        self.metabolite_list.setHorizontalHeaderLabels(self.header_labels)
+        self.metabolite_list.verticalHeader().setVisible(False)
+        self.metabolite_list.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.metabolite_list.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.metabolite_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.metabolite_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.visible_column = [True]*len(self.header_labels)
-        self.metabolite_list.setSortingEnabled(True)
-        self.metabolite_list.sortByColumn(MetaboliteListColumn.Id, Qt.AscendingOrder)
 
+        self.metabolite_list.setSortingEnabled(False)
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
-        self.metabolite_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metabolite_list.setSortingEnabled(True)
+        self.metabolite_list.sortItems(MetaboliteListColumn.Id, Qt.SortOrder.AscendingOrder)
+        self.metabolite_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.metabolite_list.customContextMenuRequested.connect(
             self.on_context_menu)
 
@@ -84,7 +87,7 @@ class MetaboliteList(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Vertical)
+        self.splitter.setOrientation(Qt.Orientation.Vertical)
         self.splitter.addWidget(self.metabolite_list)
         self.splitter.addWidget(self.metabolite_mask)
         self.layout.addWidget(self.splitter)
@@ -92,43 +95,52 @@ class MetaboliteList(QWidget):
 
         self.metabolite_list.currentItemChanged.connect(
             self.metabolite_selected)
+        self.metabolite_list.itemDoubleClicked.connect(
+            self.emit_metabolite_selected)
         self.metabolite_mask.metaboliteChanged.connect(
             self.handle_changed_metabolite)
         self.metabolite_mask.jumpToReaction.connect(
             self.emit_jump_to_reaction)
-        self.metabolite_list.header().setContextMenuPolicy(Qt.CustomContextMenu)
-        self.metabolite_list.header().customContextMenuRequested.connect(self.header_context_menu)
+        self.metabolite_list.horizontalHeader().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.metabolite_list.horizontalHeader().customContextMenuRequested.connect(self.header_context_menu)
 
     def clear(self):
-        self.metabolite_list.clear()
+        self.metabolite_list.setRowCount(0)
         self.metabolite_mask.hide()
 
     def add_metabolite(self, metabolite):
-        item = MetaboliteListItem(self.metabolite_list)
-        item.setText(MetaboliteListColumn.Id, metabolite.id)
-        item.setText(MetaboliteListColumn.Name, metabolite.name)
-        if metabolite.id in self.appdata.project.conc_values.keys():
-            item.setText(MetaboliteListColumn.Concentration, str(self.appdata.project.conc_values[metabolite.id]))
-        item.setData(3, 0, metabolite)
+        row = self.metabolite_list.rowCount()
+        self.metabolite_list.insertRow(row)
+
+        id_item = MetaboliteListItem(metabolite.id)
+        name_item = MetaboliteListItem(metabolite.name)
+        concentration_item = MetaboliteListItem(
+            str(self.appdata.project.conc_values[metabolite.id])
+            if metabolite.id in self.appdata.project.conc_values.keys() else "")
+        id_item.setData(Qt.ItemDataRole.UserRole, metabolite)
+
+        self.metabolite_list.setItem(row, MetaboliteListColumn.Id, id_item)
+        self.metabolite_list.setItem(row, MetaboliteListColumn.Name, name_item)
+        self.metabolite_list.setItem(row, MetaboliteListColumn.Concentration, concentration_item)
 
     def on_context_menu(self, point):
         if len(self.appdata.project.cobra_py_model.metabolites) > 0:
-            self.pop_menu.exec_(self.mapToGlobal(point))
+            self.pop_menu.exec(self.mapToGlobal(point))
 
     def update_annotations(self, annotation):
         self.metabolite_mask.annotation_widget.update_annotations(annotation)
 
     def handle_changed_metabolite(self, metabolite: cobra.Metabolite, affected_reactions, previous_id: str):
         # Update metabolite item in list
-        root = self.metabolite_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            if item.data(3, 0) == metabolite:
-                item.setText(MetaboliteListColumn.Id, metabolite.id)
-                item.setText(MetaboliteListColumn.Name, metabolite.name)
+        row_count = self.metabolite_list.rowCount()
+        for row in range(row_count):
+            id_item = self.metabolite_list.item(row, MetaboliteListColumn.Id)
+            if id_item.data(Qt.ItemDataRole.UserRole) == metabolite:
+                id_item.setText(metabolite.id)
+                self.metabolite_list.item(row, MetaboliteListColumn.Name).setText(metabolite.name)
                 if metabolite.id in self.appdata.project.conc_values.keys():
-                    item.setText(MetaboliteListColumn.Concentration, str(self.appdata.project.conc_values[metabolite.id]))
+                    self.metabolite_list.item(row, MetaboliteListColumn.Concentration).setText(
+                        str(self.appdata.project.conc_values[metabolite.id]))
                 break
 
         self.last_selected = self.metabolite_mask.id.text()
@@ -150,7 +162,9 @@ class MetaboliteList(QWidget):
             self.metabolite_mask.hide()
         else:
             self.metabolite_mask.show()
-            metabolite: cobra.Metabolite = item.data(3, 0)
+            row = item.row()
+            metabolite: cobra.Metabolite = self.metabolite_list.item(
+                row, MetaboliteListColumn.Id).data(Qt.ItemDataRole.UserRole)
 
             self.metabolite_mask.metabolite = metabolite
 
@@ -174,21 +188,32 @@ class MetaboliteList(QWidget):
             self.metabolite_mask.reactions.update_state(self.metabolite_mask.id.text(), self.metabolite_mask.metabolite_list)
             self.central_widget.add_model_item_to_history(metabolite.id, metabolite.name, ModelItemType.Metabolite)
 
+    def emit_metabolite_selected(self, item):
+        """Fired on a double click on a table row (single clicks only
+        change the current item/mask, they don't touch the map)."""
+        row = item.row()
+        metabolite: cobra.Metabolite = self.metabolite_list.item(
+            row, MetaboliteListColumn.Id).data(Qt.ItemDataRole.UserRole)
+        self.metaboliteSelected.emit(metabolite.id)
+
     def update(self):
-        self.metabolite_list.clear()
+        self.metabolite_list.setSortingEnabled(False)
+        self.metabolite_list.setRowCount(0)
         for m in self.appdata.project.cobra_py_model.metabolites:
             self.add_metabolite(m)
+        self.metabolite_list.setSortingEnabled(True)
 
         if self.last_selected is None:
             self.metabolite_list.setCurrentItem(None)
         else:
             items = self.metabolite_list.findItems(
-                self.last_selected, Qt.MatchExactly)
+                self.last_selected, Qt.MatchFlag.MatchExactly)
 
             for i in items:
-                self.metabolite_list.setCurrentItem(i)
-                self.metabolite_list.scrollToItem(i)
-                break
+                if i.column() == MetaboliteListColumn.Id:
+                    self.metabolite_list.setCurrentItem(i)
+                    self.metabolite_list.scrollToItem(i)
+                    break
 
     def set_current_item(self, key):
         self.last_selected = key
@@ -198,20 +223,22 @@ class MetaboliteList(QWidget):
         self.jumpToReaction.emit(reaction)
 
     def emit_in_out_fluxes_action(self):
-        self.computeInOutFlux.emit(self.metabolite_list.currentItem().text(0))
+        current_item = self.metabolite_list.currentItem()
+        if current_item is not None:
+            id_item = self.metabolite_list.item(current_item.row(), MetaboliteListColumn.Id)
+            self.computeInOutFlux.emit(id_item.text())
 
     @Slot()
     def copy_to_clipboard(self):
         clipboard = QGuiApplication.clipboard()
         visible_columns = [j.value for j in MetaboliteListColumn if not self.metabolite_list.isColumnHidden(j)]
         table = ["\t".join([MetaboliteListColumn(j).name for j in visible_columns])]
-        root = self.metabolite_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
+        row_count = self.metabolite_list.rowCount()
+        for row in range(row_count):
             line = []
             for j in visible_columns:
-                line.append(item.text(j))
+                item = self.metabolite_list.item(row, j)
+                line.append(item.text() if item is not None else "")
             table.append("\t".join(line))
         clipboard.setText("\r".join(table))
 
@@ -223,7 +250,7 @@ class MetaboliteList(QWidget):
 
     @Slot(QPoint)
     def header_context_menu(self, position):
-        menu = QMenu(self.metabolite_list.header())
+        menu = QMenu(self.metabolite_list.horizontalHeader())
         for col_idx in range(1, len(self.header_labels)):
             action = menu.addAction(self.header_labels[col_idx])
             action.setCheckable(True)
@@ -233,12 +260,13 @@ class MetaboliteList(QWidget):
         menu.addSeparator()
         action = menu.addAction("Copy table to system clipboard")
         action.triggered.connect(self.copy_to_clipboard)
-        menu.exec_(self.metabolite_list.header().mapToGlobal(position))
+        menu.exec(self.metabolite_list.horizontalHeader().mapToGlobal(position))
 
     itemActivated = Signal(str)
     metaboliteChanged = Signal(cobra.Metabolite, object, str)
     jumpToReaction = Signal(str)
     computeInOutFlux = Signal(str)
+    metaboliteSelected = Signal(str)  # emitted with the metabolite id on a double click on a table row
 
 
 class MetabolitesMask(QWidget):
@@ -266,7 +294,7 @@ class MetabolitesMask(QWidget):
         self.delete_button.setToolTip(
             "Delete this metabolite and remove it from associated reactions.")
         policy = QSizePolicy()
-        policy.ShrinkFlag = True
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         self.delete_button.setSizePolicy(policy)
         l.addWidget(self.delete_button)
         layout.addItem(l)
@@ -332,13 +360,15 @@ class MetabolitesMask(QWidget):
     def delete_metabolite(self):
         self.hide()
         # in C++ the currentItem can just be destructed but in Python this is more convoluted
-        current_row_index = self.metabolite_list.metabolite_list.currentIndex().row()
+        current_row_index = self.metabolite_list.metabolite_list.currentRow()
         self.metabolite_list.metabolite_list.setCurrentItem(None)
         affected_reactions = self.metabolite.reactions  # remember these before removal
         self.metabolite.remove_from_model()
+        for reaction in affected_reactions:
+            reaction.set_hash_value()
+        self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.metabolite_list.last_selected = None
-        self.metabolite_list.metabolite_list.takeTopLevelItem(
-            current_row_index)
+        self.metabolite_list.metabolite_list.removeRow(current_row_index)
         self.appdata.window.unsaved_changes()
         self.appdata.window.setFocus()
         self.metaboliteDeleted.emit(self.metabolite, affected_reactions, self.metabolite.id)
@@ -440,12 +470,12 @@ class MetabolitesMask(QWidget):
                 message_box.setInformativeText(
                     "Do you want to create the compartment?")
                 message_box.setStandardButtons(
-                    QMessageBox.Ok | QMessageBox.Cancel)
-                message_box.setDefaultButton(QMessageBox.Ok)
+                    QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+                message_box.setDefaultButton(QMessageBox.StandardButton.Ok)
                 ret = message_box.exec()
                 self.compartment.blockSignals(False)
 
-                if ret == QMessageBox.Cancel:
+                if ret == QMessageBox.StandardButton.Cancel:
                     metabolite = self.appdata.project.cobra_py_model.metabolites.get_by_id(
                         self.id.text())
                     self.compartment.setText(metabolite.compartment)

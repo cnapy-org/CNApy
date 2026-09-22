@@ -4,7 +4,8 @@ import os
 import appdirs
 
 import cobra
-from cobra.util.solver import interface_to_str, solvers
+from cobra.util.solver import interface_to_str as cobrapy_interface_to_str
+from cobra.util.solver import solvers
 from multiprocessing import cpu_count
 
 from qtpy.QtCore import Signal
@@ -13,6 +14,12 @@ from qtpy.QtWidgets import (QMessageBox, QComboBox, QDialog,
                             QHBoxLayout, QLabel, QLineEdit, QPushButton,
                             QVBoxLayout)
 from cnapy.appdata import AppData
+import cnapy.optlang_highs_interface
+
+def interface_to_str(module):
+    if module == cnapy.optlang_highs_interface:
+        return "highs"
+    return cobrapy_interface_to_str(module)
 
 
 class ConfigCobrapyDialog(QDialog):
@@ -27,7 +34,7 @@ class ConfigCobrapyDialog(QDialog):
 
         # allow MILP solvers only?
         # SCIPY currently not even usable for FBA
-        avail_solvers = list(set(solvers.keys()) - {'scipy'})
+        avail_solvers = ['highs'] + list(set(solvers.keys()) - {'scipy'})
 
         h2 = QHBoxLayout()
         label = QLabel("Default solver:\n(set when loading a model)")
@@ -100,7 +107,11 @@ class ConfigCobrapyDialog(QDialog):
         self.button.clicked.connect(self.apply)
 
     def apply(self):
-        cobra.Configuration().solver = self.default_solver.currentText()
+        solver_name = self.default_solver.currentText()
+        if solver_name == "highs":
+            cobra.Configuration().solver = cnapy.optlang_highs_interface
+        else:
+            cobra.Configuration().solver = solver_name
         cobra.Configuration().processes = int(self.num_processes.text())
         try:
             val = float(self.default_tolerance.text())
@@ -113,7 +124,11 @@ class ConfigCobrapyDialog(QDialog):
                                  "Choose a value between 0.1 and 1e-9 as default tolerance.")
             return
         try:
-            self.appdata.project.cobra_py_model.solver = self.current_solver.currentText()
+            solver_name = self.current_solver.currentText()
+            if solver_name == "highs":
+                self.appdata.project.cobra_py_model.solver = cnapy.optlang_highs_interface
+            else:
+                self.appdata.project.cobra_py_model.solver = solver_name
             self.appdata.project.cobra_py_model.tolerance = float(
                 self.current_tolerance.text())
             self.optlang_solver_set.emit()

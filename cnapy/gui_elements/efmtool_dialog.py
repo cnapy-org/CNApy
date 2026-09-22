@@ -21,7 +21,7 @@ class EFMtoolDialog(QDialog):
 
         l1 = QHBoxLayout()
         self.constraints = QCheckBox("consider 0 in current scenario as off")
-        self.constraints.setCheckState(Qt.Checked)
+        self.constraints.setCheckState(Qt.CheckState.Checked)
         l1.addWidget(self.constraints)
         self.layout.addItem(l1)
 
@@ -43,9 +43,9 @@ class EFMtoolDialog(QDialog):
         self.button.clicked.connect(self.compute)
 
     def compute(self):
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         self.efm_computation = EFMComputationThread(self.appdata.project.cobra_py_model, self.appdata.project.scen_values,
-                                                    self.constraints.checkState() == Qt.Checked)
+                                                    self.constraints.checkState() == Qt.CheckState.Checked)
         self.button.setText("Abort computation")
         self.button.clicked.disconnect(self.compute)
         self.button.clicked.connect(self.efm_computation.activate_abort)
@@ -56,7 +56,7 @@ class EFMtoolDialog(QDialog):
         self.efm_computation.start()
 
     def conclude_computation(self):
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         if self.efm_computation.abort:
             self.accept()
         else:

@@ -58,7 +58,7 @@ class BoxPositionDialog(QDialog):
             msgBox = QMessageBox()
             msgBox.setWindowTitle("X position error")
             msgBox.setText("The X value you typed in is no valid number, hence, the new box position could not be set.")
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
             return
 
@@ -68,7 +68,7 @@ class BoxPositionDialog(QDialog):
             msgBox = QMessageBox()
             msgBox.setWindowTitle("Y position error")
             msgBox.setText("The Y value you typed in is no valid number, hence, the new box position could not be set.")
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
             return
 

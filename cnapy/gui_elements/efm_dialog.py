@@ -26,7 +26,7 @@ class EFMDialog(QDialog):
 
         l1 = QHBoxLayout()
         self.constraints = QCheckBox("consider 0 in current scenario as off")
-        self.constraints.setCheckState(Qt.Checked)
+        self.constraints.setCheckState(Qt.CheckState.Checked)
         l1.addWidget(self.constraints)
         self.layout.addItem(l1)
 
@@ -51,7 +51,7 @@ class EFMDialog(QDialog):
         l3 = QHBoxLayout()
         self.check_reversibility = QCheckBox(
             "check reversibility")
-        self.check_reversibility.setCheckState(Qt.Checked)
+        self.check_reversibility.setCheckState(Qt.CheckState.Checked)
         l3.addWidget(self.check_reversibility)
         self.layout.addItem(l3)
 
@@ -100,7 +100,7 @@ class EFMDialog(QDialog):
         a = self.eng.eval("constraints = {};",
                           nargout=0, stdout=self.out, stderr=self.err)
         scenario = {}
-        if self.constraints.checkState() == Qt.Checked or self.flux_bounds.isChecked():
+        if self.constraints.checkState() == Qt.CheckState.Checked or self.flux_bounds.isChecked():
             onoff_str = ""
             for r in reac_id:
                 if r in self.appdata.project.scen_values.keys():
@@ -165,7 +165,7 @@ class EFMDialog(QDialog):
         a = self.eng.eval("solver = 4;", nargout=0,
                           stdout=self.out, stderr=self.err)
 
-        if self.check_reversibility.checkState() == Qt.Checked:
+        if self.check_reversibility.checkState() == Qt.CheckState.Checked:
             a = self.eng.eval("irrev_flag = 1;", nargout=0,
                               stdout=self.out, stderr=self.err)
         else:
@@ -173,14 +173,14 @@ class EFMDialog(QDialog):
                               nargout=0, stdout=self.out, stderr=self.err)
 
         # convex basis computation is only possible with METATOOL solver=3
-        if self.convex_basis.checkState() == Qt.Checked:
+        if self.convex_basis.checkState() == Qt.CheckState.Checked:
             a = self.eng.eval("conv_basis_flag = 1; solver = 3;",
                               nargout=0, stdout=self.out, stderr=self.err)
         else:
             a = self.eng.eval("conv_basis_flag = 0;",
                               nargout=0, stdout=self.out, stderr=self.err)
 
-        if self.isozymes.checkState() == Qt.Checked:
+        if self.isozymes.checkState() == Qt.CheckState.Checked:
             a = self.eng.eval("iso_flag = 1;", nargout=0,
                               stdout=self.out, stderr=self.err)
         else:
@@ -191,7 +191,7 @@ class EFMDialog(QDialog):
         a = self.eng.eval("c_macro=[]; display= 'ALL';",
                           nargout=0, stdout=self.out, stderr=self.err)
 
-        if self.rational_numbers.checkState() == Qt.Checked:
+        if self.rational_numbers.checkState() == Qt.CheckState.Checked:
             a = self.eng.eval("efmtool_options = {'arithmetic', 'fractional'};",
                               nargout=0, stdout=self.out, stderr=self.err)
         else:
