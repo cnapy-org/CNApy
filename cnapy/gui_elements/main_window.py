@@ -1609,12 +1609,12 @@ class MainWindow(QMainWindow):
                 self.escher_map_actions.setVisible(False)
                 self.cnapy_map_actions.setVisible(True)
                 self.colorings.setEnabled(True)
-                self.central_widget.search_annotations.setEnabled(True)
+                #self.central_widget.search_annotations.setEnabled(True)
             else: # EscherMapView
                 self.cnapy_map_actions.setVisible(False)
                 self.escher_map_actions.setVisible(True)
                 self.colorings.setEnabled(False)
-                self.central_widget.search_annotations.setEnabled(False)
+                #self.central_widget.search_annotations.setEnabled(False)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)

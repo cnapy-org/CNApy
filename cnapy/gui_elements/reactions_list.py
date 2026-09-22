@@ -597,10 +597,19 @@ class ReactionAndMetaboliteCompleter(QCompleter):
 
     def pathFromIndex(self, index):  # overrides QCompleter method
         path = QCompleter.pathFromIndex(self, index)
-        lst = str(self.widget().text()).split()
-        if len(lst) > 1:
-            path = '%s %s' % (" ".join(lst[:-1]), path)
-        return path
+        current_text = str(self.widget().text())
+
+        # A completion can itself contain whitespace (for example, a reaction
+        # name). QCompleter may ask for its path again after updating the line
+        # edit; in that case, adding the prefix a second time duplicates the
+        # completion. Leave an already accepted completion unchanged.
+        if current_text.endswith(path):
+            return current_text
+
+        # Replace only the active token while preserving every preceding
+        # whitespace character, including a trailing separator.
+        prefix = re.sub(r'\S*$', '', current_text)
+        return prefix + path
 
     def splitPath(self, path):  # overrides QCompleter method
         if not path.strip():
@@ -688,8 +697,10 @@ class ReactionList(QWidget):
         self.reaction_list.customContextMenuRequested.connect(self.context_menu)
         # heuristic initial column widths
         self.reaction_list.resizeColumnToContents(ReactionListColumn.Scenario)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.LB)
-        self.reaction_list.resizeColumnToContents(ReactionListColumn.UB)
+        fm = self.reaction_list.fontMetrics()
+        width = fm.horizontalAdvance("-1000")
+        self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.LB, width)
+        self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.UB, width)
         width = self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.Scenario)
         self.reaction_list.horizontalHeader().resizeSection(ReactionListColumn.Flux, width)
         width +=  self.reaction_list.horizontalHeader().sectionSize(ReactionListColumn.LB)

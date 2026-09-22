@@ -174,6 +174,10 @@ class EscherMapView(QWebEngineView):
         native single-reaction highlight and the map zooms/pans to it.
         """
         if not reaction_ids and not metabolite_ids:
+            # Clear additive CNApy highlights as well as Escher's native
+            # search UI; hiding the search bar alone leaves stale matches on
+            # the map.
+            self.cnapy_bridge.highlightSearchResults.emit([], [])
             self.cnapy_bridge.hideSearchBar.emit()
         else:
             self.cnapy_bridge.highlightSearchResults.emit(list(reaction_ids), list(metabolite_ids or []))

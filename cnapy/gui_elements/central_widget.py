@@ -483,7 +483,7 @@ class CentralWidget(QWidget):
         else:
             if len(string) == 0:
                 # needed to reset selection on map
-                found_reaction_ids = set(self.appdata.project.cobra_py_model.reactions.list_attr("id"))
+                found_reaction_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
             else:
                 QApplication.restoreOverrideCursor()
                 return
@@ -491,8 +491,12 @@ class CentralWidget(QWidget):
         if map_idx >= 0:
             m = self.map_tabs.widget(map_idx)
             if isinstance(m, EscherMapView):
-                if idx == ModelTabIndex.Metabolites:
-                    # Let the user step through the individual instances of
+                if not string:
+                    # An empty search resets the list filters but is not a
+                    # search match. In particular, do not turn the list's
+                    # "all reactions" result into map highlighting.
+                    m.update_selected([], [])
+                elif idx == ModelTabIndex.Metabolites:                    # Let the user step through the individual instances of
                     # the metabolite on the map via Escher's own search bar
                     # instead of the additive multi-result highlighting.
                     m.search_metabolite(string)
