@@ -2206,7 +2206,7 @@ class MainWindow(QMainWindow):
             self,
             analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
         )
-        self.thermodynamic_fba_dialog.exec()
+        self.thermodynamic_fba_dialog.show()
 
     # @Slot()
     # def perform_bottleneck_analysis(self):

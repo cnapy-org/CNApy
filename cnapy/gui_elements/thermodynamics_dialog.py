@@ -42,8 +42,11 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QCompleter,
     QAbstractItemView,
-    QListWidget,
-    QListWidgetItem
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QCheckBox,
+    QWidget
 )
 
 from cnapy.appdata import AppData
@@ -94,9 +97,13 @@ class ThermodynamicDialog(QDialog):
     }
 
     def __init__(
-        self, appdata: AppData, central_widget: CentralWidget, analysis_type: ThermodynamicAnalysisTypes
+        self,
+        appdata: AppData,
+        central_widget: CentralWidget,
+        main_window,
+        analysis_type: ThermodynamicAnalysisTypes
     ) -> None:
-        QDialog.__init__(self)
+        QDialog.__init__(self, main_window)
 
         if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
             window_title = "Perform OptMDFpathway (incl. bottleneck analysis)"
@@ -108,6 +115,7 @@ class ThermodynamicDialog(QDialog):
         self.appdata = appdata
         self.central_widget = central_widget
         self.analysis_type = analysis_type
+        self.main_window = main_window
 
         self.reac_ids = self.appdata.project.cobra_py_model.reactions.list_attr("id")
         self.metabolite_ids = self.appdata.project.cobra_py_model.metabolites.list_attr(
@@ -225,6 +233,11 @@ class ThermodynamicDialog(QDialog):
         self.current_mdf_label.setStyleSheet("font-weight: bold;")
         self.layout.addWidget(self.current_mdf_label)
 
+        if analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+            self.current_opt_label = QLabel("tFBA optimal value: —")
+            self.current_opt_label.setStyleSheet("font-weight: bold;")
+            self.layout.addWidget(self.current_opt_label)
+
         if analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
             # Keep the bottleneck-selection pane visible: the user can choose
             # exactly which member(s) of the current bottleneck are relaxed in the
@@ -237,11 +250,17 @@ class ThermodynamicDialog(QDialog):
                     "reactions, but relaxing all of them is not required."
                 )
             )
-            self.bottleneck_reaction_list = QListWidget()
+            self.bottleneck_reaction_list = QTableWidget(0, 2)
+            self.bottleneck_reaction_list.horizontalHeader().setVisible(False)
+            self.bottleneck_reaction_list.verticalHeader().setVisible(False)
+            self.bottleneck_reaction_list.setShowGrid(False)
             self.bottleneck_reaction_list.setSelectionMode(QAbstractItemView.NoSelection)
-            self.bottleneck_reaction_list.itemChanged.connect(
-                lambda _item: self._update_iteration_buttons()
-            )
+            self.bottleneck_reaction_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            self.bottleneck_reaction_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            self.bottleneck_reaction_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.bottleneck_reaction_list.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+            #self.bottleneck_reaction_list.itemChanged.connect(lambda _item: self._update_iteration_buttons())
+            self.bottleneck_reaction_list.itemClicked.connect(self._bottleneck_item_clicked)
             bottleneck_layout.addWidget(self.bottleneck_reaction_list)
             bottleneck_buttons = QHBoxLayout()
             self.button_select_all_bottlenecks = QPushButton("Select all")
@@ -275,7 +294,7 @@ class ThermodynamicDialog(QDialog):
 
         self.cancel.clicked.connect(self.reject)
         self.button_optmdf.clicked.connect(self.compute)
- 
+
     # ------------------------------------------------------------------
     # small helpers
     # ------------------------------------------------------------------
@@ -353,38 +372,84 @@ class ThermodynamicDialog(QDialog):
             ratios.append((mi, mj, lo, hi))
         return ratios
 
+    def _bottleneck_checkbox(self, row: int) -> QCheckBox:
+        return self.bottleneck_reaction_list.cellWidget(row, 0).findChild(QCheckBox)
+
     def _selected_bottleneck_reactions(self):
         return [
-            self.bottleneck_reaction_list.item(i).text()
-            for i in range(self.bottleneck_reaction_list.count())
-            if self.bottleneck_reaction_list.item(i).checkState() == Qt.Checked
+            self.bottleneck_reaction_list.item(row, 1).data(Qt.UserRole)
+            for row in range(self.bottleneck_reaction_list.rowCount())
+            if self._bottleneck_checkbox(row).isChecked()
         ]
 
-    def _set_bottleneck_reaction_choices(self, reactions) -> None:
+    def _set_bottleneck_reaction_choices(self, reactions, duals: Optional[dict] = None) -> None:
+        # `duals` is the {reaction_id: shadow price} dict from
+        # OptMDFAnalysis.shadow_prices() (result.driving_force_duals), shown
+        # next to each bottleneck reaction so the user can see, at a glance,
+        # how much relaxing that reaction's driving-force constraint would
+        # improve the MDF. Column 0 holds a real QCheckBox widget (rather
+        # than a checkable QTableWidgetItem) so its on-screen size is just
+        # the checkbox itself, with no style-dependent item padding around
+        # it; column 1 holds the reaction's label (whose Qt.UserRole stores
+        # the raw reaction ID). Keeping the checkbox and the clickable label
+        # in separate columns means checking/unchecking a reaction for
+        # relaxation doesn't also jump to it.
         old_checked = set(self._selected_bottleneck_reactions())
         reactions = list(reactions or [])
+        duals = duals or {}
         self.bottleneck_reaction_list.blockSignals(True)
         try:
-            self.bottleneck_reaction_list.clear()
+            self.bottleneck_reaction_list.setRowCount(0)
             preserve = bool(old_checked.intersection(reactions))
             for rid in reactions:
-                item = QListWidgetItem(rid)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(Qt.Checked if (rid in old_checked if preserve else True) else Qt.Unchecked)
-                self.bottleneck_reaction_list.addItem(item)
+                row = self.bottleneck_reaction_list.rowCount()
+                self.bottleneck_reaction_list.insertRow(row)
+
+                checkbox = QCheckBox()
+                checkbox.setChecked(rid in old_checked if preserve else True)
+                checkbox.stateChanged.connect(lambda _state: self._update_iteration_buttons())
+                container = QWidget()
+                container_layout = QHBoxLayout(container)
+                container_layout.addWidget(checkbox)
+                container_layout.setAlignment(Qt.AlignCenter)
+                container_layout.setContentsMargins(0, 0, 0, 0)
+                self.bottleneck_reaction_list.setCellWidget(row, 0, container)
+
+                dual = duals.get(rid)
+                label = f"{rid}   (shadow price: {dual:.4g})" if dual is not None else rid
+                label_item = QTableWidgetItem(label)
+                label_item.setData(Qt.UserRole, rid)
+                label_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                try:
+                    reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(rid)
+                    label_item.setToolTip(reaction.build_reaction_string(use_metabolite_names=True))
+                except KeyError:
+                    pass
+                self.bottleneck_reaction_list.setItem(row, 1, label_item)
+            self.bottleneck_reaction_list.resizeColumnToContents(0)
         finally:
             self.bottleneck_reaction_list.blockSignals(False)
 
+    @Slot(QTableWidgetItem)
+    def _bottleneck_item_clicked(self, item: QTableWidgetItem) -> None:
+        # Only the label column (1) jumps to the reaction; clicking the
+        # checkbox column (0) only toggles selection for relaxation.
+        if item.column() != 1:
+            return
+        rid = item.data(Qt.UserRole)
+        if rid:
+            self.central_widget.jump_to_reaction(rid)
+
     @Slot()
     def _select_all_bottleneck_reactions(self):
-        for i in range(self.bottleneck_reaction_list.count()):
-            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Checked)
+        for row in range(self.bottleneck_reaction_list.rowCount()):
+            self._bottleneck_checkbox(row).setChecked(True)
         self._update_iteration_buttons()
 
     @Slot()
     def _select_no_bottleneck_reactions(self):
-        for i in range(self.bottleneck_reaction_list.count()):
-            self.bottleneck_reaction_list.item(i).setCheckState(Qt.Unchecked)
+        for row in range(self.bottleneck_reaction_list.rowCount()):
+            self._bottleneck_checkbox(row).setChecked(False)
         self._update_iteration_buttons()
 
     def _update_iteration_buttons(self) -> None:
@@ -444,13 +509,22 @@ class ThermodynamicDialog(QDialog):
     def process_solution(self, result: OptMDFResult) -> None:
         if result.status != "optimal":
             self.current_mdf_label.setText("Current MDF: — kJ/mol")
+            if hasattr(self, "current_opt_label"):
+                self.current_opt_label.setText("tFBA optimal value: —")
             warning_title, warning_text = self._status_message(result.status)
             QMessageBox.warning(self, warning_title, warning_text)
         else:
             self.set_boxes(result)
             self.current_mdf_label.setText(f"Current MDF: {result.mdf:.6g} kJ/mol")
+            if hasattr(self, "current_opt_label"):
+                if result.objective_value is not None:
+                    self.current_opt_label.setText(
+                        f"tFBA optimal value: {round(result.objective_value, self.appdata.rounding)}"
+                    )
+                else:
+                    self.current_opt_label.setText("tFBA optimal value: —")
             if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
-                self._set_bottleneck_reaction_choices(result.bottleneck_reactions)
+                self._set_bottleneck_reaction_choices(result.bottleneck_reactions, result.driving_force_duals)
                 self._update_iteration_buttons()
 
         self.setCursor(Qt.ArrowCursor)
@@ -466,106 +540,131 @@ class ThermodynamicDialog(QDialog):
         self.current_result = None
         self._relaxed_so_far = set()
         self.current_mdf_label.setText("Current MDF: — kJ/mol")
+        if hasattr(self, "current_opt_label"):
+            self.current_opt_label.setText("tFBA optimal value: —")
         if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
             self._set_bottleneck_reaction_choices([])
             self._update_iteration_buttons()
 
-        # Decouple models ("with" and "deepcopy" do not work) so that no
-        # scenario bounds spill into the original model.
-        modelstr = cobra.io.to_json(self.appdata.project.cobra_py_model)
-        model = cobra.io.from_json(modelstr)
-        self.appdata.project.load_scenario_into_model(model)
+        # Use the project's own model the same way fva()/compute_fva_result()
+        # do (see MainWindow.fva() in main_window.py), instead of the old
+        # to_json/from_json round-trip: that round-trip produced a plain
+        # cobra.Model, not a CNApyModel, so it lost the stoichiometry/reaction
+        # hashes that compute_fva_result() relies on to recognize a
+        # precomputed FVA result and load it from the results cache. The
+        # "with" block reverts the scenario bounds on exit, so they never
+        # spill into the original model.
+        with self.appdata.project.cobra_py_model as model:
+            self.appdata.project.load_scenario_into_model(model)
 
-        # self._apply_selected_solver(model)
+            # self._apply_selected_solver(model)
 
-        try:
-            min_default_conc = float(self.min_default_conc.text())
-            max_default_conc = float(self.max_default_conc.text())
-            if min_default_conc <= 0 or max_default_conc <= 0 or min_default_conc > max_default_conc:
-                raise ValueError
-            concentration_ratios = self._get_concentration_ratios()
-        except ValueError as exc:
-            message = str(exc) or "Default Cmin/Cmax must be valid positive numbers with Cmin <= Cmax."
-            QMessageBox.warning(
-                self,
-                "Invalid concentration / ratio settings",
-                message,
-            )
-            self.setCursor(Qt.ArrowCursor)
-            return
-
-        if self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
             try:
-                min_mdf = float(self.min_mdf.text())
-            except ValueError:
+                min_default_conc = float(self.min_default_conc.text())
+                max_default_conc = float(self.max_default_conc.text())
+                if min_default_conc <= 0 or max_default_conc <= 0 or min_default_conc > max_default_conc:
+                    raise ValueError
+                concentration_ratios = self._get_concentration_ratios()
+            except ValueError as exc:
+                message = str(exc) or "Default Cmin/Cmax must be valid positive numbers with Cmin <= Cmax."
                 QMessageBox.warning(
                     self,
-                    "Invalid minimal OptMDF",
-                    "The given minimal OptMDF could not be converted into a valid number "
-                    "(such as, e.g., 1.231). Aborting calculation...",
+                    "Invalid concentration / ratio settings",
+                    message,
                 )
                 self.setCursor(Qt.ArrowCursor)
                 return
-            B_bounds = (min_mdf, 1e4)
-        else:
-            B_bounds = (-1e4, 1e4)
 
-        try:
-            concentration_ratios = self._get_concentration_ratios()
-        except ValueError as exc:
-            QMessageBox.warning(self, "Invalid concentration ratio", str(exc))
-            self.setCursor(Qt.ArrowCursor)
-            return
+            if self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA:
+                try:
+                    min_mdf = float(self.min_mdf.text())
+                except ValueError:
+                    QMessageBox.warning(
+                        self,
+                        "Invalid minimal OptMDF",
+                        "The given minimal OptMDF could not be converted into a valid number "
+                        "(such as, e.g., 1.231). Aborting calculation...",
+                    )
+                    self.setCursor(Qt.ArrowCursor)
+                    return
+                B_bounds = (min_mdf, 1e4)
+            else:
+                B_bounds = (-1e4, 1e4)
 
-        if not any(rxn.annotation.get("dG0") is not None for rxn in model.reactions):
-            QMessageBox.warning(
-                self,
-                "No ΔG'° set",
-                "To run a thermodynamic calculation, your model needs at least one "
-                "reaction with a ΔG'° (annotation 'dG0'). Check out CNApy's "
-                "documentation for more",
+            try:
+                concentration_ratios = self._get_concentration_ratios()
+            except ValueError as exc:
+                QMessageBox.warning(self, "Invalid concentration ratio", str(exc))
+                self.setCursor(Qt.ArrowCursor)
+                return
+
+            if not any(rxn.annotation.get("dG0") is not None for rxn in model.reactions):
+                QMessageBox.warning(
+                    self,
+                    "No ΔG'° set",
+                    "To run a thermodynamic calculation, your model needs at least one "
+                    "reaction with a ΔG'° (annotation 'dG0'). Check out CNApy's "
+                    "documentation for more",
+                )
+                self.setCursor(Qt.ArrowCursor)
+                return
+
+            scenario_constraints = self._build_scenario_constraints()
+
+            # Reuse MainWindow's own FVA computation (incl. its infinite-bound
+            # clipping and results cache) for OptMDFAnalysis's flux-range
+            # preprocessing, instead of letting it run its own internal FVA from
+            # scratch. Falls back to OptMDFAnalysis's internal FVA (its default
+            # behaviour) if no main_window was given to this dialog, or if the
+            # computation didn't succeed (e.g. infeasible scenario -- already
+            # reported to the user via a message box inside compute_fva_result).
+            precomputed_fva = self.main_window.compute_fva_result(model, scenario_constraints)
+            if precomputed_fva is None:
+                # Infeasible scenario or solver error -- compute_fva_result()
+                # already showed the relevant message box, and OptMDFAnalysis
+                # would only hit the same failure again internally.
+                self.setCursor(Qt.ArrowCursor)
+                return
+
+            try:
+                self.analysis = OptMDFAnalysis(
+                    model,
+                    Cmin=min_default_conc,
+                    Cmax=max_default_conc,
+                    scenarios=scenario_constraints,
+                    concentration_ratios=concentration_ratios,
+                    B_bounds=B_bounds,
+                    precomputed_fva=precomputed_fva,
+                    verbose=True,
+                )
+            except Exception as e:
+                QMessageBox.warning(
+                    self,
+                    "Setup error",
+                    f"Could not set up the thermodynamic analysis:\n{e}",
+                )
+                self.analysis = None
+                self.setCursor(Qt.ArrowCursor)
+                self._update_iteration_buttons()
+                return
+
+            # OPTMDFPATHWAY maximises the MDF itself (analysis.solve());
+            # THERMODYNAMIC_FBA optimises the model's own objective subject to
+            # the enforced minimal MDF from B_bounds (analysis.solve_fba()). In
+            # both cases the same analysis object is reused for every later
+            # relax-and-resolve step below.
+            self._solve = (
+                self.analysis.solve_fba
+                if self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
+                else self.analysis.solve
             )
-            self.setCursor(Qt.ArrowCursor)
-            return
 
-        try:
-            self.analysis = OptMDFAnalysis(
-                model,
-                Cmin=min_default_conc,
-                Cmax=max_default_conc,
-                scenarios=self._build_scenario_constraints(),
-                concentration_ratios=concentration_ratios,
-                B_bounds=B_bounds,
-                verbose=True,
-            )
-        except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Setup error",
-                f"Could not set up the thermodynamic analysis:\n{e}",
-            )
-            self.analysis = None
-            self.setCursor(Qt.ArrowCursor)
-            self._update_iteration_buttons()
-            return
-
-        # OPTMDFPATHWAY maximises the MDF itself (analysis.solve());
-        # THERMODYNAMIC_FBA optimises the model's own objective subject to
-        # the enforced minimal MDF from B_bounds (analysis.solve_fba()). In
-        # both cases the same analysis object is reused for every later
-        # relax-and-resolve step below.
-        self._solve = (
-            self.analysis.solve_fba
-            if self.analysis_type == ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
-            else self.analysis.solve
-        )
-
-        result = self._solve()
-        if result.status == "optimal":
-            self.analysis.shadow_prices()
-            if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
-                result.bottleneck_reactions = self.analysis.find_bottleneck()
-        self.current_result = result
+            result = self._solve()
+            if result.status == "optimal":
+                if self.analysis_type == ThermodynamicAnalysisTypes.OPTMDFPATHWAY:
+                    result.driving_force_duals = self.analysis.shadow_prices()
+                    result.bottleneck_reactions = self.analysis.find_bottleneck()
+            self.current_result = result
 
         self.process_solution(result)
 
@@ -604,7 +703,7 @@ class ThermodynamicDialog(QDialog):
 
         result = self._solve()
         if result.status == "optimal":
-            self.analysis.shadow_prices()
+            result.driving_force_duals = self.analysis.shadow_prices()
             result.bottleneck_reactions = self.analysis.find_bottleneck()
         self.current_result = result
 
@@ -648,8 +747,9 @@ class ThermodynamicDialog(QDialog):
             result = self._solve()
             if result.status != "optimal":
                 break
+            result.driving_force_duals = self.analysis.shadow_prices()
             result.bottleneck_reactions = self.analysis.find_bottleneck()
-            self._set_bottleneck_reaction_choices(result.bottleneck_reactions)
+            self._set_bottleneck_reaction_choices(result.bottleneck_reactions, result.driving_force_duals)
             n += 1
             # Do not silently carry the previous selection into a newly found
             # bottleneck; the user should explicitly choose the next relaxation.

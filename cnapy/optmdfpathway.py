@@ -861,6 +861,7 @@ class OptMDFAnalysis:
         dG_bound_M: Number = 1e4,
         B_bounds: Tuple[Number, Number] = (-1e4, 1e4),
         use_fva_preprocessing: Optional[bool] = None,
+        precomputed_fva: Optional[Dict[str, Tuple[float, float]]] = None,
         blocked_flux_tol: float = 1e-9,
         bottleneck_tol: float = 1e-6,
         verbose: bool = False,
@@ -929,7 +930,19 @@ class OptMDFAnalysis:
         use_fva_preprocessing : optional bool
             None (default): try FVA, fall back to static bounds if
             core.py's dependencies aren't importable. True: require it.
-            False: always use static bounds. See optMDFpathway.
+            False: always use static bounds. Ignored if precomputed_fva is
+            given. See optMDFpathway.
+        precomputed_fva : optional dict {reaction_id: (min_flux, max_flux)}
+            Reuse an FVA result the caller already has (e.g. from a GUI's
+            own FVA computation/cache) instead of running FVA here. Expected
+            to cover the *uncompressed* model, i.e. one entry per reaction
+            of `model` -- since every such entry is already the tightest
+            achievable range, no reaction_subsets compression/expansion is
+            needed regardless of reaction_subsets, unlike the internal FVA
+            path. Reactions missing from the dict fall back to static
+            bounds, same as a NaN FVA result would. When given, this is
+            used instead of running FVA internally (use_fva_preprocessing
+            is ignored).
         blocked_flux_tol : float
             Absolute flux tolerance below which an FVA-computed bound is
             treated as zero (that direction is blocked).
@@ -976,7 +989,23 @@ class OptMDFAnalysis:
         #    reaction_subsets were given, this runs on a compressed model (see
         #    _compress_for_fva) and the result is expanded back afterwards.
         fva_bounds: Optional[Dict[str, Tuple[float, float]]] = None
-        if use_fva_preprocessing is not False:
+        if precomputed_fva is not None:
+            # Caller already ran FVA on the (uncompressed) model -- every
+            # reaction has its own directly-computed bound, so there is
+            # nothing to compress/expand via reaction_subsets here, unlike
+            # the internal FVA path below. Reactions the caller didn't
+            # cover fall back to static bounds via the NaN path used below.
+            fva_bounds = {
+                rxn.id: precomputed_fva.get(rxn.id, (math.nan, math.nan))
+                for rxn in m.reactions
+            }
+            if verbose:
+                n_missing = sum(1 for rxn in m.reactions if rxn.id not in precomputed_fva)
+                msg = "Using precomputed FVA result."
+                if n_missing:
+                    msg += f" ({n_missing} reaction(s) missing from it; using static bounds for those.)"
+                print(msg)
+        elif use_fva_preprocessing is not False:
             m_fva, fva_triples = _compress_for_fva(m, subset_ratio, scenario_triples)
             fva_lb, fva_ub, n_bad = multi_threaded_HiGHS_FVA(m_fva, constraints=fva_triples)
             fva_bounds_compressed = {rxn.id: (lo, hi) for rxn, lo, hi in zip(m_fva.reactions, fva_lb, fva_ub)}
@@ -1588,6 +1617,7 @@ def optMDFpathway(
     dG_bound_M: Number = 1e4,
     B_bounds: Tuple[Number, Number] = (-1e4, 1e4),
     use_fva_preprocessing: Optional[bool] = None,
+    precomputed_fva: Optional[Dict[str, Tuple[float, float]]] = None,
     blocked_flux_tol: float = 1e-9,
     bottleneck_tol: float = 1e-6,
     compute_shadow_prices: bool = False,
@@ -1606,8 +1636,8 @@ def optMDFpathway(
 
     Parameters not listed below (Cmin, Cmax, RT, scenarios,
     concentration_ratios, reaction_subsets, ignore_reactions, flux_bound_M,
-    dG_bound_M, B_bounds, use_fva_preprocessing, blocked_flux_tol) are
-    exactly OptMDFAnalysis.__init__'s.
+    dG_bound_M, B_bounds, use_fva_preprocessing, precomputed_fva,
+    blocked_flux_tol) are exactly OptMDFAnalysis.__init__'s.
 
     bottleneck_tol : float
         Only relevant when find_minimal_bottleneck=True; see
@@ -1656,6 +1686,7 @@ def optMDFpathway(
         ignore_reactions=ignore_reactions, flux_bound_M=flux_bound_M,
         dG_bound_M=dG_bound_M, B_bounds=B_bounds,
         use_fva_preprocessing=use_fva_preprocessing,
+        precomputed_fva=precomputed_fva,
         blocked_flux_tol=blocked_flux_tol, bottleneck_tol=bottleneck_tol,
         verbose=verbose,
     )
