@@ -1771,6 +1771,7 @@ class MainWindow(QMainWindow):
                     print(exstr)
                     utils.show_unknown_error_box(exstr)
             else:
+                self.appdata.project.solution = solution
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
                     for i in soldict:
