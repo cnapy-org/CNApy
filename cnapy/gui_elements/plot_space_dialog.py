@@ -7,6 +7,7 @@ from qtpy.QtWidgets import (QDialog, QHBoxLayout, QLabel, QMessageBox, QGroupBox
 from cnapy.utils import QComplReceivLineEdit, QHSeperationLine
 from straindesign import plot_flux_space
 from straindesign.names import *
+from cnapy.lptools_highs import plot_flux_space_highs
 
 class PlotSpaceDialog(QDialog):
     """A dialog to create Flux space plots"""
@@ -159,7 +160,21 @@ class PlotSpaceDialog(QDialog):
                 else:
                     axes[2] = (self.z_numerator.text())
             try:
-                plot_flux_space(model,axes,points=int(self.numpoints.text()))
+                # HiGHS-native path first (see lptools_highs.py): build-once
+                # solvers instead of straindesign's rebuild-every-call
+                # fba()/yopt(), threaded where that's actually paid off in
+                # benchmarking (3D one-sliced-axis plots). Falls back to the
+                # original straindesign-based plot_flux_space -- silently to
+                # the console, not to the user -- for anything the HiGHS
+                # path doesn't cover yet or hits an unexpected error on, so
+                # this can only ever be as fragile as the code it replaces,
+                # never more so.
+                try:
+                    plot_flux_space_highs(model,axes,points=int(self.numpoints.text()))
+                except Exception as e_highs:
+                    print("plot_flux_space_highs failed, falling back to straindesign's "
+                          "plot_flux_space:", repr(e_highs))
+                    plot_flux_space(model,axes,points=int(self.numpoints.text()))
             except Exception as e:
                 QMessageBox.warning(
                     self,
