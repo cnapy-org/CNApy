@@ -33,22 +33,10 @@ QT_QPA_PLATFORM=offscreen pytest tests/ -v
 ## A design detail worth knowing
 
 The ECC2 fixture is loaded via `CNApyModel.read_sbml_model`
-(`optlang_enumerator.cobra_cnapy`) rather than plain
-`cobra.io.read_sbml_model`, for two reasons:
-
-1. It matches how CNApy itself loads a project's model, so the model
-   arrives at `fba()`/`fva()` in realistic state (reaction/stoichiometry
-   hashes already set).
-2. Importing `optlang_enumerator.cobra_cnapy` has the side effect of
-   monkeypatching `set_hash_value()` onto `cobra.Reaction` itself (see that
-   module's source) — which is what lets
-   `ProjectData.load_scenario_into_model()` call
-   `reaction.set_hash_value()` unconditionally on any scenario-touched
-   reaction, even with `use_results_cache=False`. Since `cnapy.appdata`
-   already imports `CNApyModel` at module level, this patch is in effect
-   as soon as any test imports anything from `cnapy`, but using
-   `CNApyModel.read_sbml_model` directly keeps the fixture's provenance
-   explicit rather than relying on that import-order side effect implicitly.
+(`cnapy.cobra_cnapy`) rather than plain `cobra.io.read_sbml_model`, so that
+it matches how CNApy itself loads a project's model. The stoichiometry hash
+used for the results caches (`cnapy.cobra_cnapy.stoichiometry_hash`) is
+recomputed on every access, so no hash setup is needed at load time.
 
 ## Extending
 

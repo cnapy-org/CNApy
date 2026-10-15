@@ -13,7 +13,7 @@ from cnapy.core import multi_threaded_HiGHS_FVA
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 import optlang
-from optlang_enumerator.cobra_cnapy import CNApyModel
+from cnapy.cobra_cnapy import CNApyModel, stoichiometry_hash
 from optlang.symbolics import Zero
 import numpy as np
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
@@ -1333,10 +1333,7 @@ class MainWindow(QMainWindow):
 
                     if json_model_path.exists():
                         cobra_py_model = cobra.io.load_json_model(json_model_path)
-                        # the following calls are copied from CNApyModel.read_sbml_model
-                        cobra_py_model.set_reaction_hashes()
-                        cobra_py_model.set_stoichiometry_hash_object()
-                        cobra_py_model.__class__ = CNApyModel
+                        cobra_py_model.__class__ = CNApyModel # like in CNApyModel.read_sbml_model
                     elif sbml_model_path.exists():
                         cobra_py_model = CNApyModel.read_sbml_model(sbml_model_path)
                     else:
@@ -1662,17 +1659,11 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     def set_model_bounds_to_scenario(self):
-        changed = False
         for reaction in self.appdata.project.cobra_py_model.reactions:
             if reaction.id in self.appdata.project.scen_values:
                 (vl, vu) = self.appdata.project.scen_values[reaction.id]
                 reaction.lower_bound = vl
                 reaction.upper_bound = vu
-                # bounds changed persistently -> keep the FVA-result-cache hash in sync
-                reaction.set_hash_value()
-                changed = True
-        if changed:
-            self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.centralWidget().update()
 
     @Slot()
@@ -1929,23 +1920,14 @@ class MainWindow(QMainWindow):
             constraints = []
 
         fva_result = None
-        update_stoichiometry_hash = False
         for r in model.reactions:
             if r.lower_bound == -float('inf'):
                 r.lower_bound = cobra.Configuration().lower_bound
-                if self.appdata.use_results_cache:
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
             if r.upper_bound == float('inf'):
                 r.upper_bound = cobra.Configuration().upper_bound
-                if self.appdata.use_results_cache:
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
         if self.appdata.use_results_cache:
-            if update_stoichiometry_hash:
-                model.set_stoichiometry_hash_object()
             self.appdata.project.scen_values.set_hash_value() # call here for simplicity, but should in the long term be directly executed after scenario modification
-            fva_hash = hash((int(model.stoichiometry_hash_object.hexdigest(), 16),
+            fva_hash = hash((int(stoichiometry_hash(model).hexdigest(), 16),
                                 hash(self.appdata.project.scen_values), hash(model.tolerance)))
             file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+str(fva_hash)+".pkl")
 

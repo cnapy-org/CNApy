@@ -15,7 +15,7 @@ from copy import deepcopy
 
 import cobra
 from optlang.symbolics import Zero
-from optlang_enumerator.cobra_cnapy import CNApyModel
+from cnapy.cobra_cnapy import CNApyModel
 from qtpy.QtCore import Qt, Signal, QObject, QStringListModel
 from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QMessageBox

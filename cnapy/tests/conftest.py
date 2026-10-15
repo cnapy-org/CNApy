@@ -78,20 +78,14 @@ def ecc2_reference_model() -> cobra.Model:
     CNApy's slots operate on and as the basis for computing ground-truth
     FBA/FVA values to check them against.
 
-    Loaded via `CNApyModel.read_sbml_model` (optlang_enumerator.cobra_cnapy)
-    rather than plain `cobra.io.read_sbml_model`, matching how CNApy itself
-    loads a project's model - this also runs `set_reaction_hashes()` /
-    `set_stoichiometry_hash_object()` at load time, so the model arrives at
-    fba()/fva() in the same state a real CNApy project's model would.
-    Importing this module has the side effect of monkeypatching
-    `set_hash_value()` onto `cobra.Reaction` itself, which is what lets
-    `ProjectData.load_scenario_into_model()` call it unconditionally even
-    though it isn't gated behind `use_results_cache` (see README).
+    Loaded via `CNApyModel.read_sbml_model` (cnapy.cobra_cnapy) rather than
+    plain `cobra.io.read_sbml_model`, matching how CNApy itself loads a
+    project's model.
 
     Never mutated directly by tests - use ecc2_reference_model.copy() if a
     test needs to change bounds.
     """
-    from optlang_enumerator.cobra_cnapy import CNApyModel
+    from cnapy.cobra_cnapy import CNApyModel
     return CNApyModel.read_sbml_model(str(ECC2_SBML))
 
 

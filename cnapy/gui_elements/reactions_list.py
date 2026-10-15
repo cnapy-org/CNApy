@@ -782,8 +782,6 @@ class ReactionList(QWidget):
         reaction = cobra.Reaction(name)
         self.appdata.project.cobra_py_model.add_reactions([reaction])
         self.appdata.project.update_reaction_id_lists()
-        reaction.set_hash_value()
-        self.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         self.reaction_list.blockSignals(True)
         item = self.add_reaction(reaction)
         self.reaction_list.blockSignals(False)
@@ -1524,8 +1522,6 @@ class ReactionMask(QWidget):
         if bounds != self.reaction.bounds or metabolites != self.reaction.metabolites or \
             objective_coefficient != self.reaction.objective_coefficient:
             self.fba_relevant_change = True
-            self.reaction.set_hash_value()
-            self.parent.appdata.project.cobra_py_model.set_stoichiometry_hash_object()
         if self.fba_relevant_change or name != self.reaction.name or \
             gene_reaction_rule != self.reaction.gene_reaction_rule or id_ != self.reaction.id or \
             annotation != self.reaction.annotation:
