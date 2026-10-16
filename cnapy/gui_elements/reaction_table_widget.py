@@ -1,7 +1,6 @@
 from enum import Enum
-from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QTextEdit, QFrame, QToolTip
-from qtpy.QtGui import QMouseEvent
+from qtpy.QtCore import Qt, Signal, Slot, QUrl
+from qtpy.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QAbstractItemView, QTextEdit, QTextBrowser, QFrame, QToolTip
 
 from cnapy.gui_elements.reactions_list import build_reaction_equation_html
 
@@ -11,12 +10,12 @@ class ModelElementType(Enum):
     GENE = 2
 
 
-class ReactionString(QTextEdit):
+class ReactionString(QTextBrowser):
     """Read-only display of a reaction equation with clickable metabolite
     links, built the exact same way (build_reaction_equation_html) as the
     Equation field in ReactionMask: every metabolite id is an HTML link
-    (href = metabolite id) and a click is resolved via anchorAt() rather
-    than by guessing word boundaries in plain text.
+    (href = metabolite id); QTextBrowser.anchorClicked distinguishes a
+    click on a link from a text selection.
     """
 
     def __init__(self, reaction, metabolite_list):
@@ -28,6 +27,8 @@ class ReactionString(QTextEdit):
             Qt.TextInteractionFlag.LinksAccessibleByMouse | Qt.TextInteractionFlag.TextSelectableByMouse
         )
         self.setMouseTracking(True)
+        self.setOpenLinks(False)
+        self.anchorClicked.connect(self.link_clicked)
         self.setHtml(build_reaction_equation_html(reaction))
         # Natural (unwrapped) width of the equation, used by
         # ReactionTableWidget.section_resized to decide whether the row
@@ -49,13 +50,11 @@ class ReactionString(QTextEdit):
             self.viewport().setCursor(Qt.CursorShape.IBeamCursor)
             QToolTip.hideText()
 
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton and not self.textCursor().hasSelection():
-            metabolite_id = self.anchorAt(event.pos())
-            if metabolite_id and self.model.metabolites.has_id(metabolite_id):
-                self.jumpToMetabolite.emit(metabolite_id)
-                self.metabolite_list.set_current_item(metabolite_id)
+    def link_clicked(self, url: QUrl):
+        metabolite_id = url.toString()
+        if self.model.metabolites.has_id(metabolite_id):
+            self.jumpToMetabolite.emit(metabolite_id)
+            self.metabolite_list.set_current_item(metabolite_id)
 
 class ReactionTableWidget(QTableWidget):
     def __init__(self, appdata, element_type: ModelElementType) -> None:
