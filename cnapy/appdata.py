@@ -560,21 +560,34 @@ class ProjectData:
             msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
 
-        self.cobra_py_model = CNApyModel()
         self.reaction_ids: IDList = IDList() # reaction IDs of the cobra_py_model and scenario reactions
-
-        default_map = CnaMap("Map")
-        self.maps = {"Map": default_map}
         self.scen_values: Scenario = Scenario()
         self.clipboard: Dict[str, Tuple[float, float]] = {}
-        self.solution: cobra.Solution = None
         self.comp_values: Dict[str, Tuple[float, float]] = {}
-        self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
         self.fva_values: Dict[str, Tuple[float, float]] = {} # store FVA results persistently
         self.conc_values: Dict[str, float] = {} # Metabolite concentrations
         self.df_values: Dict[str, float] = {} # Driving forces
+        self.reset()
+
+    def reset(self, model: cobra.Model = None):
+        '''Replaces the model and discards all data that belongs to the previous one. The ProjectData
+        object itself and its containers (e.g. reaction_ids, scen_values) keep their identity because
+        dialogs and completers hold references to them.'''
+        self.cobra_py_model = CNApyModel() if model is None else model
+        self.maps = {"Map": CnaMap("Map")}
+        self.scen_values.clear()
+        self.clipboard.clear()
+        self.solution: cobra.Solution = None
+        self.comp_values.clear()
+        self.comp_values_type = 0 # 0: simple flux vector, 1: bounds/FVA result
+        self.fva_values.clear()
+        self.conc_values.clear()
+        self.df_values.clear()
         self.modes = []
         self.meta_data = {}
+        self.high = 0
+        self.low = 0
+        self.sd_solutions = None
 
     def load_scenario_into_model(self, model: cobra.Model):
         for x in self.scen_values:

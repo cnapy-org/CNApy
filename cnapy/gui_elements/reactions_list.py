@@ -1006,6 +1006,17 @@ class ReactionList(QWidget):
             for r in self.appdata.project.cobra_py_model.reactions:
                 self.add_reaction(r)
             self.reaction_model.itemChanged.connect(self.handle_item_changed)
+            # the model may have been replaced (new project): drop the Flux values and the DF
+            # column of the previous one
+            self.reaction_model.refresh_flux_values()
+            if len(self.appdata.project.df_values) == 0:
+                self.reaction_list.setColumnHidden(ReactionListColumn.DF, True)
+                self.visible_column[ReactionListColumn.DF] = False
+            # resetting the item model does not reliably emit currentChanged, so the detail panel
+            # could otherwise keep showing a reaction of the previous model
+            if self.last_selected is None or not self.reaction_list.findItems(
+                    self.last_selected, Qt.MatchFlag.MatchExactly):
+                self.reaction_mask.hide()
         elif self.reaction_model.rowCount() > 0:
             self.reaction_model.refresh_flux_values()
             for item in self.reaction_model.items:

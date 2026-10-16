@@ -1,7 +1,7 @@
 import importlib.resources as resources
 import os
 from math import isclose
-from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt
+from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt, QCoreApplication, QEvent
 from qtpy.QtWidgets import QFileDialog, QMessageBox
 from qtpy.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
 from qtpy.QtWebChannel import QWebChannel
@@ -41,13 +41,22 @@ class EscherMapView(QWebEngineView):
         self.initialized = False
         self.central_widget = central_widget
         self.cnapy_bridge = CnapyBridge(self, central_widget)
-        self.channel = QWebChannel() # reference to channel necessary on Python side for correct operation
+        self.channel = QWebChannel(self) # reference to channel necessary on Python side for correct operation
         self.page().setWebChannel(self.channel)
         self.channel.registerObject("cnapy_bridge", self.cnapy_bridge)
         html_path = resources.files("cnapy") / "data" / "escher_cnapy.html"
         self.load(QUrl.fromLocalFile(str(html_path)))
         self.name: str = name # map name for self.appdata.project.maps
         self.editing_enabled = False
+
+    @staticmethod
+    def release_web_engine_profile():
+        '''deletes the shared profile; all pages using it must already be deleted'''
+        profile = EscherMapView.web_engine_profile
+        if profile is not None:
+            EscherMapView.web_engine_profile = None
+            profile.deleteLater()
+            QCoreApplication.sendPostedEvents(profile, QEvent.Type.DeferredDelete)
 
     def finish_setup(self):
         # print("finish_setup")

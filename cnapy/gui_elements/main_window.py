@@ -20,13 +20,13 @@ import cnapy.resources  # Do not delete this import - it seems to be unused but 
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize, QCoreApplication, QEvent
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, Scenario, CnaMap
+from cnapy.appdata import AppData, Scenario
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
         self.file_menu.addAction(exit_action)
-        exit_action.triggered.connect(self.exit_app)
+        exit_action.triggered.connect(self.close) # closeEvent asks about unsaved changes
 
         self.scenario_menu = self.menu.addMenu("Scenario")
 
@@ -400,6 +400,11 @@ class MainWindow(QMainWindow):
         sd_action.triggered.connect(self.mcs)
         self.sd_menu.addAction(sd_action)
         self.mcs_dialog = None
+        self.sd_viewer = None
+        self.sd_computation = None
+        self.plot_space_dialog = None
+        self.optmdfpathway_dialog = None
+        self.thermodynamic_fba_dialog = None
 
         load_mcs_action = QAction("Load Minimal Cut Sets (legacy)...", self)
         self.sd_menu.addAction(load_mcs_action)
@@ -668,13 +673,6 @@ class MainWindow(QMainWindow):
     # def disable_enable_dependent_actions(self):
     #     self.efm_action.setEnabled(False)
 
-    @Slot()
-    def exit_app(self):
-        if self.checked_unsaved():
-            # releases the memory map file if this is a FluxVectorMemmap
-            self.appdata.project.modes.clear()
-            QApplication.quit()
-
     def set_current_filename(self, filename):
         self.appdata.project.name = filename
 
@@ -692,8 +690,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def plot_space(self):
-        self.plot_space = PlotSpaceDialog(self.appdata)
-        self.plot_space.show()
+        self.plot_space_dialog = PlotSpaceDialog(self.appdata)
+        self.plot_space_dialog.show()
 
     # Strain design computation and viewing functions
     def strain_design(self):
@@ -1245,23 +1243,35 @@ class MainWindow(QMainWindow):
     def new_project(self):
         if self.checked_unsaved():
             self.new_project_unchecked()
-            self.centralWidget().clear_model_item_history()
-            self.recreate_maps()
 
-    def new_project_unchecked(self):
-        self.delete_maps()
-
-        self.centralWidget().mode_navigator.clear()
-        self.centralWidget().clear_model_item_history()
-        self.centralWidget().reaction_list.reaction_list.clear()
+    def new_project_unchecked(self, model: cobra.Model = None):
+        '''replaces the current project with an empty one (or one with the given model)'''
         self.close_project_dialogs()
-
-        self.appdata.project.scen_values.clear()
-        self.appdata.clear_scenario_history()
-        self.appdata.add_scenario_to_history(Scenario())
-
-        self.set_current_filename("Untitled project")
+        self.appdata.project.reset(model)
+        self.reset_gui_for_new_project()
+        self.set_current_filename("")
         self.nounsaved_changes()
+
+    def reset_gui_for_new_project(self):
+        '''brings the GUI in line with a project that was just reset (see ProjectData.reset) and filled'''
+        central = self.centralWidget()
+        # first, because the following calls update the map tabs, which must belong to the new project
+        self.recreate_maps()
+        central.mode_navigator.clear()
+        central.prune_model_item_history()
+        for item_list in (central.reaction_list, central.metabolite_list, central.gene_list):
+            item_list.last_selected = None
+        for search_bar in (central.reaction_searchbar, central.metabolite_searchbar, central.gene_searchbar):
+            search_bar.clear()
+        self.appdata.clear_scenario_history()
+        (reactions, values) = self.appdata.project.collect_default_scenario_values()
+        if len(reactions) > 0:
+            self.appdata.scen_values_set_multiple(reactions, values)
+        else:
+            self.appdata.add_scenario_to_history(Scenario())
+        self.clear_status_bar()
+        self.update_scenario_file_name()
+        central.update(rebuild_all_tabs=True)
 
     @Slot()
     def new_project_from_sbml(self, filename=''):
@@ -1281,22 +1291,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(
                     self, 'Could not read sbml.', exstr)
                 return
-            self.new_project_unchecked()
-            self.appdata.project.cobra_py_model = cobra_py_model
-            self.centralWidget().prune_model_item_history()
+            self.new_project_unchecked(cobra_py_model)
             self.set_current_filename(filename)
-
-            default_map = CnaMap("Map")
-            self.appdata.project.maps = {"Map": default_map}
-            self.recreate_maps()
-            self.centralWidget().update(rebuild_all_tabs=True)
-            self.update_scenario_file_name()
             self.update_recently_used_models(filename)
-
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def open_project(self, filename):
-        self.close_project_dialogs()
         temp_dir = TemporaryDirectory()
         base_path = Path(temp_dir.name)
         QApplication.setOverrideCursor(Qt.BusyCursor)
@@ -1313,7 +1313,6 @@ class MainWindow(QMainWindow):
                         "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
                         "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
                     )
-                    self.setCursor(Qt.CursorShape.ArrowCursor)
                     return
 
                 with open(box_positions_path, 'r') as fp:
@@ -1343,29 +1342,15 @@ class MainWindow(QMainWindow):
                     QMessageBox.warning(
                         self, 'Could not open project.', exstr)
                     return
+                # the project file was read successfully, now replace the current project
+                self.close_project_dialogs()
                 self.appdata.temp_dir = temp_dir
+                self.appdata.project.reset(cobra_py_model)
                 self.appdata.project.maps = maps
                 self.appdata.project.meta_data = meta_data
-                self.appdata.project.cobra_py_model = cobra_py_model
                 self.set_current_filename(filename)
                 self.appdata.last_scen_directory = os.path.dirname(filename)
-                self.recreate_maps()
-                self.centralWidget().mode_navigator.clear()
-                self.centralWidget().prune_model_item_history()
-                self.centralWidget().reaction_list.last_selected = None
-                self.centralWidget().metabolite_list.last_selected = None
-                self.centralWidget().gene_list.last_selected = None
-                self.appdata.project.scen_values.clear()
-                self.appdata.project.comp_values.clear()
-                self.appdata.project.fva_values.clear()
-                self.appdata.clear_scenario_history()
-                self.clear_status_bar()
-                self.update_scenario_file_name()
-                (reactions, values) = self.appdata.project.collect_default_scenario_values()
-                if len(reactions) > 0:
-                    self.appdata.scen_values_set_multiple(reactions, values)
-                else:
-                    self.appdata.add_scenario_to_history(Scenario())
+                self.reset_gui_for_new_project()
                 self.nounsaved_changes()
 
                 # if project contains maps move splitter and fit mapview
@@ -1374,7 +1359,6 @@ class MainWindow(QMainWindow):
                     self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                     self.centralWidget().fit_mapview()
 
-                self.centralWidget().update(rebuild_all_tabs=True)
                 self.update_recently_used_models(filename)
 
         except FileNotFoundError:
@@ -1387,8 +1371,8 @@ class MainWindow(QMainWindow):
                 "File could not be opened as it does not seem to be a valid CNApy project. "
                 "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
             )
-
-        QApplication.restoreOverrideCursor()
+        finally:
+            QApplication.restoreOverrideCursor()
 
     @Slot()
     def open_project_dialog(self):
@@ -1414,6 +1398,21 @@ class MainWindow(QMainWindow):
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
+        for name in ("plot_space_dialog", "optmdfpathway_dialog", "thermodynamic_fba_dialog"):
+            dialog = getattr(self, name)
+            if dialog is not None:
+                dialog.close()
+                setattr(self, name, None)
+        # a strain design computation still running would deliver its results to the new project
+        if self.sd_computation is not None and self.sd_computation.isRunning():
+            self.terminate_strain_design_computation()
+        self.sd_computation = None
+        if self.sd_viewer is not None:
+            try:
+                self.sd_viewer.close()
+            except RuntimeError:  # already deleted by Qt (deleteLater after cancel/show)
+                pass
+            self.sd_viewer = None
 
     def save_model(self, filename, save_as_json: bool = False):
         '''Save model as SBML'''
@@ -1451,6 +1450,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_project(self):
+        if not self.appdata.project.name.endswith(".cna"):  # new project or imported SBML model
+            self.save_project_as()
+            return
         escher_map_count: int = 0
         semaphore = [0] # list with one integer to emulate pass by reference
         for i in range(len(self.centralWidget().map_tabs)):
@@ -1543,7 +1545,6 @@ class MainWindow(QMainWindow):
             self.save_project()
             self.update_recently_used_models(filename)
 
-    # TODO: are there really situations where _all_ maps need to be recreated?
     def recreate_maps(self):
         self.delete_maps()
         for name, mmap in self.appdata.project.maps.items():
@@ -1559,6 +1560,13 @@ class MainWindow(QMainWindow):
                 raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
             mmap.update()
+
+    def release_web_engine(self):
+        '''Deletes the Escher maps and then their web engine profile. Must be called before the QApplication
+        is destroyed, otherwise QtWebEngine may crash when pages are destroyed after their profile.'''
+        self.delete_maps()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete) # deleteLater does not wait for the event loop
+        EscherMapView.release_web_engine_profile()
 
     def delete_maps(self):
         with QSignalBlocker(self.centralWidget().map_tabs):

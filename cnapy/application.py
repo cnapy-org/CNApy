@@ -184,7 +184,10 @@ class Application:
         self.qapp.aboutToQuit.connect(
             self.window.centralWidget().shutdown_kernel
         )
-        sys.exit(self.qapp.exec())
+        exit_code = self.qapp.exec()
+        # tear down QtWebEngine while the QApplication still exists
+        self.window.release_web_engine()
+        sys.exit(exit_code)
 
     def first_start_up_message(self):
         msgBox = QMessageBox()
