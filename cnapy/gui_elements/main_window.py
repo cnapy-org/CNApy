@@ -17,17 +17,18 @@ import optlang
 from cnapy.cobra_cnapy import CNApyModel, stoichiometry_hash
 from optlang.symbolics import Zero
 import numpy as np
+import importlib.resources as resources
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 from typing import Any, Dict
 import openpyxl
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize, QCoreApplication, QEvent
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize, QCoreApplication, QEvent, QEventLoop
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, Scenario
+from cnapy.appdata import AppData, Scenario, MAP_VIEW_CNAPY, MAP_VIEW_ESCHER
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -236,11 +237,14 @@ class MainWindow(QMainWindow):
         save_fluxes_as_xlsx_action.triggered.connect(self.save_fluxes_as_xlsx)
 
         self.map_menu = self.menu.addMenu("Map")
+        # the action groups are only used to show/hide the actions depending on the map type
         self.cnapy_map_actions = QActionGroup(self)
+        self.cnapy_map_actions.setExclusive(False)
         separator = QAction(" CNApy map", self)
         separator.setSeparator(True)
         self.cnapy_map_actions.addAction(separator)
         self.escher_map_actions = QActionGroup(self)
+        self.escher_map_actions.setExclusive(False)
         separator = QAction(" Escher map", self)
         separator.setSeparator(True)
         self.escher_map_actions.addAction(separator)
@@ -302,6 +306,10 @@ class MainWindow(QMainWindow):
         self.dec_box_size_action.setEnabled(False)
         self.cnapy_map_actions.addAction(self.dec_box_size_action)
 
+        cnapy_zoom_canvas_action = QAction("Zoom to canvas", self)
+        cnapy_zoom_canvas_action.triggered.connect(self.zoom_to_canvas)
+        self.cnapy_map_actions.addAction(cnapy_zoom_canvas_action)
+
         self.cnapy_screenshot_action = QAction("Take map view screenshot...", self)
         self.cnapy_screenshot_action.triggered.connect(self.take_screenshot_cnapy)
         self.cnapy_map_actions.addAction(self.cnapy_screenshot_action)
@@ -317,15 +325,8 @@ class MainWindow(QMainWindow):
         self.escher_map_actions.addAction(escher_export_png_action)
 
         escher_zoom_canvas_action = QAction("Zoom to canvas")
-        escher_zoom_canvas_action.triggered.connect(
-            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
+        escher_zoom_canvas_action.triggered.connect(self.zoom_to_canvas)
         self.escher_map_actions.addAction(escher_zoom_canvas_action)
-
-        # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
-        # escher_save_map_action = QAction("Save map JSON...")
-        # escher_save_map_action.triggered.connect(
-        #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
-        # self.escher_map_actions.addAction(escher_save_map_action)
 
         escher_settings_action = QAction("Escher settings...")
         escher_settings_action.triggered.connect(
@@ -556,6 +557,11 @@ class MainWindow(QMainWindow):
         zoom_out_action.setIcon(QIcon(":/icons/zoom-out.png"))
         zoom_out_action.triggered.connect(self.zoom_out)
 
+        zoom_to_canvas_action = QAction("Zoom to canvas", self)
+        zoom_to_canvas_action.setToolTip("Fit the whole map into the view")
+        zoom_to_canvas_action.setIcon(QIcon(str(resources.files("cnapy") / "data" / "zoom-fit.svg")))
+        zoom_to_canvas_action.triggered.connect(self.zoom_to_canvas)
+
         self.set_current_filename("Untitled project")
 
         self.heaton_action.setCheckable(True)
@@ -590,6 +596,7 @@ class MainWindow(QMainWindow):
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(zoom_in_action)
         self.tool_bar.addAction(zoom_out_action)
+        self.tool_bar.addAction(zoom_to_canvas_action)
         self.addToolBar(self.tool_bar)
 
         self.focus_search_action = QShortcut(
@@ -622,8 +629,6 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def checked_unsaved(self) -> bool:
-        # TODO: check for changes in Escher maps instead of just setting unsaved changes
-        # when acticvating the edit mode on an Escher map
         if self.appdata.unsaved:
             msgBox = QMessageBox()
             msgBox.setText("The project has been modified.")
@@ -633,9 +638,8 @@ class MainWindow(QMainWindow):
             msgBox.setDefaultButton(QMessageBox.StandardButton.Save)
             ret = msgBox.exec()
             if ret == QMessageBox.StandardButton.Save:
-                # Save was clicked
-                self.save_project_as()
-                return True
+                # Save was clicked, only continue if the project was actually saved
+                return self.save_project()
             if ret == QMessageBox.StandardButton.Discard:
                 # Don't save was clicked
                 return True
@@ -976,39 +980,6 @@ class MainWindow(QMainWindow):
 
         return filename
 
-    # the variant below requires both the Escher JSON and an exported SVG
-    # @Slot()
-    # def add_escher_map(self):
-    #     dialog = QFileDialog(self)
-    #     filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
-    #         directory=self.appdata.work_directory, filter="*.json")[0]
-    #     if not filename or len(filename) == 0 or not os.path.exists(filename):
-    #         return
-    #
-    #     with open(filename) as fp:
-    #         map_json = json.load(fp)
-    #
-    #     map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
-    #     self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
-    #
-    #     reaction_bigg_ids = dict()
-    #     for r in self.appdata.project.cobra_py_model.reactions:
-    #         bigg_id = r.annotation.get("bigg.reaction", None)
-    #         if bigg_id is None: # if there is no BiGG ID in the annotation...
-    #             bigg_id = r.id # ... use the reaction ID as proxy
-    #         reaction_bigg_ids[bigg_id] = r.id
-    #
-    #     offset_x = map_json[1]['canvas']['x']
-    #     offset_y = map_json[1]['canvas']['y']
-    #     self.appdata.project.maps[map_name]["boxes"] = dict()
-    #     for r in map_json[1]["reactions"].values():
-    #         bigg_id = r["bigg_id"]
-    #         if bigg_id in reaction_bigg_ids:
-    #             self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
-    #
-    #     self.recreate_maps()
-    #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
-
     @Slot()
     def add_escher_map(self, annotation_key_for_id="bigg.reaction", strip_compartment=False):
         # maps gets a default name because an Escher SVG file does not contain the map name
@@ -1128,14 +1099,15 @@ class MainWindow(QMainWindow):
         if mv is not None:
             mv.zoom_out()
 
+    @Slot()
+    def zoom_to_canvas(self):
+        mv = self.centralWidget().map_tabs.currentWidget()
+        if mv is not None:
+            mv.zoom_to_canvas()
+
     @Slot(bool)
     def set_escher_edit_mode(self, checked: bool):
-        # cannot use the parameter checked because in ActionGroup the entries are mutually exclusive
-        # and the policy cannot be changed in Python (why?)
-        now_enabled = not self.centralWidget().map_tabs.currentWidget().editing_enabled
-        self.centralWidget().map_tabs.currentWidget().enable_editing(now_enabled)
-        self.escher_edit_mode_action.setChecked(now_enabled)
-        self.unsaved_changes() # preliminary solution until checking for changes in Escher maps is implemented
+        self.centralWidget().map_tabs.currentWidget().enable_editing(checked)
 
     @Slot()
     def focus_search_box(self):
@@ -1247,8 +1219,9 @@ class MainWindow(QMainWindow):
     def reset_gui_for_new_project(self):
         '''brings the GUI in line with a project that was just reset (see ProjectData.reset) and filled'''
         central = self.centralWidget()
+        central.search_result = None # belongs to the previous project
         # first, because the following calls update the map tabs, which must belong to the new project
-        self.recreate_maps()
+        self.recreate_maps(keep_escher_edits=False)
         central.mode_navigator.clear()
         central.prune_model_item_history()
         for item_list in (central.reaction_list, central.metabolite_list, central.gene_list):
@@ -1445,39 +1418,40 @@ class MainWindow(QMainWindow):
         else:
             cobra.io.write_sbml_model(self.appdata.project.cobra_py_model, filename)
 
-    @Slot()
-    def save_project(self):
-        if not self.appdata.project.name.endswith(".cna"):  # new project or imported SBML model
-            self.save_project_as()
-            return
-        escher_map_count: int = 0
-        semaphore = [0] # list with one integer to emulate pass by reference
-        for i in range(len(self.centralWidget().map_tabs)):
-            if isinstance(self.centralWidget().map_tabs.widget(i), EscherMapView):
-                self.centralWidget().map_tabs.widget(i).retrieve_map_data(semaphore=semaphore)
-                self.centralWidget().map_tabs.widget(i).retrieve_pos_and_zoom(semaphore=semaphore)
-                escher_map_count += 1
-        if escher_map_count > 0: # give some time for retrieve_map_data to finish
-            escher_map_count *= 2
-            timer = QTimer()
-            wait_count = 0
-            timer.setInterval(escher_map_count*10)
-            def wait_for_retrieval():
-                nonlocal wait_count
-                if semaphore[0] == escher_map_count:
-                    timer.stop()
-                    self.continue_save_project()
-                if wait_count >= 20:
-                    timer.stop()
-                    raise ValueError("Failed to retrieve Escher data, cannot save project.")
-                wait_count += 1
-            timer.timeout.connect(wait_for_retrieval)
-            timer.start()
-        else:
-            self.continue_save_project()
+    def retrieve_escher_map_states(self, timeout_ms: int = 5000) -> bool:
+        '''Copies the current map data, position and zoom of all Escher maps into the project maps.
+        Waits until Escher has delivered them, returns False if this did not happen within the timeout.'''
+        escher_maps = [self.centralWidget().map_tabs.widget(i) for i in range(self.centralWidget().map_tabs.count())]
+        escher_maps = [m for m in escher_maps if isinstance(m, EscherMapView)]
+        if len(escher_maps) == 0:
+            return True
+        pending = len(escher_maps)
+        loop = QEventLoop()
+        def done():
+            nonlocal pending
+            pending -= 1
+            if pending == 0:
+                loop.quit()
+        for m in escher_maps:
+            m.retrieve_map_state(done)
+        if pending > 0:
+            QTimer.singleShot(timeout_ms, loop.quit)
+            loop.exec() # the results of runJavaScript are delivered through the event loop
+        return pending == 0
 
-    def continue_save_project(self):
-        ''' Save the project '''
+    @Slot()
+    def save_project(self) -> bool:
+        '''returns whether the project was saved'''
+        if not self.appdata.project.name.endswith(".cna"):  # new project or imported SBML model
+            return self.save_project_as()
+        if not self.retrieve_escher_map_states():
+            QMessageBox.warning(self, "Project not saved",
+                                "Failed to retrieve the data of the Escher maps, cannot save the project.")
+            return False
+        return self.write_project_file()
+
+    def write_project_file(self) -> bool:
+        ''' Save the project, the data of the Escher maps must already have been retrieved '''
         filename: str = self.appdata.project.name
         model_file: str = "model.json" if self.appdata.save_model_as_json else "model.sbml"
 
@@ -1489,7 +1463,7 @@ class MainWindow(QMainWindow):
             except ValueError:
                 exstr = get_last_exception_string()
                 utils.show_unknown_error_box(exstr)
-                return
+                return False
 
             # the archive refers to the SVG backgrounds by their archive names,
             # the project maps keep their paths until the archive has been written
@@ -1497,7 +1471,7 @@ class MainWindow(QMainWindow):
             maps_to_save = {}
             count = 1
             for name, m in self.appdata.project.maps.items():
-                if m.get('view', 'cnapy') == 'cnapy':
+                if m.get('view', MAP_VIEW_CNAPY) == MAP_VIEW_CNAPY:
                     arc_name = "map" + str(count) + ".svg"
                     svg_files[arc_name] = m["background"]
                     m = dict(m, background=arc_name)
@@ -1534,26 +1508,35 @@ class MainWindow(QMainWindow):
             self.nounsaved_changes()
         finally:
             self.setCursor(Qt.CursorShape.ArrowCursor)
+        return True
 
     @Slot()
-    def save_project_as(self):
+    def save_project_as(self) -> bool:
+        '''returns whether the project was saved'''
         filename: str = QFileDialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.cna")[0]
-        if len(filename) > 0:
-            if not filename.endswith(".cna"):
-                filename += ".cna"
-            self.set_current_filename(filename)
-            self.save_project()
-            self.update_recently_used_models(filename)
+        if len(filename) == 0:
+            return False
+        if not filename.endswith(".cna"):
+            filename += ".cna"
+        self.set_current_filename(filename)
+        if not self.save_project():
+            return False
+        self.update_recently_used_models(filename)
+        return True
 
-    def recreate_maps(self):
+    def recreate_maps(self, keep_escher_edits: bool = True):
+        '''keep_escher_edits: retrieve the current state of the Escher maps first because the map data in
+        the project is otherwise only updated on saving; must be False if the project maps have been replaced'''
+        if keep_escher_edits:
+            self.retrieve_escher_map_states()
         self.delete_maps()
         for name, mmap in self.appdata.project.maps.items():
-            if mmap.get("view", "cnapy") == "cnapy":
+            if mmap.get("view", MAP_VIEW_CNAPY) == MAP_VIEW_CNAPY:
                 mmap = MapView(self.appdata, self.centralWidget(), name)
                 mmap.show()
                 self.centralWidget().connect_map_view_signals(mmap)
-            elif mmap["view"] == "escher":
+            elif mmap["view"] == MAP_VIEW_ESCHER:
                 mmap = EscherMapView(self.centralWidget(), name)
                 self.centralWidget().connect_escher_map_view_signals(mmap)
                 self.appdata.project.maps[name][EscherMapView] = mmap
@@ -1619,6 +1602,7 @@ class MainWindow(QMainWindow):
             else: # EscherMapView
                 self.cnapy_map_actions.setVisible(False)
                 self.escher_map_actions.setVisible(True)
+                self.escher_edit_mode_action.setChecked(self.centralWidget().map_tabs.widget(idx).editing_enabled)
                 self.colorings.setEnabled(False)
                 #self.central_widget.search_annotations.setEnabled(False)
         else:

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1792 1792" width="100%" height="100%">
+  <!-- zoom to canvas: four arrows pointing to the corners -->
+  <g style="fill:#000000">
+    <path d="M 160,160 H 704 L 524,340 728,544 544,728 340,524 160,704 Z"/>
+    <path d="M 1632,160 V 704 L 1452,524 1248,728 1064,544 1268,340 1088,160 Z"/>
+    <path d="M 160,1632 V 1088 L 340,1268 544,1064 728,1248 524,1452 704,1632 Z"/>
+    <path d="M 1632,1632 H 1088 L 1268,1452 1064,1248 1248,1064 1452,1268 1632,1088 Z"/>
+  </g>
+</svg>

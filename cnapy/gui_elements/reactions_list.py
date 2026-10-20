@@ -1111,12 +1111,6 @@ class ReactionList(QWidget):
     def set_scen_value_action(self):
         self.central_widget.set_scen_value(self.reaction_list.currentItem().reaction.id)
 
-    @Slot()
-    def delete_reaction_action(self):
-        self.central_widget.map_tabs.currentWidget().delete_reaction(self.reaction_list.currentItem().reaction.id)
-        self.reaction_mask.update_state()
-        self.appdata.window.unsaved_changes()
-
     @Slot(QPoint)
     def header_context_menu(self, position):
         menu = QMenu(self.reaction_list.horizontalHeader())
@@ -1177,17 +1171,26 @@ class JumpList(QWidget):
         self.parent = parent
         self.layout = QHBoxLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.buttons: dict[str, JumpButton] = {} # map name -> button
 
     def clear(self):
         for i in reversed(range(self.layout.count())):
             self.layout.itemAt(i).widget().setParent(None)
+        self.buttons.clear()
 
-    def add(self, name: str):
+    def add(self, name: str, count: int = 1):
+        ''' count: number of occurrences of the reaction on the (Escher) map '''
+        if name in self.buttons: # replies from Escher maps can arrive more than once
+            return
         if self.layout.count() == 0:
             label = QLabel("Jump to reaction on map:")
             self.layout.addWidget(label)
 
         jb = JumpButton(self, name)
+        self.buttons[name] = jb
+        if count > 1:
+            jb.setText(f"{name} (–/{count})")
+            jb.setToolTip(f"The reaction occurs {count} times on this map, click again to jump to the next occurrence.")
         policy = QSizePolicy()
         policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
         jb.setSizePolicy(policy)
@@ -1195,6 +1198,12 @@ class JumpList(QWidget):
         self.setLayout(self.layout)
 
         jb.jumpToMap.connect(self.parent.emit_jump_to_map)
+
+    def set_position(self, name: str, index: int, count: int):
+        ''' show which of the occurrences of the reaction on the map was jumped to '''
+        jb = self.buttons.get(name, None)
+        if jb is not None and count > 1:
+            jb.setText(f"{name} ({index}/{count})")
 
     @ Slot(str)
     def emit_jump_to_map(self: JumpButton, name: str):

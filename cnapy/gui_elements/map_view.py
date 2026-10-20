@@ -45,6 +45,7 @@ class MapView(QGraphicsView):
         self.previous_point = None
         self.select = False
         self.select_start = None
+        self.leaving = False # True while leaveEvent removes the focus from the map
 
         # initial scale
         self._zoom = self.appdata.project.maps[self.name]["zoom"]
@@ -130,6 +131,12 @@ class MapView(QGraphicsView):
     def fit(self):
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
+    def zoom_to_canvas(self):
+        self.fit()
+        # keep the zoom level in line with the scale set by fit
+        self._zoom = round(math.log(self.transform().m11()) / math.log(INCREASE_FACTOR))
+        self.appdata.project.maps[self.name]["zoom"] = self._zoom
+
     def zoom_in(self):
         self._zoom += 1
 
@@ -210,7 +217,12 @@ class MapView(QGraphicsView):
 
     def leaveEvent(self, event) -> None:
         super().leaveEvent(event)
-        self.scene.clearFocus() # finishes editing of potentially active ReactionBox
+        # finishes editing of potentially active ReactionBox; the box stays selected
+        self.leaving = True
+        try:
+            self.scene.clearFocus()
+        finally:
+            self.leaving = False
 
     def update_selected(self, found_ids):
 
@@ -222,6 +234,10 @@ class MapView(QGraphicsView):
                 elif found_id.lower() in box.name.lower():
                     box.item.setHidden(False)
 
+
+    def reset_search_highlight(self):
+        for box in self.reaction_boxes.values():
+            box.item.setHidden(False)
 
     def focus_reaction(self, reaction: str):
         x = self.appdata.project.maps[self.name]["boxes"][reaction][0]
@@ -244,10 +260,11 @@ class MapView(QGraphicsView):
         treffer.item.setFocus()
 
     def select_single_reaction(self, reac_id: str):
+        # also deselect the previously selected box when the reaction has no box on this map
+        self.scene.clearSelection()
+        self.scene.clearFocus()
         box: ReactionBox = self.reaction_boxes.get(reac_id, None)
         if box is not None:
-            self.scene.clearSelection()
-            self.scene.clearFocus()
             box.setSelected(True)
 
     def set_background(self):
@@ -387,7 +404,8 @@ class CLineEdit(QLineEdit):
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
-        self.parent.setSelected(False)
+        if not self.parent.map.leaving: # focus lost only because the mouse left the map
+            self.parent.setSelected(False)
         if self.isModified() and self.parent.map.appdata.auto_fba:
             self.parent.map.central_widget.parent.fba()
         self.parent.update()

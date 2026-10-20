@@ -661,6 +661,10 @@ class ProjectData:
     # def scenario_hash_value(self):
     #     return hashlib.md5(pickle.dumps(sorted(self.scen_values.items()))).digest()
 
+# values of the "view" entry of a project map
+MAP_VIEW_CNAPY = "cnapy"
+MAP_VIEW_ESCHER = "escher"
+
 def CnaMap(name):
     background_svg_path: str = resources.files("cnapy") / "data" / "default-bg.svg"
     with resources.as_file(background_svg_path) as svg_file_path:
@@ -672,7 +676,7 @@ def CnaMap(name):
             "zoom": 0,
             "pos": (0, 0),
             "boxes": {},
-            "view": "cnapy", # either "cnapy" or "escher"
+            "view": MAP_VIEW_CNAPY, # either MAP_VIEW_CNAPY or MAP_VIEW_ESCHER
             "escher_map_data": "" # JSON string
             }
 

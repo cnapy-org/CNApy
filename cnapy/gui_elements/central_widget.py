@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, 
                             QTabWidget, QVBoxLayout, QWidget, QAction, QApplication, QComboBox, QFrame,
                             QStackedWidget, QSizePolicy)
 from urllib.parse import unquote
-from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario
+from cnapy.appdata import AppData, CnaMap, ModelItemType, parse_scenario, MAP_VIEW_ESCHER
 from cnapy.gui_elements.map_view import MapView
 from cnapy.gui_elements.escher_map_view import EscherMapView
 from cnapy.gui_elements.metabolite_list import MetaboliteList
@@ -251,6 +251,10 @@ class CentralWidget(QWidget):
         self.mode_navigator.reaction_participation_button.clicked.connect(self.reaction_participation)
 
         self.mode_normalization_reaction = ""
+        # (search string, list tab index, found reaction IDs, found metabolite IDs) of the last search,
+        # applied to the map that becomes visible when switching maps
+        self.search_result = None
+        self.map_tabs.currentChanged.connect(self.map_tab_changed)
 
         self.update()
 
@@ -275,7 +279,7 @@ class CentralWidget(QWidget):
                 self.appdata.project.maps[mmap]["boxes"][reaction.id] = self.appdata.project.maps[mmap]["boxes"].pop(
                     previous_id)
                 reaction_has_box = True
-            if self.appdata.project.maps[mmap].get('view', '') == "escher":
+            if self.appdata.project.maps[mmap].get('view', '') == MAP_VIEW_ESCHER:
                 escher_map_present = True
         if reaction_has_box or escher_map_present:
             self.update_reaction_on_maps(previous_id, reaction.id, reaction_has_box, escher_map_present)
@@ -414,12 +418,9 @@ class CentralWidget(QWidget):
             mmap: EscherMapView = EscherMapView(self, name)
             self.connect_escher_map_view_signals(mmap)
             self.appdata.project.maps[name][EscherMapView] = mmap
-            self.appdata.project.maps[name]['view'] = 'escher'
+            self.appdata.project.maps[name]['view'] = MAP_VIEW_ESCHER
             self.appdata.project.maps[name]['pos'] = '{"x":0,"y":0}'
             self.appdata.project.maps[name]['zoom'] = '1'
-            # mmap.loadFinished.connect(self.finish_add_escher_map)
-            # mmap.cnapy_bridge.reactionValueChanged.connect(self.update_reaction_value) # connection is not made?!
-            # self.appdata.qapp.processEvents() # does not help
             idx = self.map_tabs.addTab(mmap, m["name"])
         else:
             mmap = MapView(self.appdata, self, name)
@@ -487,7 +488,21 @@ class CentralWidget(QWidget):
                 QApplication.restoreOverrideCursor()
                 return
 
-        if map_idx >= 0:
+        self.search_result = (string, idx, found_reaction_ids, found_metabolite_ids)
+        self.highlight_search_on_map(map_idx)
+        QApplication.restoreOverrideCursor()
+
+    def map_tab_changed(self, idx: int):
+        # the search highlighting is only shown on the current map
+        for i in range(self.map_tabs.count()):
+            if i != idx:
+                self.map_tabs.widget(i).reset_search_highlight()
+        self.highlight_search_on_map(idx)
+
+    def highlight_search_on_map(self, map_idx: int):
+        '''applies the result of the last search to the map with index map_idx'''
+        if map_idx >= 0 and self.search_result is not None:
+            (string, idx, found_reaction_ids, found_metabolite_ids) = self.search_result
             m = self.map_tabs.widget(map_idx)
             if isinstance(m, EscherMapView):
                 if not string:
@@ -495,7 +510,8 @@ class CentralWidget(QWidget):
                     # search match. In particular, do not turn the list's
                     # "all reactions" result into map highlighting.
                     m.update_selected([], [])
-                elif idx == ModelTabIndex.Metabolites:                    # Let the user step through the individual instances of
+                elif idx == ModelTabIndex.Metabolites:
+                    # Let the user step through the individual instances of
                     # the metabolite on the map via Escher's own search bar
                     # instead of the additive multi-result highlighting.
                     m.search_metabolite(string)
@@ -506,9 +522,10 @@ class CentralWidget(QWidget):
                         if current_item is not None:
                             current_reaction_id = current_item.text(0)
                     m.update_selected(list(found_reaction_ids), list(found_metabolite_ids), current_reaction_id)
+            elif not string:
+                m.reset_search_highlight()
             else:
                 m.update_selected(found_reaction_ids)
-        QApplication.restoreOverrideCursor()
 
     def metabolite_row_selected(self, metabolite_id: str):
         """Forward the metabolite the user just clicked in the metabolite
@@ -701,13 +718,13 @@ class CentralWidget(QWidget):
                 else:
                     m.update_reaction_stoichiometry(old_reaction_id)
 
-    def delete_reaction_on_maps(self, reation_id: str):
+    def delete_reaction_on_maps(self, reaction_id: str):
         for idx in range(0, self.map_tabs.count()):
             m = self.map_tabs.widget(idx)
             if isinstance(m, MapView):
-                m.delete_box(reation_id)
+                m.delete_box(reaction_id)
             else:
-                m.delete_reaction(reation_id)
+                m.delete_reaction(reaction_id)
 
     def update_maps(self):
         for idx in range(0, self.map_tabs.count()):
@@ -725,7 +742,10 @@ class CentralWidget(QWidget):
                 m.update()
                 m.focus_reaction(reaction)
                 self.__recolor_map()
-                m.highlight_reaction(reaction)
+                if isinstance(m, EscherMapView):
+                    m.jump_to_reaction(reaction) # cycles through the occurrences of the reaction
+                else:
+                    m.highlight_reaction(reaction)
                 break
 
     def reaction_selected(self, reac_id: str):
@@ -949,7 +969,9 @@ class ConfirmMapDeleteDialog(QDialog):
 
     def delete(self):
         del self.parent.appdata.project.maps[self.name]
+        map_view = self.parent.map_tabs.widget(self.idx)
         self.parent.map_tabs.removeTab(self.idx)
+        map_view.deleteLater() # an Escher page must not outlive the shared web engine profile
         self.parent.reaction_list.reaction_mask.update_state()
         self.parent.parent.unsaved_changes()
         self.accept()
