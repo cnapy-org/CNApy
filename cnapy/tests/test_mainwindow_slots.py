@@ -162,6 +162,48 @@ def test_fva_slot_reports_infeasible_scenario(fake_main_window, mainwindow_cls):
     assert appdata.project.comp_values == {}
 
 
+def test_replace_ids_renames_reactions_and_syncs_project(fake_main_window, mainwindow_cls):
+    appdata = fake_main_window.appdata
+    model = appdata.project.cobra_py_model
+    reaction = model.reactions[0]
+    old_id = reaction.id
+    reaction.annotation["test.id"] = "renamed_reaction"
+    appdata.project.scen_values[old_id] = (0.0, 1.0)
+    appdata.project.comp_values[old_id] = (0.5, 0.5)
+
+    renamed = mainwindow_cls.replace_ids(fake_main_window, "reactions", "test.id")
+
+    assert renamed == [(old_id, "renamed_reaction")]
+    assert reaction.id == "renamed_reaction"
+    assert reaction.annotation["original ID"] == old_id
+    assert appdata.project.scen_values["renamed_reaction"] == (0.0, 1.0)
+    assert old_id not in appdata.project.scen_values
+    assert appdata.project.comp_values["renamed_reaction"] == (0.5, 0.5)
+    central_widget = fake_main_window.centralWidget()
+    central_widget.handle_changed_reaction.assert_called_once_with(old_id, reaction)
+    central_widget.update.assert_called_once_with(rebuild_all_tabs=True)
+
+
+def test_replace_ids_renames_metabolites_with_compartment_suffix(fake_main_window, mainwindow_cls):
+    model = fake_main_window.appdata.project.cobra_py_model
+    metabolite = model.metabolites[0]
+    old_id = metabolite.id
+    metabolite.annotation["test.id"] = "renamed_metabolite"
+
+    renamed = mainwindow_cls.replace_ids(fake_main_window, "metabolites", "test.id")
+
+    new_id = "renamed_metabolite_" + metabolite.compartment
+    assert renamed == [(old_id, new_id)]
+    assert metabolite.id == new_id
+    fake_main_window.centralWidget().handle_changed_metabolite.assert_called_once_with(
+        metabolite, metabolite.reactions, old_id)
+
+
+def test_replace_ids_rejects_unknown_items(fake_main_window, mainwindow_cls):
+    with pytest.raises(ValueError):
+        mainwindow_cls.replace_ids(fake_main_window, "genes", "test.id")
+
+
 # ---------------------------------------------------------------------------
 # Optional, heavier end-to-end variant against a real MainWindow instance.
 # Skipped by default: constructing MainWindow pulls in the full gui_elements

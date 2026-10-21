@@ -10,7 +10,7 @@ from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import multi_threaded_HiGHS_FVA
+from cnapy.core import multi_threaded_HiGHS_FVA, replace_ids
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 import optlang
@@ -1881,6 +1881,42 @@ class MainWindow(QMainWindow):
     def print_in_out_fluxes(self, metabolite):
         soldict = {id: val[0] for (id, val) in self.appdata.project.comp_values.items()}
         self.in_out_fluxes(metabolite, soldict)
+
+    def replace_ids(self, items: str, annotation_key: str, unambiguous_only: bool = False,
+                    unique_only: bool = True, candidates_separator: str = ""):
+        """Console API: replace the IDs of the model's 'reactions' or 'metabolites' with IDs
+        taken from their annotation under annotation_key (see cnapy.core.replace_ids).
+        Returns a list of (old_id, new_id) pairs of the renamed entries."""
+        if items not in ("reactions", "metabolites"):
+            raise ValueError("items must be 'reactions' or 'metabolites'")
+        project = self.appdata.project
+        dict_list = getattr(project.cobra_py_model, items)
+        old_ids = [entry.id for entry in dict_list]
+        replace_ids(dict_list, annotation_key, unambiguous_only=unambiguous_only,
+                    unique_only=unique_only, candidates_separator=candidates_separator)
+        changed = [(old_id, entry) for old_id, entry in zip(old_ids, dict_list) if entry.id != old_id]
+        central_widget = self.centralWidget()
+        for old_id, entry in changed:
+            if items == "reactions":
+                scen_values = project.scen_values
+                if old_id in scen_values:
+                    scen_values[entry.id] = scen_values.pop(old_id)
+                if old_id in scen_values.objective_coefficients:
+                    scen_values.objective_coefficients[entry.id] = scen_values.objective_coefficients.pop(old_id)
+                if old_id in scen_values.pinned_reactions:
+                    scen_values.pinned_reactions.discard(old_id)
+                    scen_values.pinned_reactions.add(entry.id)
+                for values in (project.comp_values, project.fva_values):
+                    if old_id in values:
+                        values[entry.id] = values.pop(old_id)
+                central_widget.handle_changed_reaction(old_id, entry)
+            else:
+                central_widget.handle_changed_metabolite(entry, entry.reactions, old_id)
+        if len(changed) > 0:
+            project.scen_values.set_hash_value()
+            central_widget.update(rebuild_all_tabs=True)
+        print("Replaced the IDs of", len(changed), items)
+        return [(old_id, entry.id) for old_id, entry in changed]
 
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
