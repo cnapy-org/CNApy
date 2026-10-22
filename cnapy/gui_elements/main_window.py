@@ -21,6 +21,7 @@ import importlib.resources as resources
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
 from typing import Any, Dict
 import openpyxl
+from openpyxl.utils.exceptions import InvalidFileException
 
 from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize, QCoreApplication, QEvent, QEventLoop
 from qtpy.QtGui import QColor, QIcon, QKeySequence
@@ -53,6 +54,7 @@ from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
 from cnapy.gui_elements.in_out_flux_console_plot import InOutFluxConsolePlot
 import cnapy.utils as utils
+from cnapy.scenario_spreadsheet import ScenarioSpreadsheetError, write_scenario_xlsx
 
 SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
 
@@ -154,6 +156,10 @@ class MainWindow(QMainWindow):
         save_scenario_as_action.setIcon(QIcon(":/icons/save_file_as.png"))
         self.scenario_menu.addAction(save_scenario_as_action)
         save_scenario_as_action.triggered.connect(self.save_scenario_as)
+
+        save_scenario_template_action = QAction("Save scenario spreadsheet template...", self)
+        self.scenario_menu.addAction(save_scenario_template_action)
+        save_scenario_template_action.triggered.connect(self.save_scenario_template)
 
         self.undo_scenario_action = QAction("Undo scenario edit", self)
         self.undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
@@ -882,7 +888,8 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             caption="Load scenario",
             directory=self.appdata.last_scen_directory,
-            filter="*.scen *.val"
+            filter="Scenario files (*.scen *.val *.xlsx);;CNApy scenario (*.scen);;"
+                   "Spreadsheet (*.xlsx);;CellNetAnalyzer scenario fluxes(*.val)"
         )[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
@@ -894,7 +901,17 @@ class MainWindow(QMainWindow):
         try:
             missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
                 self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
-        except json.decoder.JSONDecodeError:
+        except ScenarioSpreadsheetError as e:
+            self.discard_failed_scenario_load()
+            max_lines = 30
+            message = "\n".join(e.messages[:max_lines])
+            if len(e.messages) > max_lines:
+                message += f"\n... and {len(e.messages) - max_lines} more"
+            QMessageBox.critical(self, 'Could not load scenario spreadsheet',
+                                 "The scenario was not loaded because of the following errors:\n" + message)
+            return
+        except (json.decoder.JSONDecodeError, BadZipFile, InvalidFileException, KeyError):
+            self.discard_failed_scenario_load()
             QMessageBox.critical(
                 self,
                 'Could not open file',
@@ -1134,17 +1151,33 @@ class MainWindow(QMainWindow):
         self.appdata.project.scen_values.save(self.appdata.project.scen_values.file_name)
         self.update_scenario_file_name()
 
+    def discard_failed_scenario_load(self):
+        # restore the scenario that was recorded before loading and drop the entry of the failed load
+        self.undo_scenario_edit()
+        del self.appdata.scenario_history[self.appdata.current_scenario_index + 1:]
+        self.update_undo_redo_actions()
+
     @Slot()
     def save_scenario_as(self):
-        filename: str = QFileDialog.getSaveFileName(
-            directory=self.appdata.last_scen_directory, filter="*.scen")[0]
+        filename, selected_filter = QFileDialog.getSaveFileName(
+            directory=self.appdata.last_scen_directory,
+            filter="CNApy scenario (*.scen);;Spreadsheet (*.xlsx)")
         if len(filename) > 0:
-            if not filename.endswith(".scen"):
-                filename += ".scen"
+            if not filename.endswith((".scen", ".xlsx")):
+                filename += ".xlsx" if "xlsx" in selected_filter else ".scen"
             self.appdata.project.scen_values.file_name = filename
             self.appdata.project.scen_values.save(filename)
             self.appdata.last_scen_directory = os.path.dirname(filename)
             self.update_scenario_file_name()
+
+    @Slot()
+    def save_scenario_template(self):
+        filename: str = QFileDialog.getSaveFileName(
+            directory=self.appdata.last_scen_directory, filter="Spreadsheet (*.xlsx)")[0]
+        if len(filename) > 0:
+            if not filename.endswith(".xlsx"):
+                filename += ".xlsx"
+            write_scenario_xlsx(Scenario(), filename, include_examples=True)
 
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''

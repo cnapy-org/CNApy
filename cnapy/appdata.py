@@ -393,75 +393,54 @@ class Scenario(Dict[str, Tuple[float, float]]):
         return self.hash_value
 
     def save(self, filename: str):
-        json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
-                    'objective_direction': self.objective_direction, 'objective_coefficients': self.objective_coefficients,
-                    'use_scenario_objective': self.use_scenario_objective, 'reactions': self.reactions,
-                    'constraints': self.constraints, "annotations": self.annotations, 'version': self.version}
-        with open(filename, 'w') as fp:
-            json.dump(json_dict, fp)
+        if filename.endswith('.xlsx'):
+            from cnapy.scenario_spreadsheet import write_scenario_xlsx
+            write_scenario_xlsx(self, filename)
+        else:
+            json_dict = {'fluxes': self, 'pinned_reactions': list(self.pinned_reactions), 'description': self.description,
+                        'objective_direction': self.objective_direction, 'objective_coefficients': self.objective_coefficients,
+                        'use_scenario_objective': self.use_scenario_objective, 'reactions': self.reactions,
+                        'constraints': self.constraints, "annotations": self.annotations, 'version': self.version}
+            with open(filename, 'w') as fp:
+                json.dump(json_dict, fp)
         self.has_unsaved_changes = False
 
     def load(self, filename: str, appdata: AppData, merge=False) -> Tuple[List[str], List, List]:
         unknown_ids: List(str)= []
         incompatible_constraints = []
         skipped_scenario_reactions = []
+        if filename.endswith('xlsx'): # spreadsheet, parsed before clearing so that the scenario stays intact on errors
+            from cnapy.scenario_spreadsheet import read_scenario_xlsx
+            json_dict = read_scenario_xlsx(filename, appdata.project.cobra_py_model.reactions.list_attr("id"))
         if not merge:
             self.clear()
-        with open(filename, 'r') as fp:
-            if filename.endswith('scen'): # CNApy scenario
-                self.file_name = filename
-                json_dict = json.load(fp)
-                if {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
-                     'objective_coefficients', 'use_scenario_objective', 'version'}.issubset(json_dict.keys()):
-                    flux_values = json_dict['fluxes']
-                    for reac_id in json_dict['pinned_reactions']:
-                        if reac_id in appdata.project.cobra_py_model.reactions:
-                            self.pinned_reactions.add(reac_id)
-                        else:
-                            unknown_ids.append(reac_id)
-                    if not merge:
-                        self.description = json_dict['description']
-                        self.objective_direction = json_dict['objective_direction']
-                        all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
-                        if json_dict['version'] > 1:
-                            self.reactions = json_dict['reactions']
-                            for reac_id in self.reactions:
-                                if reac_id in all_reaction_ids:
-                                    skipped_scenario_reactions.append(reac_id)
-                            for reac_id in skipped_scenario_reactions:
-                                del self.reactions[reac_id]
-                            self.constraints = []
-                            all_reaction_ids.update(self.reactions)
-                            for constr in json_dict['constraints']:
-                                if constr[0] is None:
-                                    self.constraints.append(Scenario.empty_constraint)
-                                elif set(constr[0].keys()).issubset(all_reaction_ids):
-                                    self.constraints.append(constr)
-                                else:
-                                    incompatible_constraints.append(constr)
-                            if json_dict['version'] >= 3:
-                                self.annotations = json_dict["annotations"]
-                        for reac_id, val in json_dict['objective_coefficients'].items():
-                            if reac_id in all_reaction_ids:
-                                self.objective_coefficients[reac_id] = val
-                            else:
-                                unknown_ids.append(reac_id)
-                        self.use_scenario_objective = json_dict['use_scenario_objective']
-                        self.version = 3
-                else:
-                    flux_values = json_dict
-            elif filename.endswith('val'): # CellNetAnalyzer scenario
-                self.file_name = ""
-                flux_values = dict()
-                for line in fp:
-                    line = line.strip()
-                    if len(line) > 0 and not line.startswith("##"):
-                        try:
-                            reac_id, val = line.split()
-                            val = float(val)
-                            flux_values[reac_id] = (val, val)
-                        except Exception:
-                            print("Could not parse line ", line)
+        if filename.endswith('xlsx'):
+            self.file_name = filename
+            flux_values = self._load_json_dict(json_dict, appdata, merge, unknown_ids,
+                                               incompatible_constraints, skipped_scenario_reactions)
+        else:
+            with open(filename, 'r') as fp:
+                if filename.endswith('scen'): # CNApy scenario
+                    self.file_name = filename
+                    json_dict = json.load(fp)
+                    if {'fluxes', 'pinned_reactions', 'description', 'objective_direction',
+                        'objective_coefficients', 'use_scenario_objective', 'version'}.issubset(json_dict.keys()):
+                        flux_values = self._load_json_dict(json_dict, appdata, merge, unknown_ids,
+                                                           incompatible_constraints, skipped_scenario_reactions)
+                    else:
+                        flux_values = json_dict
+                elif filename.endswith('val'): # CellNetAnalyzer scenario
+                    self.file_name = ""
+                    flux_values = dict()
+                    for line in fp:
+                        line = line.strip()
+                        if len(line) > 0 and not line.startswith("##"):
+                            try:
+                                reac_id, val = line.split()
+                                val = float(val)
+                                flux_values[reac_id] = (val, val)
+                            except Exception:
+                                print("Could not parse line ", line)
 
         reactions = []
         scen_values = []
@@ -482,6 +461,45 @@ class Scenario(Dict[str, Tuple[float, float]]):
         appdata.scen_values_set_multiple(reactions, scen_values)
 
         return unknown_ids, incompatible_constraints, skipped_scenario_reactions
+
+    def _load_json_dict(self, json_dict, appdata: AppData, merge: bool, unknown_ids: List[str],
+                        incompatible_constraints: List, skipped_scenario_reactions: List[str]) -> Dict:
+        flux_values = json_dict['fluxes']
+        for reac_id in json_dict['pinned_reactions']:
+            if reac_id in appdata.project.cobra_py_model.reactions:
+                self.pinned_reactions.add(reac_id)
+            else:
+                unknown_ids.append(reac_id)
+        if not merge:
+            self.description = json_dict['description']
+            self.objective_direction = json_dict['objective_direction']
+            all_reaction_ids = set(appdata.project.cobra_py_model.reactions.list_attr("id"))
+            if json_dict['version'] > 1:
+                self.reactions = json_dict['reactions']
+                for reac_id in self.reactions:
+                    if reac_id in all_reaction_ids:
+                        skipped_scenario_reactions.append(reac_id)
+                for reac_id in skipped_scenario_reactions:
+                    del self.reactions[reac_id]
+                self.constraints = []
+                all_reaction_ids.update(self.reactions)
+                for constr in json_dict['constraints']:
+                    if constr[0] is None:
+                        self.constraints.append(Scenario.empty_constraint)
+                    elif set(constr[0].keys()).issubset(all_reaction_ids):
+                        self.constraints.append(constr)
+                    else:
+                        incompatible_constraints.append(constr)
+                if json_dict['version'] >= 3:
+                    self.annotations = json_dict["annotations"]
+            for reac_id, val in json_dict['objective_coefficients'].items():
+                if reac_id in all_reaction_ids:
+                    self.objective_coefficients[reac_id] = val
+                else:
+                    unknown_ids.append(reac_id)
+            self.use_scenario_objective = json_dict['use_scenario_objective']
+            self.version = 3
+        return flux_values
 
     def add_scenario_reactions_to_model(self, model: cobra.Model):
         if len(self.reactions) > 0:
