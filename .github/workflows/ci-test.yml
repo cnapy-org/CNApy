@@ -37,7 +37,5 @@ jobs:
           pip install "pytest>=7.2" pytest-qt
       - name: Install CNApy
         run: pip install .
-      - name: Test CNApy
-        run: pytest -v ./cnapy/tests/test.py
-      - name: Run FBA/FVA CI tests
-        run: pytest -v ./cnapy/tests/test_core_units.py ./cnapy/tests/test_mainwindow_slots.py
+      - name: Run all tests in the cnapy/tests folder
+        run: pytest -v ./cnapy/tests
