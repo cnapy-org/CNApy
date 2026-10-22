@@ -155,15 +155,17 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(save_scenario_as_action)
         save_scenario_as_action.triggered.connect(self.save_scenario_as)
 
-        undo_scenario_action = QAction("Undo scenario flux values edit", self)
-        undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
-        self.scenario_menu.addAction(undo_scenario_action)
-        undo_scenario_action.triggered.connect(self.undo_scenario_edit)
+        self.undo_scenario_action = QAction("Undo scenario edit", self)
+        self.undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
+        self.scenario_menu.addAction(self.undo_scenario_action)
+        self.undo_scenario_action.triggered.connect(self.undo_scenario_edit)
 
-        redo_scenario_action = QAction("Redo scenario flux values edit", self)
-        redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
-        self.scenario_menu.addAction(redo_scenario_action)
-        redo_scenario_action.triggered.connect(self.redo_scenario_edit)
+        self.redo_scenario_action = QAction("Redo scenario edit", self)
+        self.redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
+        self.scenario_menu.addAction(self.redo_scenario_action)
+        self.redo_scenario_action.triggered.connect(self.redo_scenario_edit)
+        self.appdata.scenarioHistoryChanged.connect(self.update_undo_redo_actions)
+        self.update_undo_redo_actions()
 
         clear_scenario_action = QAction("Clear scenario", self)
         self.scenario_menu.addAction(clear_scenario_action)
@@ -587,8 +589,8 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(save_scenario_as_action)
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(clear_all_action)
-        self.tool_bar.addAction(undo_scenario_action)
-        self.tool_bar.addAction(redo_scenario_action)
+        self.tool_bar.addAction(self.undo_scenario_action)
+        self.tool_bar.addAction(self.redo_scenario_action)
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(self.heaton_action)
         self.tool_bar.addAction(self.onoff_action)
@@ -1149,6 +1151,7 @@ class MainWindow(QMainWindow):
         if self.appdata.current_scenario_index >= 1:
             self.appdata.current_scenario_index -= 1
             self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
+            self.update_undo_redo_actions()
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
@@ -1159,10 +1162,16 @@ class MainWindow(QMainWindow):
         if self.appdata.current_scenario_index < len(self.appdata.scenario_history) - 1:
             self.appdata.current_scenario_index += 1
             self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
+            self.update_undo_redo_actions()
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
             self.centralWidget().scenario_tab.recreate_scenario_items()
+
+    def update_undo_redo_actions(self):
+        self.undo_scenario_action.setEnabled(self.appdata.current_scenario_index >= 1)
+        self.redo_scenario_action.setEnabled(
+            self.appdata.current_scenario_index < len(self.appdata.scenario_history) - 1)
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
