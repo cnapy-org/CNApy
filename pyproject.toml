@@ -9,10 +9,10 @@ authors = [
 ]
 description = "An integrated environment for metabolic network analysis."
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = "==3.10.*"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [

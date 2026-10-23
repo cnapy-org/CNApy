@@ -21,7 +21,7 @@ setup(
     description='An integrated environment for metabolic network analysis.',
     long_description=open('README.md', encoding="utf8").read(),
     long_description_content_type="text/asciidoc",
-    packages=['cnapy', 'cnapy.gui_elements'],
+    packages=['cnapy', 'cnapy.gui_elements', 'cnapy.data'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': [
         'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js',
