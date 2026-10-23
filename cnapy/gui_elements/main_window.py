@@ -809,7 +809,8 @@ class MainWindow(QMainWindow):
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
         if self.sd_dialog is not None:
             dialog.optlang_solver_set.connect(self.sd_dialog.set_optlang_solver_text)
-            dialog.optlang_solver_set.connect(self.sd_dialog.configure_solver_options)
+            dialog.optlang_solver_set.connect(lambda: self.sd_dialog.configure_solver_options(
+                self.sd_dialog.solver_buttons['group'].checkedButton()))
         dialog.exec()
 
     @Slot()
