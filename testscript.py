@@ -70,8 +70,8 @@ def open_project(cna, filename):
         cna.recreate_maps()
         cna.centralWidget().mode_navigator.clear()
         cna.appdata.project.scen_values.clear()
-        cna.appdata.scenario_past.clear()
-        cna.appdata.scenario_future.clear()
+#        cna.appdata.scenario_past.clear()
+#        cna.appdata.scenario_future.clear()
         for r in cna.appdata.project.cobra_py_model.reactions:
             if 'cnapy-default' in r.annotation.keys():
                 cna.centralWidget().update_reaction_value(

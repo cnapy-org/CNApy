@@ -1,32 +1,35 @@
+import io
 import json
 import os
 import sys
 import traceback
+#from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from zipfile import BadZipFile, ZipFile
+from zipfile import BadZipFile, ZipFile, ZIP_DEFLATED
 import pickle
 import xml.etree.ElementTree as ET
 from cnapy.flux_vector_container import FluxVectorContainer
-from cnapy.core import multi_threaded_HiGHS_FVA
+from cnapy.core import multi_threaded_HiGHS_FVA, replace_ids
 from cnapy.core_gui import model_optimization_with_exceptions, except_likely_community_model_error, get_last_exception_string, has_community_error_substring
 import cobra
 import optlang
-from optlang_enumerator.cobra_cnapy import CNApyModel
+from cnapy.cobra_cnapy import CNApyModel, stoichiometry_hash
 from optlang.symbolics import Zero
 import numpy as np
+import importlib.resources as resources
 import cnapy.resources  # Do not delete this import - it seems to be unused but in fact it provides the menu icons
-import matplotlib.pyplot as plt
 from typing import Any, Dict
 import openpyxl
+from openpyxl.utils.exceptions import InvalidFileException
 
-from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize
+from qtpy.QtCore import QFileInfo, Qt, Slot, QTimer, QSignalBlocker, QSize, QCoreApplication, QEvent, QEventLoop
 from qtpy.QtGui import QColor, QIcon, QKeySequence
 from qtpy.QtWidgets import (QAction, QActionGroup, QApplication, QFileDialog, QStyle,
                             QMainWindow, QMessageBox, QToolBar, QShortcut, QStatusBar, QLabel)
 from qtpy.QtWebEngineWidgets import QWebEngineView
 
-from cnapy.appdata import AppData, CnaMap
+from cnapy.appdata import AppData, Scenario, MAP_VIEW_CNAPY, MAP_VIEW_ESCHER
 from cnapy.gui_elements.about_dialog import AboutDialog
 from cnapy.gui_elements.central_widget import CentralWidget, ModelTabIndex
 from cnapy.gui_elements.clipboard_calculator import ClipboardCalculator
@@ -49,7 +52,9 @@ from cnapy.gui_elements.configuration_cplex import CplexConfigurationDialog
 from cnapy.gui_elements.configuration_cplex_new import CplexNewConfigurationDialog
 from cnapy.gui_elements.configuration_gurobi import GurobiConfigurationDialog
 from cnapy.gui_elements.thermodynamics_dialog import ThermodynamicAnalysisTypes, ThermodynamicDialog
+from cnapy.gui_elements.in_out_flux_console_plot import InOutFluxConsolePlot
 import cnapy.utils as utils
+from cnapy.scenario_spreadsheet import ScenarioSpreadsheetError, write_scenario_xlsx
 
 SBML_suffixes = "*.xml *.sbml *.xml.gz *.sbml.gz *.xml.zip *.sbml.zip"
 
@@ -73,6 +78,12 @@ class MainWindow(QMainWindow):
         self.central_widget = CentralWidget(self)
         self.setCentralWidget(self.central_widget)
 
+        # Owns the clickable, inline in/out-flux plot feature (computing the
+        # plot, inserting it with a clickable legend into the console, and
+        # the event filter that keeps old plots in the scrollback
+        # interactive). See in_out_flux_console_plot.py.
+        self._in_out_flux_console_plot = InOutFluxConsolePlot(self.appdata, self.central_widget)
+
         self.menu = self.menuBar()
         self.file_menu = self.menu.addMenu("&Project")
 
@@ -81,16 +92,10 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(new_project_action)
         new_project_action.triggered.connect(self.new_project)
 
-        new_project_from_sbml_action = QAction(
-            "New project from SBML...", self)
-        self.file_menu.addAction(new_project_from_sbml_action)
-        new_project_from_sbml_action.triggered.connect(
-            self.new_project_from_sbml)
-
-        open_project_action = QAction("&Open project...", self)
-        open_project_action.setShortcut("Ctrl+O")
-        self.file_menu.addAction(open_project_action)
-        open_project_action.triggered.connect(self.open_project_dialog)
+        open_action = QAction("&Open project or SBML model...", self)
+        open_action.setShortcut("Ctrl+O")
+        self.file_menu.addAction(open_action)
+        open_action.triggered.connect(self.open_dialog)
 
         self.recent_cna_menu = self.file_menu.addMenu("Open recent")
         self.recent_cna_actions: Dict[str, QAction] = {}
@@ -116,7 +121,7 @@ class MainWindow(QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
         self.file_menu.addAction(exit_action)
-        exit_action.triggered.connect(self.exit_app)
+        exit_action.triggered.connect(self.close) # closeEvent asks about unsaved changes
 
         self.scenario_menu = self.menu.addMenu("Scenario")
 
@@ -152,15 +157,21 @@ class MainWindow(QMainWindow):
         self.scenario_menu.addAction(save_scenario_as_action)
         save_scenario_as_action.triggered.connect(self.save_scenario_as)
 
-        undo_scenario_action = QAction("Undo scenario flux values edit", self)
-        undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
-        self.scenario_menu.addAction(undo_scenario_action)
-        undo_scenario_action.triggered.connect(self.undo_scenario_edit)
+        save_scenario_template_action = QAction("Save scenario spreadsheet template...", self)
+        self.scenario_menu.addAction(save_scenario_template_action)
+        save_scenario_template_action.triggered.connect(self.save_scenario_template)
 
-        redo_scenario_action = QAction("Redo scenario flux values edit", self)
-        redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
-        self.scenario_menu.addAction(redo_scenario_action)
-        redo_scenario_action.triggered.connect(self.redo_scenario_edit)
+        self.undo_scenario_action = QAction("Undo scenario edit", self)
+        self.undo_scenario_action.setIcon(QIcon(":/icons/undo.png"))
+        self.scenario_menu.addAction(self.undo_scenario_action)
+        self.undo_scenario_action.triggered.connect(self.undo_scenario_edit)
+
+        self.redo_scenario_action = QAction("Redo scenario edit", self)
+        self.redo_scenario_action.setIcon(QIcon(":/icons/redo.png"))
+        self.scenario_menu.addAction(self.redo_scenario_action)
+        self.redo_scenario_action.triggered.connect(self.redo_scenario_edit)
+        self.appdata.scenarioHistoryChanged.connect(self.update_undo_redo_actions)
+        self.update_undo_redo_actions()
 
         clear_scenario_action = QAction("Clear scenario", self)
         self.scenario_menu.addAction(clear_scenario_action)
@@ -203,7 +214,7 @@ class MainWindow(QMainWindow):
 
         update_action = QAction("Default Coloring", self)
         update_action.setIcon(QIcon(":/icons/default-color.png"))
-        update_action.triggered.connect(self.central_widget.update)
+        update_action.triggered.connect(self.centralWidget().set_default_colors)
 
         self.scenario_menu.addAction(self.heaton_action)
         self.scenario_menu.addAction(self.onoff_action)
@@ -234,11 +245,14 @@ class MainWindow(QMainWindow):
         save_fluxes_as_xlsx_action.triggered.connect(self.save_fluxes_as_xlsx)
 
         self.map_menu = self.menu.addMenu("Map")
+        # the action groups are only used to show/hide the actions depending on the map type
         self.cnapy_map_actions = QActionGroup(self)
+        self.cnapy_map_actions.setExclusive(False)
         separator = QAction(" CNApy map", self)
         separator.setSeparator(True)
         self.cnapy_map_actions.addAction(separator)
         self.escher_map_actions = QActionGroup(self)
+        self.escher_map_actions.setExclusive(False)
         separator = QAction(" Escher map", self)
         separator.setSeparator(True)
         self.escher_map_actions.addAction(separator)
@@ -300,6 +314,10 @@ class MainWindow(QMainWindow):
         self.dec_box_size_action.setEnabled(False)
         self.cnapy_map_actions.addAction(self.dec_box_size_action)
 
+        cnapy_zoom_canvas_action = QAction("Zoom to canvas", self)
+        cnapy_zoom_canvas_action.triggered.connect(self.zoom_to_canvas)
+        self.cnapy_map_actions.addAction(cnapy_zoom_canvas_action)
+
         self.cnapy_screenshot_action = QAction("Take map view screenshot...", self)
         self.cnapy_screenshot_action.triggered.connect(self.take_screenshot_cnapy)
         self.cnapy_map_actions.addAction(self.cnapy_screenshot_action)
@@ -315,15 +333,8 @@ class MainWindow(QMainWindow):
         self.escher_map_actions.addAction(escher_export_png_action)
 
         escher_zoom_canvas_action = QAction("Zoom to canvas")
-        escher_zoom_canvas_action.triggered.connect(
-            lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.zoom_extent_canvas()"))
+        escher_zoom_canvas_action.triggered.connect(self.zoom_to_canvas)
         self.escher_map_actions.addAction(escher_zoom_canvas_action)
-
-        # does not work as expected (TODO: why?), for now save JSON via Escher menu in edit mode
-        # escher_save_map_action = QAction("Save map JSON...")
-        # escher_save_map_action.triggered.connect(
-        #     lambda: self.centralWidget().map_tabs.currentWidget().page().runJavaScript("builder.map.saveMap()"))
-        # self.escher_map_actions.addAction(escher_save_map_action)
 
         escher_settings_action = QAction("Escher settings...")
         escher_settings_action.triggered.connect(
@@ -393,6 +404,11 @@ class MainWindow(QMainWindow):
         sd_action.triggered.connect(self.mcs)
         self.sd_menu.addAction(sd_action)
         self.mcs_dialog = None
+        self.sd_viewer = None
+        self.sd_computation = None
+        self.plot_space_dialog = None
+        self.optmdfpathway_dialog = None
+        self.thermodynamic_fba_dialog = None
 
         load_mcs_action = QAction("Load Minimal Cut Sets (legacy)...", self)
         self.sd_menu.addAction(load_mcs_action)
@@ -414,7 +430,7 @@ class MainWindow(QMainWindow):
 
         self.thermodynamic_menu = self.analysis_menu.addMenu("Thermodynamic analyses")
 
-        optmdf_action = QAction("OptMDFpathway...", self)
+        optmdf_action = QAction("OptMDFpathway with bottleneck analysis...", self)
         optmdf_action.triggered.connect(self.perform_optmdfpathway)
         self.thermodynamic_menu.addAction(optmdf_action)
 
@@ -422,9 +438,9 @@ class MainWindow(QMainWindow):
         tfba_action.triggered.connect(self.perform_thermodynamic_fba)
         self.thermodynamic_menu.addAction(tfba_action)
 
-        bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
-        bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
-        self.thermodynamic_menu.addAction(bottleneck_action)
+        # bottleneck_action = QAction("Thermodynamic bottleneck analysis...", self)
+        # bottleneck_action.triggered.connect(self.perform_bottleneck_analysis)
+        # self.thermodynamic_menu.addAction(bottleneck_action)
 
         self.thermodynamic_menu.addSeparator()
 
@@ -500,27 +516,27 @@ class MainWindow(QMainWindow):
         self.config_menu = self.menu.addMenu("Config")
 
         config_action = QAction("Configure CNApy...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_dialog)
 
         config_action = QAction("Configure COBRApy...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_config_cobrapy_dialog)
 
         config_action = QAction("Configure IBM CPLEX Full Version (up to CPLEX version 22.1.1)...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_cplex_configuration_dialog)
 
         config_action = QAction("Configure IBM CPLEX Full Version (for CPLEX versions >=22.1.2)...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_new_cplex_configuration_dialog)
 
         config_action = QAction("Configure Gurobi Full Version...", self)
-        config_action.setMenuRole(QAction.NoRole)
+        config_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(config_action)
         config_action.triggered.connect(self.show_gurobi_configuration_dialog)
 
@@ -537,7 +553,7 @@ class MainWindow(QMainWindow):
         show_model_view_action.triggered.connect(self.show_model_view)
 
         about_action = QAction("About CNApy...", self)
-        about_action.setMenuRole(QAction.NoRole)
+        about_action.setMenuRole(QAction.MenuRole.NoRole)
         self.config_menu.addAction(about_action)
         about_action.triggered.connect(self.show_about)
 
@@ -548,6 +564,11 @@ class MainWindow(QMainWindow):
         zoom_out_action = QAction("Zoom out Map", self)
         zoom_out_action.setIcon(QIcon(":/icons/zoom-out.png"))
         zoom_out_action.triggered.connect(self.zoom_out)
+
+        zoom_to_canvas_action = QAction("Zoom to canvas", self)
+        zoom_to_canvas_action.setToolTip("Fit the whole map into the view")
+        zoom_to_canvas_action.setIcon(QIcon(str(resources.files("cnapy") / "data" / "zoom-fit.svg")))
+        zoom_to_canvas_action.triggered.connect(self.zoom_to_canvas)
 
         self.set_current_filename("Untitled project")
 
@@ -574,8 +595,8 @@ class MainWindow(QMainWindow):
         self.tool_bar.addAction(save_scenario_as_action)
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(clear_all_action)
-        self.tool_bar.addAction(undo_scenario_action)
-        self.tool_bar.addAction(redo_scenario_action)
+        self.tool_bar.addAction(self.undo_scenario_action)
+        self.tool_bar.addAction(self.redo_scenario_action)
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(self.heaton_action)
         self.tool_bar.addAction(self.onoff_action)
@@ -583,6 +604,7 @@ class MainWindow(QMainWindow):
         self.tool_bar.addSeparator()
         self.tool_bar.addAction(zoom_in_action)
         self.tool_bar.addAction(zoom_out_action)
+        self.tool_bar.addAction(zoom_to_canvas_action)
         self.addToolBar(self.tool_bar)
 
         self.focus_search_action = QShortcut(
@@ -599,7 +621,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().map_tabs.currentChanged.connect(self.on_tab_change)
 
         if project_path is not None:
-            self.open_project(project_path)
+            self.open_file(project_path)
         if scenario_path is not None:
             self.load_scenario_file(scenario_path)
 
@@ -615,24 +637,21 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     def checked_unsaved(self) -> bool:
-        # TODO: check for changes in Escher maps instead of just setting unsaved changes
-        # when acticvating the edit mode on an Escher map
         if self.appdata.unsaved:
             msgBox = QMessageBox()
             msgBox.setText("The project has been modified.")
             msgBox.setInformativeText("Do you want to save your changes?")
             msgBox.setStandardButtons(
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msgBox.setDefaultButton(QMessageBox.Save)
-            ret = msgBox.exec_()
-            if ret == QMessageBox.Save:
-                # Save was clicked
-                self.save_project_as()
-                return True
-            if ret == QMessageBox.Discard:
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel)
+            msgBox.setDefaultButton(QMessageBox.StandardButton.Save)
+            ret = msgBox.exec()
+            if ret == QMessageBox.StandardButton.Save:
+                # Save was clicked, only continue if the project was actually saved
+                return self.save_project()
+            if ret == QMessageBox.StandardButton.Discard:
                 # Don't save was clicked
                 return True
-            if ret == QMessageBox.Cancel:
+            if ret == QMessageBox.StandardButton.Cancel:
                 return False
         return True
 
@@ -643,7 +662,7 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name + ' - unsaved changes')
 
@@ -654,19 +673,12 @@ class MainWindow(QMainWindow):
             if len(self.appdata.project.name) == 0:
                 shown_name = "Untitled project"
             else:
-                shown_name = QFileInfo(self.appdata.project.name).fileName()
+                shown_name = os.path.basename(self.appdata.project.name)
 
             self.setWindowTitle("CNApy - " + shown_name)
 
-    def disable_enable_dependent_actions(self):
-        self.efm_action.setEnabled(False)
-
-    @Slot()
-    def exit_app(self):
-        if self.checked_unsaved():
-            # releases the memory map file if this is a FluxVectorMemmap
-            self.appdata.project.modes.clear()
-            QApplication.quit()
+    # def disable_enable_dependent_actions(self):
+    #     self.efm_action.setEnabled(False)
 
     def set_current_filename(self, filename):
         self.appdata.project.name = filename
@@ -674,19 +686,19 @@ class MainWindow(QMainWindow):
         if len(self.appdata.project.name) == 0:
             shown_name = "Untitled project"
         else:
-            shown_name = QFileInfo(self.appdata.project.name).fileName()
+            shown_name = os.path.basename(filename)
 
         self.setWindowTitle("CNApy - " + shown_name)
 
     @Slot()
     def show_about(self):
         dialog = AboutDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def plot_space(self):
-        self.plot_space = PlotSpaceDialog(self.appdata)
-        self.plot_space.show()
+        self.plot_space_dialog = PlotSpaceDialog(self.appdata)
+        self.plot_space_dialog.show()
 
     # Strain design computation and viewing functions
     def strain_design(self):
@@ -702,11 +714,11 @@ class MainWindow(QMainWindow):
     def compute_strain_design(self,sd_setup):
         # launch progress viewer and computation thread
         self.sd_viewer = SDComputationViewer(self, self.appdata, sd_setup)
-        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.QueuedConnection)
+        self.sd_viewer.show_sd_signal.connect(self.show_strain_designs_with_setup, Qt.ConnectionType.QueuedConnection)
         # connect signals to update progress
         self.sd_computation = SDComputationThread(self.appdata, sd_setup)
-        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.QueuedConnection)
-        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.QueuedConnection)
+        self.sd_computation.output_connector.connect(self.sd_viewer.receive_progress_text, Qt.ConnectionType.QueuedConnection)
+        self.sd_computation.finished_computation.connect(self.sd_viewer.conclude_computation, Qt.ConnectionType.QueuedConnection)
         self.sd_viewer.cancel_computation.connect(self.terminate_strain_design_computation)
         # show dialog and launch process
         # self.sd_viewer.exec()
@@ -719,14 +731,11 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(
                 self,
                 "File not found",
-                "The selected recently opened .cna file could not be found. Possible reasons: The file was deleted, moved or renamed."
+                "The selected recently opened file could not be found. Possible reasons: The file was deleted, moved or renamed."
             )
             return
-        if selected_last_project.endswith(".cna"):
-            if self.checked_unsaved():
-                self.open_project(filename=selected_last_project)
-        else:
-            self.new_project_from_sbml(filename=selected_last_project) # calls self.checked_unsaved()
+        if self.checked_unsaved():
+            self.open_file(selected_last_project)
 
     def update_recently_used_models(self, filename: str):
         if filename in self.appdata.recent_cna_files:
@@ -779,18 +788,18 @@ class MainWindow(QMainWindow):
     @Slot()
     def optimize_yield(self):
         dialog = YieldOptimizationDialog(self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def optimize_flux(self):
         dialog = FluxOptimizationDialog(self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_config_dialog(self, first_start=False):
         dialog = ConfigDialog(self, first_start)
         if not first_start:
-            dialog.exec_()
+            dialog.exec()
 
     @Slot()
     def show_config_cobrapy_dialog(self):
@@ -800,23 +809,24 @@ class MainWindow(QMainWindow):
             dialog.optlang_solver_set.connect(self.mcs_dialog.configure_solver_options)
         if self.sd_dialog is not None:
             dialog.optlang_solver_set.connect(self.sd_dialog.set_optlang_solver_text)
-            dialog.optlang_solver_set.connect(self.sd_dialog.configure_solver_options)
-        dialog.exec_()
+            dialog.optlang_solver_set.connect(lambda: self.sd_dialog.configure_solver_options(
+                self.sd_dialog.solver_buttons['group'].checkedButton()))
+        dialog.exec()
 
     @Slot()
     def show_cplex_configuration_dialog(self):
         dialog = CplexConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_new_cplex_configuration_dialog(self):
         dialog = CplexNewConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def show_gurobi_configuration_dialog(self):
         dialog = GurobiConfigurationDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def export_sbml(self):
@@ -826,19 +836,19 @@ class MainWindow(QMainWindow):
         if not filename or len(filename) == 0:
             return
 
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         try:
-            self.save_sbml(filename)
+            self.save_model(filename)
         except ValueError:
             exstr = get_last_exception_string()
             utils.show_unknown_error_box(exstr)
 
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     @Slot()
     def download_examples(self):
         dialog = DownloadDialog(self.appdata)
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def load_box_positions(self):
@@ -879,20 +889,30 @@ class MainWindow(QMainWindow):
         filename: str = dialog.getOpenFileName(
             caption="Load scenario",
             directory=self.appdata.last_scen_directory,
-            filter="*.scen *.val"
+            filter="Scenario files (*.scen *.val *.xlsx);;CNApy scenario (*.scen);;"
+                   "Spreadsheet (*.xlsx);;CellNetAnalyzer scenario fluxes(*.val)"
         )[0]
         if not filename or len(filename) == 0 or not os.path.exists(filename):
             return
         self.load_scenario_file(filename, merge=merge)
 
     def load_scenario_file(self, filename, merge=False):
-        self.appdata.scenario_past.clear()
-        self.appdata.scenario_future.clear()
+        self.appdata.record_current_scenario()
         self.appdata.project.comp_values.clear()
         try:
             missing_reactions, incompatible_constraints, skipped_scenario_reactions = \
                 self.appdata.project.scen_values.load(filename, self.appdata, merge=merge)
-        except json.decoder.JSONDecodeError:
+        except ScenarioSpreadsheetError as e:
+            self.discard_failed_scenario_load()
+            max_lines = 30
+            message = "\n".join(e.messages[:max_lines])
+            if len(e.messages) > max_lines:
+                message += f"\n... and {len(e.messages) - max_lines} more"
+            QMessageBox.critical(self, 'Could not load scenario spreadsheet',
+                                 "The scenario was not loaded because of the following errors:\n" + message)
+            return
+        except (json.decoder.JSONDecodeError, BadZipFile, InvalidFileException, KeyError):
+            self.discard_failed_scenario_load()
             QMessageBox.critical(
                 self,
                 'Could not open file',
@@ -980,39 +1000,6 @@ class MainWindow(QMainWindow):
 
         return filename
 
-    # the variant below requires both the Escher JSON and an exported SVG
-    # @Slot()
-    # def add_escher_map(self):
-    #     dialog = QFileDialog(self)
-    #     filename: str = dialog.getOpenFileName(caption="Select an Escher JSON file",
-    #         directory=self.appdata.work_directory, filter="*.json")[0]
-    #     if not filename or len(filename) == 0 or not os.path.exists(filename):
-    #         return
-    #
-    #     with open(filename) as fp:
-    #         map_json = json.load(fp)
-    #
-    #     map_name, map_idx = self.centralWidget().add_map(base_name=map_json[0]['map_name'])
-    #     self.change_background(caption="Select a SVG file that corresponds to the previously loaded Escher JSON file")
-    #
-    #     reaction_bigg_ids = dict()
-    #     for r in self.appdata.project.cobra_py_model.reactions:
-    #         bigg_id = r.annotation.get("bigg.reaction", None)
-    #         if bigg_id is None: # if there is no BiGG ID in the annotation...
-    #             bigg_id = r.id # ... use the reaction ID as proxy
-    #         reaction_bigg_ids[bigg_id] = r.id
-    #
-    #     offset_x = map_json[1]['canvas']['x']
-    #     offset_y = map_json[1]['canvas']['y']
-    #     self.appdata.project.maps[map_name]["boxes"] = dict()
-    #     for r in map_json[1]["reactions"].values():
-    #         bigg_id = r["bigg_id"]
-    #         if bigg_id in reaction_bigg_ids:
-    #             self.appdata.project.maps[map_name]["boxes"][reaction_bigg_ids[bigg_id]] = [r["label_x"] - offset_x, r["label_y"] - offset_y]
-    #
-    #     self.recreate_maps()
-    #     self.centralWidget().map_tabs.setCurrentIndex(map_idx)
-
     @Slot()
     def add_escher_map(self, annotation_key_for_id="bigg.reaction", strip_compartment=False):
         # maps gets a default name because an Escher SVG file does not contain the map name
@@ -1086,7 +1073,7 @@ class MainWindow(QMainWindow):
         '''Execute RenameMapDialog'''
         dialog = RenameMapDialog(
             self.appdata, self.centralWidget())
-        dialog.exec_()
+        dialog.exec()
 
     @Slot()
     def inc_box_size(self):
@@ -1132,18 +1119,19 @@ class MainWindow(QMainWindow):
         if mv is not None:
             mv.zoom_out()
 
+    @Slot()
+    def zoom_to_canvas(self):
+        mv = self.centralWidget().map_tabs.currentWidget()
+        if mv is not None:
+            mv.zoom_to_canvas()
+
     @Slot(bool)
     def set_escher_edit_mode(self, checked: bool):
-        # cannot use the parameter checked because in ActionGroup the entries are mutually exclusive
-        # and the policy cannot be changed in Python (why?)
-        now_enabled = not self.centralWidget().map_tabs.currentWidget().editing_enabled
-        self.centralWidget().map_tabs.currentWidget().enable_editing(now_enabled)
-        self.escher_edit_mode_action.setChecked(now_enabled)
-        self.unsaved_changes() # preliminary solution until checking for changes in Escher maps is implemented
+        self.centralWidget().map_tabs.currentWidget().enable_editing(checked)
 
     @Slot()
     def focus_search_box(self):
-        self.centralWidget().searchbar.setFocus()
+        self.centralWidget().current_searchbar().setFocus()
 
     @Slot()
     def save_box_positions(self):
@@ -1164,37 +1152,60 @@ class MainWindow(QMainWindow):
         self.appdata.project.scen_values.save(self.appdata.project.scen_values.file_name)
         self.update_scenario_file_name()
 
+    def discard_failed_scenario_load(self):
+        # restore the scenario that was recorded before loading and drop the entry of the failed load
+        self.undo_scenario_edit()
+        del self.appdata.scenario_history[self.appdata.current_scenario_index + 1:]
+        self.update_undo_redo_actions()
+
     @Slot()
     def save_scenario_as(self):
-        filename: str = QFileDialog.getSaveFileName(
-            directory=self.appdata.last_scen_directory, filter="*.scen")[0]
+        filename, selected_filter = QFileDialog.getSaveFileName(
+            directory=self.appdata.last_scen_directory,
+            filter="CNApy scenario (*.scen);;Spreadsheet (*.xlsx)")
         if len(filename) > 0:
-            if not filename.endswith(".scen"):
-                filename += ".scen"
+            if not filename.endswith((".scen", ".xlsx")):
+                filename += ".xlsx" if "xlsx" in selected_filter else ".scen"
             self.appdata.project.scen_values.file_name = filename
             self.appdata.project.scen_values.save(filename)
             self.appdata.last_scen_directory = os.path.dirname(filename)
             self.update_scenario_file_name()
 
+    @Slot()
+    def save_scenario_template(self):
+        filename: str = QFileDialog.getSaveFileName(
+            directory=self.appdata.last_scen_directory, filter="Spreadsheet (*.xlsx)")[0]
+        if len(filename) > 0:
+            if not filename.endswith(".xlsx"):
+                filename += ".xlsx"
+            write_scenario_xlsx(Scenario(), filename, include_examples=True)
+
     def undo_scenario_edit(self):
         ''' undo last edit in scenario history '''
-        if len(self.appdata.scenario_past) > 0:
-            last = self.appdata.scenario_past.pop()
-            self.appdata.scenario_future.append(last)
-            self.appdata.recreate_scenario_from_history()
+        if self.appdata.current_scenario_index >= 1:
+            self.appdata.current_scenario_index -= 1
+            self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
+            self.update_undo_redo_actions()
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
+            self.centralWidget().scenario_tab.recreate_scenario_items()
 
     def redo_scenario_edit(self):
         ''' redo last undo of scenario history '''
-        if len(self.appdata.scenario_future) > 0:
-            nex = self.appdata.scenario_future.pop()
-            self.appdata.scenario_past.append(nex)
-            self.appdata.recreate_scenario_from_history()
+        if self.appdata.current_scenario_index < len(self.appdata.scenario_history) - 1:
+            self.appdata.current_scenario_index += 1
+            self.appdata.project.scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index]
+            self.update_undo_redo_actions()
             if self.appdata.auto_fba:
                 self.fba()
             self.centralWidget().update()
+            self.centralWidget().scenario_tab.recreate_scenario_items()
+
+    def update_undo_redo_actions(self):
+        self.undo_scenario_action.setEnabled(self.appdata.current_scenario_index >= 1)
+        self.redo_scenario_action.setEnabled(
+            self.appdata.current_scenario_index < len(self.appdata.scenario_history) - 1)
 
     def clear_scenario(self):
         self.appdata.scen_values_clear()
@@ -1239,34 +1250,47 @@ class MainWindow(QMainWindow):
     def new_project(self):
         if self.checked_unsaved():
             self.new_project_unchecked()
-            self.recreate_maps()
 
-    def new_project_unchecked(self):
-        self.delete_maps()
-
-        self.centralWidget().mode_navigator.clear()
-        self.centralWidget().clear_model_item_history()
-        self.centralWidget().reaction_list.reaction_list.clear()
+    def new_project_unchecked(self, model: cobra.Model = None):
+        '''replaces the current project with an empty one (or one with the given model)'''
         self.close_project_dialogs()
-
-        self.appdata.project.scen_values.clear()
-        self.appdata.scenario_past.clear()
-        self.appdata.scenario_future.clear()
-
-        self.set_current_filename("Untitled project")
+        self.appdata.project.reset(model)
+        self.reset_gui_for_new_project()
+        self.set_current_filename("")
         self.nounsaved_changes()
 
-    @Slot()
-    def new_project_from_sbml(self, filename=''):
-        if self.checked_unsaved():
-            if len(filename) == 0:
-                dialog = QFileDialog(self)
-                filename: str = dialog.getOpenFileName(
-                    directory=self.appdata.work_directory, filter=SBML_suffixes)[0]
-            if not filename or len(filename) == 0 or not os.path.exists(filename):
-                return
+    def reset_gui_for_new_project(self):
+        '''brings the GUI in line with a project that was just reset (see ProjectData.reset) and filled'''
+        central = self.centralWidget()
+        central.search_result = None # belongs to the previous project
+        # first, because the following calls update the map tabs, which must belong to the new project
+        self.recreate_maps(keep_escher_edits=False)
+        central.mode_navigator.clear()
+        central.prune_model_item_history()
+        for item_list in (central.reaction_list, central.metabolite_list, central.gene_list):
+            item_list.last_selected = None
+        for search_bar in (central.reaction_searchbar, central.metabolite_searchbar, central.gene_searchbar):
+            search_bar.clear()
+        self.appdata.clear_scenario_history()
+        (reactions, values) = self.appdata.project.collect_default_scenario_values()
+        if len(reactions) > 0:
+            self.appdata.scen_values_set_multiple(reactions, values)
+        else:
+            self.appdata.add_scenario_to_history(Scenario())
+        self.clear_status_bar()
+        self.update_scenario_file_name()
+        central.update(rebuild_all_tabs=True)
 
-            self.setCursor(Qt.BusyCursor)
+    def open_file(self, filename: str):
+        '''opens a CNApy project (.cna) or creates a new project from an SBML model, depending on the file ending'''
+        if filename.endswith(".cna"):
+            self.open_project(filename)
+        else:
+            self.load_sbml_as_new_project(filename)
+
+    def load_sbml_as_new_project(self, filename: str):
+        self.setCursor(Qt.CursorShape.BusyCursor)
+        try:
             try:
                 cobra_py_model = CNApyModel.read_sbml_model(filename)
             except cobra.io.sbml.CobraSBMLError:
@@ -1274,80 +1298,70 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(
                     self, 'Could not read sbml.', exstr)
                 return
-            self.new_project_unchecked()
-            self.appdata.project.cobra_py_model = cobra_py_model
+            self.new_project_unchecked(cobra_py_model)
             self.set_current_filename(filename)
-
-            default_map = CnaMap("Map")
-            self.appdata.project.maps = {"Map": default_map}
-            self.recreate_maps()
-            self.centralWidget().update(rebuild_all_tabs=True)
-            self.update_scenario_file_name()
             self.update_recently_used_models(filename)
-
-            self.setCursor(Qt.ArrowCursor)
+        finally:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def open_project(self, filename):
-        self.close_project_dialogs()
         temp_dir = TemporaryDirectory()
-
-        self.setCursor(Qt.BusyCursor)
+        base_path = Path(temp_dir.name)
+        QApplication.setOverrideCursor(Qt.BusyCursor)
+        QApplication.processEvents()
         try:
             with ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir.name)
-
-                box_positions_path = temp_dir.name+"/box_positions.json"
-                if not os.path.exists(box_positions_path):
+                arc_names = set(zip_ref.namelist())
+                if "box_positions.json" not in arc_names:
                     QMessageBox.critical(
                         self,
                         'Could not open file',
                         "File could not be opened as it does not seem to be a valid CNApy project, even though the file is a zip file. "
                         "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
                     )
-                    self.setCursor(Qt.ArrowCursor)
                     return
 
-                with open(box_positions_path, 'r') as fp:
+                with zip_ref.open("box_positions.json") as fp:
                     maps = json.load(fp)
 
-                    count = 1
-                    for _name, m in maps.items():
-                        m["background"] = temp_dir.name + \
-                            "/map" + str(count) + ".svg"
-                        count += 1
+                # only the SVG backgrounds are extracted, everything else is read directly from the archive
+                count = 1
+                for _name, m in maps.items():
+                    arc_name = "map" + str(count) + ".svg"
+                    if arc_name in arc_names:
+                        zip_ref.extract(arc_name, base_path)
+                    m["background"] = str(base_path / arc_name)
+                    count += 1
                 # load meta_data
-                with open(temp_dir.name+"/meta.json", 'r') as fp:
+                if "meta.json" not in arc_names:
+                    raise FileNotFoundError("Project does not contain a meta.json file.")
+                with zip_ref.open("meta.json") as fp:
                     meta_data = json.load(fp)
 
                 try:
-                    cobra_py_model = CNApyModel.read_sbml_model(
-                        temp_dir.name + "/model.sbml")
+                    if "model.json" in arc_names:
+                        with zip_ref.open("model.json") as fp:
+                            cobra_py_model = cobra.io.load_json_model(fp)
+                        cobra_py_model.__class__ = CNApyModel # like in CNApyModel.read_sbml_model
+                    elif "model.sbml" in arc_names:
+                        with io.TextIOWrapper(zip_ref.open("model.sbml"), encoding="utf-8") as fp:
+                            cobra_py_model = CNApyModel.read_sbml_model(fp)
+                    else:
+                        raise FileNotFoundError("Project does not contain a model.json or model.sbml file.")
                 except cobra.io.sbml.CobraSBMLError:
                     exstr = get_last_exception_string()
                     QMessageBox.warning(
                         self, 'Could not open project.', exstr)
                     return
+                # the project file was read successfully, now replace the current project
+                self.close_project_dialogs()
                 self.appdata.temp_dir = temp_dir
+                self.appdata.project.reset(cobra_py_model)
                 self.appdata.project.maps = maps
                 self.appdata.project.meta_data = meta_data
-                self.appdata.project.cobra_py_model = cobra_py_model
                 self.set_current_filename(filename)
-                self.recreate_maps()
-                self.centralWidget().mode_navigator.clear()
-                self.centralWidget().clear_model_item_history()
-                self.centralWidget().reaction_list.last_selected = None
-                self.centralWidget().metabolite_list.last_selected = None
-                self.centralWidget().gene_list.last_selected = None
-                self.appdata.project.scen_values.clear()
-                self.appdata.project.comp_values.clear()
-                self.appdata.project.fva_values.clear()
-                self.appdata.scenario_past.clear()
-                self.appdata.scenario_future.clear()
-                self.clear_status_bar()
-                self.update_scenario_file_name()
-                (reactions, values) = self.appdata.project.collect_default_scenario_values()
-                if len(reactions) > 0:
-                    self.appdata.scen_values_set_multiple(reactions, values)
+                self.appdata.last_scen_directory = os.path.dirname(filename)
+                self.reset_gui_for_new_project()
                 self.nounsaved_changes()
 
                 # if project contains maps move splitter and fit mapview
@@ -1356,7 +1370,6 @@ class MainWindow(QMainWindow):
                     self.centralWidget().splitter2.moveSplitter(round(r*0.8), 1)
                     self.centralWidget().fit_mapview()
 
-                self.centralWidget().update(rebuild_all_tabs=True)
                 self.update_recently_used_models(filename)
 
         except FileNotFoundError:
@@ -1369,18 +1382,20 @@ class MainWindow(QMainWindow):
                 "File could not be opened as it does not seem to be a valid CNApy project. "
                 "Maybe the file got the .cna ending for other reasons than being a CNApy project or the file is corrupted."
             )
-
-        self.setCursor(Qt.ArrowCursor)
+        finally:
+            QApplication.restoreOverrideCursor()
 
     @Slot()
-    def open_project_dialog(self):
+    def open_dialog(self):
         if self.checked_unsaved():
             dialog = QFileDialog(self)
             filename: str = dialog.getOpenFileName(
-                directory=self.appdata.work_directory, filter="*.cna")[0]
+                directory=self.appdata.work_directory,
+                filter=f"CNApy projects and SBML models (*.cna {SBML_suffixes});;"
+                       f"CNApy projects (*.cna);;SBML models ({SBML_suffixes})")[0]
             if not filename or len(filename) == 0 or not os.path.exists(filename):
                 return
-            self.open_project(filename)
+            self.open_file(filename)
 
     def close_project_dialogs(self):
         '''closes modeless dialogs'''
@@ -1396,8 +1411,23 @@ class MainWindow(QMainWindow):
         if self.make_scenario_feasible_dialog is not None:
             self.make_scenario_feasible_dialog.close()
             self.make_scenario_feasible_dialog = None
+        for name in ("plot_space_dialog", "optmdfpathway_dialog", "thermodynamic_fba_dialog"):
+            dialog = getattr(self, name)
+            if dialog is not None:
+                dialog.close()
+                setattr(self, name, None)
+        # a strain design computation still running would deliver its results to the new project
+        if self.sd_computation is not None and self.sd_computation.isRunning():
+            self.terminate_strain_design_computation()
+        self.sd_computation = None
+        if self.sd_viewer is not None:
+            try:
+                self.sd_viewer.close()
+            except RuntimeError:  # already deleted by Qt (deleteLater after cancel/show)
+                pass
+            self.sd_viewer = None
 
-    def save_sbml(self, filename):
+    def save_model(self, filename, save_as_json: bool = False):
         '''Save model as SBML'''
 
         # cleanup to work around cobrapy not setting a default compartment
@@ -1426,111 +1456,130 @@ class MainWindow(QMainWindow):
 
         self.appdata.project.cobra_py_model = clean_model
 
-        cobra.io.write_sbml_model(
-            self.appdata.project.cobra_py_model, filename)
-
-    @Slot()
-    def save_project(self):
-        escher_map_count: int = 0
-        semaphore = [0] # list with one integer to emulate pass by reference
-        for i in range(len(self.centralWidget().map_tabs)):
-            if isinstance(self.centralWidget().map_tabs.widget(i), EscherMapView):
-                self.centralWidget().map_tabs.widget(i).retrieve_map_data(semaphore=semaphore)
-                self.centralWidget().map_tabs.widget(i).retrieve_pos_and_zoom(semaphore=semaphore)
-                escher_map_count += 1
-        if escher_map_count > 0: # give some time for retrieve_map_data to finish
-            escher_map_count *= 2
-            timer = QTimer()
-            wait_count = 0
-            timer.setInterval(escher_map_count*10)
-            def wait_for_retrieval():
-                nonlocal wait_count
-                if semaphore[0] == escher_map_count:
-                    timer.stop()
-                    self.continue_save_project()
-                if wait_count >= 20:
-                    timer.stop()
-                    raise ValueError("Failed to retrieve Escher data, cannot save project.")
-                wait_count += 1
-            timer.timeout.connect(wait_for_retrieval)
-            timer.start()
+        if save_as_json:
+            cobra.io.save_json_model(self.appdata.project.cobra_py_model, filename)
         else:
-            self.continue_save_project()
+            cobra.io.write_sbml_model(self.appdata.project.cobra_py_model, filename)
+
+    def retrieve_escher_map_states(self, timeout_ms: int = 5000) -> bool:
+        '''Copies the current map data, position and zoom of all Escher maps into the project maps.
+        Waits until Escher has delivered them, returns False if this did not happen within the timeout.'''
+        escher_maps = [self.centralWidget().map_tabs.widget(i) for i in range(self.centralWidget().map_tabs.count())]
+        escher_maps = [m for m in escher_maps if isinstance(m, EscherMapView)]
+        if len(escher_maps) == 0:
+            return True
+        pending = len(escher_maps)
+        loop = QEventLoop()
+        def done():
+            nonlocal pending
+            pending -= 1
+            if pending == 0:
+                loop.quit()
+        for m in escher_maps:
+            m.retrieve_map_state(done)
+        if pending > 0:
+            QTimer.singleShot(timeout_ms, loop.quit)
+            loop.exec() # the results of runJavaScript are delivered through the event loop
+        return pending == 0
 
     @Slot()
-    def continue_save_project(self):
-        ''' Save the project '''
-        tmp_dir = TemporaryDirectory().name
+    def save_project(self) -> bool:
+        '''returns whether the project was saved'''
+        if not self.appdata.project.name.endswith(".cna"):  # new project or imported SBML model
+            return self.save_project_as()
+        if not self.retrieve_escher_map_states():
+            QMessageBox.warning(self, "Project not saved",
+                                "Failed to retrieve the data of the Escher maps, cannot save the project.")
+            return False
+        return self.write_project_file()
+
+    def write_project_file(self) -> bool:
+        ''' Save the project, the data of the Escher maps must already have been retrieved '''
         filename: str = self.appdata.project.name
+        model_file: str = "model.json" if self.appdata.save_model_as_json else "model.sbml"
 
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         try:
-            self.save_sbml(tmp_dir + "model.sbml")
-        except ValueError:
-            exstr = get_last_exception_string()
-            utils.show_unknown_error_box(exstr)
+            model_buffer = io.StringIO()
+            try:
+                self.save_model(model_buffer, save_as_json=self.appdata.save_model_as_json)
+            except ValueError:
+                exstr = get_last_exception_string()
+                utils.show_unknown_error_box(exstr)
+                return False
 
-            return
-
-        svg_files = {}
-        count = 1
-        for name, m in self.appdata.project.maps.items():
-            if m.get('view', 'cnapy') == 'cnapy':
-                arc_name = "map" + str(count) + ".svg"
-                svg_files[m["background"]] = arc_name
-                m["background"] = arc_name
-            count += 1
-
-        # Save maps information
-        # also contains the Escher map JSONs
-        with open(tmp_dir + "box_positions.json", 'w') as fp:
-            json.dump(self.appdata.project.maps, fp, skipkeys=True)
-
-        # Save meta data
-        self.appdata.project.meta_data["format version"] = self.appdata.format_version
-        with open(tmp_dir + "meta.json", 'w') as fp:
-            json.dump(self.appdata.project.meta_data, fp)
-
-        with ZipFile(filename, 'w') as zip_obj:
-            zip_obj.write(tmp_dir + "model.sbml", arcname="model.sbml")
-            zip_obj.write(tmp_dir + "box_positions.json",
-                          arcname="box_positions.json")
-            zip_obj.write(tmp_dir + "meta.json", arcname="meta.json")
-            for name, m in svg_files.items():
-                zip_obj.write(name, arcname=m)
-
-        # put svgs into temporary directory and update references
-        with ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(self.appdata.temp_dir.name)
+            # the archive refers to the SVG backgrounds by their archive names,
+            # the project maps keep their paths until the archive has been written
+            svg_files = {} # archive name -> current path of the SVG file
+            maps_to_save = {}
             count = 1
             for name, m in self.appdata.project.maps.items():
-                m["background"] = self.appdata.temp_dir.name + \
-                    "/map" + str(count) + ".svg"
+                if m.get('view', MAP_VIEW_CNAPY) == MAP_VIEW_CNAPY:
+                    arc_name = "map" + str(count) + ".svg"
+                    svg_files[arc_name] = m["background"]
+                    m = dict(m, background=arc_name)
+                maps_to_save[name] = m
                 count += 1
 
-        self.nounsaved_changes()
-        self.setCursor(Qt.ArrowCursor)
+            self.appdata.project.meta_data["format version"] = self.appdata.format_version
+
+            # write to a temporary file first so that a failed save does not destroy the existing project file
+            tmp_filename = filename + ".tmp"
+            try:
+                # ZIP_DEFLATED only requires zlib which is available in all Python distributions
+                with ZipFile(tmp_filename, 'w', compression=ZIP_DEFLATED) as zip_obj:
+                    zip_obj.writestr(model_file, model_buffer.getvalue())
+                    # maps information, also contains the Escher map JSONs
+                    zip_obj.writestr("box_positions.json", json.dumps(maps_to_save, skipkeys=True))
+                    zip_obj.writestr("meta.json", json.dumps(self.appdata.project.meta_data))
+                    for arc_name, svg_path in svg_files.items():
+                        zip_obj.write(svg_path, arcname=arc_name)
+                os.replace(tmp_filename, filename)
+            except Exception:
+                if os.path.exists(tmp_filename):
+                    os.remove(tmp_filename)
+                raise
+
+            # put svgs into temporary directory and update references
+            with ZipFile(filename, 'r') as zip_ref:
+                for name, m in self.appdata.project.maps.items():
+                    arc_name = maps_to_save[name].get("background")
+                    if arc_name in svg_files:
+                        zip_ref.extract(arc_name, self.appdata.temp_dir.name)
+                        m["background"] = str(Path(self.appdata.temp_dir.name) / arc_name)
+
+            self.nounsaved_changes()
+        finally:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        return True
 
     @Slot()
-    def save_project_as(self):
+    def save_project_as(self) -> bool:
+        '''returns whether the project was saved'''
         filename: str = QFileDialog.getSaveFileName(
             directory=self.appdata.work_directory, filter="*.cna")[0]
-        if len(filename) > 0:
-            if not filename.endswith(".cna"):
-                filename += ".cna"
-            self.set_current_filename(filename)
-            self.save_project()
-            self.update_recently_used_models(filename)
+        if len(filename) == 0:
+            return False
+        if not filename.endswith(".cna"):
+            filename += ".cna"
+        self.set_current_filename(filename)
+        if not self.save_project():
+            return False
+        self.update_recently_used_models(filename)
+        return True
 
-    # TODO: are there really situations where _all_ maps need to be recreated?
-    def recreate_maps(self):
+    def recreate_maps(self, keep_escher_edits: bool = True):
+        '''keep_escher_edits: retrieve the current state of the Escher maps first because the map data in
+        the project is otherwise only updated on saving; must be False if the project maps have been replaced'''
+        if keep_escher_edits:
+            self.retrieve_escher_map_states()
         self.delete_maps()
         for name, mmap in self.appdata.project.maps.items():
-            if mmap.get("view", "cnapy") == "cnapy":
+            if mmap.get("view", MAP_VIEW_CNAPY) == MAP_VIEW_CNAPY:
                 mmap = MapView(self.appdata, self.centralWidget(), name)
                 mmap.show()
                 self.centralWidget().connect_map_view_signals(mmap)
-            elif mmap["view"] == "escher":
+            elif mmap["view"] == MAP_VIEW_ESCHER:
                 mmap = EscherMapView(self.centralWidget(), name)
                 self.centralWidget().connect_escher_map_view_signals(mmap)
                 self.appdata.project.maps[name][EscherMapView] = mmap
@@ -1538,6 +1587,13 @@ class MainWindow(QMainWindow):
                 raise ValueError("Unknown map type "+mmap["view"])
             self.centralWidget().map_tabs.addTab(mmap, name)
             mmap.update()
+
+    def release_web_engine(self):
+        '''Deletes the Escher maps and then their web engine profile. Must be called before the QApplication
+        is destroyed, otherwise QtWebEngine may crash when pages are destroyed after their profile.'''
+        self.delete_maps()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete) # deleteLater does not wait for the event loop
+        EscherMapView.release_web_engine_profile()
 
     def delete_maps(self):
         with QSignalBlocker(self.centralWidget().map_tabs):
@@ -1556,7 +1612,7 @@ class MainWindow(QMainWindow):
         elif len(filename) <= 4 or filename[-4:] != ".png":
             filename += ".png"
 
-        self.setCursor(Qt.BusyCursor)
+        self.setCursor(Qt.CursorShape.BusyCursor)
         scale_factor = 10.0
         view = self.centralWidget().map_tabs.currentWidget()
         original_size = QSize(view.size())
@@ -1569,7 +1625,7 @@ class MainWindow(QMainWindow):
 
         view.setTransform(view.transform().scale(1/scale_factor, 1/scale_factor))
         view.resize(original_size)
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def on_tab_change(self, idx):
         if idx >= 0:
@@ -1585,12 +1641,13 @@ class MainWindow(QMainWindow):
                 self.escher_map_actions.setVisible(False)
                 self.cnapy_map_actions.setVisible(True)
                 self.colorings.setEnabled(True)
-                self.central_widget.search_annotations.setEnabled(True)
+                #self.central_widget.search_annotations.setEnabled(True)
             else: # EscherMapView
                 self.cnapy_map_actions.setVisible(False)
                 self.escher_map_actions.setVisible(True)
+                self.escher_edit_mode_action.setChecked(self.centralWidget().map_tabs.widget(idx).editing_enabled)
                 self.colorings.setEnabled(False)
-                self.central_widget.search_annotations.setEnabled(False)
+                #self.central_widget.search_annotations.setEnabled(False)
         else:
             self.change_map_name_action.setEnabled(False)
             self.change_background_action.setEnabled(False)
@@ -1610,8 +1667,10 @@ class MainWindow(QMainWindow):
         try:
             self.appdata.project.comp_values = self.appdata.clipboard_comp_values.copy()
 
-            for key in (self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys()):
-                self.appdata.project.scen_values[key] = self.appdata.clipboard_comp_values[key]
+            common_keys = list(self.appdata.project.scen_values.keys() & self.appdata.clipboard_comp_values.keys())
+            if len(common_keys) > 0:
+                self.appdata.scen_values_set_multiple(
+                    common_keys, [self.appdata.clipboard_comp_values[key] for key in common_keys])
         except AttributeError:
             QMessageBox.warning(
                 self,
@@ -1624,7 +1683,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def clipboard_arithmetics(self):
         dialog = ClipboardCalculator(self.appdata)
-        dialog.exec_()
+        dialog.exec()
         self.centralWidget().update()
 
     def add_values_to_scenario(self):
@@ -1704,6 +1763,8 @@ class MainWindow(QMainWindow):
         else:
             self.make_scenario_feasible_dialog.modified_scenario = None
         self.make_scenario_feasible_dialog.show()
+        # have bm_reac_id_select always enabled even if the parent is not
+        self.make_scenario_feasible_dialog.bm_reac_id_select.setEnabled(True)
 
     def fba_optimize_reaction(self, reaction: str, mmin: bool):
         with self.appdata.project.cobra_py_model as model:
@@ -1737,6 +1798,7 @@ class MainWindow(QMainWindow):
                     print(exstr)
                     utils.show_unknown_error_box(exstr)
             else:
+                self.appdata.project.solution = solution
                 if solution.status == 'optimal':
                     soldict = solution.fluxes.to_dict()
                     for i in soldict:
@@ -1863,6 +1925,42 @@ class MainWindow(QMainWindow):
         soldict = {id: val[0] for (id, val) in self.appdata.project.comp_values.items()}
         self.in_out_fluxes(metabolite, soldict)
 
+    def replace_ids(self, items: str, annotation_key: str, unambiguous_only: bool = False,
+                    unique_only: bool = True, candidates_separator: str = ""):
+        """Console API: replace the IDs of the model's 'reactions' or 'metabolites' with IDs
+        taken from their annotation under annotation_key (see cnapy.core.replace_ids).
+        Returns a list of (old_id, new_id) pairs of the renamed entries."""
+        if items not in ("reactions", "metabolites"):
+            raise ValueError("items must be 'reactions' or 'metabolites'")
+        project = self.appdata.project
+        dict_list = getattr(project.cobra_py_model, items)
+        old_ids = [entry.id for entry in dict_list]
+        replace_ids(dict_list, annotation_key, unambiguous_only=unambiguous_only,
+                    unique_only=unique_only, candidates_separator=candidates_separator)
+        changed = [(old_id, entry) for old_id, entry in zip(old_ids, dict_list) if entry.id != old_id]
+        central_widget = self.centralWidget()
+        for old_id, entry in changed:
+            if items == "reactions":
+                scen_values = project.scen_values
+                if old_id in scen_values:
+                    scen_values[entry.id] = scen_values.pop(old_id)
+                if old_id in scen_values.objective_coefficients:
+                    scen_values.objective_coefficients[entry.id] = scen_values.objective_coefficients.pop(old_id)
+                if old_id in scen_values.pinned_reactions:
+                    scen_values.pinned_reactions.discard(old_id)
+                    scen_values.pinned_reactions.add(entry.id)
+                for values in (project.comp_values, project.fva_values):
+                    if old_id in values:
+                        values[entry.id] = values.pop(old_id)
+                central_widget.handle_changed_reaction(old_id, entry)
+            else:
+                central_widget.handle_changed_metabolite(entry, entry.reactions, old_id)
+        if len(changed) > 0:
+            project.scen_values.set_hash_value()
+            central_widget.update(rebuild_all_tabs=True)
+        print("Replaced the IDs of", len(changed), items)
+        return [(old_id, entry.id) for old_id, entry in changed]
+
     def show_model_bounds(self):
         for reaction in self.appdata.project.cobra_py_model.reactions:
             self.appdata.project.comp_values[reaction.id] = (
@@ -1870,69 +1968,87 @@ class MainWindow(QMainWindow):
         self.appdata.project.comp_values_type = 1
         self.centralWidget().update()
 
-    def fva(self):
-        QApplication.setOverrideCursor(Qt.BusyCursor)
-        QApplication.processEvents()
+    def compute_fva_result(self, model, constraints=None): # -> Optional[Dict[str, Tuple[float, float]]]:
+        """Run (multi-threaded HiGHS) FVA on `model` and return
+        {reaction_id: (min_flux, max_flux)}, or None if the computation
+        didn't succeed (infeasible / solver error -- a message box is shown
+        to the user in that case).
+
+        `model` is expected to already have the current scenario loaded
+        into it (via load_scenario_into_model), with the exception of
+        `constraints` (linear constraints), which multi_threaded_HiGHS_FVA
+        handles separately and must therefore be passed in here rather than
+        loaded into the model beforehand. Defaults to the project's current
+        scenario constraints if not given.
+
+        This is the shared core of fva() (which runs it against the
+        project's own model/scenario and stores the result into
+        appdata.project.fva_values) and is also reused by ThermodynamicDialog
+        so that OptMDFpathway can be given the same FVA result -- including
+        the infinite-bound clipping and results-cache lookup below -- instead
+        of computing its own.
+        """
+        if constraints is None:
+            constraints = []
+
         fva_result = None
+        for r in model.reactions:
+            if r.lower_bound == -float('inf'):
+                r.lower_bound = cobra.Configuration().lower_bound
+            if r.upper_bound == float('inf'):
+                r.upper_bound = cobra.Configuration().upper_bound
+        if self.appdata.use_results_cache:
+            self.appdata.project.scen_values.set_hash_value() # call here for simplicity, but should in the long term be directly executed after scenario modification
+            fva_hash = hash((int(stoichiometry_hash(model).hexdigest(), 16),
+                                hash(self.appdata.project.scen_values), hash(model.tolerance)))
+            file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+str(fva_hash)+".pkl")
+
+            if Path.exists(file_path):
+                try:
+                    with open(file_path, 'rb') as file:
+                        fva_result = pickle.load(file)
+                    self.statusBar().showMessage("Loaded FVA result from " + str(file_path))
+                except:
+                    self.statusBar().showMessage("Loading FVA result from " + str(file_path) + " failed, running FVA.")
+
+        if not fva_result:
+            try:
+                lb, ub, dud = multi_threaded_HiGHS_FVA(model, constraints)
+                fva_result = (lb, ub)
+                if dud > 0:
+                    QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
+                elif self.appdata.use_results_cache:
+                    with open(file_path, 'wb') as file:
+                        pickle.dump(fva_result, file)
+                        self.statusBar().showMessage("Saved FVA result to " + str(file_path))
+            except cobra.exceptions.Infeasible:
+                QMessageBox.information(
+                    self, 'FVA not possible', 'The scenario is infeasible.')
+                return None
+            except Exception:
+                exstr = get_last_exception_string()
+                print(exstr)
+                utils.show_unknown_error_box(exstr)
+                return None
+
+        if fva_result:
+            return {model.reactions[i].id: (fva_result[0][i], fva_result[1][i]) for i in range(len(model.reactions))}
+        return None
+
+    def fva(self):
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
+        QApplication.processEvents()
+        fva_result_dict = None
         with self.appdata.project.cobra_py_model as model:
             constraints = self.appdata.project.scen_values.constraints
             # do not load constraints into model, they are processed separately in multi_threaded_HiGHS_FVA
             self.appdata.project.scen_values.constraints = []
             self.appdata.project.load_scenario_into_model(model)
             self.appdata.project.scen_values.constraints = constraints
-            if len(self.appdata.project.scen_values) > 0 or len(self.appdata.project.scen_values.reactions) > 0:
-                update_stoichiometry_hash = True
-            else:
-                update_stoichiometry_hash = False
-            for r in self.appdata.project.cobra_py_model.reactions:
-                if r.lower_bound == -float('inf'):
-                    r.lower_bound = cobra.Configuration().lower_bound
-                    if self.appdata.use_results_cache:
-                        r.set_hash_value()
-                        update_stoichiometry_hash = True
-                if r.upper_bound == float('inf'):
-                    r.upper_bound = cobra.Configuration().upper_bound
-                    if self.appdata.use_results_cache:
-                        r.set_hash_value()
-                        update_stoichiometry_hash = True
-            if self.appdata.use_results_cache:
-                if update_stoichiometry_hash:
-                    model.set_stoichiometry_hash_object()
-                fva_hash = model.stoichiometry_hash_object.copy()
-                if len(self.appdata.project.scen_values.constraints) > 0:
-                    fva_hash.update(pickle.dumps(sorted(self.appdata.project.scen_values.constraints)))
-                fva_hash.update(pickle.dumps(model.tolerance))
-                file_path = self.appdata.results_cache_dir / (model.id+"_FVA_"+fva_hash.hexdigest()+".pkl")
+            fva_result_dict = self.compute_fva_result(model, constraints)
 
-                if Path.exists(file_path):
-                    try:
-                        with open(file_path, 'rb') as file:
-                            fva_result = pickle.load(file)
-                        self.statusBar().showMessage("Loaded FVA result from " + str(file_path))
-                    except:
-                        self.statusBar().showMessage("Loading FVA result from " + str(file_path) + " failed, running FVA.")
-
-            if not fva_result:
-                try:
-                    lb, ub, dud = multi_threaded_HiGHS_FVA(model, self.appdata.project.scen_values.constraints)
-                    fva_result = (lb, ub)
-                    if dud > 0:
-                        QMessageBox.information(self, 'Incomplete FVA', 'Some flux limits could not be calculated.')
-                    elif self.appdata.use_results_cache:
-                        with open(file_path, 'wb') as file:
-                            pickle.dump(fva_result, file)
-                            self.statusBar().showMessage("Saved FVA result to " + str(file_path))
-                except cobra.exceptions.Infeasible:
-                    QMessageBox.information(
-                        self, 'FVA not possible', 'The scenario is infeasible.')
-                except Exception:
-                    exstr = get_last_exception_string()
-                    print(exstr)
-                    utils.show_unknown_error_box(exstr)
-
-        if fva_result:
-            self.appdata.project.comp_values = {
-                model.reactions[i].id: (fva_result[0][i], fva_result[1][i]) for i in range(len(model.reactions))}
+        if fva_result_dict:
+            self.appdata.project.comp_values = fva_result_dict
             self.appdata.project.fva_values = self.appdata.project.comp_values.copy()
             self.appdata.project.comp_values_type = 1
 
@@ -1942,12 +2058,12 @@ class MainWindow(QMainWindow):
     # def efm(self):
     #     self.efm_dialog = EFMDialog(
     #         self.appdata, self.centralWidget())
-    #     self.efm_dialog.exec_()
+    #     self.efm_dialog.exec()
 
     def in_out_flux(self):
         in_out_flux_dialog = InOutFluxDialog(
             self.appdata)
-        in_out_flux_dialog.exec_()
+        in_out_flux_dialog.exec()
 
     def all_in_out_fluxes(self):
         filename = self._get_filename("xlsx")
@@ -2080,7 +2196,7 @@ class MainWindow(QMainWindow):
     def efmtool(self):
         self.efmtool_dialog = EFMtoolDialog(
             self.appdata, self.centralWidget())
-        self.efmtool_dialog.exec_()
+        self.efmtool_dialog.exec()
 
     def mcs(self):
         if self.mcs_dialog is None:
@@ -2094,56 +2210,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().set_heaton()
 
     def in_out_fluxes(self, metabolite_id, soldict):
-        self.centralWidget().kernel_client.execute('%matplotlib inline', store_history=False)
-        with self.appdata.project.cobra_py_model as model:
-            self.appdata.project.scen_values.add_scenario_reactions_to_model(model)
-            met = model.metabolites.get_by_id(metabolite_id)
-            fig, ax = plt.subplots()
-            ax.set_xticks([1, 2])
-            ax.set_xticklabels(['In', 'Out'])
-            cons = []
-            prod = []
-            sum_cons = 0
-            sum_prod = 0
-            for rxn in met.reactions:
-                flux = soldict.get(rxn.id, 0.0)
-                if abs(flux) > model.tolerance:
-                    flux *= rxn.get_coefficient(metabolite_id)
-                    if flux < 0:
-                        cons.append((rxn, -flux))
-                    elif flux > 0:
-                        prod.append((rxn, flux))
-            cons = sorted(cons, key=lambda x: x[1], reverse=True)
-            prod = sorted(prod, key=lambda x: x[1], reverse=True)
-            for rxn, flux in prod:
-                ax.bar(1, flux, width=0.8, bottom=sum_prod, label=rxn.id+": "+rxn.build_reaction_string())
-                sum_prod += flux
-            for rxn, flux in cons:
-                ax.bar(2, flux, width=0.8, bottom=sum_cons, label=rxn.id+": "+rxn.build_reaction_string())
-                sum_cons += flux
-            ax.set_ylabel('Flux')
-            ax.set_title('In/Out fluxes at metabolite ' + metabolite_id)
-            ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
-
-            # Print plot in CNApy's console
-            plt.show()
-
-            # Pretty print cons and prod lists of tuples
-            pretty_prod_dict = f"\nProducing reactions of {metabolite_id}:\n"+json.dumps({
-                x[0].id: x[1]
-                for x in prod
-            }, indent=2)
-            pretty_cons_dict = f"\nConsuming reactions of {metabolite_id}:\n"+json.dumps({
-                x[0].id: x[1]
-                for x in cons
-            }, indent=2)
-            # The next print statements are directly executed in CNApy's Jupyter console
-            print(pretty_prod_dict)
-            print(pretty_cons_dict)
-
-        self.centralWidget().kernel_client.execute('%matplotlib qt', store_history=False)
-
-        return prod, cons
+        return self._in_out_flux_console_plot.in_out_fluxes(metabolite_id, soldict)
 
     def show_console(self):
         print("show model view")
@@ -2178,33 +2245,33 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def perform_optmdfpathway(self):
-        # Has to be in self to keep computation thread
         self.optmdfpathway_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
+            self,
             analysis_type=ThermodynamicAnalysisTypes.OPTMDFPATHWAY
         )
-        self.optmdfpathway_dialog.exec_()
+        self.optmdfpathway_dialog.show()
 
     @Slot()
     def perform_thermodynamic_fba(self):
-        # Has to be in self to keep computation thread
         self.thermodynamic_fba_dialog = ThermodynamicDialog(
             self.appdata,
             self.centralWidget(),
+            self,
             analysis_type=ThermodynamicAnalysisTypes.THERMODYNAMIC_FBA
         )
-        self.thermodynamic_fba_dialog.exec_()
+        self.thermodynamic_fba_dialog.show()
 
-    @Slot()
-    def perform_bottleneck_analysis(self):
-        # Has to be in self to keep computation thread
-        self.bottleneck_dialog = ThermodynamicDialog(
-            self.appdata,
-            self.centralWidget(),
-            analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
-        )
-        self.bottleneck_dialog.exec_()
+    # @Slot()
+    # def perform_bottleneck_analysis(self):
+    #     # Has to be in self to keep computation thread
+    #     self.bottleneck_dialog = ThermodynamicDialog(
+    #         self.appdata,
+    #         self.centralWidget(),
+    #         analysis_type=ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS
+    #     )
+    #     self.bottleneck_dialog.exec_()
 
     def _load_json(self) -> Dict[Any, Any]:
         dialog = QFileDialog(self)

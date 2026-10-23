@@ -1,5 +1,4 @@
 """The cnapy clipboard calculator dialog"""
-from tkinter.tix import X_REGION
 from qtpy.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout, QLabel,
                             QLineEdit, QMessageBox, QPushButton, QRadioButton,
                             QVBoxLayout)
@@ -58,7 +57,7 @@ class BoxPositionDialog(QDialog):
             msgBox = QMessageBox()
             msgBox.setWindowTitle("X position error")
             msgBox.setText("The X value you typed in is no valid number, hence, the new box position could not be set.")
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
             return
 
@@ -68,7 +67,7 @@ class BoxPositionDialog(QDialog):
             msgBox = QMessageBox()
             msgBox.setWindowTitle("Y position error")
             msgBox.setText("The Y value you typed in is no valid number, hence, the new box position could not be set.")
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.exec()
             return
 

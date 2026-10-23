@@ -78,5 +78,5 @@ class DownloadDialog(QDialog):
         msgBox.setText(
             "Projects were downloaded successfully in the working directory."
         )
-        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setIcon(QMessageBox.Icon.Information)
         msgBox.exec()

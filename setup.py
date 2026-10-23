@@ -24,5 +24,6 @@ setup(
     packages=['cnapy', 'cnapy.gui_elements'],
     package_dir={'cnapy': 'cnapy'},
     package_data={'cnapy': [
-        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js']}
+        'data/*.svg', 'data/escher_cnapy.html', 'data/escher.min.js',
+        'data/scenario_template.xlsx']}
 )

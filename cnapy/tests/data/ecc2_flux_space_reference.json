@@ -1,0 +1,191 @@
+{
+  "source_sbml_sha256": "f4dec01e6ce6fa175a15da4491ecfa172e1d02ad1d946d27c38683c5ab2facf5",
+  "straindesign_version": "1.19.1",
+  "straindesign_solver": "glpk",
+  "constraints": "EX_o2_e = 0",
+  "points": 12,
+  "cases": {
+    "2d_rr": {
+      "axes": [
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        "1.0 EX_etoh_e"
+      ],
+      "bbox": [
+        [
+          0.0,
+          0.28858945
+        ],
+        [
+          0.0,
+          20.0
+        ]
+      ],
+      "area": 4.468193839749935
+    },
+    "2d_ry": {
+      "axes": [
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        [
+          "1.0 EX_etoh_e",
+          "-1.0 EX_glc_e"
+        ]
+      ],
+      "bbox": [
+        [
+          0.0,
+          0.28858944
+        ],
+        [
+          -0.0,
+          2.0
+        ]
+      ]
+    },
+    "2d_yy": {
+      "axes": [
+        [
+          "1.0 EX_etoh_e",
+          "-1.0 EX_glc_e"
+        ],
+        [
+          "1.0 EX_succ_e",
+          "-1.0 EX_glc_e"
+        ]
+      ],
+      "bbox": [
+        [
+          -0.0,
+          2.0
+        ],
+        [
+          -0.0,
+          1.689523809
+        ]
+      ]
+    },
+    "3d_rrr": {
+      "axes": [
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        "1.0 EX_etoh_e",
+        "1.0 EX_succ_e"
+      ],
+      "bbox": [
+        [
+          0.0,
+          0.28858945
+        ],
+        [
+          0.0,
+          20.0
+        ],
+        [
+          0.0,
+          16.895238096
+        ]
+      ],
+      "hull_volume": 28.51061728702626
+    },
+    "3d_rry": {
+      "axes": [
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        "1.0 EX_etoh_e",
+        [
+          "1.0 EX_succ_e",
+          "-1.0 EX_glc_e"
+        ]
+      ],
+      "bbox": [
+        [
+          0.0,
+          0.28858945
+        ],
+        [
+          0.0,
+          20.0
+        ],
+        [
+          0.0,
+          1.6895238
+        ]
+      ]
+    },
+    "3d_yrr": {
+      "axes": [
+        [
+          "1.0 EX_succ_e",
+          "-1.0 EX_glc_e"
+        ],
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        "1.0 EX_etoh_e"
+      ],
+      "bbox": [
+        [
+          0.0,
+          1.6895238
+        ],
+        [
+          0.0,
+          0.28858945
+        ],
+        [
+          0.0,
+          20.0
+        ]
+      ]
+    },
+    "3d_ryy": {
+      "axes": [
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        [
+          "1.0 EX_etoh_e",
+          "-1.0 EX_glc_e"
+        ],
+        [
+          "1.0 EX_succ_e",
+          "-1.0 EX_glc_e"
+        ]
+      ],
+      "bbox": [
+        [
+          0.0,
+          0.28858944
+        ],
+        [
+          0.0,
+          2.0
+        ],
+        [
+          0.0,
+          1.689523809
+        ]
+      ]
+    },
+    "3d_yry": {
+      "axes": [
+        [
+          "1.0 EX_etoh_e",
+          "-1.0 EX_glc_e"
+        ],
+        "1.0 Ec_biomass_iJO1366_core_53p95M",
+        [
+          "1.0 EX_succ_e",
+          "-1.0 EX_glc_e"
+        ]
+      ],
+      "bbox": [
+        [
+          0.0,
+          2.0
+        ],
+        [
+          0.0,
+          0.282342041
+        ],
+        [
+          0.0,
+          1.689523809
+        ]
+      ]
+    }
+  }
+}

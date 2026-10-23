@@ -40,10 +40,10 @@ class MCSDialog(QDialog):
         self.target_list = QTableWidget(1, 4)
         self.target_list.setHorizontalHeaderLabels(
             ["region no.", "T", "≥/≤", "t"])
-        self.target_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.target_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.target_list.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.target_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.target_list.horizontalHeader().resizeSection(0, 75)
-        self.target_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.target_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.target_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.target_list.setCellWidget(0, 0, item)
@@ -75,10 +75,10 @@ class MCSDialog(QDialog):
         self.desired_list = QTableWidget(1, 4)
         self.desired_list.setHorizontalHeaderLabels(
             ["region no.", "D", "≥/≤", "d"])
-        self.desired_list.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.desired_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.desired_list.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.desired_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.desired_list.horizontalHeader().resizeSection(0, 75)
-        self.desired_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.desired_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.desired_list.horizontalHeader().resizeSection(2, 50)
         item = QLineEdit("1")
         self.desired_list.setCellWidget(0, 0, item)
@@ -295,22 +295,13 @@ class MCSDialog(QDialog):
             enum_method = 4
 
         with self.appdata.project.cobra_py_model as model:
-            update_stoichiometry_hash = False
             if self.consider_scenario.isChecked():  # integrate scenario into model bounds
                 self.appdata.project.load_scenario_into_model(model)
-                if len(self.appdata.project.scen_values) > 0:
-                    update_stoichiometry_hash = True
             for r in model.reactions:  # make all reactions bounded for COBRApy FVA
                 if r.lower_bound == -float('inf'):
                     r.lower_bound = cobra.Configuration().lower_bound
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
                 if r.upper_bound == float('inf'):
                     r.upper_bound = cobra.Configuration().upper_bound
-                    r.set_hash_value()
-                    update_stoichiometry_hash = True
-            if self.appdata.use_results_cache and update_stoichiometry_hash:
-                model.set_stoichiometry_hash_object()
             reac_id = model.reactions.list_attr("id")
             reac_id_symbols = mcs_computation.get_reac_id_symbols(reac_id)
             rows = self.target_list.rowCount()
@@ -379,7 +370,7 @@ class MCSDialog(QDialog):
                     )
                     return
 
-            self.setCursor(Qt.BusyCursor)
+            self.setCursor(Qt.CursorShape.BusyCursor)
             try:
                 mcs, err_val = mcs_computation.compute_mcs(model,
                                 targets=targets, desired=desired, enum_method=enum_method,
@@ -399,7 +390,7 @@ class MCSDialog(QDialog):
                 utils.show_unknown_error_box(exstr)
                 return targets, desired
             finally:
-                self.setCursor(Qt.ArrowCursor)
+                self.setCursor(Qt.CursorShape.ArrowCursor)
 
         print(err_val)
         if err_val == 1:

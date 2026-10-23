@@ -12,6 +12,10 @@ def format_scenario_constraint(constraint):
 
 
 def update_selected(string: str, with_annotations: bool, model_elements, element_list):
+    ''' element_list is expected to be a QTableWidget whose column 0 holds the
+    element's id in each row. '''
+    row_count = element_list.rowCount()
+    element_list.setUpdatesEnabled(False)
     if len(string) >= 2:
         regex = re.compile(".*".join(map(re.escape, string.split("*"))), re.IGNORECASE)
         found_ids = []
@@ -20,25 +24,20 @@ def update_selected(string: str, with_annotations: bool, model_elements, element
                 (any(regex.search(x) for x in el.annotation.keys()) or any(regex.search(str(x)) for x in el.annotation.values()))):
                 found_ids.append(el.id)
 
-        root = element_list.invisibleRootItem()
-        child_count = root.childCount()
-        for i in range(child_count):
-            item = root.child(i)
-            item.setHidden(True)
-
-        for found_id in found_ids:
-            for item in element_list.findItems(found_id, Qt.MatchExactly, 0):
-                item.setHidden(False)
+        found_id_set = set(found_ids)
+        for row in range(row_count):
+            id_item = element_list.item(row, 0)
+            is_found = id_item is not None and id_item.text() in found_id_set
+            element_list.setRowHidden(row, not is_found)
     else:
         found_ids = [x.id for x in model_elements]
-        root = element_list.invisibleRootItem()
-        for child_counter in range(root.childCount()):
-             root.child(child_counter).setHidden(False)
+        for row in range(row_count):
+            element_list.setRowHidden(row, False)
 
     current_item = element_list.currentItem()
-    if current_item is not None and not current_item.isHidden():
+    if current_item is not None and not element_list.isRowHidden(current_item.row()):
         element_list.scrollToItem(current_item)
-
+    element_list.setUpdatesEnabled(True)
     return found_ids
 
 
@@ -62,21 +61,21 @@ def FONT_COLOR(HEX):  # string that defines style sheet for changing the color o
 def show_unknown_error_box(exstr):
     msgBox = QMessageBox()
     msgBox.setWindowTitle("Unknown Error!")
-    msgBox.setTextFormat(Qt.RichText)
+    msgBox.setTextFormat(Qt.TextFormat.RichText)
 
     msgBox.setText(
         f"<p>{exstr}</p><p><b> Please report the problem to:</b></p>"+\
         "<p><a href='https://github.com/cnapy-org/CNApy/issues'>"+\
         "https://github.com/cnapy-org/CNApy/issues</a></p>"
     )
-    msgBox.setIcon(QMessageBox.Warning)
+    msgBox.setIcon(QMessageBox.Icon.Warning)
     msgBox.exec()
 
 
 def turn_red(item):
     palette = item.palette()
     role = item.foregroundRole()
-    palette.setColor(role, Qt.black)
+    palette.setColor(role, Qt.GlobalColor.black)
     item.setPalette(palette)
 
     item.setStyleSheet("background: #ff9999")
@@ -129,7 +128,7 @@ class QComplReceivLineEdit(QLineEdit):
     def __init__(self, parent, wordlist, is_in_dark_mode: bool = False, check=True, is_constr=False, reject_empty_string=True):
         super().__init__("", parent)
         self.completer: QCompleter = QCompleter()
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         if isinstance(wordlist, IDList):
             self.wordlist: list = wordlist.id_list
             self.completer.setModel(wordlist.ids_model)
@@ -228,7 +227,7 @@ class QTableCopyable(QTableWidget):
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
-        if event.key() == Qt.Key_C and (event.modifiers() & Qt.ControlModifier):
+        if event.key() == Qt.Key.Key_C and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             copied_cells = sorted(self.selectedIndexes())
             copy_text = ''
             max_column = copied_cells[-1].column()
@@ -249,23 +248,23 @@ class QTableItem(QTableWidgetItem):
     def setEditable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsEditable)
+            self.setFlags(f | Qt.ItemFlag.ItemIsEditable)
         else:
-            self.setFlags(f & ~Qt.ItemIsEditable)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsEditable)
 
     def setSelectable(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsSelectable)
+            self.setFlags(f | Qt.ItemFlag.ItemIsSelectable)
         else:
-            self.setFlags(f & ~Qt.ItemIsSelectable)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsSelectable)
 
     def setEnabled(self, b):
         f = self.flags()
         if b:
-            self.setFlags(f | Qt.ItemIsEnabled)
+            self.setFlags(f | Qt.ItemFlag.ItemIsEnabled)
         else:
-            self.setFlags(f & ~Qt.ItemIsEnabled)
+            self.setFlags(f & ~Qt.ItemFlag.ItemIsEnabled)
 
 
 class QHSeperationLine(QFrame):
@@ -277,9 +276,9 @@ class QHSeperationLine(QFrame):
         super().__init__()
         self.setMinimumWidth(1)
         self.setFixedHeight(20)
-        self.setFrameShape(QFrame.HLine)
-        self.setFrameShadow(QFrame.Sunken)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setFrameShape(QFrame.Shape.HLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         return
 
 
@@ -292,7 +291,7 @@ class QVSeperationLine(QFrame):
         super().__init__()
         self.setFixedWidth(20)
         self.setMinimumHeight(1)
-        self.setFrameShape(QFrame.VLine)
-        self.setFrameShadow(QFrame.Sunken)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        self.setFrameShape(QFrame.Shape.VLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         return

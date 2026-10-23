@@ -13,7 +13,7 @@ def except_likely_community_model_error() -> None:
     msgBox = QMessageBox()
     msgBox.setWindowTitle("Error")
     msgBox.setText(community_error_text)
-    msgBox.setIcon(QMessageBox.Warning)
+    msgBox.setIcon(QMessageBox.Icon.Warning)
     msgBox.exec()
 
 
@@ -30,8 +30,10 @@ def has_community_error_substring(string: str) -> bool:
 def model_optimization_with_exceptions(model: cobra.Model) -> None:
     try:
         return model.optimize()
-    except Exception:
+    except:
         exstr = get_last_exception_string()
         # Check for substrings of Gurobi and CPLEX community edition errors
         if has_community_error_substring(exstr):
             except_likely_community_model_error()
+        else:
+            raise
