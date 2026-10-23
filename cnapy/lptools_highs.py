@@ -247,7 +247,14 @@ def _plot_flux_space_data_highs(model, axes, **kwargs) -> dict:
     ax_limits = [(math.nan, math.nan) for _ in range(num_axes)]
     for i, ax in enumerate(axes):
         v_min, v_max = _axis_limits(bundle, ax_type[i], ax)
-        val_limits[i] = [_ceil_dec(v_min, 8), _floor_dec(v_max, 8)]
+        lo, hi = _ceil_dec(v_min, 8), _floor_dec(v_max, 8)
+        if lo > hi:
+            # range narrower than the 1e-8 rounding grid, i.e. a fixed axis: rounding
+            # inward would invert it by 1e-8, which _detect_degeneracy's 1e-8 * max(1, |v|)
+            # threshold misses for |v| < 1 depending on float noise (lptools.py has the
+            # same issue), so pin it to the solver's own value instead
+            lo = hi = (v_min + v_max) / 2
+        val_limits[i] = [lo, hi]
         ax_limits[i] = [min(0, val_limits[i][0]), max(0, val_limits[i][1])]
         if ax_limits[i][0] == ax_limits[i][1]:
             pad = max(0.5, abs(ax_limits[i][0]) * 0.1)

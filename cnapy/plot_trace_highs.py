@@ -962,7 +962,9 @@ def _grid_x_slice(ax0: GridAxis, ax1: GridAxis, ax2: GridAxis, x_val: float,
     if abs(y_hi - y_lo) < 1e-10:
         y_space = [y_lo]
     else:
-        n_pts = max(3, int(points * abs(y_hi - y_lo) / y_range_global))
+        # small slack so solver noise in y_hi - y_lo (e.g. 1.999999999999999
+        # for a full-width slice) can't truncate the count one point short
+        n_pts = max(3, int(points * abs(y_hi - y_lo) / y_range_global + 1e-6))
         n_pts = min(n_pts, points)
         y_space = [y_lo + (y_hi - y_lo) * i / (n_pts - 1) for i in range(n_pts)] if n_pts > 1 else [y_lo]
 

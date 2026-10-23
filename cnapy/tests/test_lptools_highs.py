@@ -122,6 +122,29 @@ class Test3D(unittest.TestCase):
         area = pth.polygon_area(pts_2d)
         self.assertAlmostEqual(area, 68.0, places=3)
 
+    def test_degenerate_axis_below_one_detected(self):
+        # Rounding a fixed |v| < 1 inward to 8 decimals inverts its limits by
+        # 1e-8 (0.84743374 > 0.84743373), and the degeneracy check then
+        # depended on float noise: this value used to be classified "full",
+        # so the all-rate tracer returned 3 points and no triangles (empty plot).
+        v = 0.8474337369372327
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", v, v)])
+        data = lh.plot_flux_space_data_highs(model, ["X", "Y", "Z"], constraints="X + Y <= 12")
+        self.assertEqual(data["degen"], "plane")
+        self.assertEqual(data["degen_axes"], [False, False, True])
+        self.assertEqual(data["val_limits"][2], [v, v])
+        for p in data["datapoints"]:
+            self.assertAlmostEqual(p[2], v, places=9)
+        self.assertAlmostEqual(pth.polygon_area([(p[0], p[1]) for p in data["datapoints"]]),
+                               68.0, places=3)
+        # same for a fixed yield axis and in 2D
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", v, v), ("S", 1.0, 1.0)])
+        data = lh.plot_flux_space_data_highs(model, ["X", "Y", ["Z", "S"]], constraints="X + Y <= 12")
+        self.assertEqual(data["degen"], "plane")
+        data = lh.plot_flux_space_data_highs(model, [["Z", "S"], "X"])
+        self.assertEqual(data["degen"], "line")
+        self.assertEqual(data["degen_axes"], [True, False])
+
     def test_full_1yield_structural(self):
         # X, Y rate; yield = P/S as the third (sliced) axis
         model = FakeModel([
@@ -172,12 +195,19 @@ class Test3D(unittest.TestCase):
         # all three axes yields over the same constant denominator: also
         # exercises axis 0 being a yield, i.e. its pin going through
         # fix_yield_axis (X - x*S = 0) rather than a plain rate pin.
+        # Explicit worker counts: with 2 or 3 workers a cloned solver once
+        # returned a full-width y range a hair short of 2.0, which truncated
+        # that slice's point count and missed the cut-cube vertices.
         model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
-        data = lh.plot_flux_space_data_highs(
-            model, [["X", "S"], ["Y", "S"], ["Z", "S"]], constraints="X + Y + Z <= 25", points=9)
-        self.assertEqual(data["ax_type"], ["yield", "yield", "yield"])
-        self.assertAlmostEqual(self._hull_volume(data["datapoints"]),
-                               self.CUT_CUBE_VOLUME / 125.0, places=3)
+        for w in (1, 2, 3, 4):
+            with self.subTest(n_workers=w):
+                data = lh.plot_flux_space_data_highs(
+                    model, [["X", "S"], ["Y", "S"], ["Z", "S"]], constraints="X + Y + Z <= 25",
+                    points=9, n_workers=w)
+                self.assertEqual(data["ax_type"], ["yield", "yield", "yield"])
+                self.assertEqual(len(data["datapoints"]), 2 * 9 * 9)
+                self.assertAlmostEqual(self._hull_volume(data["datapoints"]),
+                                       self.CUT_CUBE_VOLUME / 125.0, places=3)
 
     # --- threading: n_workers must not change the result -----------------
     def test_grid_path_threaded_matches_sequential(self):
