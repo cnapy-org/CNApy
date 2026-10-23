@@ -23,8 +23,9 @@ import unittest
 
 import scipy.sparse as sp
 
-import highs_lp_cache as hlc
-import plot_trace_highs as pth
+
+from cnapy import highs_lp_cache as hlc
+from cnapy import plot_trace_highs as pth
 
 REACTION_IDS = ["X", "P", "S"]
 RXN_INDEX = {"X": 0, "P": 1, "S": 2}
@@ -133,6 +134,40 @@ class TestBoundaryAdaptive(unittest.TestCase):
             expected = check_ax1.optimize("maximize")
             self.assertIsNotNone(expected, msg=f"reference solve infeasible at x={x}")
             self.assertAlmostEqual(y, expected, places=4, msg=f"upper at x={x}")
+
+
+    def test_repeated_calls_on_same_solvers_give_identical_results(self):
+        # Regression test for a real bug found via real-model benchmarking:
+        # calling trace_boundary_adaptive() more than once on the *same*
+        # rate_solver/axis objects (e.g. benchmarking with several
+        # repeats, or any caller that reuses solvers across multiple
+        # traces) used to silently inherit whatever fix-row value the
+        # previous call's deepest refinement probe left behind, since
+        # nothing reset it at the start of the next call -- constraining
+        # x_min/x_max to something wrong from the very first step of
+        # every call after the first. trace_boundary_adaptive now clears
+        # its own fix state up front specifically to rule this out.
+        rate_solver, yield_solver = build_solvers(with_budget_constraint=True)
+        ax0 = pth.RateAxis(rate_solver, {"X": 1.0})
+        ax1 = pth.YieldAxis(rate_solver, yield_solver, num={"P": 1.0}, den={"S": 1.0})
+
+        results = [pth.trace_boundary_adaptive(rate_solver, ax0, ax1) for _ in range(4)]
+        first = results[0]
+        for i, (upper, lower) in enumerate(results[1:], start=1):
+            self.assertEqual(len(upper), len(first[0]), msg=f"run {i}: upper point count changed")
+            self.assertEqual(len(lower), len(first[1]), msg=f"run {i}: lower point count changed")
+            for (x0, y0), (x1, y1) in zip(sorted(upper), sorted(first[0])):
+                self.assertAlmostEqual(x0, x1, places=6, msg=f"run {i}")
+                self.assertAlmostEqual(y0, y1, places=6, msg=f"run {i}")
+
+
+    def test_mismatched_solver_raises(self):
+        rate_solver, yield_solver = build_solvers(with_budget_constraint=True)
+        other_rate_solver, _ = build_solvers(with_budget_constraint=True)  # a different instance
+        ax0 = pth.RateAxis(other_rate_solver, {"X": 1.0})  # built against the WRONG solver
+        ax1 = pth.YieldAxis(rate_solver, yield_solver, num={"P": 1.0}, den={"S": 1.0})
+        with self.assertRaises(ValueError):
+            pth.trace_boundary_adaptive(rate_solver, ax0, ax1)
 
 
 if __name__ == "__main__":

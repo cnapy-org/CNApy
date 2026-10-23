@@ -35,7 +35,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy
 
-from cnapy.highs_lp_cache import HighsRateSolver, HighsYieldSolver
+from cnapy.highs_lp_cache import HighsRateSolver, HighsYieldSolver, worker_pool
 
 
 def _project(status: str, fluxes: Optional[Dict[str, float]],
@@ -147,7 +147,6 @@ def trace_polygon_rate_rate_parallel(lp, reaction_ids: List[str], rxn_index: Dic
     HighsRateSolver from it the first time that thread is used, and
     reuses it for the rest of the trace (so warm-starting still applies
     within a thread's own sequence of solves, just not across threads)."""
-    import concurrent.futures as cf
 
     thread_local = th.local()
 
@@ -162,7 +161,7 @@ def trace_polygon_rate_rate_parallel(lp, reaction_ids: List[str], rxn_index: Dic
         status, _, fluxes = get_solver().optimize(obj, sense)
         return _project(status, fluxes, ax0, ax1)
 
-    with cf.ThreadPoolExecutor(max_workers=n_workers) as ex:
+    with worker_pool(n_workers) as ex:
         extremes = list(ex.map(
             lambda args: opt(*args),
             [(ax0, "maximize"), (ax0, "minimize"), (ax1, "maximize"), (ax1, "minimize")]))
@@ -296,7 +295,6 @@ def trace_3d_slice_polygon(lp, reaction_ids: List[str], rxn_index: Dict[str, int
     Returns [(value, polygon_vertices), ...], one entry per input value,
     in the same order as `values` (ex.map preserves input order).
     """
-    import concurrent.futures as cf
 
     if n_workers <= 1 or len(values) <= 1:
         return trace_3d_slice_polygon_sequential(lp, reaction_ids, rxn_index, fix_slot_rows,
@@ -316,7 +314,7 @@ def trace_3d_slice_polygon(lp, reaction_ids: List[str], rxn_index: Dict[str, int
         solver.set_fix_row(0, coeffs, rhs)
         return value, trace_polygon_rate_rate(solver, rate_ax0, rate_ax1)
 
-    with cf.ThreadPoolExecutor(max_workers=min(n_workers, len(values))) as ex:
+    with worker_pool(min(n_workers, len(values))) as ex:
         return list(ex.map(one_slice, values))
 
 
@@ -766,7 +764,6 @@ def trace_polytope_3d_rate_parallel(lp, reaction_ids: List[str], rxn_index: Dict
     full LP solve, the same reasoning that made 3D slicing pay off where
     refining edges *within* one 2D polygon didn't (too few, too cheap
     tasks per wave to amortize thread-pool overhead against)."""
-    import concurrent.futures as cf
 
     coeffs3 = (ax0, ax1, ax2)
     thread_local = th.local()
@@ -782,7 +779,7 @@ def trace_polytope_3d_rate_parallel(lp, reaction_ids: List[str], rxn_index: Dict
         status, _, fluxes = get_solver().optimize(obj, sense)
         return None if status != "optimal" else _project3(fluxes, coeffs3)
 
-    with cf.ThreadPoolExecutor(max_workers=n_workers) as ex:
+    with worker_pool(n_workers) as ex:
         extreme_args = [(coeffs, sense) for coeffs in coeffs3 for sense in ("maximize", "minimize")]
         vertices = []
         for pt in ex.map(lambda a: opt_point(*a), extreme_args):
@@ -1028,7 +1025,6 @@ def trace_grid_3d(ax0: GridAxis, ax1: GridAxis, ax2: GridAxis,
             a2.clear_fix(slot)
 
     if n_workers > 1 and make_axes is not None and len(x_space) > 1:
-        import concurrent.futures as cf
         thread_local = th.local()
 
         def scan(x_val):
@@ -1039,7 +1035,7 @@ def trace_grid_3d(ax0: GridAxis, ax1: GridAxis, ax2: GridAxis,
                 thread_local.axes = axs
             return _grid_x_slice(axs[0], axs[1], axs[2], x_val, points, y_range_global)
 
-        with cf.ThreadPoolExecutor(max_workers=min(n_workers, len(x_space))) as ex:
+        with worker_pool(min(n_workers, len(x_space))) as ex:
             results = list(ex.map(scan, x_space))
     else:
         reset(ax1, ax2)

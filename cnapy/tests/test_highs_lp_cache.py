@@ -10,7 +10,7 @@ Mass balance forces v0 = -v1 = -v2 = -v3 at every feasible point (not
 just the optimum), which makes hand-verifiable reference values easy to
 write down for both the rate and yield tests.
 
-Run: python3 test_highs_lp_cache.py
+Run: pytest tests/test_highs_lp_cache.py
 """
 
 import threading as th
@@ -19,7 +19,8 @@ import unittest
 import numpy as np
 import scipy.sparse as sp
 
-import highs_lp_cache as hlc
+
+from cnapy import highs_lp_cache as hlc
 
 
 REACTION_IDS = ["r0", "r1", "r2", "r3"]
@@ -201,6 +202,78 @@ class TestThreadIsolation(unittest.TestCase):
             self.assertAlmostEqual(value, -rhs, places=6)
         for rhs, value in results["B"]:
             self.assertAlmostEqual(value, -rhs, places=6)
+
+
+def in_fresh_thread(fn):
+    """fn() on a new plain thread, i.e. with a HiGHS scheduler that nothing
+    has created yet; re-raises fn's exception."""
+    out = {}
+
+    def run():
+        try:
+            out["value"] = fn()
+        except BaseException as e:
+            out["error"] = e
+
+    t = th.Thread(target=run)
+    t.start()
+    t.join()
+    if "error" in out:
+        raise out["error"]
+    return out.get("value")
+
+
+def default_threads_solve():
+    """A HiGHS solve with default options, as cobra/optlang and cnapy.core
+    run them: creates the calling thread's scheduler with the default size."""
+    import highspy
+    h = highspy.Highs()
+    h.setOptionValue("output_flag", False)
+    h.addVar(0.0, 1.0)
+    h.changeColCost(0, -1.0)
+    assert h.run() == highspy.HighsStatus.kOk
+
+
+def threads_option(h):
+    value = h.getOptionValue("threads")
+    return value[1] if isinstance(value, tuple) else value   # (status, value) in newer highspy
+
+
+class TestThreadScheduler(unittest.TestCase):
+    """HiGHS has one scheduler per OS thread, sized by the first run() on
+    it; a later run with a different explicit threads value fails (see
+    "HiGHS thread scheduler handling" in highs_lp_cache.py)."""
+
+    def _solver(self):
+        lp, fix_slot_rows = hlc._build_rate_lp_arrays(toy_S(), COL_LOWER, COL_UPPER)
+        return hlc.HighsRateSolver(lp, REACTION_IDS, RXN_INDEX, fix_slot_rows)
+
+    def test_solver_works_after_default_threads_solve_on_same_thread(self):
+        def scenario():
+            default_threads_solve()
+            return self._solver().optimize({"r3": 1.0}, "maximize")
+        status, value, _ = in_fresh_thread(scenario)
+        self.assertEqual(status, "optimal")
+        self.assertAlmostEqual(value, 10.0, places=6)
+
+    def test_threads_pinned_to_one_only_on_worker_pool_threads(self):
+        self.assertEqual(threads_option(self._solver().h), 0)
+        with hlc.worker_pool(2) as ex:
+            in_pool = list(ex.map(lambda _: threads_option(self._solver().h), range(4)))
+        self.assertEqual(in_pool, [1, 1, 1, 1])
+
+    def test_failed_run_raises_instead_of_returning_stale_solution(self):
+        import os
+
+        def scenario():
+            solver = self._solver()
+            status, _, _ = solver.optimize({"r3": 1.0}, "maximize")
+            self.assertEqual(status, "optimal")
+            # can't match the scheduler the first run created (half the cores)
+            solver.h.setOptionValue("threads", os.cpu_count() + 1)
+            with self.assertRaises(RuntimeError):
+                solver.optimize({"r3": 1.0}, "maximize")
+        in_fresh_thread(scenario)
 
 
 if __name__ == "__main__":

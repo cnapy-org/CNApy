@@ -1317,10 +1317,12 @@ class GraphAwareFVAWorker(th.Thread):
 
     def run(self):
         h = highspy.Highs()
+        h.setOptionValue("output_flag", False)
+        # a fresh thread per FVA call and serial (primal) simplex: no HiGHS worker threads needed
+        h.setOptionValue("threads", 1)
         h.passModel(self.lp_data)
         h.setOptionValue("solver", "simplex")
         h.setOptionValue("simplex_strategy", 4)
-        h.setOptionValue("output_flag", False)
         h.setOptionValue("kkt_tolerance", self.tolerance)
         h.changeObjectiveSense(highspy.ObjSense.kMinimize)
 

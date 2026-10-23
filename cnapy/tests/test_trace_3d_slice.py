@@ -14,8 +14,9 @@ import unittest
 
 import scipy.sparse as sp
 
-import highs_lp_cache as hlc
-import plot_trace_highs as pth
+
+from cnapy import highs_lp_cache as hlc
+from cnapy import plot_trace_highs as pth
 
 REACTION_IDS = ["X", "Y", "Z"]
 RXN_INDEX = {"X": 0, "Y": 1, "Z": 2}

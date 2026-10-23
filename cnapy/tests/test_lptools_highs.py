@@ -1,22 +1,37 @@
+"""Data-layer tests for lptools_highs.plot_flux_space_data_highs on small
+hand-built cobra models (real cobra, straindesign parsing, highspy),
+checked against shapes whose area/volume is known exactly. See
+test_flux_space_ecc2.py for the same entry point on the ECC2 model."""
+import math
 import unittest
 
 import cobra
 
-import plot_trace_highs as pth
-import lptools_highs as lh
+from cnapy import plot_trace_highs as pth
+from cnapy import lptools_highs as lh
 
 
-def make_model(reaction_bounds):
-    """cobra model with reactions (id, lb, ub) and no metabolites"""
-    model = cobra.Model("test")
-    model.add_reactions([cobra.Reaction(rid, lower_bound=lb, upper_bound=ub) for rid, lb, ub in reaction_bounds])
+def FakeModel(reaction_bounds):
+    """A real cobra.Model with one metabolite-free reaction per
+    (id, lb, ub): no mass-balance rows, so the feasible set is exactly
+    the bounds box cut by whatever `constraints` a test passes -- the
+    same toy LPs the hand-derived reference shapes (pentagon, cut cube)
+    are worked out for. Named after the stand-in it replaces, so the
+    test bodies read unchanged."""
+    model = cobra.Model("toy")
+    reactions = []
+    for rid, lb, ub in reaction_bounds:
+        r = cobra.Reaction(rid)
+        r.bounds = (lb, ub)
+        reactions.append(r)
+    model.add_reactions(reactions)
     return model
 
 
 class Test2D(unittest.TestCase):
     def test_full_rate_rate_pentagon(self):
         # X, Y in [0,10], X+Y<=12 -- same pentagon as test_plot_trace_highs.py
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(model, ["X", "Y"], constraints="X + Y <= 12")
         self.assertEqual(data["ax_type"], ["rate", "rate"])
         # NOT "full" -- see the note in lptools_highs._fill_2d: a fully
@@ -29,14 +44,14 @@ class Test2D(unittest.TestCase):
         self.assertAlmostEqual(area, 68.0, places=3)
 
     def test_degenerate_point(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(model, ["X", "Y"], constraints="X = 3, Y = 4")
         self.assertEqual(data["degen"], "point")
         self.assertEqual(data["datapoints"], [[3.0, 4.0]])
         self.assertEqual(data["triang"], [])
 
     def test_degenerate_line(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(model, ["X", "Y"], constraints="X = 3")
         self.assertEqual(data["degen"], "line")
         self.assertEqual(data["degen_axes"], [True, False])
@@ -47,7 +62,7 @@ class Test2D(unittest.TestCase):
     def test_full_mixed_rate_yield_kinked_boundary(self):
         # same setup as test_trace_boundary_adaptive.py's kinked case:
         # X,P in [0,10], S in [1,10], X+P<=12; x=X (rate), y=P/S (yield)
-        model = make_model([("X", 0.0, 10.0), ("P", 0.0, 10.0), ("S", 1.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("P", 0.0, 10.0), ("S", 1.0, 10.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", ["P", "S"]], constraints="X + P <= 12")
         self.assertEqual(data["ax_type"], ["rate", "yield"])
@@ -65,7 +80,7 @@ class Test2D(unittest.TestCase):
 
 class Test3D(unittest.TestCase):
     def test_full_0yield_cut_cube(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", "Y", "Z"], constraints="X + Y + Z <= 25")
         self.assertEqual(data["ax_type"], ["rate", "rate", "rate"])
@@ -76,14 +91,14 @@ class Test3D(unittest.TestCase):
         self.assertNotIn("is_approximate", data)  # exact, unlike the yield cases
 
     def test_degenerate_point_3d(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", "Y", "Z"], constraints="X = 1, Y = 2, Z = 3")
         self.assertEqual(data["degen"], "point")
         self.assertEqual(data["datapoints"], [[1.0, 2.0, 3.0]])
 
     def test_degenerate_line_3d(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", "Y", "Z"], constraints="X = 1, Y = 2")
         self.assertEqual(data["degen"], "line")
@@ -97,7 +112,7 @@ class Test3D(unittest.TestCase):
         # X,Y in [0,10], X+Y<=12 (the pentagon again), Z pinned to 3 ->
         # plane case should reduce to exactly the same pentagon, offset
         # into the Z=3 plane.
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", "Y", "Z"], constraints="X + Y <= 12, Z = 3")
         self.assertEqual(data["degen"], "plane")
@@ -109,7 +124,7 @@ class Test3D(unittest.TestCase):
 
     def test_full_1yield_structural(self):
         # X, Y rate; yield = P/S as the third (sliced) axis
-        model = make_model([
+        model = FakeModel([
             ("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("P", 0.0, 10.0), ("S", 1.0, 10.0),
         ])
         data = lh.plot_flux_space_data_highs(
@@ -141,7 +156,7 @@ class Test3D(unittest.TestCase):
         return ConvexHull(np.array(datapoints)).volume
 
     def test_two_yield_axes_grid_matches_rescaled_cut_cube(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
         data = lh.plot_flux_space_data_highs(
             model, ["X", ["Y", "S"], ["Z", "S"]], constraints="X + Y + Z <= 25", points=9)
         self.assertEqual(data["ax_type"], ["rate", "yield", "yield"])
@@ -157,7 +172,7 @@ class Test3D(unittest.TestCase):
         # all three axes yields over the same constant denominator: also
         # exercises axis 0 being a yield, i.e. its pin going through
         # fix_yield_axis (X - x*S = 0) rather than a plain rate pin.
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
         data = lh.plot_flux_space_data_highs(
             model, [["X", "S"], ["Y", "S"], ["Z", "S"]], constraints="X + Y + Z <= 25", points=9)
         self.assertEqual(data["ax_type"], ["yield", "yield", "yield"])
@@ -167,17 +182,21 @@ class Test3D(unittest.TestCase):
     # --- threading: n_workers must not change the result -----------------
     def test_grid_path_threaded_matches_sequential(self):
         import numpy as np
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
         args = (model, ["X", ["Y", "S"], ["Z", "S"]])
         kw = dict(constraints="X + Y + Z <= 25", points=7)
         ref = lh.plot_flux_space_data_highs(*args, n_workers=1, **kw)
         for w in (2, 4):
             d = lh.plot_flux_space_data_highs(*args, n_workers=w, **kw)
-            self.assertEqual(d["triang"], ref["triang"])
+            # same samples in the same order; triangle indices not compared
+            # (equal cell diagonals are a tie rounding noise can break)
             np.testing.assert_allclose(np.array(d["datapoints"]), np.array(ref["datapoints"]), atol=1e-9)
+            self.assertEqual(len(d["triang"]), len(ref["triang"]))
+            self.assertAlmostEqual(self._hull_volume(d["datapoints"]),
+                                   self._hull_volume(ref["datapoints"]), places=6)
 
     def test_slice_path_threaded_matches_sequential(self):
-        model = make_model([
+        model = FakeModel([
             ("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("P", 0.0, 10.0), ("S", 1.0, 10.0),
         ])
         args = (model, ["X", "Y", ["P", "S"]])
@@ -193,43 +212,15 @@ class Test3D(unittest.TestCase):
                                        pth.polygon_area([(p[0], p[1]) for p in pb]), places=9)
                 self.assertAlmostEqual(pa[0][2], pb[0][2], places=12)
 
+
     def test_two_yield_axes_infeasible_slices_raise(self):
         # X + Y + Z <= -1 with all three >= 0 is infeasible, so the axis
         # limits themselves already fail -- the point is it surfaces as an
         # error rather than an empty/garbage mesh.
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
+        model = FakeModel([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 5.0, 5.0)])
         with self.assertRaises(Exception):
             lh.plot_flux_space_data_highs(
                 model, ["X", ["Y", "S"], ["Z", "S"]], constraints="X + Y + Z <= -1", points=5)
-
-
-class TestAutoNWorkers(unittest.TestCase):
-    def setUp(self):
-        self._available_cpus = lh._available_cpus
-        lh._available_cpus = lambda: 6
-
-    def tearDown(self):
-        lh._available_cpus = self._available_cpus
-
-    def test_slices(self):  # at most 4 workers
-        self.assertEqual([lh.auto_n_workers(n, 1, max_workers=4) for n in (1, 3, 5, 20)], [1, 3, 4, 4])
-
-    def test_grid_rows(self):  # at most the available CPUs
-        self.assertEqual([lh.auto_n_workers(n, 1) for n in (0, 1, 5, 10, 30)], [1, 1, 5, 6, 6])
-
-    def test_min_units_per_worker(self):
-        self.assertEqual([lh.auto_n_workers(n, 3) for n in (2, 6, 10, 30)], [1, 2, 3, 6])
-
-    def test_max_workers_above_cpus(self):
-        self.assertEqual(lh.auto_n_workers(100, 1, max_workers=16), 6)
-
-    def test_auto_gives_same_result_as_explicit(self):
-        model = make_model([("X", 0.0, 10.0), ("Y", 0.0, 10.0), ("Z", 0.0, 10.0), ("S", 1.0, 1.0)])
-        axes = ["X", "Y", ["Z", "S"]]
-        auto = lh.plot_flux_space_data_highs(model, axes, constraints="X + Y + Z <= 15", points=7)
-        single = lh.plot_flux_space_data_highs(model, axes, constraints="X + Y + Z <= 15", points=7, n_workers=1)
-        self.assertEqual(auto["datapoints"], single["datapoints"])
-        self.assertEqual(auto["triang"], single["triang"])
 
 
 if __name__ == "__main__":

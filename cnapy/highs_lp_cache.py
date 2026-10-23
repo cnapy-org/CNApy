@@ -56,11 +56,61 @@ HighsLp, exactly like GraphAwareFVAWorker builds its own `h` from the
 shared `lp_data`.
 """
 
+import concurrent.futures as cf
 import math
+import threading as th
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy
 import scipy.sparse as sp
+
+
+# ---------------------------------------------------------------------------
+# HiGHS thread scheduler handling
+# ---------------------------------------------------------------------------
+# HiGHS keeps one task scheduler per OS thread. The first run() on a thread
+# creates it, sized by that run's `threads` option (default 0 = half the
+# cores), and it is never resized: later runs on the same thread must use
+# threads=0 or exactly that size, otherwise run() returns kError. A thread
+# whose scheduler was created with threads=1 therefore also stays
+# single-threaded for everything that runs there later (e.g. a MILP).
+#
+# So solvers built here only pin threads=1 on threads started by
+# worker_pool() (fresh, so nothing else has touched their scheduler, and
+# all parallelism comes from the pool). Anywhere else they keep the default
+# and fit whatever scheduler the calling thread already has.
+
+_thread_state = th.local()
+
+
+def _mark_worker_thread():
+    _thread_state.is_worker = True
+
+
+def worker_pool(n_workers: int) -> cf.ThreadPoolExecutor:
+    """ThreadPoolExecutor whose threads build their HiGHS solvers with
+    threads=1 (see the comment above)."""
+    return cf.ThreadPoolExecutor(max_workers=n_workers, initializer=_mark_worker_thread)
+
+
+def _configure_highs(h):
+    """Silent logging, and threads=1 on worker_pool threads only. Must be
+    called before passModel() so that no log output is produced."""
+    h.setOptionValue("output_flag", False)
+    h.setOptionValue("log_to_console", False)
+    if getattr(_thread_state, "is_worker", False):
+        h.setOptionValue("threads", 1)
+
+
+def _run_checked(h):
+    """h.run(), raising on a failed run: after a kError run (e.g. a threads
+    mismatch, see above) a reused instance still reports the model status
+    of its previous solve, which would otherwise be read as a valid result."""
+    import highspy
+    status = h.run()
+    if status not in (highspy.HighsStatus.kOk, highspy.HighsStatus.kWarning):
+        raise RuntimeError(f"HiGHS run() failed with {status} "
+                           f"(model status: {h.modelStatusToString(h.getModelStatus())})")
 
 
 # ---------------------------------------------------------------------------
@@ -171,17 +221,9 @@ class HighsRateSolver:
         self.rxn_index = rxn_index
         self.fix_slot_rows = fix_slot_rows
         self.h = highspy.Highs()
-        self.h.setOptionValue("output_flag", False)
-        self.h.setOptionValue("log_to_console", False)
-        # HiGHS defaults threads=0 ("use half the available cores" *inside*
-        # this one Highs() instance). Left at that default, N worker
-        # threads each running their own internal thread pool oversubscribes
-        # badly -- pin every instance to 1 so all parallelism comes from the
-        # outer Python threads. Per HiGHS's own docs, concurrent Highs
-        # instances sharing a process must agree on this value (it's backed
-        # by a static scheduler), so this needs to be set the same way
-        # everywhere Highs() is constructed, not just here.
-        self.h.setOptionValue("threads", 1)
+        # threads=1 only on worker_pool threads, see "HiGHS thread scheduler
+        # handling" at the top of this module
+        _configure_highs(self.h)
         self.h.passModel(lp)
         self._active_cost_cols: set = set()
         self._fix_support: Dict[int, Dict[int, float]] = {}
@@ -198,7 +240,7 @@ class HighsRateSolver:
             h.changeColCost(c, coeff)
             self._active_cost_cols.add(c)
         h.changeObjectiveSense(hp.ObjSense.kMaximize if sense == 'maximize' else hp.ObjSense.kMinimize)
-        h.run()
+        _run_checked(h)
         status = h.getModelStatus()
         if status == hp.HighsModelStatus.kOptimal:
             x = numpy.asarray(h.getSolution().col_value)
@@ -370,9 +412,7 @@ class HighsYieldSolver:
         self.fix_slot_rows = fix_slot_rows
         self.denominator_tol = denominator_tol
         self.h = highspy.Highs()
-        self.h.setOptionValue("output_flag", False)
-        self.h.setOptionValue("log_to_console", False)
-        self.h.setOptionValue("threads", 1)  # see HighsRateSolver.__init__ for why
+        _configure_highs(self.h)  # see HighsRateSolver.__init__
         self.h.passModel(lp)
         self._active_num_cols: set = set()
         self._fix_support: Dict[int, Dict[int, float]] = {}
@@ -389,7 +429,7 @@ class HighsYieldSolver:
             self._active_num_cols.add(c)
         h.changeRowBounds(self.den_row, denominator_sign, denominator_sign)
         h.changeObjectiveSense(hp.ObjSense.kMaximize if sense == 'maximize' else hp.ObjSense.kMinimize)
-        h.run()
+        _run_checked(h)
         status = h.getModelStatus()
         if status == hp.HighsModelStatus.kOptimal:
             x = numpy.asarray(h.getSolution().col_value)

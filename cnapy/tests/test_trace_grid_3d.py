@@ -21,17 +21,15 @@ x-slice after the first to a single point. These tests are written to
 fail on exactly that.)
 """
 
-import sys
 import unittest
 
 import numpy as np
 import scipy.sparse as sp
 from scipy.spatial import ConvexHull
 
-import highspy
 
-import highs_lp_cache as hlc
-import plot_trace_highs as pth
+from cnapy import highs_lp_cache as hlc
+from cnapy import plot_trace_highs as pth
 
 REACTION_IDS = ["X", "Y", "Z", "S"]
 RXN_INDEX = {"X": 0, "Y": 1, "Z": 2, "S": 3}
@@ -153,10 +151,11 @@ class TestGrid3DWithYields(unittest.TestCase):
             pth.trace_grid_3d(ax0, ax1, ax2, (0.0, 10.0), 2.0, points=5)
 
 
+
 class TestGridThreaded(unittest.TestCase):
     """Threaded scan (n_workers > 1 with a make_axes factory giving each
-    worker thread its own solvers) must give exactly the sequential
-    result, x order included."""
+    worker thread its own solvers) must give the sequential result, x
+    order included."""
 
     def _check(self, factory, y_range, points):
         ax0, ax1, ax2 = factory()
@@ -171,8 +170,12 @@ class TestGridThreaded(unittest.TestCase):
             ax0, ax1, ax2 = factory()
             par = pth.trace_grid_3d(ax0, ax1, ax2, (0.0, 10.0), y_range, points=points,
                                     n_workers=w, make_axes=make_axes)
-            self.assertEqual(par[1], seq[1])
+            # samples identical and in the same order; triangle indices
+            # aren't compared (equal-length cell diagonals are a tie that
+            # rounding noise can break either way), the hull volume is
             np.testing.assert_allclose(np.array(par[0]), np.array(seq[0]), atol=1e-9)
+            self.assertEqual(len(par[1]), len(seq[1]))
+            self.assertAlmostEqual(_hull_volume(par[0]), _hull_volume(seq[0]), places=6)
         self.assertTrue(made)          # the factory was really used
 
     def test_rate_axes(self):
@@ -187,7 +190,6 @@ class TestGridThreaded(unittest.TestCase):
         ax0, ax1, ax2 = _rate_only_axes()
         par = pth.trace_grid_3d(ax0, ax1, ax2, (0.0, 10.0), 10.0, points=5, n_workers=4)
         self.assertEqual(par, seq)
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

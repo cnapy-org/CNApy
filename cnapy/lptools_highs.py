@@ -36,7 +36,7 @@ import math
 import os
 from typing import Dict, List, Optional, Tuple
 
-from cnapy.highs_lp_cache import build_rate_lp, build_yopt_lp, HighsRateSolver, HighsYieldSolver
+from cnapy.highs_lp_cache import build_rate_lp, build_yopt_lp, HighsRateSolver, HighsYieldSolver, worker_pool
 from cnapy.plot_trace_highs import (
     RateAxis, YieldAxis, fix_rate_axis, fix_yield_axis,
     trace_polygon_rate_rate, trace_polygon_rate_rate_parallel,
@@ -197,6 +197,14 @@ def plot_flux_space_data_highs(model, axes, **kwargs) -> dict:
     val_limits, ax_type, num_axes, degen, degen_axes, datapoints, triang,
     face_polys, slice_outlines, show, cmap.
     """
+    # All solves run on fresh worker_pool threads, so that this never
+    # touches the HiGHS scheduler of the calling (e.g. GUI) thread; see
+    # "HiGHS thread scheduler handling" in highs_lp_cache.py.
+    with worker_pool(1) as ex:
+        return ex.submit(_plot_flux_space_data_highs, model, axes, **kwargs).result()
+
+
+def _plot_flux_space_data_highs(model, axes, **kwargs) -> dict:
     from straindesign import parse_linexpr, parse_constraints
     from straindesign.parse_constr import linexprdict2str
 
