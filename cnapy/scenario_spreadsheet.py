@@ -61,7 +61,7 @@ General rules
 - Sheets that you do not need can be left empty or deleted. This Help sheet is not read.
 - Bounds may be numbers or inf / -inf.
 
-Fluxes: scenario flux values of model reactions.
+Fluxes: scenario flux values of model reactions and of the reactions from the Reactions sheet.
 - Give lower and upper bound; if only one of them is given the flux is fixed to that value.
 - Pinned: x (or yes/true/1) pins the reaction to the top of the reaction list.
 - A row with a reaction ID, no bounds and a mark in Pinned only pins the reaction.

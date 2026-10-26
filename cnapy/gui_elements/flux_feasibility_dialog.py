@@ -202,6 +202,13 @@ class FluxFeasibilityDialog(QDialog):
             self.bm_constituents.setItem(i, 4, None)
             self.bm_constituents.setItem(i, 5, None)
 
+        # if the last scenario change comes from the previous computation undo it
+        # (before the checks below so that these are based on the restored scenario)
+        if self.last_scenario_change_from_previous_computation():
+            if self.bm_mod_reac_id in self.appdata.project.scen_values.reactions:
+                    self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
+            self.main_window.undo_scenario_edit()
+
         if self.flux_group.isChecked():
             if self.abs_flux_weights_button.isChecked():
                 abs_flux_weights = True
@@ -219,6 +226,11 @@ class FluxFeasibilityDialog(QDialog):
                 self.enable_biomass_equation_modifications(False)
                 return
             bm_reac_id = self.bm_reac_id
+            if "adjusted_" + bm_reac_id in self.appdata.project.scen_values.reactions:
+                QMessageBox.information(self, "Adjusted biomass reaction already in scenario",
+                    "The scenario already contains the adjusted biomass reaction adjusted_" + bm_reac_id +
+                    ".\nDelete it from the scenario reactions before adjusting the composition of " + bm_reac_id + " again.")
+                return
             self.bm_reac: cobra.Reaction = self.appdata.project.cobra_py_model.reactions.get_by_id(self.bm_reac_id)
 
             if self.adjust_bm_coeff.isChecked():
@@ -253,13 +265,6 @@ class FluxFeasibilityDialog(QDialog):
         else:
             bm_reac_id = ""
 
-        # if the last scenario change comes from the previous computation undo it
-        if self.appdata.current_scenario_index >= 0 and \
-                self.modified_scenario is self.appdata.scenario_history[self.appdata.current_scenario_index]:
-            if self.bm_mod_reac_id in self.appdata.project.scen_values.reactions:
-                    self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
-            self.main_window.undo_scenario_edit()
-
         QApplication.setOverrideCursor(Qt.BusyCursor)
         QApplication.processEvents()
         try:
@@ -271,6 +276,8 @@ class FluxFeasibilityDialog(QDialog):
             if self.appdata.project.solution.status == 'optimal':
                 self.main_window.process_fba_solution(update=False)
                 bm_is_modified = len(bm_mod) > 0 or gam_adjust != 0
+                add_bm_mod = bm_is_modified and self.bm_mod_scenario.isChecked()
+                scenario_changes = {} # reaction ID: new scenario value
                 if len(reactions_in_objective) > 0:
                     self.main_window.centralWidget().console._append_plain_text(
                         "\nThe fluxes of the following reactions were changed to make the scenario feasible:\n", before_prompt=True)
@@ -280,13 +287,7 @@ class FluxFeasibilityDialog(QDialog):
                         if abs(given_value - computed_value) > self.appdata.project.cobra_py_model.tolerance:
                             self.main_window.centralWidget().console._append_plain_text(r+": "+self.appdata.format_flux_value(given_value)
                                 +" --> "+self.appdata.format_flux_value(computed_value)+"\n", before_prompt=True)
-                    scenario_fluxes = [self.appdata.project.comp_values[r] for r in reactions_in_objective]
-                    if  bm_is_modified and self.bm_mod_scenario.isChecked():
-                        fixed_growth_rate = self.appdata.project.scen_values[bm_reac_id][0]
-                        self.appdata.scen_values_set_multiple(reactions_in_objective+[bm_reac_id], scenario_fluxes+[(0, 0)])
-                    else:
-                        self.appdata.scen_values_set_multiple(reactions_in_objective, scenario_fluxes)
-                    self.modified_scenario = self.appdata.scenario_history[self.appdata.current_scenario_index]
+                        scenario_changes[r] = self.appdata.project.comp_values[r]
                 if bm_is_modified:
                     bm_reac_mod = self.bm_reac.copy()
                     if len(bm_mod) > 0:
@@ -309,12 +310,23 @@ class FluxFeasibilityDialog(QDialog):
                     bm_reac_mod.add_metabolites({met: sign*gam_adjust for met, sign in zip(gam_mets, gam_mets_sign)})
                     self.main_window.centralWidget().console._append_plain_text("\nModified biomass reaction:\n"
                             +bm_reac_mod.build_reaction_string(), before_prompt=True)
-                    if self.bm_mod_scenario.isChecked():
-                        self.bm_mod_reac_id = "adjusted_" + bm_reac_id
-                        #self.appdata.record_current_scenario()
+                if add_bm_mod:
+                    # the adjusted biomass reaction replaces the original one which is switched off;
+                    # it gets the bounds of the original reaction and the fixed growth rate as scenario value
+                    fixed_growth_rate = self.appdata.project.scen_values[bm_reac_id][0]
+                    self.bm_mod_reac_id = "adjusted_" + bm_reac_id
+                    scenario_changes[bm_reac_id] = (0, 0)
+                    scenario_changes[self.bm_mod_reac_id] = (fixed_growth_rate, fixed_growth_rate)
+                if len(scenario_changes) > 0:
+                    # all scenario changes of this computation are recorded as one step so that they can be undone together
+                    self.appdata.scen_values_set_multiple(list(scenario_changes.keys()), list(scenario_changes.values()))
+                    if add_bm_mod:
                         self.appdata.project.scen_values.reactions[self.bm_mod_reac_id] = \
-                            [{met.id: coeff for met, coeff in bm_reac_mod.metabolites.items()}, fixed_growth_rate, fixed_growth_rate]
+                            [{met.id: coeff for met, coeff in bm_reac_mod.metabolites.items()},
+                             self.bm_reac.lower_bound, self.bm_reac.upper_bound]
+                        self.appdata.project.scen_values.set_hash_value()
                         self.main_window.centralWidget().tabs.widget(ModelTabIndex.Scenario).recreate_scenario_items_needed = True
+                    self.modified_scenario = self.appdata.scenario_history[self.appdata.current_scenario_index]
                 if self.bm_group.isChecked() and self.adjust_gam.isChecked():
                     self.gam_adjustment.setText("Calculated GAM adjustment: "+coefficient_format.format(gam_adjust))
             else:
@@ -367,11 +379,28 @@ class FluxFeasibilityDialog(QDialog):
         self.bm_constituents.resizeColumnToContents(0)
         self.bm_constituents.setSortingEnabled(True)
 
+    def last_scenario_change_from_previous_computation(self) -> bool:
+        # then compute() undoes this change before the next computation
+        return self.appdata.current_scenario_index >= 1 and \
+            self.modified_scenario is self.appdata.scenario_history[self.appdata.current_scenario_index]
+
     def growth_rate_fixed(self) -> bool:
         if self.bm_reac_id in self.appdata.project.cobra_py_model.reactions:
-            scen_val = self.appdata.project.scen_values.get(self.bm_reac_id, None)
+            if self.last_scenario_change_from_previous_computation():
+                # check the scenario on which the next computation will be based
+                scen_values = self.appdata.scenario_history[self.appdata.current_scenario_index - 1]
+            else:
+                scen_values = self.appdata.project.scen_values
+            scen_val = scen_values.get(self.bm_reac_id, None)
             if scen_val is not None and scen_val[0] == scen_val[1]:
-                return True
+                if scen_val[0] != 0:
+                    return True
+                text = "The growth rate of " + self.bm_reac_id + " is fixed to 0, adjustments to its composition require a non-zero growth rate."
+                if "adjusted_" + self.bm_reac_id in scen_values.reactions:
+                    text += "\nThe scenario contains the adjusted biomass reaction adjusted_" + self.bm_reac_id + \
+                            ", delete it from the scenario reactions and set the growth rate of " + self.bm_reac_id + \
+                            " again to adjust the biomass composition anew."
+                QMessageBox.information(self, "Growth rate fixed to 0", text)
             else:
                 QMessageBox.information(self, "Growth rate not fixed in current scenario",
                     "Adjustments to biomass composition are only possible if the growth rate is fixed.")
@@ -536,9 +565,11 @@ class FluxFeasibilityDialog(QDialog):
             val = self.appdata.project.comp_values.get(reaction.id, None)
             if val:
                 values[reaction.id] = val
-        val = self.appdata.project.comp_values.get(self.bm_reac_id, None)
-        if val:
-            values[self.bm_reac_id] = val
+        for reac_id in non_boundary_reactions + [self.bm_reac_id]:
+            # the bounds of the adjusted biomass reaction do not fix its flux, use its scenario value if there is no computed value
+            val = self.appdata.project.comp_values.get(reac_id, self.appdata.project.scen_values.get(reac_id, None))
+            if val:
+                values[reac_id] = val
         if len(values) > 0:
             print_to_console("All boundary fluxes" + biomass_text + ":")
             element_exchange_balance(self.appdata.project.cobra_py_model, values,

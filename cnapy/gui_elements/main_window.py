@@ -198,6 +198,12 @@ class MainWindow(QMainWindow):
         set_model_bounds_to_scenario_action.triggered.connect(
             self.set_model_bounds_to_scenario)
 
+        add_scenario_reactions_to_model_action = QAction(
+            "Add scenario reactions to model", self)
+        self.scenario_menu.addAction(add_scenario_reactions_to_model_action)
+        add_scenario_reactions_to_model_action.triggered.connect(
+            self.add_scenario_reactions_to_model)
+
         pin_scenario_reactions_action = QAction(
             "Pin all scenario reactions to top of reaction list", self)
         self.scenario_menu.addAction(pin_scenario_reactions_action)
@@ -1703,8 +1709,39 @@ class MainWindow(QMainWindow):
         self.centralWidget().update()
 
     @Slot()
+    def add_scenario_reactions_to_model(self):
+        ''' moves all scenario reactions permanently into the model, clears the scenario history '''
+        scen_values = self.appdata.project.scen_values
+        if len(scen_values.reactions) == 0:
+            QMessageBox.information(self, "No scenario reactions",
+                                    "The current scenario does not contain any scenario reactions.")
+            return
+        answer = QMessageBox.question(self, "Add scenario reactions to model",
+            "The following scenario reactions will be added to the model and removed from the scenario:\n" +
+            ", ".join(scen_values.reactions) +
+            "\n\nThis clears the scenario history, i.e. previous scenario edits cannot be undone anymore, "
+            "and the addition of the reactions to the model can only be undone by reloading it.\n\nDo you want to proceed?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        # scenario values, constraints, objective and annotations that refer to these reactions remain valid
+        scen_values.add_scenario_reactions_to_model(self.appdata.project.cobra_py_model)
+        scen_values.reactions = {}
+        # the history entries still contain the scenario reactions which would clash with the new model reactions
+        self.appdata.clear_scenario_history()
+        self.appdata.add_scenario_to_history(scen_values)
+        self.update_undo_redo_actions()
+        scen_values.has_unsaved_changes = True
+        self.appdata.unsaved_scenario_changes()
+        self.unsaved_changes()
+        self.appdata.project.update_reaction_id_lists()
+        self.centralWidget().update(rebuild_all_tabs=True)
+
+    @Slot()
     def pin_scenario_reactions(self):
-        self.centralWidget().reaction_list.pin_multiple(self.appdata.project.scen_values.keys())
+        model_reactions = self.appdata.project.cobra_py_model.reactions
+        # scenario reactions can also have scenario values but are not in the reaction list
+        self.centralWidget().reaction_list.pin_multiple({r for r in self.appdata.project.scen_values if r in model_reactions})
 
     def set_scenario_to_default_scenario(self):
         ''' write current scenario into sbml annotation '''

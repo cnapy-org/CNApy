@@ -17,6 +17,24 @@ Two layers of coverage for `MainWindow.fba()` / `MainWindow.fva()`
   constructing the full MainWindow (menus, map view, embedded console,
   QWebEngineView, ...).
 
+Further functional tests, all without a full MainWindow:
+
+- `test_scenario_files.py` — `Scenario.save`/`load` for `.scen` (JSON) and
+  `.val` files: round trip of every field, `merge=True`, unknown IDs and
+  the `R_` prefix, legacy flux-only files, `parse_scenario`.
+- `test_scenario_undo_redo.py` — the scenario history in `AppData` and the
+  unbound `MainWindow.undo_scenario_edit` / `redo_scenario_edit` /
+  `update_undo_redo_actions` / `discard_failed_scenario_load`.
+- `test_project_files.py` — writing and reopening `.cna` projects
+  (`write_project_file` / `open_project`, SBML and JSON model) with a CNApy
+  and an Escher map, broken project files, SBML/JSON export round trips.
+- `test_core_functions.py` — `highs_yopt`, `make_scenario_feasible` (LP and
+  OSQP), `element_exchange_balance`, `check_biomass_weight`, `replace_ids`
+  and `FluxVectorContainer`. The optlang-based functions run with GLPK,
+  because the pip versions of Gurobi/CPLEX have size-limited licenses.
+- `test_efm_mcs.py` — EFMs (efmtool, needs Java) and MCSs
+  (optlang_enumerator) of a toy network with known results.
+
 ## Setup
 
 These tests assume CNApy's own dependencies (per `pyproject.toml`) are

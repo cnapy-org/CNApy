@@ -12,8 +12,10 @@ from math import isclose
 import appdirs
 from enum import IntEnum
 from copy import deepcopy
+from functools import partial
 
 import cobra
+from cobra.util.context import get_context
 from optlang.symbolics import Zero
 from cnapy.cobra_cnapy import CNApyModel
 from qtpy.QtCore import Qt, Signal, QObject, QStringListModel
@@ -263,7 +265,7 @@ class Scenario(Dict[str, Tuple[float, float]]):
     empty_constraint = (None, "", "")
 
     def __init__(self):
-        super().__init__() # this dictionary contains the flux values
+        super().__init__() # this dictionary contains the flux values (of model and scenario reactions)
         self._objective_coefficients: Dict[str, float] = {} # reaction ID, coefficient
         self._objective_direction: str = "max"
         self._use_scenario_objective: bool = False
@@ -444,20 +446,18 @@ class Scenario(Dict[str, Tuple[float, float]]):
 
         reactions = []
         scen_values = []
-        for reac_id, val in flux_values.items():
-            found_reac_id = False
-            if reac_id in appdata.project.cobra_py_model.reactions:
-                found_reac_id = True
-            elif reac_id.startswith("R_"):
+        model_reactions = appdata.project.cobra_py_model.reactions
+        for file_reac_id, val in flux_values.items():
+            reac_id = file_reac_id
+            if reac_id not in model_reactions and reac_id not in self.reactions and reac_id.startswith("R_"):
                 reac_id = reac_id[2:]
-                if reac_id in appdata.project.cobra_py_model.reactions:
-                    found_reac_id = True
-            if found_reac_id:
+            # scenario reactions (those loaded above or, when merging, those of the current scenario) can also have a scenario value
+            if reac_id in model_reactions or reac_id in self.reactions:
                 reactions.append(reac_id)
                 scen_values.append(val)
                 appdata.project.comp_values[reac_id] = (val[0], val[1])
             else:
-                unknown_ids.append(reac_id)
+                unknown_ids.append(file_reac_id) # report the ID as given in the file
         appdata.scen_values_set_multiple(reactions, scen_values)
 
         return unknown_ids, incompatible_constraints, skipped_scenario_reactions
@@ -500,6 +500,15 @@ class Scenario(Dict[str, Tuple[float, float]]):
             self.use_scenario_objective = json_dict['use_scenario_objective']
             self.version = 3
         return flux_values
+
+    def reaction_annotation(self, reaction: cobra.Reaction, key: str, default=None):
+        """Value of an annotation key of a (model or scenario) reaction where the scenario annotations
+        override the annotation of the reaction itself (later scenario annotations take precedence,
+        as in ProjectData.load_scenario_into_model)."""
+        for annotation in reversed(self.annotations):
+            if annotation.get("reaction_id") == reaction.id and annotation.get("key") == key:
+                return annotation.get("value", default)
+        return reaction.annotation.get(key, default)
 
     def add_scenario_reactions_to_model(self, model: cobra.Model):
         if len(self.reactions) > 0:
@@ -612,6 +621,9 @@ class ProjectData:
         self.sd_solutions = None
 
     def load_scenario_into_model(self, model: cobra.Model):
+        # add the scenario reactions first so that their scenario values are applied below as well
+        self.scen_values.add_scenario_reactions_to_model(model)
+
         for x in self.scen_values:
             try:
                 y = model.reactions.get_by_id(x)
@@ -620,8 +632,6 @@ class ProjectData:
             else:
                 y.bounds = self.scen_values[x]
                 # y.set_hash_value() # now covered by Scenario.hash_value
-
-        self.scen_values.add_scenario_reactions_to_model(model)
 
         if self.scen_values.use_scenario_objective:
             model.objective = model.problem.Objective(
@@ -658,14 +668,22 @@ class ProjectData:
             for (reaction, coeff) in zip(reactions, expression.values()):
                 constr.set_linear_coefficients({reaction.forward_variable: coeff, reaction.reverse_variable: -coeff})
 
-        reaction_ids = [reaction.id for reaction in model.reactions]
+        # changes of the annotation are not tracked by the model context, therefore they are registered
+        # explicitly so that the scenario annotations do not remain in the model after leaving the context
+        context = get_context(model)
         for annotation in self.scen_values.annotations:
             if "reaction_id" not in annotation.keys():
                 continue
-            if annotation["reaction_id"] not in reaction_ids:
+            if annotation["reaction_id"] not in model.reactions:
                 continue
             reaction: cobra.Reaction = model.reactions.get_by_id(annotation["reaction_id"])
-            reaction.annotation[annotation["key"]] = annotation["value"]
+            key = annotation["key"]
+            if context is not None:
+                if key in reaction.annotation:
+                    context(partial(reaction.annotation.__setitem__, key, reaction.annotation[key]))
+                else:
+                    context(partial(reaction.annotation.pop, key, None))
+            reaction.annotation[key] = annotation["value"]
 
     def collect_default_scenario_values(self) -> Tuple[List[str], List[Tuple[float, float]]]:
         reactions = []

@@ -199,6 +199,58 @@ def test_replace_ids_renames_metabolites_with_compartment_suffix(fake_main_windo
         metabolite, metabolite.reactions, old_id)
 
 
+def _scenario_with_scenario_reaction(appdata):
+    scen = appdata.project.scen_values
+    met_id = appdata.project.cobra_py_model.metabolites[0].id
+    scen.reactions = {"S_new": [{met_id: -1.0, "new_met": 2.0}, -5.0, 7.0]}
+    scen["S_new"] = (1.0, 1.0)
+    appdata.add_scenario_to_history(scen)
+    appdata.record_current_scenario()  # two history entries
+    return met_id
+
+
+@pytest.mark.parametrize("answer", ["Yes", "No"])
+def test_add_scenario_reactions_to_model(fake_main_window, mainwindow_cls, monkeypatch, answer):
+    from qtpy.QtWidgets import QMessageBox
+    questions = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        lambda parent, title, text, *a: questions.append(text) or getattr(QMessageBox.StandardButton, answer))
+    appdata = fake_main_window.appdata
+    model = appdata.project.cobra_py_model
+    met_id = _scenario_with_scenario_reaction(appdata)
+    num_reactions = len(model.reactions)
+
+    mainwindow_cls.add_scenario_reactions_to_model(fake_main_window)
+
+    assert len(questions) == 1 and "scenario history" in questions[0] and "S_new" in questions[0]
+    scen = appdata.project.scen_values
+    assert scen["S_new"] == (1.0, 1.0)  # the scenario value is kept in any case
+    if answer == "No":
+        assert "S_new" not in model.reactions and len(model.reactions) == num_reactions
+        assert "S_new" in scen.reactions
+        assert len(appdata.scenario_history) == 2
+        fake_main_window.unsaved_changes.assert_not_called()
+    else:
+        reaction = model.reactions.get_by_id("S_new")
+        assert reaction.bounds == (-5.0, 7.0)
+        assert {m.id: c for m, c in reaction.metabolites.items()} == {met_id: -1.0, "new_met": 2.0}
+        assert scen.reactions == {}
+        assert len(appdata.scenario_history) == 1 and appdata.scenario_history[0] is scen
+        assert appdata.current_scenario_index == 0
+        fake_main_window.update_undo_redo_actions.assert_called_once()
+        fake_main_window.unsaved_changes.assert_called_once()
+        fake_main_window.centralWidget().update.assert_called_once_with(rebuild_all_tabs=True)
+        assert "S_new" in appdata.project.reaction_ids.id_list
+
+
+def test_add_scenario_reactions_to_model_without_scenario_reactions(fake_main_window, mainwindow_cls, monkeypatch):
+    from qtpy.QtWidgets import QMessageBox
+    monkeypatch.setattr(QMessageBox, "question", lambda *a: pytest.fail("no confirmation expected"))
+    num_reactions = len(fake_main_window.appdata.project.cobra_py_model.reactions)
+    mainwindow_cls.add_scenario_reactions_to_model(fake_main_window)
+    assert len(fake_main_window.appdata.project.cobra_py_model.reactions) == num_reactions
+
+
 def test_replace_ids_rejects_unknown_items(fake_main_window, mainwindow_cls):
     with pytest.raises(ValueError):
         mainwindow_cls.replace_ids(fake_main_window, "genes", "test.id")

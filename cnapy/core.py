@@ -44,7 +44,7 @@ def efm_computation(model: cobra.Model, scen_values: Dict[str, Tuple[float, floa
     if constraints:
         for r in scen_values.keys():
             (vl, vu) = scen_values[r]
-            if vl == vu and vl == 0:
+            if vl == vu and vl == 0 and r in stdf.columns: # scenario reactions are not part of the model
                 r_idx = stdf.columns.get_loc(r)
                 reversible = numpy.delete(reversible, r_idx)
                 del stdf[r]
@@ -89,7 +89,7 @@ SolverFailure = namedtuple('SolverFailure', ('status',))
 # cobra.Solution's interface (.status, .fluxes) that downstream code needs.
 QPSolution = namedtuple('QPSolution', ('status', 'objective_value', 'fluxes'))
 
-def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tuple[float, float]], use_QP: bool = False,
+def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Scenario, use_QP: bool = False,
                               flux_weight_scale: float = 1.0, abs_flux_weights: bool = False, weights_key: str = None,
                               bm_reac_id: str = "", variable_constituents: List[cobra.Metabolite] = None,
                               max_coeff_change: float = 0.9, min_rel_changes: bool = True, bm_change_in_gram: bool = False,
@@ -160,7 +160,7 @@ def make_scenario_feasible(cobra_model: cobra.Model, scen_values: Dict[str, Tupl
                     else:
                         if isinstance(weights_key, str):
                             try:
-                                weight = float(reaction.annotation.get(weights_key, flux_weight_scale))
+                                weight = float(scen_values.reaction_annotation(reaction, weights_key, flux_weight_scale))
                             except ValueError:
                                 weight = 0
                             if weight <= 0:
@@ -481,7 +481,7 @@ def make_scenario_feasible_osqp(cobra_model: cobra.Model, scen_values: Scenario,
                     else:
                         if isinstance(weights_key, str):
                             try:
-                                weight = float(reaction.annotation.get(weights_key, flux_weight_scale))
+                                weight = float(scen_values.reaction_annotation(reaction, weights_key, flux_weight_scale))
                             except ValueError:
                                 weight = 0
                             if weight <= 0:

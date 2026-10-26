@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (QLabel, QCheckBox, QComboBox, QVBoxLayout, QWidget, 
 
 import cobra
 from cnapy.appdata import AppData, Scenario
+from cnapy.gui_elements.map_view import validate_value
 from cnapy.utils import QComplReceivLineEdit, format_scenario_constraint, turn_red, turn_white, BACKGROUND_COLOR
 from straindesign.parse_constr import linexpr2dict, linexprdict2str, lineq2list
 
@@ -18,9 +19,10 @@ class OptimizationDirection(IntEnum):
 
 class ScenarioReactionColumn(IntEnum):
     Id = 0
-    Flux = 1
-    LB = 2
-    UB = 3
+    Scenario = 1
+    Flux = 2
+    LB = 3
+    UB = 4
 
 class ScenarioAnnotationColumn(IntEnum):
     Reaction_id = 0
@@ -61,7 +63,7 @@ class ScenarioTab(QWidget):
         upper = QWidget()
         upper_layout =  QVBoxLayout(upper)
         label = QLabel("Scenario reactions")
-        label.setToolTip("The IDs of the scenario reactions must be distinct from those in the network.\nYou may introduce new metabolites in scenario reactions.")
+        label.setToolTip("The IDs of the scenario reactions must be distinct from those in the network.\nYou may introduce new metabolites in scenario reactions.\nLike for the network reactions, a scenario value overrides the bounds (LB, UB).")
         hbox = QHBoxLayout()
         hbox.addWidget(label)
         self.add_reaction = QPushButton("+")
@@ -159,17 +161,19 @@ class ScenarioTab(QWidget):
         with QSignalBlocker(self.scenario_opt_direction):
             self.scenario_opt_direction.setCurrentIndex(OptimizationDirection[self.appdata.project.scen_values.objective_direction])
 
-        for row in range(self.reactions.rowCount()):
-            reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
-            if reac_id in self.appdata.project.comp_values:
-                (vl, vu) = self.appdata.project.comp_values[reac_id]
-                flux_text, background_color, _ = self.appdata.flux_value_display(vl, vu)
-            else:
-                flux_text = ''
-                background_color = Qt.GlobalColor.white
-            item = self.reactions.item(row, ScenarioReactionColumn.Flux)
-            item.setText(flux_text)
-            item.setBackground(QBrush(background_color))
+        with QSignalBlocker(self.reactions): # the scenario values are editable, setting them must not trigger cell_content_changed
+            for row in range(self.reactions.rowCount()):
+                reac_id: str = self.reactions.item(row, ScenarioReactionColumn.Id).data(Qt.ItemDataRole.UserRole)
+                self.update_scenario_value_item(row, reac_id)
+                if reac_id in self.appdata.project.comp_values:
+                    (vl, vu) = self.appdata.project.comp_values[reac_id]
+                    flux_text, background_color, _ = self.appdata.flux_value_display(vl, vu)
+                else:
+                    flux_text = ''
+                    background_color = Qt.GlobalColor.white
+                item = self.reactions.item(row, ScenarioReactionColumn.Flux)
+                item.setText(flux_text)
+                item.setBackground(QBrush(background_color))
 
     def recreate_scenario_items(self):
         # assumes that the objective, reactions and constraints are all valid
@@ -202,6 +206,18 @@ class ScenarioTab(QWidget):
             with QSignalBlocker(constraint_edit):
                 constraint_edit.setText(format_scenario_constraint(constr))
 
+        self.annotations.clearContents()
+        annotations = self.appdata.project.scen_values.annotations
+        with QSignalBlocker(self.annotations):
+            self.annotations.setRowCount(len(annotations))
+            for row, annotation in enumerate(annotations):
+                self.new_annotation_row(row)
+                reaction_id_edit = self.annotations.cellWidget(row, ScenarioAnnotationColumn.Reaction_id)
+                with QSignalBlocker(reaction_id_edit):
+                    reaction_id_edit.setText(annotation.get("reaction_id", ""))
+                self.annotations.item(row, ScenarioAnnotationColumn.Key).setText(annotation.get("key", ""))
+                self.annotations.item(row, ScenarioAnnotationColumn.Value).setText(annotation.get("value", ""))
+
         with QSignalBlocker(self.description):
             self.description.setText(self.appdata.project.scen_values.description)
 
@@ -216,8 +232,14 @@ class ScenarioTab(QWidget):
                 elif self.verify_scenario_reaction_id(new_reac_id):
                         self.reactions.item(row, ScenarioReactionColumn.Id).setData(Qt.ItemDataRole.UserRole, new_reac_id)
                         self.appdata.record_current_scenario()
-                        self.appdata.project.scen_values.reactions[new_reac_id] = self.appdata.project.scen_values.reactions[reac_id]
-                        del self.appdata.project.scen_values.reactions[reac_id]
+                        scen_values = self.appdata.project.scen_values
+                        scen_values.reactions[new_reac_id] = scen_values.reactions[reac_id]
+                        del scen_values.reactions[reac_id]
+                        if reac_id in scen_values: # the scenario value moves along with the reaction
+                            scen_values[new_reac_id] = scen_values.pop(reac_id)
+                        if reac_id in self.appdata.project.comp_values:
+                            self.appdata.project.comp_values[new_reac_id] = self.appdata.project.comp_values.pop(reac_id)
+                        scen_values.set_hash_value()
                 else:
                     self.reactions.item(row, ScenarioReactionColumn.Id).setText(reac_id)
                     QMessageBox.information(self, 'Reaction ID already in use',
@@ -244,6 +266,19 @@ class ScenarioTab(QWidget):
                     ub_brush = red_brush
             self.reactions.item(row, ScenarioReactionColumn.LB).setBackground(lb_brush)
             self.reactions.item(row, ScenarioReactionColumn.UB).setBackground(ub_brush)
+        elif column == ScenarioReactionColumn.Scenario:
+            scen_text = self.reactions.item(row, ScenarioReactionColumn.Scenario).text().strip()
+            new_value = validate_value(scen_text) if len(scen_text) > 0 else None # None: remove the scenario value
+            if new_value is False:
+                with QSignalBlocker(self.reactions):
+                    self.reactions.item(row, ScenarioReactionColumn.Scenario).setBackground(red_brush)
+                return
+            if new_value != self.appdata.project.scen_values.get(reac_id, None):
+                self.central_widget.update_reaction_value(reac_id, scen_text)
+                self.scenario_changed()
+                if self.appdata.auto_fba:
+                    self.central_widget.parent.fba()
+            self.update() # displays the value in the standard format
 
     @Slot(int, int)
     def cell_content_changed_annotations(self, row: int, column: int):
@@ -258,6 +293,16 @@ class ScenarioTab(QWidget):
         self.appdata.record_current_scenario()
         self.appdata.project.scen_values.annotations[row] = changed_annotation
         self.scenario_changed()
+
+    @Slot()
+    def annotation_reaction_id_edited(self):
+        # the reaction ID is edited in a cell widget which does not trigger cellChanged
+        reaction_id_edit = self.sender()
+        for row in range(self.annotations.rowCount()):
+            if self.annotations.cellWidget(row, ScenarioAnnotationColumn.Reaction_id) is reaction_id_edit:
+                if reaction_id_edit.text().strip() != self.appdata.project.scen_values.annotations[row].get("reaction_id", ""):
+                    self.cell_content_changed_annotations(row, ScenarioAnnotationColumn.Reaction_id)
+                break
 
     def verify_bound(self, item: QTableWidgetItem):
         try:
@@ -374,6 +419,8 @@ class ScenarioTab(QWidget):
             self.reactions.removeRow(row)
             self.appdata.record_current_scenario()
             del self.appdata.project.scen_values.reactions[reac_id]
+            self.appdata.project.scen_values.pop(reac_id, None) # also rehashes
+            self.appdata.project.comp_values.pop(reac_id, None)
             self.appdata.project.update_reaction_id_lists()
             self.check_constraints_and_objective()
             self.reactions.setCurrentCell(self.reactions.currentRow(), 0) # to make the cell appear selected in the GUI
@@ -385,33 +432,37 @@ class ScenarioTab(QWidget):
         row: int = self.annotations.rowCount()
         self.annotations.setRowCount(row + 1)
         with QSignalBlocker(self.annotations):
+            self.appdata.record_current_scenario()
             self.appdata.project.scen_values.annotations.append({})
             self.new_annotation_row(row)
         self.scenario_changed()
-        self.annotations.setCurrentCell(row, ScenarioReactionColumn.Id)
+        self.annotations.setCurrentCell(row, ScenarioAnnotationColumn.Reaction_id)
 
     def delete_scenario_annotation(self):
         row: int = self.annotations.currentRow()
         if row >= 0:
+            self.appdata.record_current_scenario() # before the deletion so that it can be undone
             del(self.appdata.project.scen_values.annotations[row])
-            self.appdata.record_current_scenario()
             self.annotations.removeRow(row)
             self.annotations.setCurrentCell(self.annotations.currentRow(), 0) # to make the cell appear selected in the GUI
             self.scenario_changed()
 
     def new_annotation_row(self, row: int):
-        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id,
-                                       QComplReceivLineEdit(self, self.appdata.project.reaction_ids))
+        reaction_id_edit = QComplReceivLineEdit(self, self.appdata.project.reaction_ids)
+        reaction_id_edit.editingFinished.connect(self.annotation_reaction_id_edited)
+        self.annotations.setCellWidget(row, ScenarioAnnotationColumn.Reaction_id, reaction_id_edit)
         self.annotations.setItem(row, ScenarioAnnotationColumn.Key, QTableWidgetItem())
         self.annotations.setItem(row, ScenarioAnnotationColumn.Value, QTableWidgetItem())
-        self.scenario_changed()
 
     def new_reaction_row(self, row: int):
         item = QTableWidgetItem()
         self.reactions.setItem(row, ScenarioReactionColumn.Id, item)
+        scen_item = QTableWidgetItem()
+        scen_item.setToolTip("Scenario value, either a single value or lower and upper bound separated by a comma.\nOverrides the bounds of the scenario reaction.")
+        self.reactions.setItem(row, ScenarioReactionColumn.Scenario, scen_item)
         flux_item = QTableWidgetItem()
         flux_item.setFlags(Qt.ItemFlag.ItemIsSelectable) # not editable
-        flux_item.setForeground(item.foreground()) # to keep text color black
+        flux_item.setForeground(QBrush(Qt.GlobalColor.black)) # the background is always a light color, also in dark mode
         self.reactions.setItem(row, ScenarioReactionColumn.Flux, flux_item)
         self.reactions.setItem(row, ScenarioReactionColumn.LB, QTableWidgetItem())
         self.reactions.setItem(row, ScenarioReactionColumn.UB, QTableWidgetItem())
@@ -422,9 +473,23 @@ class ScenarioTab(QWidget):
         reac_id_item.setText(reac_id)
         reac_id_item.setToolTip(reac_id)
         reac_id_item.setData(Qt.ItemDataRole.UserRole, reac_id)
+        self.update_scenario_value_item(row, reac_id)
         _, lb, ub = self.appdata.project.scen_values.reactions[reac_id]
         self.reactions.item(row, ScenarioReactionColumn.LB).setText(str(lb))
         self.reactions.item(row, ScenarioReactionColumn.UB).setText(str(ub))
+
+    def update_scenario_value_item(self, row: int, reac_id: str):
+        item = self.reactions.item(row, ScenarioReactionColumn.Scenario)
+        if reac_id in self.appdata.project.scen_values:
+            vl, vu = self.appdata.project.scen_values[reac_id]
+            text = self.appdata.format_flux_value(vl)
+            if vl != vu:
+                text = text + ", " + self.appdata.format_flux_value(vu)
+            item.setText(text)
+            item.setBackground(QBrush(self.appdata.scen_color))
+        else:
+            item.setText("")
+            item.setData(Qt.ItemDataRole.BackgroundRole, None) # default background
 
     @Slot()
     def add_constraint(self):

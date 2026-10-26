@@ -17,6 +17,7 @@ def isobutanol_scenario() -> Scenario:
     scen = Scenario()
     scen["EX_glc__D_e"] = (-10.0, -10.0)
     scen["EX_o2_e"] = (-float("inf"), 0.0)
+    scen["EX_iBuOH"] = (0.5, 2.0)  # scenario value of a scenario reaction
     scen.pinned_reactions = {"EX_glc__D_e", "PGI"}
     scen.description = "isobutanol production\nwith a minimal yield"
     scen.objective_direction = "min"
