@@ -50,7 +50,7 @@ class EscherMapView(QWebEngineView):
         self.editing_enabled = False
 
     def finish_setup(self):
-        print("finish_setup")
+        # print("finish_setup")
         self.page().runJavaScript(
                 r"var search_container=document.getElementsByClassName('search-container')[0];var search_field=document.getElementsByClassName('search-field')[0];search_container.style.display='none';document.getElementsByClassName('search-bar-button')[2].hidden=true")
         self.show()

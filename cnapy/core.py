@@ -1,14 +1,17 @@
 """UI independent computations"""
 
+import os
 import itertools
 from collections import defaultdict
 from typing import Dict, Tuple, List
 from collections import Counter
+import threading as th
 import numpy
 import cobra
 from cobra.util.array import create_stoichiometric_matrix
 from cobra.core.dictlist import DictList
 from optlang.symbolics import Zero, Add
+import highspy
 
 import efmtool_link.efmtool4cobra as efmtool4cobra
 import efmtool_link.efmtool_extern as efmtool_extern
@@ -375,3 +378,175 @@ def replace_ids(dict_list: DictList, annotation_key: str, unambiguous_only: bool
                 pass
         if len(candidates) > 0 and new_id != old_id and old_id == entry.id:
             print("Could not find a new ID for", entry.id, "in", candidates)
+
+def build_highs_fba_model(cobra_model: cobra.Model, constraints=None) -> highspy.HighsLp:
+    """Build a highspy.HighsLp instance directly from a cobrapy Model,
+    bypassing optlang entirely. """
+
+    if constraints is None:
+        constraints = []
+    n_rxns = len(cobra_model.reactions)
+    n_mets = len(cobra_model.metabolites)
+    n_constr = len(constraints)
+    n_rows = n_mets + n_constr
+
+    col_lower = numpy.empty(n_rxns, dtype=numpy.double)
+    col_upper = numpy.empty(n_rxns, dtype=numpy.double)
+    col_cost = numpy.zeros(n_rxns, dtype=numpy.double)
+
+    for j in range(len(cobra_model.reactions)):
+        rxn = cobra_model.reactions[j]
+        col_lower[j], col_upper[j] = rxn.lower_bound, rxn.upper_bound
+        col_cost[j] = rxn.objective_coefficient
+
+    row_lower = numpy.zeros(n_rows, dtype=numpy.double)
+    row_upper = numpy.zeros(n_rows, dtype=numpy.double)
+
+    S = create_stoichiometric_matrix(cobra_model, array_type="lil")
+    S.resize((n_rows, n_rxns))
+    for i in range(n_constr):
+        row_idx = n_mets + i
+        expression, constraint_type, rhs = constraints[i]
+        if constraint_type == '=':
+            row_lower[row_idx] = rhs
+            row_upper[row_idx] = rhs
+        elif constraint_type == '<=':
+            row_lower[row_idx] = -float('inf')
+            row_upper[row_idx] = rhs
+        elif constraint_type == '>=':
+            row_lower[row_idx] = rhs
+            row_upper[row_idx] = float('inf')
+        else:
+            print("Skipping constraint of unknown type", constraint_type)
+            continue
+        try:
+            col_idx = list(map(cobra_model.reactions.index, expression.keys()))
+        except KeyError:
+            print("Skipping constraint containing a reaction that is not in the model:", expression)
+            continue
+        S[row_idx, col_idx] = list(expression.values())
+
+    lp = highspy.HighsLp()
+    lp.a_matrix_.format_ = highspy.MatrixFormat.kRowwise
+    lp.num_col_ = n_rxns
+    lp.num_row_ = n_rows
+    lp.col_cost_ = col_cost
+    lp.col_lower_ = col_lower
+    lp.col_upper_ = col_upper
+    lp.row_lower_ = row_lower
+    lp.row_upper_ = row_upper
+    row_lengths = [len(row) for row in S.rows]
+    indptr = numpy.zeros(len(row_lengths) + 1, dtype=numpy.int32)
+    indptr[1:] = numpy.cumsum(row_lengths)
+    lp.a_matrix_.start_ = indptr
+    lp.a_matrix_.index_ = numpy.array([col for row in S.rows for col in row], dtype=numpy.int32)
+    lp.a_matrix_.value_ = numpy.array([val for row in S.data for val in row], dtype=S.dtype)
+    lp.sense_ = (
+        highspy.ObjSense.kMaximize if cobra_model.objective_direction == "max"
+        else highspy.ObjSense.kMinimize
+    )
+    
+    return lp
+
+class FVAHiGHSworker(th.Thread):
+    def __init__(self, job_queue, job_queue_lock, lb, ub, lp_data, tolerance):
+        super().__init__()
+        self.job_queue = job_queue
+        self.job_queue_lock = job_queue_lock
+        self.lb = lb
+        self.ub = ub
+        self.lp_data = lp_data
+        self.tolerance = tolerance
+        self.n_bad = 0
+
+    def run(self):
+        h = highspy.Highs()
+        h.passModel(self.lp_data)
+        h.setOptionValue("solver", "simplex")
+        h.setOptionValue("simplex_strategy", 4) # primal simplex, typically fastest for FBA-like problems
+        h.setOptionValue("output_flag", False) # reduces execution time even though no output was visible before
+        h.setOptionValue("kkt_tolerance", self.tolerance)
+        h.changeObjectiveSense(highspy.ObjSense.kMinimize)
+        # both min and max jobs use MINIMIZE
+        while True:
+            with self.job_queue_lock:
+                if not self.job_queue:
+                    break
+                i, coef = self.job_queue.pop()
+
+            h.changeColCost(i, coef)
+            h.run()
+
+            if h.getModelStatus() == highspy.HighsModelStatus.kOptimal:
+                obj_val = h.getInfo().objective_function_value
+            else:
+                obj_val = float("NaN")
+                self.n_bad += 1
+
+            if coef == -1:
+                self.ub[i] = -obj_val
+            else:
+                self.lb[i] = obj_val
+            h.changeColCost(i, 0.0)
+
+def multi_threaded_HiGHS_FVA(model: cobra.Model, constraints=None):
+    pre_tol = 1e-9
+    num_proc = os.cpu_count()
+    if num_proc is None:
+        num_proc = 2 # unlikely that there are any single-core users
+    elif num_proc > 4:
+        num_proc -= 1
+        if num_proc > 8:
+            num_proc -= 1 
+    num_reac = len(model.reactions)
+    lb = [float('NaN')] * num_reac
+    ub = [float('NaN')] * num_reac
+    job_queue = []
+
+    lp_data = build_highs_fba_model(model, constraints)
+    lp_data.col_cost_[:] = 1.0
+    lp_data.sense_ = highspy.ObjSense.kMaximize
+    h = highspy.Highs()
+    h.passModel(lp_data)
+    h.setOptionValue("solver", "simplex")
+    h.setOptionValue("kkt_tolerance", pre_tol)
+    h.setOptionValue("output_flag", False)
+    h.run()
+    status = h.getModelStatus()
+    if status == highspy.HighsModelStatus.kInfeasible:
+        raise cobra.exceptions.Infeasible("")
+    elif status != highspy.HighsModelStatus.kOptimal:
+        raise ValueError(f"Unexpected solver status {h.modelStatusToString(status)} during FVA")
+    solution = h.getSolution()
+    pre_ub = list(solution.col_value)
+    for i in range(num_reac):
+        if abs(model.reactions[i].upper_bound- pre_ub[i]) < pre_tol:
+            ub[i] = model.reactions[i].upper_bound
+        else:
+            job_queue.append((i, -1))
+
+    h.changeObjectiveSense(highspy.ObjSense.kMinimize)
+    h.run()
+    status = h.getModelStatus()
+    if status == highspy.HighsModelStatus.kInfeasible:
+        raise cobra.exceptions.Infeasible("")
+    elif status != highspy.HighsModelStatus.kOptimal:
+        raise ValueError(f"Unexpected solver status {h.modelStatusToString(status)} during FVA")
+    solution = h.getSolution()
+    pre_lb = list(solution.col_value)
+    for i in range(num_reac):
+        if abs(model.reactions[i].lower_bound - pre_lb[i]) < pre_tol:
+            lb[i] = model.reactions[i].lower_bound
+        else:
+            job_queue.append((i, 1))
+
+    lp_data.col_cost_[:] = 0.0
+    job_queue_lock = th.Lock()
+    workers = [None] * num_proc
+    for p in range(num_proc):
+        workers[p] = FVAHiGHSworker(job_queue, job_queue_lock, lb, ub, lp_data, model.tolerance)
+    for i in range(num_proc):
+        workers[i].start()
+    for i in range(num_proc):
+        workers[i].join()
+    return lb, ub, sum(workers[p].n_bad for p in range(num_proc))
