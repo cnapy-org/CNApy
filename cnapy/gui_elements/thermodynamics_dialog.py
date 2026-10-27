@@ -288,7 +288,7 @@ class ThermodynamicDialog(QDialog):
                 verbose=True,
             )
         elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-            bottlenecks, solution = perform_lp_thermodynamic_bottleneck_analysis(
+            self.bottlenecks, solution = perform_lp_thermodynamic_bottleneck_analysis(
                 cobrak_model=cobrak_model,
                 with_enzyme_constraints=False,
                 min_mdf=min_mdf,
@@ -305,12 +305,24 @@ class ThermodynamicDialog(QDialog):
     def set_boxes(self, solution: dict[str, float]):
         # Combine FWD and REV flux solutions
         model: cobra.Model = self.appdata.project.cobra_py_model
+        # Split IDs look like <id>[_ENZ_<enzyme>][_FWDCNAPY|_REVCNAPY]
+        def get_split_id_suffix_free(split_reac_id: str) -> str:
+            for suffix in (self.FWDID, self.REVID):
+                if split_reac_id.endswith(suffix):
+                    return split_reac_id[:-len(suffix)]
+            return split_reac_id
+
+        def belongs_to(split_reac_id: str, reac_id: str) -> bool:
+            base_id = get_split_id_suffix_free(split_reac_id)
+            return base_id == reac_id or base_id.startswith(reac_id + REAC_ENZ_SEPARATOR)
+
         combined_solution: dict[str, float] = {}
+        combined_dfs: dict[str, float] = {}
         for reaction in model.reactions:
             split_reac_ids = [
                 var_id
                 for var_id in solution
-                if var_id.startswith(reaction.id + REAC_ENZ_SEPARATOR) or var_id == reaction.id
+                if not var_id.startswith(DF_VAR_PREFIX) and belongs_to(var_id, reaction.id)
             ]
             if not split_reac_ids:
                 continue
@@ -319,6 +331,14 @@ class ThermodynamicDialog(QDialog):
                 multiplier = -1.0 if split_reac_id.endswith(self.REVID) else +1.0
                 combined_solution[reaction.id] += solution[split_reac_id] * multiplier
 
+            # The driving force is taken from the split reaction that carries the most flux
+            # (raw value of the active direction, i.e. not flipped for REV versions).
+            # No driving force is shown for reactions without flux.
+            active_split_reac_id = max(split_reac_ids, key=lambda var_id: solution[var_id])
+            df_var_id = DF_VAR_PREFIX + active_split_reac_id
+            if (df_var_id in solution) and (solution[active_split_reac_id] > 1e-9):
+                combined_dfs[reaction.id] = solution[df_var_id]
+
         # write results into comp_values
         for search_key in self.reac_ids:
             if search_key in combined_solution.keys():
@@ -326,16 +346,16 @@ class ThermodynamicDialog(QDialog):
                     float(combined_solution[search_key]),
                     float(combined_solution[search_key]),
                 )
-            if DF_VAR_PREFIX + search_key in combined_solution.keys():
+            if search_key in combined_dfs.keys():
                 rounded_df = round(
-                    combined_solution[DF_VAR_PREFIX + search_key], self.appdata.rounding
+                    combined_dfs[search_key], self.appdata.rounding
                 )
                 self.appdata.project.df_values[search_key] = rounded_df
 
         # Write metabolite concentrations
         for metabolite_id in self.metabolite_ids:
             var_id = f"{LNCONC_VAR_PREFIX}{metabolite_id}"
-            if var_id in solution.keys():
+            if var_id in solution:
                 rounded_conc = round(exp(solution[var_id]), 9)
                 self.appdata.project.conc_values[var_id[len(LNCONC_VAR_PREFIX):]] = rounded_conc
 
@@ -351,13 +371,9 @@ class ThermodynamicDialog(QDialog):
             console_text += f"Reached objective value: {solution[OBJECTIVE_VAR_NAME]}"
             console_text += f"\\nReached MDF @ optimum of objective: {solution[MDF_VAR_ID]} kJ/mol"
         elif self.analysis_type == ThermodynamicAnalysisTypes.BOTTLENECK_ANALYSIS:
-            combined_bottleneck_sum = 0
-            for key in combined_solution.keys():
-                if key.startswith("zb_var_"):
-                    if combined_solution[key] > 0.1:
-                        console_text += f"\\n* {key.replace('zb_var_', '')}"
-                        combined_bottleneck_sum += 1
-            console_text += f"\\n↳Total number of thermodynamically deactivated bottlenecks to reach minimal MDF: {combined_bottleneck_sum}"
+            for reac_id in self.bottlenecks:
+                console_text += f"\\n* {reac_id.split(REAC_ENZ_SEPARATOR)[0].replace(self.FWDID, '').replace(self.REVID, '')}"
+            console_text += f"\\n↳Total number of thermodynamically deactivated bottlenecks to reach minimal MDF: {len(self.bottlenecks)}"
         console_text += "')"
         self.central_widget.kernel_client.execute(console_text)
         self.central_widget.show_bottom_of_console()
