@@ -1,10 +1,11 @@
 import importlib.resources as resources
 import json
 import os
+import re
 from math import isclose
 from typing import Callable
 from qtpy.QtCore import Signal, Slot, QUrl, QObject, Qt, QCoreApplication, QEvent
-from qtpy.QtWidgets import QFileDialog, QMessageBox
+from qtpy.QtWidgets import QApplication, QFileDialog, QMessageBox
 from qtpy.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
 from qtpy.QtWebChannel import QWebChannel
 import cobra
@@ -17,18 +18,30 @@ class EscherMapView(QWebEngineView):
     download_directory: str = ""
 
     @staticmethod
-    @Slot(object) # QWebEngineDownloadItem not declared in qtpy
+    @Slot(object) # QWebEngineDownloadRequest not declared in qtpy
     def save_from_escher(download):
-        file_name = os.path.basename(download.path()) # path()/setPath() delared in PyQt
-        (_, ext) = os.path.splitext(file_name)
-        file_name = QFileDialog.getSaveFileName(directory=EscherMapView.download_directory, filter="*"+ext)[0]
+        (default_name, ext) = os.path.splitext(download.downloadFileName())
+        view = download.page().parent() if download.page() is not None else None
+        if isinstance(view, EscherMapView):
+            project_name = os.path.splitext(os.path.basename(view.appdata.project.name))[0]
+            map_name = re.sub(r'(\.escher)?\.json$', "", view.name, flags=re.IGNORECASE)
+            if len(project_name) == 0:
+                default_name = map_name
+            elif map_name in project_name:
+                default_name = project_name
+            else:
+                default_name = project_name + "_" + map_name
+            default_name = re.sub(r'[<>:"/\\|?*]', "_", default_name)
+        file_name = QFileDialog.getSaveFileName(directory=os.path.join(EscherMapView.download_directory, default_name + ext),
+                                                filter="*"+ext)[0]
         if file_name is None or len(file_name) == 0:
             download.cancel()
         else:
             if not file_name.endswith(ext):
                 file_name += ext
             EscherMapView.download_directory = os.path.dirname(file_name)
-            download.setPath(file_name)
+            download.setDownloadDirectory(EscherMapView.download_directory)
+            download.setDownloadFileName(os.path.basename(file_name))
             download.accept()
 
     def __init__(self, central_widget, name: str):
@@ -88,6 +101,8 @@ class EscherMapView(QWebEngineView):
                         for reac_id, val in self.appdata.project.comp_values.items()}, True)
 
     def enable_editing(self, enable: bool):
+        if self.initialized: # otherwise the signals are not received
+            QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor) # restored by CnapyBridge.editing_mode_set
         if enable:
             self.set_cobra_model()
         self.cnapy_bridge.enableEditing.emit(enable)
@@ -319,3 +334,7 @@ class CnapyBridge(QObject):
     @Slot()
     def unsaved_changes(self):
         self.appdata.window.unsaved_changes()
+
+    @Slot()
+    def editing_mode_set(self):
+        QApplication.restoreOverrideCursor()

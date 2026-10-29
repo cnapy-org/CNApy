@@ -41,12 +41,18 @@
                   builder.load_model(JSON.parse(model_data));
                 });
                 cnapy_bridge.enableEditing.connect(function(enable) {
-                  builder.settings.set('enable_editing', enable);
-                  builder.settings.set('enable_keys', enable);
-                  // in edit mode the tooltips would get in the way
-                  builder.settings.set('enable_tooltips', enable ? [] : ['object', 'label']);
-                  document.getElementsByClassName('button-panel')[0].hidden = !enable;
-                  document.getElementsByClassName('menu-bar')[0].style.display = enable ? 'block' : 'none';
+                  try {
+                    builder.settings.set('enable_editing', enable);
+                    builder.settings.set('enable_keys', enable);
+                    // in edit mode the tooltips would get in the way
+                    builder.settings.set('enable_tooltips', enable ? [] : ['object', 'label']);
+                    // tooltip mouseover handlers are bound at draw time, so force a redraw to apply the new setting
+                    builder.map.draw_everything();
+                    document.getElementsByClassName('button-panel')[0].hidden = !enable;
+                    document.getElementsByClassName('menu-bar')[0].style.display = enable ? 'block' : 'none';
+                  } finally {
+                    cnapy_bridge.editing_mode_set(); // restores the cursor
+                  }
                 });
                 cnapy_bridge.visualizeCompValues.connect(function(reaction_data, text_only) {
                   let styles;
@@ -181,6 +187,12 @@
     .node.cnapy-search-match circle {
       stroke: #ff9800 !important;
       stroke-width: 3px;
+    }
+
+    /* The tooltip is not editable itself (only its reaction-box-input child
+       is), so it should show a regular pointer rather than a text cursor. */
+    .cnapy-tooltip {
+      cursor: default;
     }
   </style>
 
