@@ -4,7 +4,7 @@
 set -eu
 
 # CNApy version
-CNAPY_VERSION="1.2.10"
+CNAPY_VERSION="1.2.11"
 
 # Folders
 BIN_FOLDER="${BIN_FOLDER:-./cnapy-${CNAPY_VERSION}}"
@@ -51,7 +51,7 @@ else
 fi
 chmod +x "${BIN_FOLDER}/micromamba"
 
-./cnapy-${CNAPY_VERSION}/micromamba create -y -p ./cnapy-${CNAPY_VERSION}/cnapy-environment python=3.10 pip openjdk -r ./cnapy-${CNAPY_VERSION}/ -c conda-forge
+./cnapy-${CNAPY_VERSION}/micromamba create -y -p ./cnapy-${CNAPY_VERSION}/cnapy-environment python=3.10 pip openjdk scip glpk -r ./cnapy-${CNAPY_VERSION}/ -c conda-forge
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ pip install --no-cache-dir uv
 ./cnapy-${CNAPY_VERSION}/micromamba run -p ./cnapy-${CNAPY_VERSION}/cnapy-environment -r ./cnapy-${CNAPY_VERSION}/ uv --no-cache pip install --no-cache-dir cnapy
 
